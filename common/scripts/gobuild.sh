@@ -27,9 +27,8 @@ VERBOSE=${VERBOSE:-"0"}
 V=""
 if [[ "${VERBOSE}" == "1" ]];then
     V="-x"
-    set -x
 fi
-
+set -x
 SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 OUT=${1:?"output path"}
