@@ -15,7 +15,7 @@
 package gcpmonitoring
 
 import (
-	"errors"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"sync"
@@ -30,12 +30,16 @@ import (
 	"istio.io/istio/pilot/pkg/security/model"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/security/pkg/stsservice/tokenmanager"
+	"istio.io/istio/security/pkg/util"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 	"istio.io/pkg/version"
 )
 
 const (
-	authScope = "https://www.googleapis.com/auth/cloud-platform"
+	authScope                 = "https://www.googleapis.com/auth/cloud-platform"
+	workloadIdentitySuffix    = "svc.id.goog"
+	hubWorkloadIdentitySuffix = "hub.id.goog"
 )
 
 var (
@@ -43,6 +47,9 @@ var (
 	podName      = ""
 	podNamespace = ""
 	meshUID      = ""
+
+	cloudRunServiceVar = env.RegisterStringVar("K_SERVICE", "", "cloud run service name")
+	managedRevisionVar = env.RegisterStringVar("REV", "", "name of the managed revision, e.g. asm, asmca, ossmanaged")
 )
 
 // ASMExporter is a stats exporter used for ASM control plane metrics.
@@ -91,48 +98,80 @@ func NewASMExporter(pe *ocprom.Exporter) (*ASMExporter, error) {
 	labels.Set("mesh_uid", meshUID, "ID for Mesh")
 	labels.Set("revision", version.Info.Version, "Control plane revision")
 	clientOptions := []option.ClientOption{}
-	if strings.HasSuffix(trustDomain, "svc.id.goog") {
-		// Workload identity is enabled and P4SA access token is used.
-		if subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName); err == nil {
-			ts := tokenmanager.NewTokenSource(trustDomain, string(subjectToken), authScope)
-			clientOptions = append(clientOptions, option.WithTokenSource(ts), option.WithQuotaProject(gcpMetadata[platform.GCPProject]))
-			// Set up goroutine to read token file periodically and refresh subject token with new expiry.
-			go func() {
-				for range time.Tick(5 * time.Minute) {
-					if subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName); err == nil {
-						ts.RefreshSubjectToken(string(subjectToken))
-					} else {
-						log.Debugf("Cannot refresh subject token for sts token source: %v", err)
+
+	if !isCloudRun() {
+
+		// The audience from the token should tell us (in addition to the trust domain)
+		// whether or not we should do the token exchange.
+		// It's fine to fail for reading from the token because we will use the trust domain as a fallback.
+		subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName)
+		var audience string
+		if err == nil {
+			if audiences, _ := util.GetAud(string(subjectToken)); len(audiences) == 1 {
+				audience = audiences[0]
+			}
+		}
+
+		// Do the token exchange if either the trust domain or the audience of the token has the workload identity suffix.
+		// The trust domain may not have the workload identity suffix if the user changes to use a different trust domain
+		// but the audience of the token should always have if the workload identity is enabled, otherwise it means something
+		// wrong in the installation.
+		if strings.HasSuffix(trustDomain, workloadIdentitySuffix) || strings.HasSuffix(audience, workloadIdentitySuffix) ||
+			strings.HasSuffix(trustDomain, hubWorkloadIdentitySuffix) || strings.HasSuffix(audience, hubWorkloadIdentitySuffix) {
+			// Workload identity is enabled and P4SA access token is used.
+			if err == nil {
+				ts := tokenmanager.NewTokenSource(trustDomain, string(subjectToken), authScope)
+				clientOptions = append(clientOptions, option.WithTokenSource(ts), option.WithQuotaProject(gcpMetadata[platform.GCPProject]))
+				// Set up goroutine to read token file periodically and refresh subject token with new expiry.
+				go func() {
+					for range time.Tick(5 * time.Minute) {
+						if subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName); err == nil {
+							ts.RefreshSubjectToken(string(subjectToken))
+						} else {
+							log.Debugf("Cannot refresh subject token for sts token source: %v", err)
+						}
 					}
-				}
-			}()
-		} else {
-			log.Errorf("Cannot read third party jwt token file: %v", err)
+				}()
+			} else {
+				log.Errorf("Cannot read third party jwt token file: %v", err)
+			}
 		}
 	}
+
+	mr := &monitoredresource.GKEContainer{
+		ProjectID:                  gcpMetadata[platform.GCPProject],
+		ClusterName:                gcpMetadata[platform.GCPCluster],
+		Zone:                       gcpMetadata[platform.GCPLocation],
+		NamespaceID:                podNamespace,
+		PodID:                      podName,
+		ContainerName:              "discovery",
+		LoggingMonitoringV2Enabled: true,
+	}
+	if isCloudRun() {
+		mr.ContainerName = "cr-" + managedRevisionVar.Get()
+	}
 	se, err := stackdriver.NewExporter(stackdriver.Options{
+		ProjectID:               gcpMetadata[platform.GCPProject],
+		Location:                gcpMetadata[platform.GCPLocation],
 		MetricPrefix:            "istio.io/control",
 		MonitoringClientOptions: clientOptions,
+		TraceClientOptions:      clientOptions,
 		GetMetricType: func(view *view.View) string {
 			return "istio.io/control/" + view.Name
 		},
-		MonitoredResource: &monitoredresource.GKEContainer{
-			ProjectID:                  gcpMetadata[platform.GCPProject],
-			ClusterName:                gcpMetadata[platform.GCPCluster],
-			Zone:                       gcpMetadata[platform.GCPLocation],
-			NamespaceID:                podNamespace,
-			PodID:                      podName,
-			ContainerName:              "discovery",
-			LoggingMonitoringV2Enabled: true,
-		},
+		MonitoredResource:       mr,
 		DefaultMonitoringLabels: labels,
 		ReportingInterval:       60 * time.Second,
 	})
-
 	if err != nil {
-		return nil, errors.New("fail to initialize Stackdriver exporter")
+		return nil, fmt.Errorf("fail to initialize Stackdriver exporter: %v", err)
 	}
 
+	if isCloudRun() {
+		return &ASMExporter{
+			sdExporter: se,
+		}, nil
+	}
 	return &ASMExporter{
 		PromExporter: pe,
 		sdExporter:   se,
@@ -145,7 +184,7 @@ func (e *ASMExporter) ExportView(vd *view.Data) {
 	if _, ok := viewMap[vd.View.Name]; ok && e.sdExporter != nil {
 		// This indicates that this is a stackdriver view
 		e.sdExporter.ExportView(vd)
-	} else {
+	} else if e.PromExporter != nil {
 		e.PromExporter.ExportView(vd)
 	}
 }
@@ -168,4 +207,11 @@ func (t *TestExporter) ExportView(d *view.Data) {
 		}
 	}
 	t.Rows[d.View.Name] = append(t.Rows[d.View.Name], d.Rows...)
+}
+
+func isCloudRun() bool {
+	if svc := cloudRunServiceVar.Get(); svc != "" {
+		return true
+	}
+	return false
 }

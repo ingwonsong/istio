@@ -384,3 +384,9 @@ func parseList(s string) []string {
 	}
 	return items
 }
+
+// NewBuilder for Echo Instances.
+func NewBuilderOrFail(t test.Failer, ctx resource.Context) echo.Builder {
+	t.Helper()
+	return NewBuilder(ctx)
+}

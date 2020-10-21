@@ -21,7 +21,7 @@
 DOCKER_TARGETS ?= docker.pilot docker.proxyv2 docker.app docker.app_sidecar_ubuntu_xenial \
 docker.app_sidecar_ubuntu_bionic docker.app_sidecar_ubuntu_focal docker.app_sidecar_debian_9 \
 docker.app_sidecar_debian_10 docker.app_sidecar_centos_8 docker.app_sidecar_centos_7 \
-docker.istioctl docker.operator docker.install-cni
+docker.istioctl docker.operator docker.install-cni docker.cloudrun docker.vaultclient
 
 ### Docker commands ###
 # Below provides various commands to build/push docker images.
@@ -153,6 +153,20 @@ build.docker.pilot: $(ISTIO_OUT_LINUX)/pilot-discovery
 build.docker.pilot: pilot/docker/Dockerfile.pilot
 	$(DOCKER_RULE)
 
+# Image optimized for GCP/CloudRun/KNative.
+# Some of the customized files are temporary, pending merge into the main files.
+build.docker.cloudrun: $(ISTIO_OUT_LINUX)/pilot-discovery
+build.docker.cloudrun: $(ISTIO_OUT)/knative/telemetry-sd.yaml
+build.docker.cloudrun: $(ISTIO_OUT)/knative/telemetry.yaml
+build.docker.cloudrun: $(ISTIO_OUT)/knative/injection-template.yaml
+build.docker.cloudrun: $(ISTIO_OUT)/knative/mutatingwebhook.yaml
+build.docker.cloudrun: manifests/charts/base/files/gen-istio-cluster.yaml
+build.docker.cloudrun: tools/packaging/knative/injection-values.yaml
+build.docker.cloudrun: tools/packaging/knative/istiod-gcp.sh
+build.docker.cloudrun: tools/packaging/knative/mesh_template.yaml
+build.docker.cloudrun: tools/packaging/knative/Dockerfile.cloudrun
+	$(DOCKER_RULE)
+
 # Test application
 build.docker.app: $(ECHO_DOCKER)/Dockerfile.app
 build.docker.app: $(ISTIO_OUT_LINUX)/client
@@ -246,10 +260,61 @@ build.docker.install-cni: $(ISTIO_OUT_LINUX)/istio-cni-taint
 build.docker.install-cni: cni/deployments/kubernetes/Dockerfile.install-cni
 	$(DOCKER_RULE)
 
+# Vault client
+build.docker.vaultclient: $(ISTIO_OUT_LINUX)/vaultclient
+build.docker.vaultclient: security/docker/Dockerfile.vaultclient
+	$(DOCKER_RULE)
+
 ### Base images ###
 build.docker.base: docker/Dockerfile.base
 	$(DOCKER_RULE)
 build.docker.distroless: docker/Dockerfile.distroless
+
+
+
+.PHONY: dockerx dockerx.save
+
+# Can also be linux/arm64, or both with linux/amd64,linux/arm64
+DOCKER_ARCHITECTURES ?= linux/amd64
+
+# Docker has an experimental new build engine, https://github.com/docker/buildx
+# This brings substantial (10x) performance improvements when building Istio
+# However, its only built into docker since v19.03. Because its so new that devs are likely to not have
+# this version, and because its experimental, this is not the default build method. As this matures we should migrate over.
+# For performance, in CI this method is used.
+# This target works by reusing the existing docker methods. Each docker target declares it's dependencies.
+# We then override the docker rule and "build" all of these, where building just copies the dependencies
+# We then generate a "bake" file, which defines all of the docker files in the repo
+# Finally, we call `docker buildx bake` to generate the images.
+ifeq ($(DOCKER_V2_BUILDER), true)
+dockerx:
+	./tools/docker --push=$(or $(DOCKERX_PUSH),$(DOCKERX_PUSH),false)
+else
+dockerx: DOCKER_RULE?=mkdir -p $(DOCKERX_BUILD_TOP)/$@ && TARGET_ARCH=$(TARGET_ARCH) ./tools/docker-copy.sh $^ $(DOCKERX_BUILD_TOP)/$@ && cd $(DOCKERX_BUILD_TOP)/$@ $(BUILD_PRE)
+dockerx: RENAME_TEMPLATE?=mkdir -p $(DOCKERX_BUILD_TOP)/$@ && cp $(ECHO_DOCKER)/$(VM_OS_DOCKERFILE_TEMPLATE) $(DOCKERX_BUILD_TOP)/$@/Dockerfile$(suffix $@)
+dockerx: docker | $(ISTIO_DOCKER_TAR)
+dockerx:
+	HUBS="$(HUBS)" \
+		TAG=$(TAG) \
+		PROXY_REPO_SHA=$(PROXY_REPO_SHA) \
+		VERSION=$(VERSION) \
+		DOCKER_ALL_VARIANTS="$(DOCKER_ALL_VARIANTS)" \
+		ISTIO_DOCKER_TAR=$(ISTIO_DOCKER_TAR) \
+		INCLUDE_UNTAGGED_DEFAULT=$(INCLUDE_UNTAGGED_DEFAULT) \
+		BASE_VERSION=$(BASE_VERSION) \
+		DOCKERX_PUSH=$(DOCKERX_PUSH) \
+		DOCKER_ARCHITECTURES=$(DOCKER_ARCHITECTURES) \
+		./tools/buildx-gen.sh $(DOCKERX_BUILD_TOP) $(DOCKER_TARGETS)
+	@# Retry works around https://github.com/docker/buildx/issues/298
+	DOCKER_CLI_EXPERIMENTAL=enabled bin/retry.sh "read: connection reset by peer" docker buildx bake $(BUILDX_BAKE_EXTRA_OPTIONS) -f $(DOCKERX_BUILD_TOP)/docker-bake.hcl $(or $(DOCKER_BUILD_VARIANTS),default) || \
+		{ tools/dump-docker-logs.sh; exit 1; }
+endif
+
+# Support individual images like `dockerx.pilot`
+dockerx.%:
+	@DOCKER_TARGETS=docker.$* BUILD_ALL=false $(MAKE) --no-print-directory -f Makefile.core.mk dockerx
+
+docker.base: docker/Dockerfile.base
 	$(DOCKER_RULE)
 
 # VM Base images

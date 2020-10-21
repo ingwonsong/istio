@@ -42,6 +42,9 @@ const (
 	// DefaultRootCertFilePath is the well-known path for an existing root certificate file
 	DefaultRootCertFilePath = "./etc/certs/root-cert.pem"
 
+	// LocalSDS is the location of the in-process SDS server - must be in a writeable dir.
+	DefaultLocalSDSPath = "./etc/istio/proxy/SDS"
+
 	// GkeWorkloadCertChainFilePath is the well-known path for the GKE workload certificate chain file.
 	// Quoted from https://cloud.google.com/traffic-director/docs/security-proxyless-setup#create-service:
 	// "On creation, each Pod gets a volume at /var/run/secrets/workload-spiffe-credentials."
@@ -356,6 +359,12 @@ func ExtractBearerToken(ctx context.Context) (string, error) {
 	for _, value := range authHeader {
 		if strings.HasPrefix(value, BearerTokenPrefix) {
 			return strings.TrimPrefix(value, BearerTokenPrefix), nil
+		}
+		if strings.HasPrefix(value, K8sTokenPrefix) {
+			// This code is to safely handle the upgrade from MCP private preview
+			// to MCP public preview, when the auth header type changes from "Istio"
+			// to "Bearer". After the transition period, this code can be removed.
+			return strings.TrimPrefix(value, K8sTokenPrefix), nil
 		}
 	}
 
