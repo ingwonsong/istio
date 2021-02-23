@@ -18,11 +18,11 @@
 # It brings up the Kubernetes clusters based on the input flags, and then invokes
 # integ-run-tests.sh which will setup the SUT and run the tests.
 
-# Usage:   ./integ-suite-kubetest2.sh --deployer [deployer_name]
+# Usage:   ./integ-suite-kubetest2.sh --cluster-type [cluster_type]
 #             --deployer-flags [deployer_flag1 deployer_flag2 ...] \
 #             --test-flags [test_flag1 test_flag2 ...]
 #
-# Example: ./integ-suite-kubetest2.sh --deployer gke \
+# Example: ./integ-suite-kubetest2.sh --cluster-type gke \
 #             --deployer-flags "--project=test-project --cluster-name=test --region=us-central1"
 
 # Exit immediately for non zero status
@@ -33,4 +33,6 @@ set -u
 set -x
 
 CURTDIR="$(pwd)"
-cd ./prow/asm/infra && go run ./main.go --kubetest2-working-dir="${CURTDIR}" --test-script="${CURTDIR}/prow/asm/integ-run-tests.sh" "$@"
+cd "${CURTDIR}/prow/asm/tester" && go install . && cd -
+cd ./prow/asm/infra && go run ./main.go --repo-root-dir="${CURTDIR}" \
+    --test-script="tester" "$@"

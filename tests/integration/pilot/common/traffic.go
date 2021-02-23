@@ -270,7 +270,7 @@ func RunAllTrafficTests(t framework.TestContext, i istio.Instance, apps *EchoDep
 		name := name
 		t.NewSubTest(name).Run(func(t framework.TestContext) {
 			if name == "gateway" {
-				ctx.Skip("https://b.corp.google.com/issues/175599359")
+				t.Skip("https://b.corp.google.com/issues/175599359")
 			}
 			for _, tt := range tts {
 				if tt.workloadAgnostic {

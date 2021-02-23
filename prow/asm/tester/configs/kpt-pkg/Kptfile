@@ -1,0 +1,136 @@
+apiVersion: kpt.dev/v1alpha1
+kind: Kptfile
+metadata:
+  name: asm
+openAPI:
+  definitions:
+    io.k8s.cli.setters.anthos.servicemesh.spiffe-bundle-endpoints:
+      x-k8s-cli:
+        setter:
+          name: anthos.servicemesh.spiffe-bundle-endpoints
+          value: ""
+    io.k8s.cli.setters.anthos.servicemesh.token-audiences:
+      x-k8s-cli:
+        setter:
+          name: anthos.servicemesh.token-audiences
+          value: ""
+    io.k8s.cli.setters.anthos.servicemesh.trustDomainAliases:
+      items:
+        pattern: '[a-z0-9\-].svc.id.goog'
+        type: string
+      minItems: 1
+      type: array
+      x-k8s-cli:
+        setter:
+          name: anthos.servicemesh.trustDomainAliases
+          listValues:
+    io.k8s.cli.setters.anthos.servicemesh.hub-idp-url:
+      x-k8s-cli:
+        setter:
+          name: anthos.servicemesh.hub-idp-url
+          value: ""
+    io.k8s.cli.setters.anthos.servicemesh.gke-hub-metadata:
+      x-k8s-cli:
+        setter:
+          name: anthos.servicemesh.gke-hub-metadata
+          value: ""
+    io.k8s.cli.setters.anthos.servicemesh.external_ca.ca_name:
+      x-k8s-cli:
+        setter:
+          name: anthos.servicemesh.external_ca.ca_name
+          value: ""
+    io.k8s.cli.setters.gcloud.core.project:
+      type: string
+      x-k8s-cli:
+        setter:
+          name: gcloud.core.project
+          value: ""
+    io.k8s.cli.substitutions.token-audiences:
+      type: string
+      x-k8s-cli:
+        substitution:
+          name: token-audiences
+          pattern: "istio-ca,PROJECT_ID.svc.id.goog"
+          values:
+          - marker: PROJECT_ID
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.core.project'
+    io.k8s.cli.setters.gcloud.compute.location:
+      type: string
+      x-k8s-cli:
+        setter:
+          name: gcloud.compute.location
+          value: us-central1-c
+    io.k8s.cli.setters.gcloud.container.cluster:
+      type: string
+      x-k8s-cli:
+        setter:
+          name: gcloud.container.cluster
+          value: asm-cluster
+    io.k8s.cli.setters.gcloud.project.projectNumber:
+      type: string
+      x-k8s-cli:
+        setter:
+          name: gcloud.project.projectNumber
+          value: PROJECT_NUMBER
+    io.k8s.cli.substitutions.gke-cluster-url:
+      type: string
+      x-k8s-cli:
+        substitution:
+          name: gke-cluster-url
+          pattern: https://container.googleapis.com/v1/projects/PROJECT_ID/locations/us-central1-c/clusters/asm-cluster
+          values:
+          - marker: PROJECT_ID
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.core.project'
+          - marker: asm-cluster
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.container.cluster'
+          - marker: us-central1-c
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.compute.location'
+    io.k8s.cli.substitutions.gke-cluster-url-staging:
+      type: string
+      x-k8s-cli:
+        substitution:
+          name: gke-cluster-url
+          pattern: https://staging-container.sandbox.googleapis.com/v1/projects/PROJECT_ID/locations/us-central1-c/clusters/asm-cluster
+          values:
+          - marker: PROJECT_ID
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.core.project'
+          - marker: asm-cluster
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.container.cluster'
+          - marker: us-central1-c
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.compute.location'
+    io.k8s.cli.substitutions.gke-cluster-url-staging2:
+      type: string
+      x-k8s-cli:
+        substitution:
+          name: gke-cluster-url
+          pattern: https://staging2-container.sandbox.googleapis.com/v1/projects/PROJECT_ID/locations/us-central1-c/clusters/asm-cluster
+          values:
+          - marker: PROJECT_ID
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.core.project'
+          - marker: asm-cluster
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.container.cluster'
+          - marker: us-central1-c
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.compute.location'
+    io.k8s.cli.substitutions.spiffe-bundle-endpoints:
+      x-k8s-cli:
+        substitution:
+          name: spiffe-bundle-endpoints
+          pattern: PROJECT_ID.svc.id.goog|https://storage.googleapis.com/mesh-ca-resources/spiffe_bundle.json
+          values:
+          - marker: PROJECT_ID
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.core.project'
+    io.k8s.cli.substitutions.gke-metadata:
+      type: string
+      x-k8s-cli:
+        substitution:
+          name: gke-metadata
+          pattern: PROJECT_ID|PROJECT_NUMBER|asm-cluster|us-central1-c
+          values:
+          - marker: PROJECT_ID
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.core.project'
+          - marker: PROJECT_NUMBER
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.project.projectNumber'
+          - marker: asm-cluster
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.container.cluster'
+          - marker: us-central1-c
+            ref: '#/definitions/io.k8s.cli.setters.gcloud.compute.location'

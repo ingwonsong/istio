@@ -17,7 +17,6 @@ package tailorbird
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path"
@@ -34,28 +33,43 @@ const (
 )
 
 func tailorbirdDeployerBaseFlags() []string {
-	return []string{"--down", "--tbenv=int", "--status-check-interval=60", "--verbose"}
+	return []string{"--down", "--status-check-interval=60", "--verbose"}
 }
 
 // InstallTools installs the required tools to enable interacting with Tailorbird.
 func InstallTools(clusterType string) error {
-	log.Println("Installing kubetest2 tailorbird deployer...")
-	cookieFile := "/secrets/cookiefile/cookies"
-	exec.Run("git config --global http.cookiefile " + cookieFile)
-	goPath := os.Getenv("GOPATH")
-	clonePath := goPath + "/src/gke-internal/test-infra"
-	exec.Run(fmt.Sprintf("git clone https://gke-internal.googlesource.com/test-infra %s", clonePath))
-	if err := exec.Run(fmt.Sprintf("bash -c 'cd %s &&"+
-		" go install %s/anthos/tailorbird/cmd/kubetest2-tailorbird'", clonePath, clonePath)); err != nil {
-		return fmt.Errorf("error installing kubetest2 tailorbird deployer: %w", err)
+	clonePath := os.Getenv("GOPATH") + "/src/gke-internal/test-infra"
+	if _, err := os.Stat(clonePath); !os.IsNotExist(err) {
+		if err := exec.Run(fmt.Sprintf("bash -c 'cd %s && go install ./anthos/tailorbird/cmd/kubetest2-tailorbird'", clonePath)); err != nil {
+			return fmt.Errorf("error installing kubetest2 tailorbird deployer: %w", err)
+		}
+	} else {
+		return fmt.Errorf("path %q does not seem to exist, please double check", clonePath)
 	}
-	exec.Run("rm -r " + clonePath)
 
-	if clusterType == "gke-on-prem" {
-		log.Println("Installing herc CLI...")
-		if err := exec.Run(fmt.Sprintf("bash -c 'gsutil cp gs://anthos-hercules-public-artifacts/herc/latest/herc /usr/local/bin/ &&" +
-			" chmod 755 /usr/local/bin/herc'")); err != nil {
-			return fmt.Errorf("error installing the herc CLI: %w", err)
+	// GKE-on-AWS needs terraform for generation of kubeconfigs
+	// TODO(chizhg): remove the terraform installation after b/171729099 is solved.
+	if clusterType == "aws" {
+		terraformVersion := "0.13.6"
+		if err := exec.Run("bash -c 'apt-get update && apt-get install unzip -y'"); err != nil {
+			return err
+		}
+		installTerraformCmd := fmt.Sprintf(`wget --no-verbose https://releases.hashicorp.com/terraform/%s/terraform_%s_linux_amd64.zip \
+		&& unzip terraform_%s_linux_amd64.zip \
+		&& mv terraform /usr/local/bin/terraform \
+		&& rm terraform_%s_linux_amd64.zip`, terraformVersion, terraformVersion, terraformVersion, terraformVersion)
+		if err := exec.Run("bash -c '" + installTerraformCmd + "'"); err != nil {
+			return fmt.Errorf("error installing terraform for testing with aws")
+		}
+	}
+
+	if clusterType == "eks" {
+		installawsIamAuthenticatorCmd := `curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/aws-iam-authenticator \
+			&& chmod +x ./aws-iam-authenticator \
+			&& mv ./aws-iam-authenticator /usr/local/bin/aws-iam-authenticator`
+
+		if err := exec.Run("bash -c '" + installawsIamAuthenticatorCmd + "'"); err != nil {
+			return fmt.Errorf("error installing aws-iam-authenticator for testing with eks")
 		}
 	}
 

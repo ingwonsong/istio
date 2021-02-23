@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/api/option"
+
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
@@ -43,7 +45,7 @@ import (
 const (
 	appCN = "app"
 	// metricDuration defines time range backward to check metrics
-	metricDuration         = 5 * time.Minute
+	metricDuration         = 15 * time.Minute
 	auditPolicyForLogEntry = "testdata/security/v1beta1-audit-authorization-policy.yaml.tmpl"
 	requestCount           = 100
 )
@@ -88,10 +90,10 @@ func TestStackdriver(t *testing.T) {
 	framework.NewTest(t).
 		Features("observability.telemetry.stackdriver").
 		Run(func(ctx framework.TestContext) {
-			st := stackdriver.NewOrFail(context.Background(), ctx)
+			projectID1 := os.Getenv("GCR_PROJECT_ID_1")
+			st := stackdriver.NewOrFail(context.Background(), ctx, option.WithQuotaProject(projectID1))
 			testMulticluster(ctx, func(ctx framework.TestContext, ns namespace.Instance, src, dest echo.Instance) {
 				// Verify metrics and logs on cluster1 in project id 1
-				projectID1 := os.Getenv("GCR_PROJECT_ID_1")
 				ctx.Logf("Validating Telemetry for Cluster in project %v", projectID1)
 				validateTelemetry(ctx, projectID1, st, ns, src, dest, "grpc", "server-accesslog-stackdriver")
 
@@ -104,10 +106,11 @@ func TestStackdriver(t *testing.T) {
 		})
 }
 
-func TestStackdriverAudit(t *testing.T) {
+func TestAuditStackdriver(t *testing.T) {
 	framework.NewTest(t).
 		Features("observability.telemetry.stackdriver").
 		Run(func(ctx framework.TestContext) {
+			ctx.Skip("https://buganizer.corp.google.com/issues/184872790")
 			projectID, projectID2 := os.Getenv("GCR_PROJECT_ID_1"), os.Getenv("GCR_PROJECT_ID_2")
 
 			// TODO: audit feature supports only single project scenario
@@ -115,15 +118,14 @@ func TestStackdriverAudit(t *testing.T) {
 				t.Skipf("audit feature only supports single-project, got: %s %s", projectID, projectID2)
 			}
 
-			st := stackdriver.NewOrFail(context.Background(), ctx)
+			st := stackdriver.NewOrFail(context.Background(), ctx, option.WithQuotaProject(projectID))
+			args := map[string]string{
+				"Namespace": ns.Name(),
+			}
+			policies := tmpl.EvaluateAllOrFail(ctx, args, file.AsStringOrFail(ctx, auditPolicyForLogEntry))
+			ctx.Config().ApplyYAMLOrFail(ctx, ns.Name(), policies...)
 			testMulticluster(ctx, func(ctx framework.TestContext, ns namespace.Instance, src, dest echo.Instance) {
-				args := map[string]string{
-					"Namespace": ns.Name(),
-				}
-				policies := tmpl.EvaluateAllOrFail(ctx, args, file.AsStringOrFail(ctx, auditPolicyForLogEntry))
-				ctx.Config().ApplyYAMLOrFail(ctx, ns.Name(), policies...)
-
-				ctx.Logf("Validating Telemetry for for Cluster in project %v", projectID)
+				ctx.Logf("Validating Audit Telemetry for for Cluster in project %v", projectID)
 				validateTelemetry(ctx, projectID, st, ns, src, dest, "http", "server-istio-audit-log")
 			})
 		})
@@ -173,7 +175,7 @@ func validateTelemetry(ctx framework.TestContext,
 			return fmt.Errorf("resending traffic for: %v, check for metrics again", err)
 		}
 		return nil
-	}, retry.Timeout(15*time.Minute))
+	}, retry.Timeout(30*time.Minute))
 
 	validateLog(ctx, projectID, sd, src, dest, param, startTime, filter)
 }

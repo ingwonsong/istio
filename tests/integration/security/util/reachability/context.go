@@ -19,6 +19,7 @@ package reachability
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -98,6 +99,10 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 			continue
 		}
 		testName := strings.TrimSuffix(c.ConfigFile, filepath.Ext(c.ConfigFile))
+		// TODO: check why automtls-passthrough does not work with AWS
+		if strings.Contains(testName, "automtls-passthrough") && os.Getenv("CLUSTER_TYPE") == "aws" {
+			continue
+		}
 		t.NewSubTest(testName).Run(func(t framework.TestContext) {
 			// Apply the policy.
 			policyYAML := file.AsStringOrFail(t, filepath.Join("./testdata", c.ConfigFile))
@@ -152,6 +157,16 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 								// No need to waste time on these tests which will time out on connection instead of fail-fast
 								continue
 							}
+							// TODO: https://b.corp.google.com/issues/186466594
+							if os.Getenv("CLUSTER_TYPE") == "bare-metal" {
+								if c.ConfigFile == "beta-mtls-off.yaml" && (apps.IsNaked(destination) || apps.IsVM(destination)) {
+									continue
+								}
+								if c.ConfigFile == "global-plaintext.yaml" && apps.IsNaked(destination) {
+									continue
+								}
+							}
+
 							callCount := 1
 							if len(destClusters) > 1 {
 								// so we can validate all clusters are hit

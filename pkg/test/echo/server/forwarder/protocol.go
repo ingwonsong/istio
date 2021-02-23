@@ -190,6 +190,9 @@ func newProtocol(cfg Config) (protocol, error) {
 			}
 			proto.client.Transport.(*http.Transport).Proxy = http.ProxyURL(proxyURL)
 		}
+		if os.Getenv("CLUSTER_TYPE") == "bare-metal" {
+			proto.client.Transport.(*http.Transport).Proxy = http.ProxyFromEnvironment
+		}
 		if cfg.Request.Http3 && scheme.Instance(urlScheme) == scheme.HTTP {
 			return nil, fmt.Errorf("http3 requires HTTPS")
 		} else if cfg.Request.Http3 {

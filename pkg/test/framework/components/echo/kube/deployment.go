@@ -626,7 +626,7 @@ func GenerateDeployment(cfg echo.Config, imgSettings *image.Settings, settings *
 }
 
 func GenerateService(cfg echo.Config) (string, error) {
-	params, err := templateParams(cfg, nil, nil)
+	params, err := TemplateParams(cfg, nil, nil)
 	if err != nil {
 		return "", err
 	}
@@ -644,7 +644,8 @@ var VMImages = map[echo.VMDistro]string{
 	echo.Centos8:      "app_sidecar_centos_8",
 }
 
-func templateParams(cfg echo.Config, imgSettings *image.Settings, settings *resource.Settings) (map[string]interface{}, error) {
+// TODO make this exported in OSS rather than in this fork
+func TemplateParams(cfg echo.Config, settings *image.Settings, revisions resource.RevVerMap) (map[string]interface{}, error) {
 	if settings == nil {
 		var err error
 		settings, err = resource.SettingsFromCommandLine("template")

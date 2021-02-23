@@ -27,42 +27,71 @@ import (
 const (
 	// These names correspond to the resources configured in
 	// https://gke-internal.googlesource.com/istio/test-infra-internal/+/refs/heads/master/boskos/config/resources.yaml
-	sharedVPCHostBoskosResource = "shared-vpc-host-gke-project"
-	sharedVPCSVCBoskosResource  = "shared-vpc-svc-gke-project"
-	vpcSCBoskosResource         = "vpc-sc-gke-project"
-	commonBoskosResource        = "gke-project"
+	sharedVPCHostBoskosResource      = "shared-vpc-host-gke-project"
+	sharedVPCSVCBoskosResource       = "shared-vpc-svc-gke-project"
+	vpcSCBoskosResource              = "vpc-sc-gke-project"
+	vpcSCSharedVPCHostBoskosResource = "vpc-sc-shared-vpc-host-gke-project"
+	vpcSCSharedVPCSVCBoskosResource  = "vpc-sc-shared-vpc-svc-gke-project"
+	commonBoskosResource             = "gke-project"
 )
 
 func gkeDeployerBaseFlags() []string {
 	return []string{"--ignore-gcp-ssh-key=true", "-v=2", "--gcp-service-account=" + os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")}
 }
 
+func gkeDeployerCreateCommandFlag(clusterType string, addon bool) string {
+	name := "create"
+	if clusterType == "gke-autopilot" {
+		name = "create-auto"
+	}
+	addonFlag := ""
+	if addon {
+		addonFlag = " --addons=Istio"
+	}
+	return fmt.Sprintf("--create-command='beta container clusters %s --quiet --enable-network-policy%s'", name, addonFlag)
+}
+
 // DeployerFlags returns the deployer flags needed for the given cluster
 // topology and the feature to test
-func DeployerFlags(clusterTopology, featureToTest string) ([]string, error) {
+func DeployerFlags(clusterType, clusterTopology, featureToTest string) ([]string, error) {
 	var flags []string
 	var err error
 	switch clusterTopology {
 	case "SINGLECLUSTER", "sc":
-		flags, err = singleClusterFlags()
+		flags, err = singleClusterFlags(clusterType, featureToTest == "ADDON")
+		if featureToTest == "PRIVATE_CLUSTER" {
+			flags = append(flags, "--private-cluster-access-level=unrestricted", "--private-cluster-master-ip-range=172.16.0.32/28")
+		}
 	case "MULTICLUSTER", "mc":
 		boskosResourceType := commonBoskosResource
 		// Testing with VPC-SC requires a different project type.
 		if featureToTest == "VPC_SC" {
 			boskosResourceType = vpcSCBoskosResource
 		}
-		flags, err = multiClusterFlags(boskosResourceType)
+		flags, err = multiClusterFlags(boskosResourceType, clusterType)
 	case "MULTIPROJECT_MULTICLUSTER", "mp":
-		flags, err = multiProjectMultiClusterFlags()
+		hostBoskosResourceType := sharedVPCHostBoskosResource
+		svcBoskosResourceType := sharedVPCSVCBoskosResource
+		if featureToTest == "VPC_SC" {
+			hostBoskosResourceType = vpcSCSharedVPCHostBoskosResource
+			svcBoskosResourceType = vpcSCSharedVPCSVCBoskosResource
+		}
+		flags, err = multiProjectMultiClusterFlags(hostBoskosResourceType, svcBoskosResourceType, clusterType)
 	default:
 		err = fmt.Errorf("cluster topology %q is not supported", clusterTopology)
 	}
-
+	if err != nil {
+		return flags, err
+	}
 	if featureToTest != "" {
 		var featureFlags []string
 		switch featureToTest {
 		case "VPC_SC":
 			featureFlags, err = featureVPCSCClusterFlags(flags)
+		case "USER_AUTH":
+		case "ADDON":
+		case "PRIVATE_CLUSTER":
+		case "CNI":
 		default:
 			err = fmt.Errorf("feature %q is not supported", featureToTest)
 		}
@@ -73,7 +102,7 @@ func DeployerFlags(clusterTopology, featureToTest string) ([]string, error) {
 }
 
 // singleClusterFlags returns the kubetest2 flags for single-cluster setup.
-func singleClusterFlags() ([]string, error) {
+func singleClusterFlags(clusterType string, addon bool) ([]string, error) {
 	flags := gkeDeployerBaseFlags()
 
 	if err := configureProjectFlag(&flags, func() (string, error) {
@@ -81,8 +110,14 @@ func singleClusterFlags() ([]string, error) {
 	}); err != nil {
 		return nil, fmt.Errorf("error acquiring GCP projects for singlecluster setup: %w", err)
 	}
+	channel := "regular"
+	if addon {
+		// We only support clusters that have EnsureExists, currently available on rapid only
+		channel = "rapid"
+	}
+	flags = append(flags, gkeDeployerCreateCommandFlag(clusterType, addon))
 	flags = append(flags, "--cluster-name=prow-test", "--machine-type=e2-standard-4", "--num-nodes=2")
-	flags = append(flags, "--network=default", "--release-channel=regular", "--version=latest", "--enable-workload-identity")
+	flags = append(flags, "--network=default", "--release-channel="+channel, "--version=latest", "--enable-workload-identity")
 	// TODO(chizhg): uncomment after b/162609408 is fixed upstream
 	// flags = append(flags, "--region=us-central1")
 
@@ -91,7 +126,7 @@ func singleClusterFlags() ([]string, error) {
 
 // multiClusterFlags returns the kubetest2 flags for single-project
 // multi-cluster setup.
-func multiClusterFlags(boskosResourceType string) ([]string, error) {
+func multiClusterFlags(boskosResourceType, clusterType string) ([]string, error) {
 	flags := gkeDeployerBaseFlags()
 
 	if err := configureProjectFlag(&flags, func() (string, error) {
@@ -99,6 +134,7 @@ func multiClusterFlags(boskosResourceType string) ([]string, error) {
 	}); err != nil {
 		return nil, fmt.Errorf("error acquiring GCP projects for multicluster setup: %w", err)
 	}
+	flags = append(flags, gkeDeployerCreateCommandFlag(clusterType, false))
 	flags = append(flags, "--cluster-name=prow-test1,prow-test2", "--machine-type=e2-standard-4", "--num-nodes=2")
 	flags = append(flags, "--network=default", "--release-channel=regular", "--version=latest", "--enable-workload-identity")
 	// TODO(chizhg): uncomment after b/162609408 is fixed upstream
@@ -121,17 +157,6 @@ func featureVPCSCClusterFlags(existingFlags []string) ([]string, error) {
 		return nil, errors.New("project is not provided, cannot configure cluster flags for VPC-SC testing")
 	}
 
-	// Create the route as per the user guide above.
-	// Currently only the route needs to be recreated since only it will be cleaned
-	// up by Boskos janitor.
-	// TODO(chizhg): create everything else from scratch here after we are able to
-	// use Boskos janitor to clean them up as well, as per the long-term plan in go/asm-vpc-sc-testing-plan
-	if err := exec.Run("gcloud compute routes create restricted-vip" +
-		" --network=default --destination-range=199.36.153.4/30" +
-		" --next-hop-gateway=default-internet-gateway --project=" + project); err != nil {
-		return nil, fmt.Errorf("error creating the route in the default network to restricted.googleapis.com")
-	}
-
 	//  TODO: yonggangl@ tairan@ restrict the access to limited after the job is tested successfully
 	flags := []string{"--private-cluster-access-level=unrestricted", "--private-cluster-master-ip-range=173.16.0.32/28,172.16.0.32/28"}
 	return flags, nil
@@ -139,13 +164,15 @@ func featureVPCSCClusterFlags(existingFlags []string) ([]string, error) {
 
 // multiProjectMultiClusterFlags returns the kubetest2 flags for multi-project
 // multi-cluster setup.
-func multiProjectMultiClusterFlags() ([]string, error) {
+func multiProjectMultiClusterFlags(hostBoskosResourceType, svcBoskosResourceType, clusterType string) ([]string, error) {
 	flags := gkeDeployerBaseFlags()
 
-	if err := configureProjectFlag(&flags, acquireMultiGCPProjects); err != nil {
+	if err := configureProjectFlag(&flags, func() (string, error) {
+		return acquireMultiGCPProjects(hostBoskosResourceType, svcBoskosResourceType)
+	}); err != nil {
 		return nil, fmt.Errorf("error acquiring GCP projects for multi-project multi-cluster setup: %w", err)
 	}
-	flags = append(flags, "--create-command='beta container clusters create --quiet'")
+	flags = append(flags, gkeDeployerCreateCommandFlag(clusterType, false))
 	flags = append(flags, "--cluster-name=prow-test1:1,prow-test2:2", "--machine-type=e2-standard-4", "--num-nodes=2")
 	flags = append(flags, "--network=test-network", "--subnetwork-ranges='172.16.4.0/22 172.16.16.0/20 172.20.0.0/14,10.0.4.0/22 10.0.32.0/20 10.4.0.0/14'")
 	flags = append(flags, "--release-channel=regular", "--version=latest", "--enable-workload-identity")
@@ -173,10 +200,10 @@ func configureProjectFlag(baseFlags *[]string, acquireBoskosProject func() (stri
 // acquire GCP projects for multi-project multi-cluster setup.
 // These projects are mananged by the boskos project rental pool as configured in
 // https://gke-internal.googlesource.com/istio/test-infra-internal/+/refs/heads/master/boskos/config/resources.yaml#105
-func acquireMultiGCPProjects() (string, error) {
+func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceType string) (string, error) {
 	// Acquire a host project from the project rental pool and set it as the
 	// billing project.
-	hostProject, err := acquireBoskosProjectAndSetBilling(sharedVPCHostBoskosResource)
+	hostProject, err := acquireBoskosProjectAndSetBilling(hostBoskosResourceType)
 	if err != nil {
 		return "", fmt.Errorf("error acquiring a host project: %w", err)
 	}
@@ -203,7 +230,7 @@ func acquireMultiGCPProjects() (string, error) {
 	// Acquire two service projects from the project rental pool.
 	serviceProjects := make([]string, 2)
 	for i := 0; i < len(serviceProjects); i++ {
-		sp, err := boskos.AcquireBoskosResource(sharedVPCSVCBoskosResource)
+		sp, err := boskos.AcquireBoskosResource(svcBoskosResourceType)
 		if err != nil {
 			return "", fmt.Errorf("error acquiring a service project: %w", err)
 		}

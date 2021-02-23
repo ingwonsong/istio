@@ -91,12 +91,11 @@ func NewASMExporter(pe *ocprom.Exporter) (*ASMExporter, error) {
 	labels := &stackdriver.Labels{}
 	gcpMetadata := platform.NewGCP().Metadata()
 	if meshUID == "" {
-		if pid, ok := gcpMetadata[platform.GCPProjectNumber]; ok && pid != "" {
-			meshUID = "proj-" + pid
-		}
+		meshUID = meshUIDFromPlatformMeta(gcpMetadata)
 	}
 	labels.Set("mesh_uid", meshUID, "ID for Mesh")
-	labels.Set("revision", version.Info.Version, "Control plane revision")
+	labels.Set("revision", revisionLabel(), "Control plane revision")
+	labels.Set("control_plane_version", version.Info.Version, "Control plane version")
 	clientOptions := []option.ClientOption{}
 
 	if !isCloudRun() {
@@ -185,6 +184,7 @@ func (e *ASMExporter) ExportView(vd *view.Data) {
 		// This indicates that this is a stackdriver view
 		e.sdExporter.ExportView(vd)
 	} else if e.PromExporter != nil {
+		// nolint: staticcheck
 		e.PromExporter.ExportView(vd)
 	}
 }
@@ -214,4 +214,11 @@ func isCloudRun() bool {
 		return true
 	}
 	return false
+}
+
+func revisionLabel() string {
+	if isCloudRun() {
+		return managedRevisionVar.Get()
+	}
+	return version.Info.Version
 }

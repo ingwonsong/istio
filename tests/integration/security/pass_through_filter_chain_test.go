@@ -19,6 +19,7 @@ package security
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"istio.io/istio/pkg/config/protocol"
@@ -638,6 +639,10 @@ spec:
 								want := expect.mtlsSucceeds
 								if src.Config().IsNaked() {
 									want = expect.plaintextSucceeds
+								}
+								// TODO: https://buganizer.corp.google.com/issues/185244363
+								if os.Getenv("CLUSTER_TYPE") == "aws" && src.Config().IsNaked() && expect.port.Protocol == protocol.HTTPS && expect.plaintextSucceeds {
+									continue
 								}
 								name := fmt.Sprintf("%v/port %d[%t]", nameSuffix, expect.port.ServicePort, want)
 								host := fmt.Sprintf("%s:%d", getWorkload(dest[0], t).Address(), expect.port.ServicePort)

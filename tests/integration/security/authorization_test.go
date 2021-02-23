@@ -20,6 +20,7 @@ package security
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +55,10 @@ func TestAuthorization_mTLS(t *testing.T) {
 	framework.NewTest(t).
 		Features("security.authorization.mtls-local").
 		Run(func(t framework.TestContext) {
+			// Wait for service end point populating for onprem multi-network setup
+			if os.Getenv("CLUSTER_TYPE") == "gke-on-prem" {
+				time.Sleep(time.Second * 30)
+			}
 			b := apps.B.Match(echo.Namespace(apps.Namespace1.Name()))
 			vm := apps.VM.Match(echo.Namespace(apps.Namespace1.Name()))
 			for _, dst := range []echo.Instances{b, vm} {
@@ -542,146 +547,174 @@ func TestAuthorization_IngressGateway(t *testing.T) {
 						Path     string
 						IP       string
 						WantCode int
+						// Due to a known envoy bug https://istio.io/latest/docs/tasks/security/authorization/authz-ingress/#source-ip-address-of-the-original-client
+						// Source ip based tests are skipped for AWS
+						SkipForAWS bool
 					}{
 						{
 							Name:     "case-insensitive-deny deny.company.com",
 							Host:     "deny.company.com",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny DENY.COMPANY.COM",
 							Host:     "DENY.COMPANY.COM",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny Deny.Company.Com",
 							Host:     "Deny.Company.Com",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny deny.suffix.company.com",
 							Host:     "deny.suffix.company.com",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny DENY.SUFFIX.COMPANY.COM",
 							Host:     "DENY.SUFFIX.COMPANY.COM",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny Deny.Suffix.Company.Com",
 							Host:     "Deny.Suffix.Company.Com",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny prefix.company.com",
 							Host:     "prefix.company.com",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny PREFIX.COMPANY.COM",
 							Host:     "PREFIX.COMPANY.COM",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
 							Name:     "case-insensitive-deny Prefix.Company.Com",
 							Host:     "Prefix.Company.Com",
 							WantCode: 403,
+							SkipForAWS: false,
 						},
 						{
-							Name:     "allow www.company.com",
-							Host:     "www.company.com",
-							Path:     "/",
-							IP:       "172.16.0.1",
-							WantCode: 200,
+							Name:       "allow www.company.com",
+							Host:       "www.company.com",
+							Path:       "/",
+							IP:         "172.16.0.1",
+							WantCode:   200,
+							SkipForAWS: false,
 						},
 						{
-							Name:     "deny www.company.com/private",
-							Host:     "www.company.com",
-							Path:     "/private",
-							IP:       "172.16.0.1",
-							WantCode: 403,
+							Name:       "deny www.company.com/private",
+							Host:       "www.company.com",
+							Path:       "/private",
+							IP:         "172.16.0.1",
+							WantCode:   403,
+							SkipForAWS: false,
 						},
 						{
-							Name:     "allow www.company.com/public",
-							Host:     "www.company.com",
-							Path:     "/public",
-							IP:       "172.16.0.1",
-							WantCode: 200,
+							Name:       "allow www.company.com/public",
+							Host:       "www.company.com",
+							Path:       "/public",
+							IP:         "172.16.0.1",
+							WantCode:   200,
+							SkipForAWS: false,
 						},
 						{
-							Name:     "deny internal.company.com",
-							Host:     "internal.company.com",
-							Path:     "/",
-							IP:       "172.16.0.1",
-							WantCode: 403,
+							Name:       "deny internal.company.com",
+							Host:       "internal.company.com",
+							Path:       "/",
+							IP:         "172.16.0.1",
+							WantCode:   403,
+							SkipForAWS: false,
 						},
 						{
-							Name:     "deny internal.company.com/private",
-							Host:     "internal.company.com",
-							Path:     "/private",
-							IP:       "172.16.0.1",
-							WantCode: 403,
+							Name:       "deny internal.company.com/private",
+							Host:       "internal.company.com",
+							Path:       "/private",
+							IP:         "172.16.0.1",
+							WantCode:   403,
+							SkipForAWS: false,
 						},
 						{
-							Name:     "deny 172.17.72.46",
-							Host:     "remoteipblocks.company.com",
-							Path:     "/",
-							IP:       "172.17.72.46",
-							WantCode: 403,
+							Name:       "deny 172.17.72.46",
+							Host:       "remoteipblocks.company.com",
+							Path:       "/",
+							IP:         "172.17.72.46",
+							WantCode:   403,
+							SkipForAWS: true,
 						},
 						{
-							Name:     "deny 192.168.5.233",
-							Host:     "remoteipblocks.company.com",
-							Path:     "/",
-							IP:       "192.168.5.233",
-							WantCode: 403,
+							Name:       "deny 192.168.5.233",
+							Host:       "remoteipblocks.company.com",
+							Path:       "/",
+							IP:         "192.168.5.233",
+							WantCode:   403,
+							SkipForAWS: true,
 						},
 						{
-							Name:     "allow 10.4.5.6",
-							Host:     "remoteipblocks.company.com",
-							Path:     "/",
-							IP:       "10.4.5.6",
-							WantCode: 200,
+							Name:       "allow 10.4.5.6",
+							Host:       "remoteipblocks.company.com",
+							Path:       "/",
+							IP:         "10.4.5.6",
+							WantCode:   200,
+							SkipForAWS: true,
 						},
 						{
-							Name:     "deny 10.2.3.4",
-							Host:     "notremoteipblocks.company.com",
-							Path:     "/",
-							IP:       "10.2.3.4",
-							WantCode: 403,
+							Name:       "deny 10.2.3.4",
+							Host:       "notremoteipblocks.company.com",
+							Path:       "/",
+							IP:         "10.2.3.4",
+							WantCode:   403,
+							SkipForAWS: true,
 						},
 						{
-							Name:     "allow 172.23.242.188",
-							Host:     "notremoteipblocks.company.com",
-							Path:     "/",
-							IP:       "172.23.242.188",
-							WantCode: 200,
+							Name:       "allow 172.23.242.188",
+							Host:       "notremoteipblocks.company.com",
+							Path:       "/",
+							IP:         "172.23.242.188",
+							WantCode:   200,
+							SkipForAWS: true,
 						},
 						{
-							Name:     "deny 10.242.5.7",
-							Host:     "remoteipattr.company.com",
-							Path:     "/",
-							IP:       "10.242.5.7",
-							WantCode: 403,
+							Name:       "deny 10.242.5.7",
+							Host:       "remoteipattr.company.com",
+							Path:       "/",
+							IP:         "10.242.5.7",
+							WantCode:   403,
+							SkipForAWS: true,
 						},
 						{
-							Name:     "deny 10.124.99.10",
-							Host:     "remoteipattr.company.com",
-							Path:     "/",
-							IP:       "10.124.99.10",
-							WantCode: 403,
+							Name:       "deny 10.124.99.10",
+							Host:       "remoteipattr.company.com",
+							Path:       "/",
+							IP:         "10.124.99.10",
+							WantCode:   403,
+							SkipForAWS: true,
 						},
 						{
-							Name:     "allow 10.4.5.6",
-							Host:     "remoteipattr.company.com",
-							Path:     "/",
-							IP:       "10.4.5.6",
-							WantCode: 200,
+							Name:       "allow 10.4.5.6",
+							Host:       "remoteipattr.company.com",
+							Path:       "/",
+							IP:         "10.4.5.6",
+							WantCode:   200,
+							SkipForAWS: true,
 						},
 					}
 
 					for _, tc := range cases {
+						if os.Getenv("CLUSTER_TYPE") == "aws" && tc.SkipForAWS {
+							continue
+						}
 						t.NewSubTest(tc.Name).Run(func(t framework.TestContext) {
 							headers := map[string][]string{
 								"X-Forwarded-For": {tc.IP},
@@ -1358,12 +1391,12 @@ func TestAuthorization_Custom(t *testing.T) {
 	framework.NewTest(t).
 		Features("security.authorization.custom").
 		Run(func(t framework.TestContext) {
-		  // TODO(tairan): Migrate TestAuthorization_Custom into a subfolder as a new suite
-		  // Currently --istio.test.skipVM is used in ASM Prow jobs
-		  // Temporarily reuse this flag
-		  if t.Settings().SkipVM {
-  			t.Skip()
-  		}
+			// TODO(tairan): Migrate TestAuthorization_Custom into a subfolder as a new suite
+			// Currently --istio.test.skipVM is used in ASM Prow jobs
+			// Temporarily reuse this flag
+			if t.Settings().SkipVM {
+				t.Skip()
+			}
 			ns := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix: "v1beta1-custom",
 				Inject: true,

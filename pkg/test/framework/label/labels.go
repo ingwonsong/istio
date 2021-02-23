@@ -24,12 +24,16 @@ const (
 	// IPv4 indicates a test is only compatible with IPv4 clusters.
 	// Any usage of this should have an associated GitHub issue to make it compatible with IPv6
 	IPv4 Instance = "ipv4"
+
+	// UserAuth indicates that the test requires ASM User Auth Installation.
+	UserAuth Instance = "userauth"
 )
 
 var all = NewSet(
 	Postsubmit,
 	CustomSetup,
-	IPv4)
+	IPv4,
+	UserAuth)
 
 // Find the label with the given name
 func Find(name string) (Instance, bool) {

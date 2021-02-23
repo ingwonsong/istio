@@ -1,0 +1,267 @@
+tests:
+  - selectors:
+      control_plane: unmanaged
+    targets:
+    - names:
+        - TestProxyStatus
+        - TestWait
+        - TestVersion
+      reason: istioctl does not work
+    - names:
+        - TestAnalysisWritesStatus
+        - TestRequestAuthentication/.*/valid-token-forward-remote-jwks
+      reason: require custom installation
+    - names:
+        - TestDashboard
+      reason: relies on istiod in cluster
+    - names:
+        - TestCustomizeMetrics
+      reason: relies on istiod in cluster
+      buganizerID: 177606974
+    - names:
+        - TestStackdriverAudit
+      buganizerID: 183508169
+    - names:
+        - TestAuthorization_IngressGateway
+      reason: unknown
+    - names:
+        - TestAuthorization_EgressGateway
+        - TestSimpleTlsOrigination
+        - TestMutualTlsOrigination
+      reason: relies on egress gateway deployed to cluster
+
+  # Unmanaged CP + GKE_ON_PREM + HUB
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: gke-on-prem
+      wip: hub
+    targets:
+    # pilot/ tests
+    - names:
+        - TestCustomGateway/helm
+
+  # Unmanaged CP + bare-metal
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: bare-metal
+    targets:
+      - names:
+          - TestStrictMTLS
+        reason: MeshCA does not support ECDSA
+      - names:
+          - TestAuthorization_Custom
+        reason: requires mesh config
+      - names:
+          - TestStackdriver
+          - TestStackdriverAudit
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
+      # pilot/ tests
+      - names:
+          - TestTraffic/serverfirst/auto-tcp-server.*
+          - TestCustomGateway
+          - TestMultiVersionRevision
+          - TestAddToAndRemoveFromMesh
+          - TestGateway
+          - TestRevisionedUpgrade
+          - TestVMRegistrationLifecycle
+          - TestValidation
+          - TestRevision*
+          - TestMultiRevision
+          - TestUninstall*
+          - TestServiceExports*
+
+  # Unmanaged CP + aws
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: aws
+    targets:
+      # security/ tests
+      - names:
+          - TestStrictMTLS
+        reason: MeshCA does not support ECDSA
+      - names:
+          - TestAuthorization_Custom
+        reason: requires mesh config
+      # telemetry/ tests
+      - names:
+          - TestStackdriver
+          - TestStackdriverAudit
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro installation
+      # networking/ tests
+      - names:
+        - TestCustomGateway/helm
+        - TestAddToAndRemoveFromMesh
+        - TestRevisionedUpgrade
+        - TestServiceExports/exported/0/create
+        - TestRevisionCommand
+        - TestRevisionTags
+        - TestMultiRevision
+        - TestUninstallByRevision
+        - TestUninstallWithSetFlag
+
+  # Unmanaged CP, cluster topology = mp OR multiproject
+  - selectors:
+      control_plane: unmanaged
+      cluster_topology: mp
+    targets:
+      - names:
+          - TestStatsFilter
+          - TestTcpMetric
+          - TestWasmStatsFilter
+          - TestWasmTcpMetric
+        buganizerID: 177606974
+
+  # MCP test skips
+  - selectors:
+      control_plane: managed
+    targets:
+      # pilot/ tests
+      - names:
+          - TestWait
+          - TestVersion
+          - TestProxyStatus
+          - TestXdsProxyStatus
+          - TestDescribe
+        reason: istioctl doesn't work
+      - names:
+          - TestXdsVersion
+        buganizerID: 184572948
+      - names:
+          - TestAnalysisWritesStatus
+        reason: requires custom installation
+      - names:
+          - TestMultiVersionRevision
+        reason: deploys istiod in cluster, fails since wrong root cert
+      - names:
+          - TestVmOSPost
+        reason: broken pending oss pr
+      - names:
+          - TestVMRegistrationLifecycle
+        reason: attempts to interact with istiod directly
+      - names:
+          - TestValidation
+          - TestWebhook
+        buganizerID: 170404545
+      - names:
+          - TestAddToAndRemoveFromMesh
+        reason: test doesn't respect --istio.test.revision istio.test.revision
+      - names:
+          - TestGateway
+        reason: BROKEN! CRDs need to be deployed before istiod runs. Here, we install istiod first, causing failure
+      - names:
+          - TestRevisionedUpgrade
+        reason: OSS CP upgrade not supported with MCP
+
+      # telemetry/ tests
+      - names:
+          - TestStackdriverAudit
+          - TestStackdriverHTTPAuditLogging
+        reason: relies on custom Stackdriver EnvoyFilter
+      - names:
+          - TestIstioctlMetrics
+        reason: istioctl doesn't work
+      - names:
+          - TestBadWasmRemoteLoad
+          - TestWasmStatsFilter
+          - TestWasmTcpMetric
+        reason: relies on enabling WASM on install
+      - names:
+          - TestDashboard
+        reason: relies on istiod in cluster
+      - names:
+          - TestProxyTracing
+          - TestClientTracing
+          - TestRateLimiting
+        reason: requires custom meshConfig setting
+      - names:
+          - TestCustomizeMetrics
+        reason: relies on customization on stats EnvoyFilter
+      - names:
+          - TestOutboundTrafficPolicy
+        reason: relies on egress gateway deployed to the cluster
+      - names:
+          - TestStackdriverAudit
+        buganizerID: 183508169
+
+      # security/ tests
+      - names:
+          - TestAuthorization_IngressGateway
+      - names:
+          - TestAuthorization_EgressGateway
+        reason: relies on egress gateway deployed to the cluster
+      - names:
+          - TestStrictMTLS
+        reason: Mesh CA does not support ECDSA
+      - names:
+          - TestAuthorization_Custom
+        reason: requires mesh config
+      - names:
+          - TestRequestAuthentication
+        buganizerID: 180418442
+  - selectors:
+      gce_vms: true
+    targets:
+      - names:
+          - TestValidation
+        reason: incompatible with stableNamespaces flag
+
+  # Managed CP, cluster topology = sc OR SINGLECLUSTER
+  - selectors:
+      control_plane: managed
+      cluster_topology: sc
+    targets:
+      - names:
+          - TestStackdriverMonitoring
+        reason: Not needed, multi-cluster MCP telemetry tests use real stackdriver.
+packages:
+  - selectors:
+      control_plane: unmanaged
+    targets:
+      - names:
+          - /pilot/cni
+          - /security/ca_migration
+        reason: not supported
+      - names:
+          - /telemetry/stats/prometheus/nullvm
+          - /telemetry/stats/prometheus/wasm
+        buganizerID: 184312874
+
+  # MCP package skips
+  - selectors:
+      control_plane: managed
+    targets:
+      - names:
+          - /multicluster
+          - /helm
+          - /operator
+          - /pilot/cni
+          - /pilot/analysis
+          - /pilot/endpointslice
+          - /pilot/revisions
+          - /pilot/revisioncmd
+          - /telemetry/stackdriver/vm
+          - /telemetry/stats/prometheus/customizemetrics
+          - /telemetry/stats/prometheus/wasm
+          - /security/chiron
+          - /security/file_mounted_certs
+          - /security/ca_custom_root
+          - /security/filebased_tls_origination
+          - /security/mtls_first_party_jwt
+          - /security/mtlsk8sca
+          - /security/sds_ingress_k8sca
+          - /security/sds_tls_origination
+          - /security/ca_migration
+          - /security/user_auth
+        reason: not supported
+      - names:
+          - /pilot/mcs
+        buganizerID: 183429870
+
+  - selectors:
+      gce_vms: true
+    targets:
+      - names:
+          - /pilot/endpointslice
+        reason: won't reinstall CP in endpointslice mode
