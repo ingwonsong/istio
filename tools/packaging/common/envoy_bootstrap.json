@@ -181,6 +181,32 @@
   },
   "static_resources": {
     "clusters": [
+      {{- if .enable_cloud_esf }}
+      {
+        "name": "metadata-cluster",
+        "type": "STRICT_DNS",
+        "connectTimeout": "20s",
+        "loadAssignment": {
+          "clusterName": "169.254.169.254",
+          "endpoints": [
+            {
+              "lbEndpoints": [
+                {
+                  "endpoint": {
+                    "address": {
+                      "socketAddress": {
+                        "address": "169.254.169.254",
+                        "portValue": 80
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {{- end }}
       {
         "name": "prometheus_stats",
         "type": "STATIC",

@@ -96,14 +96,14 @@ var (
 		TagKeys:     []tag.Key{successKey},
 	}
 
-	viewMap = make(map[string]bool)
+	cpViewMap = make(map[string]bool)
 )
 
 func registerView(v *view.View) {
 	if err := view.Register(v); err != nil {
 		log.Warnf("failed to register Opencensus view %v", v.Name)
 	}
-	viewMap[v.Name] = true
+	cpViewMap[v.Name] = true
 }
 
 func init() {

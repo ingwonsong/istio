@@ -213,7 +213,7 @@ func (i *instance) createInstanceTemplate() error {
 			NetworkInterfaces: []*compute.NetworkInterface{{
 				AccessConfigs: []*compute.AccessConfig{{Name: "External NAT", Type: "ONE_TO_ONE_NAT", NetworkTier: "PREMIUM"}},
 				AliasIpRanges: nil,
-				Network:       "projects/" + i.cluster.Project() + "/global/networks/default",
+				Network:       "projects/" + i.cluster.Project() + "/global/networks/" + i.cluster.GKENetworkName(),
 			}},
 			Scheduling: &compute.Scheduling{
 				Preemptible:       false,

@@ -27,6 +27,7 @@ import (
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	"istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/util/sets"
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/validation"
 	"istio.io/istio/pkg/util/gogoprotomarshal"
@@ -36,7 +37,7 @@ import (
 func DefaultProxyConfig() meshconfig.ProxyConfig {
 	// TODO: include revision based on REVISION env
 	// TODO: set default namespace based on POD_NAMESPACE env
-	return meshconfig.ProxyConfig{
+	base := meshconfig.ProxyConfig{
 		ConfigPath:               constants.ConfigPathDir,
 		ClusterName:              &meshconfig.ProxyConfig_ServiceCluster{ServiceCluster: constants.ServiceClusterName},
 		DrainDuration:            types.DurationProto(45 * time.Second),
@@ -59,6 +60,13 @@ func DefaultProxyConfig() meshconfig.ProxyConfig {
 		StatNameLength: 189,
 		StatusPort:     15020,
 	}
+	if asm.IsCloudRun() {
+		return MCPDefaultProxyConfig(base)
+	}
+	if asm.IsCloudESF() {
+		base.Tracing = nil
+	}
+	return base
 }
 
 // DefaultMeshNetworks returns a default meshnetworks configuration.
@@ -75,7 +83,7 @@ func DefaultMeshConfig() meshconfig.MeshConfig {
 
 	// Defaults matching the standard install
 	// order matches the generated mesh config.
-	return meshconfig.MeshConfig{
+	base := meshconfig.MeshConfig{
 		EnableTracing:               true,
 		AccessLogFile:               "",
 		AccessLogEncoding:           meshconfig.MeshConfig_TEXT,
@@ -129,6 +137,10 @@ func DefaultMeshConfig() meshconfig.MeshConfig {
 			},
 		},
 	}
+	if asm.IsCloudRun() {
+		return MCPDefaultMeshConfig(base)
+	}
+	return base
 }
 
 // ApplyProxyConfig applies the give proxy config yaml to a mesh config object. The passed in mesh config

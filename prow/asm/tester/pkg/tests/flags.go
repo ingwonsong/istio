@@ -21,8 +21,6 @@ import (
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
-
-	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -33,12 +31,12 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	if settings.ControlPlane == resource.Unmanaged {
 		if settings.ClusterType != resource.GKEOnGCP {
 			testFlags = append(testFlags,
-				fmt.Sprintf("--istio.test.revision=%s", revisionLabel()))
+				fmt.Sprintf("--istio.test.revision=%s", revision.RevisionLabel()))
 
 			// going from 20s to 30s for the total retry timeout (all attempts)
 			testFlags = append(testFlags, "--istio.test.echo.callTimeout=30s")
-			// going from 5s to 20s for individual ForwardEchoRequests (bounds total all calls in req.Count)
-			testFlags = append(testFlags, "--istio.test.echo.requestTimeout=20s")
+			// going from 5s to 30s for individual ForwardEchoRequests (bounds total all calls in req.Count)
+			testFlags = append(testFlags, "--istio.test.echo.requestTimeout=30s")
 
 			testFlags = append(testFlags,
 				fmt.Sprintf("--istio.test.imagePullSecret=%s/%s",
@@ -51,14 +49,28 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 			// TODO these are the only security tests that excercise VMs. The other tests are written in a way
 			// they panic with StaticVMs.
 			if settings.TestTarget == "test.integration.asm.security" {
-				testFlags = append(testFlags,
-					"-run=TestReachability\\|TestMtlsStrictK8sCA\\|TestPassThroughFilterChain")
+				enabledTests := []string{"TestReachability",
+					"TestMtlsStrictK8sCA",
+					"TestPassThroughFilterChain",
+					"TestAuthorization_mTLS",
+					"TestAuthorization_JWT",
+					"TestAuthorization_WorkloadSelector",
+					"TestAuthorization_Deny",
+					"TestAuthorization_NegativeMatch",
+					"TestAuthorization_TCP",
+					"TestAuthorization_Conditions",
+					"TestAuthorization_Path",
+					"TestAuthorization_Audit",
+				}
+				enableTestCMD := fmt.Sprintf("-run=%s", strings.Join(enabledTests, "\\|"))
+				testFlags = append(testFlags, enableTestCMD)
 			}
 		}
 	} else {
 		testFlags = append(testFlags,
 			"--istio.test.revision=asm-managed",
-			"--istio.test.skipVM=true")
+			"--istio.test.skipVM=true",
+		  "--istio.test.skipDelta")
 	}
 
 	// Need to pass the revisions and versions to test framework if specified
@@ -80,8 +92,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 // when running the test target.
 func generateTestSelect(settings *resource.Settings) string {
 	const (
-		mcPresubmitTarget = "test.integration.multicluster.kube.presubmit"
-		asmSecurityTarget = "test.integration.asm.security"
+		mcPresubmitTarget   = "test.integration.multicluster.kube.presubmit"
+		asmSecurityTarget   = "test.integration.asm.security"
+		asmNetworkingTarget = "test.integration.asm.networking"
+		migrationTarget     = "test.integration.asm.addon-migration"
 	)
 
 	testSelect := ""
@@ -90,9 +104,10 @@ func generateTestSelect(settings *resource.Settings) string {
 		if settings.TestTarget == mcPresubmitTarget {
 			testSelect = "+multicluster"
 		}
-		if settings.TestTarget == asmSecurityTarget {
+		if settings.TestTarget == asmSecurityTarget ||
+			settings.TestTarget == asmNetworkingTarget {
 			if testSelect == "" {
-				testSelect = "-customsetup"
+				testSelect = "-customsetup,-postsubmit,-flaky"
 			}
 		}
 		if settings.FeatureToTest == resource.UserAuth {
@@ -100,6 +115,9 @@ func generateTestSelect(settings *resource.Settings) string {
 		}
 	} else if settings.ControlPlane == resource.Managed {
 		testSelect = "-customsetup"
+		if settings.TestTarget == migrationTarget {
+			testSelect = ""
+		}
 		if settings.ClusterTopology == resource.MultiCluster {
 			if settings.TestTarget == mcPresubmitTarget {
 				testSelect += ",+multicluster"
@@ -128,13 +146,4 @@ func generateRevisionsFlag(revisions *revision.Configs) string {
 
 	return fmt.Sprintf("--istio.test.revisions=%s",
 		strings.Join(terms, ","))
-}
-
-// revisionLabel generates a revision label name from the istioctl version.
-func revisionLabel() string {
-	istioVersion, _ := exec.RunWithOutput(
-		"bash -c \"istioctl version --remote=false -o json | jq -r '.clientVersion.tag'\"")
-	versionParts := strings.Split(istioVersion, "-")
-	version := fmt.Sprintf("asm-%s-%s", versionParts[0], versionParts[1])
-	return strings.ReplaceAll(version, ".", "")
 }

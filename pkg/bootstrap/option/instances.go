@@ -100,6 +100,10 @@ func DNSLookupFamily(value DNSLookupFamilyValue) Instance {
 	return newOption("dns_lookup_family", value)
 }
 
+func EnableCloudESF(value bool) Instance {
+	return newOption("enable_cloud_esf", value)
+}
+
 func OutlierLogPath(value string) Instance {
 	return newOptionOrSkipIfZero("outlier_log_path", value)
 }

@@ -79,6 +79,7 @@ type values struct {
 	MeshConfig             *meshConfig                      `json:"meshConfig" patchStrategy:"merge"`
 	Base                   *v1alpha12.BaseConfig            `json:"base" patchStrategy:"merge"`
 	IstiodRemote           *v1alpha12.IstiodRemoteConfig    `json:"istiodRemote" patchStrategy:"merge"`
+	Mdp                    *v1alpha12.MDPConfig             `json:"mdp" patchStrategy:"merge"`
 }
 
 type gatewaysConfig struct {

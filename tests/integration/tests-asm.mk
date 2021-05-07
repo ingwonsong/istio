@@ -21,13 +21,6 @@ test.integration.asm.networking: | $(JUNIT_REPORT)
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug,mcp:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
-# Custom test target for ASM networking CNI test.
-.PHONY: test.integration.asm.networking.cni
-test.integration.asm.networking.cni: | $(JUNIT_REPORT)
-	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/pilot/cni/... -timeout 30m \
-	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug,mcp:debug \
-	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
-
 # Custom test target for ASM telemetry.
 # TODO: Add select tests under tests/integration/telemetry
 .PHONY: test.integration.asm.telemetry
@@ -55,5 +48,35 @@ test.integration.asm.mcp: | $(JUNIT_REPORT) check-go-tag
 .PHONY: test.integration.asm.meshca-migration
 test.integration.asm.meshca-migration: | $(JUNIT_REPORT)
 	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/security/ca_migration/... -timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug,mcp:debug \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+
+# Custom test target for Istio on GKE to MCP with Mesh CA migration
+.PHONY: test.integration.asm.addon-migration
+test.integration.asm.addon-migration: | $(JUNIT_REPORT)
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/security/addon_migration/... -timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+
+# Custom test target for ASM managed data plane (MDP).
+# TODO: re-enable debug logs when scope doesn't cause error: --log_output_level=tf:debug,mdp:debug
+.PHONY: test.integration.asm.mdp
+test.integration.asm.mdp: | $(JUNIT_REPORT) check-go-tag
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/mdp/... | grep -v "cni19") -timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+
+# Temporary test target for verifying cni19 with MDP for 1.10 only
+# TODO: remove after 1.11
+.PHONY: test.integration.asm.mdp-cni19
+test.integration.asm.mdp-cni19: | $(JUNIT_REPORT) check-go-tag
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/mdp/cni19/... -timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+
+# Custom test target for ASM longrunning test.
+.PHONY: test.integration.asm.longrunning
+test.integration.asm.longrunning: | $(JUNIT_REPORT)
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/longrunning/... | grep -v "${DISABLED_PACKAGES}") -timeout 30m \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug,mcp:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))

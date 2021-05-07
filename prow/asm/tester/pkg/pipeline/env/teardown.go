@@ -15,48 +15,14 @@
 package env
 
 import (
-	"fmt"
 	"log"
 
-	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 func Teardown(settings *resource.Settings) error {
 	log.Println("🎬 start tearing down the environment...")
 
-	if err := removePermissions(settings); err != nil {
-		return fmt.Errorf("error removing gcp permissions: %w", err)
-	}
-
-	return nil
-}
-
-func removePermissions(settings *resource.Settings) error {
-	if settings.ClusterType == resource.GKEOnGCP && settings.ControlPlane == resource.Unmanaged {
-		return removeGcpPermissions(settings)
-	}
-	return nil
-}
-
-func removeGcpPermissions(settings *resource.Settings) error {
-	for _, projectId := range settings.GCPProjects {
-		if projectId != settings.GCRProject {
-			projectNum, err := getProjectNumber(projectId)
-			if err != nil {
-				return err
-			}
-			err = exec.Run(
-				fmt.Sprintf("gcloud projects remove-iam-policy-binding %s "+
-					"--member=serviceAccount:%s-compute@developer.gserviceaccount.com "+
-					"--role=roles/storage.objectViewer",
-					settings.GCRProject,
-					projectNum),
-			)
-			if err != nil {
-				return fmt.Errorf("error removing the binding for the service account to access GCR: %w", err)
-			}
-		}
-	}
+	// Nothing to teardown for now.
 	return nil
 }

@@ -177,7 +177,7 @@ func newProtocol(cfg Config) (protocol, error) {
 					IdleConnTimeout: time.Second,
 					TLSClientConfig: tlsConfig,
 					DialContext:     httpDialContext,
-					Proxy:           http.ProxyFromEnvironment,
+					Proxy:           nil,
 				},
 				Timeout: timeout,
 			},
@@ -190,7 +190,7 @@ func newProtocol(cfg Config) (protocol, error) {
 			}
 			proto.client.Transport.(*http.Transport).Proxy = http.ProxyURL(proxyURL)
 		}
-		if os.Getenv("CLUSTER_TYPE") == "bare-metal" {
+		if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" {
 			proto.client.Transport.(*http.Transport).Proxy = http.ProxyFromEnvironment
 		}
 		if cfg.Request.Http3 && scheme.Instance(urlScheme) == scheme.HTTP {

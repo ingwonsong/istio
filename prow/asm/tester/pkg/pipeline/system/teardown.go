@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -36,7 +37,7 @@ func Teardown(settings *resource.Settings) error {
 			}
 		}
 
-		if settings.WIP == resource.HUBWorkloadIdentityPool && settings.ClusterType != resource.OnPrem {
+		if settings.WIP == resource.HUBWorkloadIdentityPool && settings.ClusterType == resource.GKEOnGCP {
 			if err := exec.Dispatch(
 				settings.RepoRootDir,
 				"cleanup_hub_setup",
@@ -51,6 +52,10 @@ func Teardown(settings *resource.Settings) error {
 		cleanUpImages()
 	} else {
 		cleanUpImagesForManagedControlPlane()
+	}
+
+	if err := removePermissions(settings); err != nil {
+		return fmt.Errorf("error removing gcp permissions: %w", err)
 	}
 
 	return nil
@@ -78,4 +83,33 @@ func cleanUpImagesForManagedControlPlane() {
 		fmt.Sprintf("gcloud beta container images delete %s/cloudrun:%s --force-delete-tags --quiet", hub, tag),
 		fmt.Sprintf("gcloud beta container images delete %s/proxyv2:%s --force-delete-tags --quiet", hub, tag),
 	})
+}
+
+func removePermissions(settings *resource.Settings) error {
+	if settings.ClusterType == resource.GKEOnGCP && settings.ControlPlane == resource.Unmanaged {
+		return removeGcpPermissions(settings)
+	}
+	return nil
+}
+
+func removeGcpPermissions(settings *resource.Settings) error {
+	for _, projectId := range settings.ClusterGCPProjects {
+		if projectId != settings.GCRProject {
+			projectNum, err := gcp.GetProjectNumber(projectId)
+			if err != nil {
+				return err
+			}
+			err = exec.Run(
+				fmt.Sprintf("gcloud projects remove-iam-policy-binding %s "+
+					"--member=serviceAccount:%s-compute@developer.gserviceaccount.com "+
+					"--role=roles/storage.objectViewer",
+					settings.GCRProject,
+					projectNum),
+			)
+			if err != nil {
+				return fmt.Errorf("error removing the binding for the service account to access GCR: %w", err)
+			}
+		}
+	}
+	return nil
 }

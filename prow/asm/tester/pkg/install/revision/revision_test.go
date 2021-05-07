@@ -24,7 +24,7 @@ import (
 const testRevisionConfigYAML = `revisions:
 - name: "asm-revision-istiodca"
   ca: "CITADEL"
-  version: "1.9.9"
+  version: "1.9"
   overlay: "overlay/trustanchor-meshca.yaml"
 - name: "asm-revision-meshca"
   ca: "MESHCA"

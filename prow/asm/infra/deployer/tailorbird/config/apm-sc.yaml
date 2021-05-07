@@ -1,0 +1,35 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-apm-scsn-rookery-1
+  namespace: tailorbird-users
+spec:
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-apm-scsn-knest-1
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-apm-scsn-cluster-1
+          namespace: tailorbird-users
+        spec:
+          provider: apm
+          distribution: gke
+          provisionerArgs:
+            actlVersion: "{{ .Version }}"
+            # For nightlies, use "abox-louhi".
+            # For staging, use `anthos-isolated-mode-staging`.
+            # For release, use `anthos-isolated-mode-release`.
+            #
+            # Note: For release 0.9 and forward, these buckets will change to
+            # `anthos-private-mode-staging` and `anthos-private-mode-release`
+            # to reflect the product name change.
+            actlGCSBucket: "{{ .GCSBucket }}"
+
+            # TODO(thegoogler): set defaults for vars that shouldn't be changed
+            project: "tailorbird" # don't change
+            ci: "true" # don't change

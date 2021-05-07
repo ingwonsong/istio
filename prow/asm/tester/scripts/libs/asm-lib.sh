@@ -59,7 +59,7 @@ function prepare_images() {
   # Configure Docker to authenticate with Container Registry.
   gcloud auth configure-docker
   # Build images from the current branch and push the images to gcr.
-  make dockerx.pushx HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.pilot docker.proxyv2 docker.app"
+  make dockerx.pushx HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.pilot docker.proxyv2 docker.app docker.install-cni docker.mdp"
 
   docker pull gcr.io/asm-staging-images/asm/stackdriver-prometheus-sidecar:e2e-test
   docker tag gcr.io/asm-staging-images/asm/stackdriver-prometheus-sidecar:e2e-test "${HUB}/stackdriver-prometheus-sidecar:${TAG}"
@@ -73,7 +73,7 @@ function prepare_images_for_managed_control_plane() {
   # Configure Docker to authenticate with Container Registry.
   gcloud auth configure-docker
   # Build images from the current branch and push the images to gcr.
-  HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.cloudrun docker.proxyv2 docker.app docker.install-cni" make dockerx.pushx
+  HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.cloudrun docker.proxyv2 docker.app docker.install-cni docker.mdp" make dockerx.pushx
 }
 
 # Build istioctl in the current branch to install ASM.
@@ -104,6 +104,9 @@ function register_clusters_in_hub() {
     gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
       --member "serviceAccount:service-${ENVIRON_PROJECT_NUMBER}@gcp-sa-gkehub.iam.gserviceaccount.com" \
       --role roles/gkehub.serviceAgent
+    # Sleep 2 mins to wait for the IAM binding to take into effect.
+    # TODO(chizhg,tairan): remove the sleep after http://b/190864991 is fixed.
+    sleep 2m
     # This is the user guide for registering clusters within Hub
     # https://cloud.devsite.corp.google.com/service-mesh/docs/register-cluster
     # Verify two ways of Hub registration
@@ -279,126 +282,6 @@ function purge-ca() {
   fi
 }
 
-# Install ASM managed control plane.
-# Parameters: $1 - array of k8s contexts
-# Depends on env var ${HUB}, ${TAG} and ${FEATURE_TO_TEST}
-function install_asm_managed_control_plane() {
-  local CONTEXTS=("${@}")
-  # For installation, we'll use the corresponding master branch Scriptaro for ASM branch master-asm.
-  git clone --branch master https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git
-  cp anthos-service-mesh-packages/scripts/asm-installer/install_asm .
-  # ASM MCP Prow job connects to staging meshconfig API.
-  # The reason is currently, we also use this job to test/alert our staging ADS proxy.
-  sed -i 's/meshconfig\.googleapis\.com/staging-meshconfig.sandbox.googleapis.com/g' install_asm
-  chmod +x install_asm
-
-  for i in "${!CONTEXTS[@]}"; do
-    IFS="_" read -r -a VALS <<< "${CONTEXTS[$i]}"
-    local PROJECT_ID="${VALS[1]}"
-    local LOCATION="${VALS[2]}"
-    local CLUSTER_NAME="${VALS[3]}"
-    # Use the first project as the environ project
-    if [[ $i == 0 ]]; then
-      ENVIRON_PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
-      echo "Environ project ID: ${PROJECT_ID}, project number: ${ENVIRON_PROJECT_NUMBER}"
-    fi
-    TMPDIR=$(mktemp -d)
-
-
-    if [[ "${FEATURE_TO_TEST}" == "ADDON" ]]; then
-      # Enable test for addon <-> MCP workload communication
-      export ISTIO_TEST_EXTRA_REVISIONS=default
-      # Allow auto detection of the CA, dynamically choosing Citadel or Mesh CA based on if an existing
-      # Istio cluster is installed.
-      cat <<EOF | kubectl --context="${CONTEXTS[$i]}" apply -f - -n istio-system
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: asm-options
-  namespace: istio-system
-data:
-  ASM_OPTS: |
-    CA=check
-EOF
-      # TODO this needs to be in addon-migrate. But ordering here is tricky, we need to disable it before we apply.
-      # Likely the end result will be that we re-apply the new CRDs when user migrates, but have the old CRDs
-      # when MCP is "shadow" launched?
-      kubectl --context="${CONTEXTS[$i]}" scale deployment istio-operator --replicas=0 -n istio-operator
-      while "$(kubectl --context="${CONTEXTS[$i]}" get pods -n istio-operator -oname)" != ""; do
-        echo "waiting for pods to terminate"
-        sleep 1
-      done
-      # This will be manual action by user. Technically they can co-exist, but the old Istiod will hold onto the
-      # leader election lock, which breaks Ingress support.
-      kubectl --context="${CONTEXTS[$i]}" scale deployment istiod-istio-1611 --replicas=0 -n istio-system
-
-      # TODO(b/184940170) install_asm should setup CRDs
-      # Normally we set it in Cloudrun, but because istio-system exists that step is skipped
-      kubectl apply --context="${CONTEXTS[$i]}" -f manifests/charts/base/files/gen-istio-cluster.yaml \
-        --record=false --overwrite=false --force-conflicts=true --server-side
-    fi
-
-    # _CI_ASM_PKG_LOCATION _CI_ASM_IMAGE_LOCATION are required for unreleased Scriptaro (master and staging branch).
-    # For sidecar proxy and Istiod, _CI_CLOUDRUN_IMAGE_HUB and _CI_CLOUDRUN_IMAGE_TAG are used.
-    # Currently, MCP only uses mesh CA.
-    local args=( --mode install )
-    args+=( --project_id "${PROJECT_ID}" )
-    args+=( --cluster_location "${LOCATION}" )
-    args+=( --cluster_name "${CLUSTER_NAME}" )
-    args+=( --managed )
-    args+=( --enable_cluster_labels )
-    args+=( --enable_namespace_creation )
-    args+=( --output_dir "${TMPDIR}" )
-    args+=( --ca "mesh_ca" )
-    args+=( --verbose )
-
-    if [[ "${FEATURE_TO_TEST}" == "CNI" ]]; then
-      args+=( --option "cni-managed" )
-      _CI_ASM_PKG_LOCATION="asm-staging-images" _CI_ASM_IMAGE_LOCATION="${HUB}" _CI_ASM_IMAGE_TAG="${TAG}" _CI_ASM_KPT_BRANCH="master" \
-      _CI_CLOUDRUN_IMAGE_HUB="${HUB}/cloudrun" _CI_CLOUDRUN_IMAGE_TAG="${TAG}" ./install_asm "${args[@]}"
-    else
-      _CI_ASM_PKG_LOCATION="asm-staging-images" _CI_ASM_IMAGE_LOCATION="${HUB}" _CI_ASM_IMAGE_TAG="${TAG}" _CI_ASM_KPT_BRANCH="master" \
-      _CI_CLOUDRUN_IMAGE_HUB="${HUB}/cloudrun" _CI_CLOUDRUN_IMAGE_TAG="${TAG}" ./install_asm "${args[@]}"
-    fi
-    kubectl apply -f tools/packaging/knative/gateway/injected-gateway.yaml -n istio-system --context="${CONTEXTS[$i]}"
-    # Enable access logging to help with debugging tests
-    cat <<EOF | kubectl apply --context="${CONTEXTS[$i]}" -f -
-apiVersion: v1
-data:
-  mesh: |-
-    accessLogFile: /dev/stdout
-kind: ConfigMap
-metadata:
-  name: asm
-  namespace: istio-system
-EOF
-
-    if [[ "${FEATURE_TO_TEST}" == "ADDON" ]]; then
-      # Run the addon migrate script. This sets up the gateway, so do not install it again
-      tools/packaging/knative/migrate-addon.sh -y --context "${CONTEXTS[$i]}"
-    else
-      kubectl apply -f tools/packaging/knative/gateway/injected-gateway.yaml -n istio-system --context="${CONTEXTS[$i]}"
-    fi
-  done
-
-  for i in "${!CONTEXTS[@]}"; do
-    for j in "${!CONTEXTS[@]}"; do
-      if [[ "$i" != "$j" ]]; then
-        IFS="_" read -r -a VALS <<< "${CONTEXTS[$j]}"
-        local PROJECT_J=${VALS[1]}
-        local LOCATION_J=${VALS[2]}
-        local CLUSTER_J=${VALS[3]}
-        # TODO(ruigu): Ideally, the istioctl here should be the same what Scriptaro used above.
-        # However, we don't have a clear way of figuring that out.
-        # For now, similar to ASM unmanaged, use the locally built istioctl.
-        istioctl x create-remote-secret --context="${CONTEXTS[$j]}" --name="${CLUSTER_J}" > "${PROJECT_J}"_"${LOCATION_J}"_"${CLUSTER_J}".secret
-        kubectl apply -f "${PROJECT_J}"_"${LOCATION_J}"_"${CLUSTER_J}".secret --context="${CONTEXTS[$i]}"
-      fi
-    done
-  done
-}
-
-
 # Outputs YAML to the given file, in the structure of []cluster.Config to inform the test framework of details about
 # each cluster under test. cluster.Config is defined in pkg/test/framework/components/cluster/factory.go.
 # Parameters: $1 - path to the file to append to
@@ -423,7 +306,7 @@ function gen_topology_file() {
     kubeconfig: "${kubeconfpaths[i]}"
 EOF
     # Disable using simulated Pod-based "VMs" when testing real VMs
-    if [ -n "${STATIC_VMS}" ] || "${GCE_VMS}"; then
+    if "${GCE_VMS}"; then
       echo '    fakeVM: false' >> "${file}"
     fi
   done
@@ -449,8 +332,8 @@ function install_asm_on_multicloud() {
       local IDENTITY_PROVIDER
       local IDENTITY
       local HUB_MEMBERSHIP_ID
-      IDENTITY_PROVIDER="$(kubectl --kubeconfig="${MC_CONFIGS[$i]}" --context=cluster get memberships membership -o=json | jq .spec.identity_provider)"
-      IDENTITY="$(echo "${IDENTITY_PROVIDER}" | sed 's/^\"https:\/\/gkehub.googleapis.com\/projects\/\(.*\)\/locations\/global\/memberships\/\(.*\)\"$/\1 \2/g')"
+      IDENTITY_PROVIDER="$(kubectl --kubeconfig="${MC_CONFIGS[$i]}" get memberships.hub.gke.io membership -o=jsonpath='{.spec.identity_provider}')"
+      IDENTITY="$(echo "${IDENTITY_PROVIDER}" | sed 's/^https:\/\/gkehub.googleapis.com\/projects\/\(.*\)\/locations\/global\/memberships\/\(.*\)$/\1 \2/g')"
       read -r ENVIRON_PROJECT_ID HUB_MEMBERSHIP_ID <<EOF
 ${IDENTITY}
 EOF
@@ -470,8 +353,8 @@ EOF
       kpt cfg set tmp anthos.servicemesh.rev "${ASM_REVISION_LABEL}"
       kpt cfg set tmp anthos.servicemesh.tag "${TAG}"
       kpt cfg set tmp anthos.servicemesh.hub "${HUB}"
-      kpt cfg set tmp anthos.servicemesh.hubMembershipID "${HUB_MEMBERSHIP_ID}"
-      kpt cfg set tmp gcloud.project.environProjectID "${ENVIRON_PROJECT_ID}"
+      kpt cfg set tmp anthos.servicemesh.hubTrustDomain "${ENVIRON_PROJECT_ID}.svc.id.goog"
+      kpt cfg set tmp anthos.servicemesh.hub-idp-url "${IDENTITY_PROVIDER}"
 
       echo "----------Istio Operator YAML and Hub Overlay YAML----------"
       cat "tmp/istio/istio-operator.yaml"
@@ -551,17 +434,6 @@ EOF
   if [[ "${CLUSTER_TYPE}" == "bare-metal" || "${CLUSTER_TYPE}" == "aws" ]]; then
     export -n HTTP_PROXY
   fi
-}
-
-# Exports variable ASM_REVISION_LABEL with the value being a function of istioctl client version.
-function create_asm_revision_label() {
-  local ISTIO_CLIENT_TAG
-  ISTIO_CLIENT_TAG=$(istioctl version --remote=false -o json | jq -r '.clientVersion.tag')
-  IFS='-'; read -r -a tag_tokens <<< "${ISTIO_CLIENT_TAG}"
-  unset IFS
-  ASM_REVISION_LABEL="asm-${tag_tokens[0]}-${tag_tokens[1]}"
-  ASM_REVISION_LABEL=${ASM_REVISION_LABEL//.}
-  export ASM_REVISION_LABEL
 }
 
 # Creates ca certs on the cluster
@@ -726,9 +598,44 @@ function setup_asm_vms() {
 function install_asm_on_proxied_clusters() {
   local MESH_ID="test-mesh"
   for i in "${!MC_CONFIGS[@]}"; do
-    install_certs "${MC_CONFIGS[$i]}"
-    echo "----------Installing ASM----------"
-    cat <<EOF | istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f -
+    if [[ "${CA}" == "MESHCA" ]]; then
+      local IDENTITY_PROVIDER
+      local IDENTITY
+      local HUB_MEMBERSHIP_ID
+      IDENTITY_PROVIDER="$(kubectl --kubeconfig="${MC_CONFIGS[$i]}" get memberships.hub.gke.io membership -o=jsonpath='{.spec.identity_provider}')"
+      IDENTITY="$(echo "${IDENTITY_PROVIDER}" | sed 's/^https:\/\/gkehub.googleapis.com\/projects\/\(.*\)\/locations\/global\/memberships\/\(.*\)$/\1 \2/g')"
+      read -r ENVIRON_PROJECT_ID HUB_MEMBERSHIP_ID <<EOF
+${IDENTITY}
+EOF
+      local ENVIRON_PROJECT_NUMBER
+      ENVIRON_PROJECT_NUMBER=$(env -u HTTP_PROXY -u HTTPS_PROXY gcloud projects describe "${ENVIRON_PROJECT_ID}" --format="value(projectNumber)")
+      local PROJECT_ID="${ENVIRON_PROJECT_ID}"
+      local CLUSTER_NAME="${HUB_MEMBERSHIP_ID}"
+      local CLUSTER_LOCATION="us-central1-a"
+      local MESH_ID="proj-${ENVIRON_PROJECT_NUMBER}"
+
+      env -u HTTP_PROXY -u HTTPS_PROXY kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@master tmp
+      kpt cfg set tmp gcloud.compute.network "network${i}"
+      kpt cfg set tmp gcloud.core.project "${PROJECT_ID}"
+      kpt cfg set tmp gcloud.project.environProjectNumber "${ENVIRON_PROJECT_NUMBER}"
+      kpt cfg set tmp gcloud.container.cluster "${CLUSTER_NAME}"
+      kpt cfg set tmp gcloud.compute.location "${CLUSTER_LOCATION}"
+      kpt cfg set tmp anthos.servicemesh.rev "${ASM_REVISION_LABEL}"
+      kpt cfg set tmp anthos.servicemesh.tag "${TAG}"
+      kpt cfg set tmp anthos.servicemesh.hub "${HUB}"
+      kpt cfg set tmp anthos.servicemesh.hubTrustDomain "${ENVIRON_PROJECT_ID}.svc.id.goog"
+      kpt cfg set tmp anthos.servicemesh.hub-idp-url "${IDENTITY_PROVIDER}"
+
+      echo "----------Istio Operator YAML and Hub Overlay YAML----------"
+      cat "tmp/istio/istio-operator.yaml"
+      cat "tmp/istio/options/hub-meshca.yaml"
+
+      echo "----------Installing ASM----------"
+      istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f "tmp/istio/istio-operator.yaml" -f "tmp/istio/options/hub-meshca.yaml" --revision="${ASM_REVISION_LABEL}"
+    else
+      install_certs "${MC_CONFIGS[$i]}"
+      echo "----------Installing ASM----------"
+      cat <<EOF | istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 spec:
@@ -743,6 +650,7 @@ spec:
         clusterName: cluster${i}
       network: network${i}
 EOF
+    fi
     configure_validating_webhook "${ASM_REVISION_LABEL}" "${MC_CONFIGS[$i]}"
   done
 }

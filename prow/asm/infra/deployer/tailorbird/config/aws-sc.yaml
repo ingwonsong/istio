@@ -1,0 +1,29 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-aws-sc-{{.Random6}}
+  namespace: tailorbird-users
+spec:
+  knests:
+    - apiVersion: sut.tailorbird.io/v1alpha1
+      kind: Knest
+      metadata:
+        name: asm-ci-aws-sc-knest-{{.Random6}}
+      spec:
+        clusters:
+          - apiVersion: sut.tailorbird.io/v1alpha1
+            kind: Cluster
+            metadata:
+              name: asm-ci-aws-sc-cluster-{{.Random6}}
+            spec:
+              provider: aws
+              distribution: gke
+              provisionerArgs:
+                region: us-east-2
+                gcsBucket: "{{ .GCSBucket }}"
+                anthosVersion: "{{ .Version }}"
+                commonOptionsAnthosVersionPrefix: "{{ .VersionPrefix }}"
+                nodeCount: "6"
+                commonOptionsWaitTimeout: "3600000000000"
+                nodeType: m5.xlarge
+                username: asm-svc-acct

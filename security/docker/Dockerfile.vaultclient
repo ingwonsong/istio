@@ -14,7 +14,8 @@ FROM docker.io/istio/distroless:${BASE_VERSION} as distroless
 # hadolint ignore=DL3006
 FROM ${BASE_DISTRIBUTION}
 
-COPY vaultclient /usr/local/bin/
+ARG TARGETARCH
+COPY ${TARGETARCH:-amd64}/vaultclient /usr/local/bin/vaultclient
 
 USER 1337:1337
 

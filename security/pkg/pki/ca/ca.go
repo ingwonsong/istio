@@ -420,7 +420,7 @@ func NewKMSBackedCAOptions(ctx context.Context,
 	}
 
 	// Verify cert chain with previously loaded CA cert in HSM
-	verified, verifyErr := kes.VerifyCertChain(certSecret.Data[CertChainID])
+	verified, verifyErr := kes.VerifyCertChain(certSecret.Data[CertChainFile])
 	if verifyErr != nil {
 		pkiCaLog.Errorf("Failed to verify certificate chain (error: %v). Abort.", verifyErr)
 		return nil, fmt.Errorf("failed to verify certificate chain")
@@ -429,7 +429,7 @@ func NewKMSBackedCAOptions(ctx context.Context,
 		return nil, fmt.Errorf("certificate chain verification failed")
 	}
 
-	if caOpts.KeyCertBundle, err = util.NewVerifiedKeyCertBundleFromPem(nil, sKey, certSecret.Data[CertChainID],
+	if caOpts.KeyCertBundle, err = util.NewVerifiedKeyCertBundleFromPem(nil, sKey, certSecret.Data[CertChainFile],
 		nil); err != nil {
 		return nil, fmt.Errorf("failed to create CA KeyCertBundle (%v)", err)
 	}

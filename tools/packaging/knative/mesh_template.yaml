@@ -1,5 +1,4 @@
-enablePrometheusMerge: true
-trustDomain: "${TRUST_DOMAIN}"
+trustDomain: "{{.TrustDomain}}"
 trustDomainAliases:
   - cluster.local
 
@@ -7,18 +6,14 @@ configSources:
   - address: k8s://
   - address: fs:///var/lib/istio/config/data
 
-# Locality LB is not enabled by default in ASM
-# Users can enable it from DestinationRule
-localityLbSetting:
-  enabled: false
-
 defaultConfig:
   proxyMetadata:
     XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
     CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
     OUTPUT_CERTS: /etc/istio/proxy
-    XDS_AUTH_PROVIDER: "${XDS_AUTH_PROVIDER}"
+    XDS_AUTH_PROVIDER: "{{.XDSAuthProvider}}"
+    PROXY_CONFIG_XDS_AGENT: "true"
 
-  meshId: "proj-${PROJECT_NUMBER}"
-  discoveryAddress: "${XDS_ADDR}"
+  meshId: "proj-{{.ProjectNumber}}"
+  discoveryAddress: "{{.XDSAddr}}"
   tracing: {}

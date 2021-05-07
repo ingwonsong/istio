@@ -31,6 +31,9 @@ var _ echo.Workload = &workload{}
 
 type workload struct {
 	*client.Instance
+	// gce instnace name
+	name string
+	// internal instance ip
 	address string
 }
 
@@ -46,7 +49,7 @@ func newWorkloads(migInstances []*compute.Instance, grpcPort int, tls *common.TL
 		scopes.Framework.Infof("%s:\n  external IP: %s\n  internal IP: %s\n  status: %s",
 			i.Name, externalIP, internalIP, i.Status)
 
-		w, err := newWorkload(externalIP, internalIP, grpcPort, tls)
+		w, err := newWorkload(i.Name, externalIP, internalIP, grpcPort, tls)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -60,19 +63,20 @@ func newWorkloads(migInstances []*compute.Instance, grpcPort int, tls *common.TL
 	return out, nil
 }
 
-func newWorkload(grpcAddr, internalAddr string, grpcPort int, tls *common.TLSSettings) (*workload, error) {
+func newWorkload(name, grpcAddr, internalAddr string, grpcPort int, tls *common.TLSSettings) (*workload, error) {
 	c, err := client.New(fmt.Sprintf("%s:%d", grpcAddr, grpcPort), tls)
 	if err != nil {
 		return nil, err
 	}
 	return &workload{
+		name:     name,
 		Instance: c,
 		address:  internalAddr,
 	}, nil
 }
 
 func (w *workload) PodName() string {
-	return ""
+	return w.name
 }
 
 func (w *workload) Address() string {

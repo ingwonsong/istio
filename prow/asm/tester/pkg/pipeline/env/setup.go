@@ -24,15 +24,18 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 const (
-	sharedGCPProject = "istio-prow-build"
-	configDir        = "prow/asm/tester/configs"
+	sharedGCPProject      = "istio-prow-build"
+	configDir             = "prow/asm/tester/configs"
+	scriptaroCommitConfig = "scriptaro/commit"
 )
 
 func Setup(settings *resource.Settings) error {
@@ -53,9 +56,11 @@ func Setup(settings *resource.Settings) error {
 		return err
 	}
 
-	// Setup permissions to allow pulling images from GCR registries.
-	if err := setupPermissions(settings); err != nil {
-		return fmt.Errorf("error setting up the permissions: %w", err)
+	if settings.ClusterType == resource.GKEOnGCP {
+		// Enable core dumps for Istio proxy
+		if err := enableCoreDumps(settings); err != nil {
+			return err
+		}
 	}
 
 	// Inject system env vars that are required for the test flow.
@@ -64,6 +69,22 @@ func Setup(settings *resource.Settings) error {
 	}
 
 	log.Printf("Running with %q CA, %q Workload Identity Pool, %q and --vm=%t control plane.", settings.CA, settings.WIP, settings.ControlPlane, settings.UseVMs)
+
+	return nil
+}
+
+// enableCoreDumps configures the core_pattern kernel property to write core dumps to a writeable directory.
+// This allows CI to grab cores from crashing proxies. In OSS this is done by docker exec, since its always a single node.
+// Note: OSS also allows an init container on each pod. This option was favored to avoid making tests not representing real world
+// deployments.
+func enableCoreDumps(settings *resource.Settings) error {
+	yaml := filepath.Join(settings.ConfigDir, "core-dump-daemonset.yaml")
+	for _, kc := range strings.Split(settings.KubectlContexts, ",") {
+		cmd := fmt.Sprintf("kubectl apply -f %s --context=%s", yaml, kc)
+		if err := exec.Run(cmd); err != nil {
+			return fmt.Errorf("error deploying core dump daemonset: %w", err)
+		}
+	}
 
 	return nil
 }
@@ -87,164 +108,37 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 		for i, c := range cs {
 			projectIDs[i] = c.ProjectID
 		}
-		settings.GCPProjects = projectIDs
+		settings.ClusterGCPProjects = projectIDs
 		// If it's using the gke clusters, use the first available project to hold the images.
-		gcrProjectID = settings.GCPProjects[0]
+		gcrProjectID = settings.ClusterGCPProjects[0]
 	} else {
 		// Otherwise use the shared GCP project to hold these images.
 		gcrProjectID = sharedGCPProject
 	}
 	settings.GCRProject = gcrProjectID
 
-	if settings.ClusterTopology == resource.MultiProject {
-		settings.HostGCPProject = os.Getenv("HOST_PROJECT")
-	}
-
-	return nil
-}
-
-func setupPermissions(settings *resource.Settings) error {
-	if settings.ControlPlane == resource.Unmanaged {
-		if settings.ClusterType == resource.GKEOnGCP {
-			log.Print("Set permissions to allow the Pods on the GKE clusters to pull images...")
-			return setGcpPermissions(settings)
-		} else {
-			log.Print("Set permissions to allow the Pods on the multicloud clusters to pull images...")
-			return setMulticloudPermissions(settings)
-		}
-	}
-	return nil
-}
-
-func setGcpPermissions(settings *resource.Settings) error {
-	cs := kube.GKEClusterSpecsFromContexts(settings.KubectlContexts)
-	for _, c := range cs {
-		if c.ProjectID != settings.GCRProject {
-			projectNum, err := getProjectNumber(c.ProjectID)
-			if err != nil {
-				return err
-			}
-			err = exec.Run(
-				fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
-					"--member=serviceAccount:%s-compute@developer.gserviceaccount.com "+
-					"--role=roles/storage.objectViewer",
-					settings.GCRProject,
-					projectNum),
-			)
-			if err != nil {
-				return fmt.Errorf("error adding the binding for the service account to access GCR: %w", err)
-			}
-		}
-	}
-	return nil
-}
-
-// TODO: use kubernetes client-go library instead of kubectl.
-func setMulticloudPermissions(settings *resource.Settings) error {
-	if settings.ClusterType == resource.BareMetal || settings.ClusterType == resource.GKEOnAWS {
-		os.Setenv("HTTP_PROXY", os.Getenv("MC_HTTP_PROXY"))
-		defer os.Unsetenv("HTTP_PROXY")
-	}
-
-	secretName := "test-gcr-secret"
-	cred := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
-	configs := filepath.SplitList(settings.Kubeconfig)
-	for i, config := range configs {
-		err := exec.Run(
-			fmt.Sprintf("kubectl create ns istio-system --kubeconfig=%s", config),
-		)
-		if err != nil {
-			return fmt.Errorf("Error at 'kubectl create ns ...': %w", err)
-		}
-
-		// Create the secret that can be used to pull images from GCR.
-		err = exec.Run(
-			fmt.Sprintf(
-				"bash -c 'kubectl create secret -n istio-system docker-registry %s "+
-					"--docker-server=https://gcr.io "+
-					"--docker-username=_json_key "+
-					"--docker-email=\"$(gcloud config get-value account)\" "+
-					"--docker-password=\"$(cat %s)\" "+
-					"--kubeconfig=%s'",
-				secretName,
-				cred,
-				config,
-			),
-		)
-		if err != nil {
-			return fmt.Errorf("Error at 'kubectl create secret ...': %w", err)
-		}
-
-		// Save secret data once (to be passed into the test framework),
-		// deleting the line that contains 'namespace'.
-		if i == 0 {
-			err = exec.Run(
-				fmt.Sprintf(
-					"bash -c 'kubectl -n istio-system get secrets %s --kubeconfig=%s -o yaml "+
-						"| sed \"/namespace/d\" > %s'",
-					secretName,
-					config,
-					fmt.Sprintf("%s/test_image_pull_secret.yaml", os.Getenv("ARTIFACTS")),
-				),
-			)
-			if err != nil {
-				return fmt.Errorf("Error at 'kubectl get secrets ...': %w", err)
-			}
-		}
-
-		// Patch the service accounts to use imagePullSecrets.
-		serviceAccts := []string{
-			"default",
-			"istio-ingressgateway-service-account",
-			"istio-reader-service-account",
-			"istiod-service-account",
-		}
-		for _, serviceAcct := range serviceAccts {
-			err = exec.Run(
-				fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --kubeconfig=%s apply -f -
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: %s
-  namespace: istio-system
-imagePullSecrets:
-- name: %s
-EOF'`,
-					config,
-					serviceAcct,
-					secretName,
-				),
-			)
-			if err != nil {
-				return fmt.Errorf("Error at 'kubectl apply ...': %s", err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func getProjectNumber(projectId string) (string, error) {
-	projectNum, err := exec.RunWithOutput(
-		fmt.Sprintf("gcloud projects describe %s --format=value(projectNumber)", projectId))
+	f := filepath.Join(settings.ConfigDir, scriptaroCommitConfig)
+	bytes, err := ioutil.ReadFile(f)
 	if err != nil {
-		err = fmt.Errorf("Error getting the project number for %q: %w", projectId, err)
+		return fmt.Errorf("error reading the Scriptaro commit config file: %w", err)
 	}
-	return strings.TrimSpace(projectNum), err
+	settings.ScriptaroCommit = strings.Split(string(bytes), "\n")[0]
+
+	return nil
 }
 
 func injectEnvVars(settings *resource.Settings) error {
 	var hub, tag string
-	tag = "BUILD_ID_" + os.Getenv("BUILD_ID")
+	tag = "BUILD_ID_" + getBuildID()
 	if settings.ControlPlane == resource.Unmanaged {
-		hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, os.Getenv("BUILD_ID"))
+		hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, getBuildID())
 	} else {
 		hub = "gcr.io/asm-staging-images/asm-mcp-e2e-test"
 	}
 
 	var meshID string
 	if settings.ClusterType == resource.GKEOnGCP {
-		projectNum, err := getProjectNumber(settings.GCPProjects[0])
+		projectNum, err := gcp.GetProjectNumber(settings.ClusterGCPProjects[0])
 		if err != nil {
 			return err
 		}
@@ -256,7 +150,7 @@ func injectEnvVars(settings *resource.Settings) error {
 		if err != nil {
 			return err
 		}
-		projectNum, err := getProjectNumber(environProjectID)
+		projectNum, err := gcp.GetProjectNumber(environProjectID)
 		if err != nil {
 			return err
 		}
@@ -281,6 +175,9 @@ func injectEnvVars(settings *resource.Settings) error {
 		"CLUSTER_TOPOLOGY": settings.ClusterTopology.String(),
 		"FEATURE_TO_TEST":  settings.FeatureToTest.String(),
 
+		// The scriptaro repo commit ID to use to download the script.
+		"SCRIPTARO_COMMIT": settings.ScriptaroCommit,
+
 		// exported TAG and HUB are used for ASM installation, and as the --istio.test.tag and
 		// --istio-test.hub flags of the testing framework
 		"TAG": tag,
@@ -295,12 +192,11 @@ func injectEnvVars(settings *resource.Settings) error {
 		"TEST_TARGET":          settings.TestTarget,
 		"DISABLED_TESTS":       settings.DisabledTests,
 
-		"USE_VM": strconv.FormatBool(settings.UseVMs),
-		// TODO fully remove static vms from asm scripts
-		"STATIC_VMS":    "",
-		"GCE_VMS":       strconv.FormatBool(settings.UseGCEVMs || settings.VMStaticConfigDir != ""),
-		"VM_DISTRO":     settings.VMImageFamily,
-		"IMAGE_PROJECT": settings.VMImageProject,
+		"USE_VM":          strconv.FormatBool(settings.UseVMs),
+		"GCE_VMS":         strconv.FormatBool(settings.UseGCEVMs || settings.VMStaticConfigDir != ""),
+		"VM_DISTRO":       settings.VMImageFamily,
+		"IMAGE_PROJECT":   settings.VMImageProject,
+		"VM_AGENT_BUCKET": settings.VMServiceProxyAgentGCSPath,
 	}
 
 	for name, val := range envVars {
@@ -311,6 +207,10 @@ func injectEnvVars(settings *resource.Settings) error {
 	}
 
 	return nil
+}
+
+func getBuildID() string {
+	return os.Getenv("BUILD_ID")
 }
 
 // Fix the cluster configs to meet the test requirements for ASM.
@@ -326,35 +226,21 @@ func fixClusterConfigs(settings *resource.Settings) error {
 		return fixBareMetal(settings)
 	case resource.GKEOnAWS:
 		return fixAWS(settings)
+	case resource.APM:
+		return fixAPM(settings)
 	}
 
 	return nil
 }
 
 func fixGKE(settings *resource.Settings) error {
-	if settings.ClusterTopology == resource.MultiProject {
-		// For MULTIPROJECT_MULTICLUSTER topology, firewall rules need to be added to
-		// allow the clusters talking with each other for security tests.
-		// See the details in b/175599359 and b/177919868
-		createFirewallCmd := fmt.Sprintf(
-			"gcloud compute --project=%q firewall-rules create extended-firewall-rule --network=test-network --allow=tcp,udp,icmp --direction=INGRESS",
-			settings.HostGCPProject)
-		if err := exec.Run(createFirewallCmd); err != nil {
-			return fmt.Errorf("error creating the firewall rules for GKE multiproject tests: %w", err)
-		}
+	// Add firewall rules to enable multi-cluster communication
+	if err := addFirewallRules(settings); err != nil {
+		return err
 	}
 
 	if settings.FeatureToTest == resource.VPCSC {
-		networkName := "default"
-		if settings.ClusterTopology == resource.MultiProject {
-			networkName = "test-network"
-		}
-		// Create the route as per the user guide in https://docs.google.com/document/d/11yYDxxI-fbbqlpvUYRtJiBmGdY_nIKPJLbssM3YQtKI/edit#heading=h.e2laig460f1d.
-		createRouteCmd := fmt.Sprintf(`gcloud compute routes create restricted-vip --network=%s --destination-range=199.36.153.4/30 \
-			--next-hop-gateway=default-internet-gateway`, networkName)
-		if err := exec.Run(createRouteCmd); err != nil {
-			return fmt.Errorf("error creating the restricted-vip route for VPC-SC testing: %w", err)
-		}
+		networkName := "prow-test-network"
 
 		// Create router and NAT
 		if err := exec.Run(fmt.Sprintf(
@@ -381,21 +267,163 @@ func fixGKE(settings *resource.Settings) error {
 			}
 		}
 
-		// Update subnets to enable private IP access
-		if settings.ClusterTopology == resource.MultiProject {
-			for _, project := range settings.GCPProjects {
-				updateSubnetCmd := fmt.Sprintf(`gcloud compute networks subnets update "test-network-%s" \
-				 	--project=%s \
-					--region=us-central1 \
-					--enable-private-ip-google-access`, project, settings.HostGCPProject)
-				if err := exec.Run(updateSubnetCmd); err != nil {
-					return fmt.Errorf("error updating the subnet for VPC-SC testing: %w", err)
-				}
-			}
+		if err := addIpsToAuthorizedNetworks(settings); err != nil {
+			return fmt.Errorf("error adding ips to authorized networks: %w", err)
+		}
+	}
+
+	if settings.FeatureToTest == resource.PrivateClusterWithMAN {
+		if err := addIpsToAuthorizedNetworks(settings); err != nil {
+			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}
 	}
 
 	return nil
+}
+
+func addFirewallRules(settings *resource.Settings) error {
+	networkProject := settings.GCPProjects[0]
+	clusterProjects := settings.ClusterGCPProjects
+	if settings.ClusterTopology != resource.MultiProject {
+		clusterProjects = []string{settings.ClusterGCPProjects[0]}
+	}
+
+	var sourceRanges, targetTags []string
+	for _, p := range clusterProjects {
+		// Create the firewall rules to allow multi-cluster communication as per
+		// https://github.com/istio/istio.io/blob/master/content/en/docs/setup/platform-setup/gke/index.md#multi-cluster-communication
+		allClusterCIDRs, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c 'gcloud --project %s container clusters list --format=\"value(clusterIpv4Cidr)\" | sort | uniq'", p))
+		if err != nil {
+			return fmt.Errorf("error getting all cluster CIDRs for project %q: %w", p, err)
+		}
+		sourceRanges = append(sourceRanges, strings.Split(strings.TrimSpace(allClusterCIDRs), "\n")...)
+
+		allClusterTags, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c 'gcloud --project %s compute instances list --format=\"value(tags.items.[0])\" | sort | uniq'", p))
+		if err != nil {
+			return fmt.Errorf("error getting all cluster tags for project %q: %w", p, err)
+		}
+		targetTags = append(targetTags, strings.Split(strings.TrimSpace(allClusterTags), "\n")...)
+	}
+
+	// Get test runner CIDR
+	testRunnerCidr, err := getTestRunnerCidr()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve test runner IP: %w", err)
+	}
+
+	allowableSourceRanges := strings.Join(append(sourceRanges, testRunnerCidr), ",")
+	// Set the env var to allow the VM script to read and set the allowable
+	// source ranges.
+	os.Setenv("ALLOWABLE_SOURCE_RANGES", allowableSourceRanges)
+
+	if err := exec.Run(fmt.Sprintf(`gcloud compute firewall-rules create multicluster-firewall-rule \
+	--network=prow-test-network \
+	--project=%s \
+	--allow=tcp,udp,icmp,esp,ah,sctp \
+	--direction=INGRESS \
+	--priority=900 \
+	--source-ranges=%s \
+	--target-tags=%s --quiet`, networkProject, allowableSourceRanges, strings.Join(targetTags, ","))); err != nil {
+		return fmt.Errorf("error creating the firewall rule to allow multi-cluster communication")
+	}
+
+	return nil
+}
+
+func addIpsToAuthorizedNetworks(settings *resource.Settings) error {
+	// Get test runner IP
+	testRunnerCidr, err := getTestRunnerCidr()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve test runner IP: %w", err)
+	}
+
+	// Get clusters' details
+	gkeClusterSpecs := kube.GKEClusterSpecsFromContexts(settings.KubectlContexts)
+
+	switch len(gkeClusterSpecs) {
+	case 1:
+		// Enable authorized networks for each cluster
+		if err := enableAuthorizedNetworks(gkeClusterSpecs[0].Name, gkeClusterSpecs[0].ProjectID, gkeClusterSpecs[0].Location, testRunnerCidr, "", ""); err != nil {
+			return fmt.Errorf("error enabling authorized networks on cluster: %w", err)
+		}
+	case 2:
+		// Get the Pod IP CIDR block for each cluster
+		clusterCount := 2
+		clusterPodIpCidrs := make([]string, clusterCount)
+		subnetPrimaryIpCidrs := make([]string, clusterCount)
+		for clusterIndex := 0; clusterIndex < clusterCount; clusterIndex++ {
+			podIpCidr, err := getPodIpCidr(gkeClusterSpecs[clusterIndex].Name, gkeClusterSpecs[clusterIndex].ProjectID, gkeClusterSpecs[clusterIndex].Location)
+			clusterPodIpCidrs[clusterIndex] = strings.TrimSpace(podIpCidr)
+			if err != nil {
+				return fmt.Errorf("failed to get pod ip CIDR: %w", err)
+			}
+			networkProject := settings.GCPProjects[0]
+			subnetPrimaryIpCidr, err := getClusterSubnetPrimaryIpCidr(gkeClusterSpecs[clusterIndex].Name, gkeClusterSpecs[clusterIndex].ProjectID, networkProject, gkeClusterSpecs[clusterIndex].Location)
+			subnetPrimaryIpCidrs[clusterIndex] = strings.TrimSpace(subnetPrimaryIpCidr)
+			if err != nil {
+				return fmt.Errorf("failed to get cluster's subnet primary ip CIDR: %w", err)
+			}
+		}
+
+		// Enable authorized networks for each cluster
+		if err := enableAuthorizedNetworks(gkeClusterSpecs[0].Name, gkeClusterSpecs[0].ProjectID, gkeClusterSpecs[0].Location, testRunnerCidr, clusterPodIpCidrs[1], subnetPrimaryIpCidrs[1]); err != nil {
+			return fmt.Errorf("error enabling authorized networks on cluster: %w", err)
+		}
+		if err := enableAuthorizedNetworks(gkeClusterSpecs[1].Name, gkeClusterSpecs[1].ProjectID, gkeClusterSpecs[1].Location, testRunnerCidr, clusterPodIpCidrs[0], subnetPrimaryIpCidrs[0]); err != nil {
+			return fmt.Errorf("error enabling authorized networks on cluster: %w", err)
+		}
+		// Sleep 10 seconds to wait for the cluster update command to take into effect
+		time.Sleep(10 * time.Second)
+	default:
+		return fmt.Errorf("expected # of clusters <= 2, received %d", len(gkeClusterSpecs))
+	}
+
+	return nil
+}
+
+func getTestRunnerCidr() (string, error) {
+	getIPCmd := "curl ifconfig.me"
+	ip, err := exec.RunWithOutput(getIPCmd)
+	if err != nil {
+		return "", fmt.Errorf("error getting test runner IP: %w", err)
+	}
+	return ip + "/32", nil
+}
+
+func getPodIpCidr(clusterName, project, zone string) (string, error) {
+	getPodIpCidrCmd := fmt.Sprintf("gcloud container clusters describe %s"+
+		" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
+		clusterName, project, zone)
+	return exec.RunWithOutput(getPodIpCidrCmd)
+}
+
+func getClusterSubnetPrimaryIpCidr(clusterName, project, networkProject, zone string) (string, error) {
+	getSubnetCmd := fmt.Sprintf("gcloud container clusters describe %s"+
+		" --project %s --zone %s --format \"value(subnetwork)\"",
+		clusterName, project, zone)
+	subnetName, err := exec.RunWithOutput(getSubnetCmd)
+	if err != nil {
+		return "", err
+	}
+	getPrimaryIpCidrCmd := fmt.Sprintf("gcloud compute networks subnets describe %s"+
+		" --project %s --region %s --format \"value(ipCidrRange)\"",
+		strings.TrimSpace(subnetName), networkProject, zone)
+	return exec.RunWithOutput(getPrimaryIpCidrCmd)
+}
+
+func enableAuthorizedNetworks(clusterName, project, zone, pod_cidr_1, pod_cidr_2, subnet_cidr string) error {
+	enableAuthorizedNetCmd := fmt.Sprintf(`gcloud container clusters update %s --project %s --zone %s \
+	--enable-master-authorized-networks \
+	--master-authorized-networks %s,%s`, clusterName, project, zone, pod_cidr_1, pod_cidr_2)
+	// TODO (tairan): https://buganizer.corp.google.com/issues/187960475
+	if clusterName == "prow-test1" {
+		enableAuthorizedNetCmd = fmt.Sprintf(`gcloud container clusters update %s --project %s --zone %s \
+	--enable-master-authorized-networks \
+	--master-authorized-networks %s,%s,%s`, clusterName, project, zone, pod_cidr_1, pod_cidr_2, subnet_cidr)
+	}
+	return exec.Run(enableAuthorizedNetCmd)
 }
 
 // Keeps only the user-kubeconfig.yaml entries in the KUBECONFIG for onprem
@@ -410,8 +438,7 @@ func fixOnPrem(settings *resource.Settings) error {
 // Fix bare-metal cluster configs that are created by Tailorbird:
 // 1. Keep only the artifacts/kubeconfig entries in the KUBECONFIG for baremetal
 //    by removing any others entries.
-// 2. Set required env vars that are needed for running ASM tests.
-// 3. Modify proxy's default setup
+// 2. Configure cluster proxy.
 func fixBareMetal(settings *resource.Settings) error {
 	err := filterKubeconfigFiles(settings, func(name string) bool {
 		return strings.HasSuffix(name, "artifacts/kubeconfig")
@@ -420,31 +447,38 @@ func fixBareMetal(settings *resource.Settings) error {
 		return err
 	}
 
-	sshPostprocess := func(bootstrapHostSSHKey, bootstrapHostSSHUser string) error {
-		//  Increase proxy's max connection setup to avoid too many connections error
-		sshCmd1 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#max-client-connections.*/max-client-connections 512/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd2 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/keep-alive-timeout 5/keep-alive-timeout 3000/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd3 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/socket-timeout 300/socket-timeout 3000/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd4 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#default-server-timeout.*/default-server-timeout 3000/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd5 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo systemctl restart privoxy.service\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		if err := exec.RunMultiple([]string{sshCmd1, sshCmd2, sshCmd3, sshCmd4, sshCmd5}); err != nil {
-			return fmt.Errorf("error running the commands to increase proxy's max connection setup: %w", err)
-		}
-		return nil
-	}
-
-	if err := injectMulticloudClusterEnvVars(settings, multicloudClusterConfig{
+	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
 		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
 		clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
 		scriptRelPath:        "tunnel.sh",
 		regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
 		sshKeyRelPath:        "id_rsa",
-	}, sshPostprocess); err != nil {
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Fix APM cluster configs that are created by Tailorbird:
+// 1. Keep only the artifacts/kubeconfig entries in the KUBECONFIG for baremetal
+//    by removing any others entries.
+// 2. Configure cluster proxy.
+func fixAPM(settings *resource.Settings) error {
+	err := filterKubeconfigFiles(settings, func(name string) bool {
+		return strings.HasSuffix(name, "artifacts/kubeconfig")
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
+		clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
+		scriptRelPath:        "tunnel.sh",
+		regexMatcher:         `.*\-L([0-9]*):localhost.* (nonroot@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
+		sshKeyRelPath:        "id_rsa",
+	}); err != nil {
 		return err
 	}
 
@@ -453,8 +487,7 @@ func fixBareMetal(settings *resource.Settings) error {
 
 // Fix aws cluster configs that are created by Tailorbird:
 // 1. Removes gke_aws_management.conf entry from the KUBECONFIG for aws
-// 2. Set required env vars that are needed for running ASM tests.
-// 3. Increase proxy's max connection setup to avoid too many connections error
+// 2. Configure cluster proxy.
 func fixAWS(settings *resource.Settings) error {
 	err := filterKubeconfigFiles(settings, func(name string) bool {
 		return !strings.HasSuffix(name, "gke_aws_management.conf")
@@ -463,30 +496,13 @@ func fixAWS(settings *resource.Settings) error {
 		return err
 	}
 
-	sshPostprocess := func(bootstrapHostSSHKey, bootstrapHostSSHUser string) error {
-		//  Increase proxy's max connection setup to avoid too many connections error
-		sshCmd1 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#max-client-connections.*/max-client-connections 512/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd2 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/keep-alive-timeout 5/keep-alive-timeout 3000/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd3 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/socket-timeout 300/socket-timeout 3000/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd4 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#default-server-timeout.*/default-server-timeout 3000/' '/etc/privoxy/config'\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		sshCmd5 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo systemctl restart privoxy.service\"",
-			bootstrapHostSSHKey, bootstrapHostSSHUser)
-		if err := exec.RunMultiple([]string{sshCmd1, sshCmd2, sshCmd3, sshCmd4, sshCmd5}); err != nil {
-			return fmt.Errorf("error running the commands to increase proxy's max connection setup: %w", err)
-		}
-		return nil
-	}
-	if err := injectMulticloudClusterEnvVars(settings, multicloudClusterConfig{
+	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
 		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/.kube/gke_aws_default_t96ea7cc97f047f5.conf
 		clusterArtifactsPath: filepath.Dir(filepath.Dir(settings.Kubeconfig)),
 		scriptRelPath:        "tunnel-script.sh",
 		regexMatcher:         `.*\-L([0-9]*):localhost.* (ubuntu@.*compute\.amazonaws\.com)`,
 		sshKeyRelPath:        ".ssh/anthos-gke",
-	}, sshPostprocess); err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -527,8 +543,7 @@ type multicloudClusterConfig struct {
 	regexMatcher string
 }
 
-func injectMulticloudClusterEnvVars(settings *resource.Settings, mcConf multicloudClusterConfig,
-	postprocess func(bootstrapHostSSHKey, bootstrapHostSSHUser string) error) error {
+func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloudClusterConfig) error {
 	tunnelScriptPath := filepath.Join(mcConf.clusterArtifactsPath, mcConf.scriptRelPath)
 	tunnelScriptContent, err := ioutil.ReadFile(tunnelScriptPath)
 	if err != nil {
@@ -560,8 +575,21 @@ func injectMulticloudClusterEnvVars(settings *resource.Settings, mcConf multiclo
 		}
 	}
 
-	if postprocess != nil {
-		return postprocess(bootstrapHostSSHKey, bootstrapHostSSHUser)
+	//  Increase proxy's max connection setup to avoid too many connections error
+	sshCmd1 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#max-client-connections.*/max-client-connections 512/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd2 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/keep-alive-timeout 5/keep-alive-timeout 3000/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd3 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/socket-timeout 300/socket-timeout 3000/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd4 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#default-server-timeout.*/default-server-timeout 3000/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd5 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/accept-intercepted-requests 0/accept-intercepted-requests 1/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd6 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo systemctl restart privoxy.service\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	if err := exec.RunMultiple([]string{sshCmd1, sshCmd2, sshCmd3, sshCmd4, sshCmd5, sshCmd6}); err != nil {
+		return fmt.Errorf("error running the commands to increase proxy's max connection setup: %w", err)
 	}
 
 	return nil

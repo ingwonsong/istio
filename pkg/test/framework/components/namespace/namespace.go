@@ -36,6 +36,8 @@ type Instance interface {
 	Name() string
 	SetLabel(key, value string) error
 	RemoveLabel(key string) error
+	SetAnnotation(key, value string) error
+	RemoveAnnotation(key string) error
 	Prefix() string
 	Labels() (map[string]string, error)
 }

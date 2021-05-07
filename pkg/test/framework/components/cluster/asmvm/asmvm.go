@@ -45,6 +45,7 @@ var _ Cluster = &asmvm{}
 //   projectNo: 1234567890
 //   gkeLocation: us-central1-a
 //   gkeCluster: prow-test1
+//   gkeNetwork: prow-test-network
 //   firewallTag: prow-to-vms
 //   asm_vm: /path/to/asm_vm
 //   env:
@@ -56,10 +57,11 @@ func New(cfg cluster.Config, topology cluster.Topology) (cluster.Cluster, error)
 	gkeLocation := cfg.Meta.String("gkeLocation")
 	script := cfg.Meta.String("asm_vm")
 	gkeCluster := cfg.Meta.String("gkeCluster")
-	if project == "" || projectNo == "" || gkeLocation == "" || script == "" || gkeCluster == "" {
+	gkeNetwork := cfg.Meta.String("gkeNetwork")
+	if project == "" || projectNo == "" || gkeLocation == "" || script == "" || gkeCluster == "" || gkeNetwork == "" {
 		return nil, fmt.Errorf(
-			"asm_vm (%s), project (%s), projectNumber (%s), gkeCluster (%s) and gkeLocation (%s) must be in metadata",
-			script, project, projectNo, gkeCluster, gkeLocation,
+			"asm_vm (%s), project (%s), projectNumber (%s), gkeCluster (%s), gkeLocation (%s) and gkeNetwork (%s) must be in metadata",
+			script, project, projectNo, gkeCluster, gkeLocation, gkeNetwork,
 		)
 	}
 
@@ -83,6 +85,7 @@ func New(cfg cluster.Config, topology cluster.Topology) (cluster.Cluster, error)
 		projectNo:   projectNo,
 		gkeLocation: gkeLocation,
 		gkeCluster:  gkeCluster,
+		gkeNetwork:  gkeNetwork,
 		firewallTag: cfg.Meta.String("firewallTag"),
 		svc:         svc,
 		scriptEnv:   env,
@@ -107,6 +110,8 @@ type Cluster interface {
 	GKELocation() string
 	// GKEClusterName is the short name of the cluster (with out the `cn-`) VMs connect to.
 	GKEClusterName() string
+	// GKENetworkName is the network name VMs connect to
+	GKENetworkName() string
 	// FirewallTag if specified is used to select the VMs in firewall policies so test infra can access them.
 	FirewallTag() string
 	// Prefix URL for API objects in the format https://compute.googleapis.com/compute/v1/projects/{project}
@@ -123,6 +128,7 @@ type asmvm struct {
 	projectNo   string
 	gkeLocation string
 	gkeCluster  string
+	gkeNetwork  string
 	firewallTag string
 
 	script    string
@@ -170,6 +176,10 @@ func (a *asmvm) GKEClusterName() string {
 	return a.gkeCluster
 }
 
+func (a *asmvm) GKENetworkName() string {
+	return a.gkeNetwork
+}
+
 func (a *asmvm) FirewallTag() string {
 	return a.firewallTag
 }
@@ -186,8 +196,9 @@ func (a *asmvm) String() string {
 	_, _ = fmt.Fprint(buf, a.Topology.String())
 	_, _ = fmt.Fprintf(buf, "Project:            %s\n", a.Project())
 	_, _ = fmt.Fprintf(buf, "ProjectNumber       %s\n", a.ProjectNumber())
-	_, _ = fmt.Fprintf(buf, "GKELocation:               %s\n", a.GKELocation())
+	_, _ = fmt.Fprintf(buf, "GKELocation:        %s\n", a.GKELocation())
 	_, _ = fmt.Fprintf(buf, "GKECluster:         %s\n", a.GKEClusterName())
+	_, _ = fmt.Fprintf(buf, "GKENetwork:         %s\n", a.GKENetworkName())
 	_, _ = fmt.Fprintf(buf, "FirewallTag:        %s\n", a.FirewallTag())
 	script, env := a.InstanceTemplateScript()
 	_, _ = fmt.Fprintf(buf, "Script:             %s\n", script)

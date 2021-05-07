@@ -8,6 +8,9 @@ tests:
         - TestVersion
       reason: istioctl does not work
     - names:
+        - TestReachability/beta-mtls.*
+      buganizerID: 192372862
+    - names:
         - TestAnalysisWritesStatus
         - TestRequestAuthentication/.*/valid-token-forward-remote-jwks
       reason: require custom installation
@@ -29,6 +32,67 @@ tests:
         - TestSimpleTlsOrigination
         - TestMutualTlsOrigination
       reason: relies on egress gateway deployed to cluster
+    - names:
+        - TestClusterLocal/cross_cluster
+      buganizerID: 189899338
+    - names:
+        - TestTraffic/virtualservice/shifting-*
+      buganizerID: 189899340
+
+  # Multiversion test skips.
+  - selectors:
+      multiversion: true
+    targets:
+      # networking/
+      - names:
+          - TestTraffic/dns/.*
+          - TestTraffic/serverfirst/.*
+          - TestXFFGateway
+          - TestXdsProxyStatus
+        buganizerID: 187956450
+        reason: UNKNOWN
+      - names:
+          - TestEmptyCluster
+          - TestKubeOnly
+          - TestFileAndKubeCombined
+          - TestAllNamespaces
+        reason: validation tests fail because of missing istio-injection on namespaces under compat mode
+        buganizerID: 187956450
+      - names:
+          - TestCustomGateway
+        reason: istio-injection=disabled on the namespace
+      - names:
+          - TestAddToAndRemoveFromMesh
+        reason: istioctl x add-to-mesh does not work with revisions
+
+      # security/
+      - names:
+          - TestReachability/automtls-passthrough.*
+        reason: UNKNOWN
+      - names:
+          - TestAuthorization_Conditions
+        reason: relies on specific pod IP when creating authz policies
+      - names:
+          - TestNormalization
+        reason: uses ctx.Settings().Revision to modify singular CM
+
+      # telemetry/
+      - names:
+          - TestStackdriver
+          - TestVMTelemetry
+        buganizerID: 187956450
+
+  # Unmanaged CP + GKE_ON_PREM
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: gke-on-prem
+    targets:
+    # pilot/ tests
+    - names:
+      - TestCustomGateway/helm
+    - names:
+      - TestTraffic/dns/.*
+      buganizerID: 191802552
 
   # Unmanaged CP + GKE_ON_PREM + HUB
   - selectors:
@@ -39,6 +103,9 @@ tests:
     # pilot/ tests
     - names:
         - TestCustomGateway/helm
+    - names:
+        - TestTraffic/dns/.*
+      buganizerID: 191802552
 
   # Unmanaged CP + bare-metal
   - selectors:
@@ -70,6 +137,34 @@ tests:
           - TestMultiRevision
           - TestUninstall*
           - TestServiceExports*
+          - TestTraffic/dns
+        buganizerID: 187725074
+
+  # Unmanaged CP + apm
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: apm
+    targets:
+      - names:
+          - TestStackdriver
+          - TestStackdriverAudit
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
+      # pilot/ tests
+      - names:
+        - TestCustomGateway/helm
+        - TestAddToAndRemoveFromMesh
+        - TestIngress
+        - TestRevisionedUpgrade
+        - TestServiceExports/exported/0/create
+        - TestRevisionCommand
+        - TestRevisionTags
+        - TestMultiRevision
+        - TestUninstallByRevision
+        - TestUninstallWithSetFlag
+        - TestTraffic/dns
+        - TestTraffic/consistent-hash
+        buganizerID: 191913525
 
   # Unmanaged CP + aws
   - selectors:
@@ -100,6 +195,33 @@ tests:
         - TestMultiRevision
         - TestUninstallByRevision
         - TestUninstallWithSetFlag
+        - TestTraffic/dns
+        - TestXdsVersion
+        - TestXdsProxyStatus
+        - TestMultiVersionRevision
+        buganizerID: 187722953
+
+  # Unmanaged CP, cluster topology = mc, feature = VPC_SC
+  # Keep the skipped test cases same as unmanaged cp, mp
+  - selectors:
+      control_plane: unmanaged
+      cluster_topology: mc
+      feature_to_test: VPC_SC
+    targets:
+    - names:
+      - TestStatsFilter
+      - TestTcpMetric
+      - TestWasmStatsFilter
+      - TestWasmTcpMetric
+      buganizerID: 177606974
+    # pilot/ tests
+    - names:
+      - TestTraffic/dns.*
+      buganizerID: 191802552
+    - names:
+      - TestReachability/no-peer-authn/headless.*
+      - TestReachability/no-peer-authn/naked.*
+      buganizerID: 192372391
 
   # Unmanaged CP, cluster topology = mp OR multiproject
   - selectors:
@@ -112,6 +234,14 @@ tests:
           - TestWasmStatsFilter
           - TestWasmTcpMetric
         buganizerID: 177606974
+      # pilot/ tests
+      - names:
+          - TestTraffic/dns.*
+        buganizerID: 191802552
+      - names:
+        - TestReachability/no-peer-authn/headless.*
+        - TestReachability/no-peer-authn/naked.*
+        buganizerID: 192372391
 
   # MCP test skips
   - selectors:
@@ -126,14 +256,21 @@ tests:
           - TestDescribe
         reason: istioctl doesn't work
       - names:
+          - TestTraffic/dns.*
+        buganizerID: 191802552
+      - names:
+        - TestReachability/no-peer-authn/headless.*
+        - TestReachability/no-peer-authn/naked.*
+        buganizerID: 192372391
+      - names:
+        - TestReachability/beta-mtls.*
+        buganizerID: 192372862
+      - names:
           - TestXdsVersion
         buganizerID: 184572948
       - names:
           - TestAnalysisWritesStatus
         reason: requires custom installation
-      - names:
-          - TestMultiVersionRevision
-        reason: deploys istiod in cluster, fails since wrong root cert
       - names:
           - TestVmOSPost
         reason: broken pending oss pr
@@ -187,10 +324,13 @@ tests:
 
       # security/ tests
       - names:
-          - TestAuthorization_IngressGateway
+          - TestAuthorization_IngressGateway/to_b/.*/deny.*
+          - TestAuthorization_IngressGateway/to_vm/.*/deny.*
+        reason: http://b/193076663
       - names:
-          - TestAuthorization_EgressGateway
-        reason: relies on egress gateway deployed to the cluster
+        - TestAuthorization_EgressGateway/to_a/.*/deny.*
+        - TestAuthorization_EgressGateway/to_vm/.*/deny.*
+        reason: http://b/193077583
       - names:
           - TestStrictMTLS
         reason: Mesh CA does not support ECDSA
@@ -200,12 +340,27 @@ tests:
       - names:
           - TestRequestAuthentication
         buganizerID: 180418442
+      - names:
+          - TestTelemetry
+        buganizerID: 190420441
   - selectors:
       gce_vms: true
     targets:
       - names:
+          - TestTraffic/dns/a/.*
+          - TestTraffic/dns/tproxy/.*
+        reason: Delay or breakage in resolving SE from Pods
+        buganizerID: 190209498
+      - names:
           - TestValidation
         reason: incompatible with stableNamespaces flag
+      - names:
+          - TestReachability/no-peer-authn/headless.*
+          - TestReachability/no-peer-authn/naked.*
+        buganizerID: 192372391
+      - names:
+          - TestStackdriver
+        buganizerID: 187956450
 
   # Managed CP, cluster topology = sc OR SINGLECLUSTER
   - selectors:
@@ -215,7 +370,19 @@ tests:
       - names:
           - TestStackdriverMonitoring
         reason: Not needed, multi-cluster MCP telemetry tests use real stackdriver.
+      - names:
+          - TestTelemetry/telemetry
+        reason: Prometheus shouldn't be tested for MCP. We have a separate test for real stackdriver.
 packages:
+
+  # skip endpointslice package
+  - selectors:
+      all: true
+    targets:
+    - reason: we never re-install control plane to use endpointslice mode, dupe of default pilot suite
+      names:
+      - /pilot/endpointslice
+
   - selectors:
       control_plane: unmanaged
     targets:
@@ -258,10 +425,6 @@ packages:
       - names:
           - /pilot/mcs
         buganizerID: 183429870
-
-  - selectors:
-      gce_vms: true
-    targets:
       - names:
-          - /pilot/endpointslice
-        reason: won't reinstall CP in endpointslice mode
+          - /mdp/controller
+        reason: requires setup of CNI and mutliversion of CP

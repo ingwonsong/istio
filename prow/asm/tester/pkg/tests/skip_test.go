@@ -185,7 +185,7 @@ func TestTargetSkip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed writing to temp skip test config file: %v", err)
 			}
-			skipTestConfig, err := parseSkipConfig(f.Name())
+			skipTestConfig, err := ParseSkipConfig(f.Name())
 			if err != nil {
 				t.Fatalf("failed to parse skip test config for %q: %v", f.Name(), err)
 			}

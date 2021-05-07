@@ -34,11 +34,14 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags := pflag.NewFlagSet("asm pipeline tester", pflag.ExitOnError)
 	flags.StringVar(&settings.RepoRootDir, "repo-root-dir", "", "root directory of the repository")
 	flags.StringVar(&settings.Kubeconfig, "kubeconfig", "", "a list of kubeconfig files that can be used to connect to the test clusters")
+	flags.StringSliceVar(&settings.GCPProjects, "gcp-projects", []string{}, "a list of GCP projects used for creating GKE clusters and other resources")
 	flags.Var(&settings.ClusterType, "cluster-type", "type of the k8s cluster")
 	flags.Var(&settings.ClusterTopology, "cluster-topology", "topology of the k8s clusters")
 	flags.Var(&settings.FeatureToTest, "feature", "feature to test for this test flow")
 
 	flags.Var(&settings.ControlPlane, "control-plane", "type of the control plane, can be one of UNMANAGED or MANAGED")
+	flags.BoolVar(&settings.UseProdMeshConfigAPI, "prod-meshconfig", false, "whether to use production MeshConfig API endpoint for Managed Control Plane (MCP)")
+
 	flags.Var(&settings.CA, "ca", "Certificate Authority to use, can be one of CITADEL, MESHCA or PRIVATECA")
 	flags.Var(&settings.WIP, "wip", "Workload Identity Pool, can be one of GKE or HUB")
 	flags.StringVar(&settings.RevisionConfig, "revision-config", "", "path to the revision config file (see revision-deployer/README.md)")
@@ -46,6 +49,8 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.StringVar(&settings.DisabledTests, "disabled-tests", "", "tests to disable, should be a regex that matches the test and test suite names")
 
 	flags.BoolVar(&settings.UseVMs, "vm", false, "whether to use VM in the control plane setup")
+	flags.StringVar(&settings.VMServiceProxyAgentGCSPath, "vm-service-agent-gcs-path",
+		"gs://gce-service-proxy-canary/service-proxy-agent/releases/service-proxy-agent-staging-latest.tgz", "GCS bucket path for downloading the service proxy agent binary")
 	// TODO(landow): fully remove staticvm support
 	flags.StringVar(&settings.VMStaticConfigDir, "vm-static-config-dir", "", "a directory in echo-vm-provisioner/configs that contains config files for provisioning the VM test environment")
 	// TODO(landow): fully remove staticvm support

@@ -37,9 +37,9 @@ func Teardown(settings *resource.Settings) error {
 // Cleanup ASM User Auth manifest.
 func cleanupASMUserAuth(settings *resource.Settings) error {
 	cmds := []string{
-		fmt.Sprintf("kubectl delete -f %s/user-auth/pkg/asm_user_auth_config_v1alpha1.yaml", settings.ConfigDir),
-		fmt.Sprintf("kubectl delete -f %s/user-auth/pkg/cluster_role_binding.yaml", settings.ConfigDir),
-		fmt.Sprintf("kubectl delete -f %s/user-auth/pkg/ext_authz.yaml", settings.ConfigDir),
+		fmt.Sprintf("kubectl delete -f %s/user-auth/asm-user-auth/pkg/asm_user_auth_config_v1beta1.yaml", settings.ConfigDir),
+		fmt.Sprintf("kubectl delete -f %s/user-auth/asm-user-auth/pkg/cluster_role_binding.yaml", settings.ConfigDir),
+		fmt.Sprintf("kubectl delete -f %s/user-auth/asm-user-auth/pkg/ext_authz.yaml", settings.ConfigDir),
 		"kubectl -n userauth-test delete -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml",
 		fmt.Sprintf("rm -rf %s/user-auth/pkg", settings.ConfigDir),
 		"kubectl delete ns asm-user-auth userauth-test",

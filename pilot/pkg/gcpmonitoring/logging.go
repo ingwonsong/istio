@@ -17,6 +17,7 @@ package gcpmonitoring
 import (
 	"google.golang.org/genproto/googleapis/api/monitoredres"
 
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/pkg/env"
 	"istio.io/pkg/log"
@@ -29,33 +30,37 @@ var (
 		true,
 		"Whether or not to use the Stackdriver-compatible JSON logging format for application logs")
 
-	teeLogsToStackdriver = env.RegisterBoolVar(
+	TeeLogsToStackdriver = env.RegisterBoolVar(
 		"TEE_LOGS_TO_STACKDRIVER",
 		false,
-		"Whether or not to send application logs directly to Stackdriver in addition to stdout/stderr")
+		"Whether or not to send application logs directly to Stackdriver in addition to stdout/stderr").Get()
 )
 
-func ASMLogOptions() *log.Options {
-	opts := log.DefaultOptions()
+func ASMLogOptions(opts *log.Options) *log.Options {
 	if useStackdriverLoggingFormat.Get() {
 		opts = opts.WithStackdriverLoggingFormat()
 	}
-	if teeLogsToStackdriver.Get() {
+	if TeeLogsToStackdriver {
 		meta := platform.NewGCP().Metadata()
 		proj := meta[platform.GCPProject]
+		quotaProj := meta[platform.GCPQuotaProject]
 		loc := meta[platform.GCPLocation]
 		mesh := meshUID
 		if mesh == "" {
 			mesh = meshUIDFromPlatformMeta(meta)
 		}
-		opts = opts.WithTeeToStackdriver(proj, "istiod", loggingMonitoredResource(proj, loc, mesh))
+		if quotaProj != "" {
+			opts = opts.WithTeeToStackdriverWithQuotaProject(proj, quotaProj, "istiod", loggingMonitoredResource(proj, loc, mesh))
+		} else {
+			opts = opts.WithTeeToStackdriverWithQuotaProject(proj, proj, "istiod", loggingMonitoredResource(proj, loc, mesh))
+		}
 	}
 	return opts
 }
 
 func loggingMonitoredResource(proj, loc, meshUID string) *monitoredres.MonitoredResource {
 	owner := "asm"
-	if isCloudRun() {
+	if asm.IsCloudRun() {
 		owner = "asm-managed"
 	}
 	return &monitoredres.MonitoredResource{

@@ -127,7 +127,7 @@ func NewPilotArgs(initFuncs ...func(*PilotArgs)) *PilotArgs {
 	p := &PilotArgs{}
 
 	// Apply Default Values.
-	p.applyDefaults()
+	p.ApplyDefaults()
 
 	// Apply custom initialization functions.
 	for _, fn := range initFuncs {
@@ -138,7 +138,7 @@ func NewPilotArgs(initFuncs ...func(*PilotArgs)) *PilotArgs {
 }
 
 // Apply default value to PilotArgs
-func (p *PilotArgs) applyDefaults() {
+func (p *PilotArgs) ApplyDefaults() {
 	p.Namespace = PodNamespace
 	p.PodName = PodName
 	p.Revision = Revision

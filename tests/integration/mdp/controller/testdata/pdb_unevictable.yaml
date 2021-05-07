@@ -1,0 +1,10 @@
+# This PDB prevents selected pods from being evicted
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: mdp-test
+spec:
+  minAvailable: 100%
+  selector:
+    matchLabels:
+      app: mdp-pdb-restricted

@@ -29,6 +29,7 @@ const (
 	// TODO: update to "gke-on-aws"
 	GKEOnAWS  ClusterType = "aws"
 	BareMetal ClusterType = "bare-metal"
+	APM       ClusterType = "apm"
 )
 
 // Set converts the value string to ClusterType
@@ -41,7 +42,7 @@ func (ct *ClusterType) String() string { return string(*ct) }
 
 func (ct *ClusterType) Type() string { return "cluster_type" }
 
-// ClusterTopology is the topology of the clusters
+// Topology is the topology of the clusters
 type ClusterToplology string
 
 const (
@@ -139,11 +140,12 @@ func (wip *WIPType) Type() string { return "wip" }
 type Feature string
 
 const (
-	UserAuth       Feature = "USER_AUTH"
-	VPCSC          Feature = "VPC_SC"
-	Addon          Feature = "ADDON"
-	PrivateCluster Feature = "PRIVATE_CLUSTER"
-	CNI            Feature = "CNI"
+	UserAuth              Feature = "USER_AUTH"
+	VPCSC                 Feature = "VPC_SC"
+	Addon                 Feature = "ADDON"
+	PrivateCluster        Feature = "PRIVATE_CLUSTER"
+	PrivateClusterWithMAN Feature = "PRIVATE_CLUSTER_WITH_MAN"
+	CNI                   Feature = "CNI"
 )
 
 var validFeatureTypes = sets.NewString(
@@ -151,6 +153,7 @@ var validFeatureTypes = sets.NewString(
 	string(VPCSC),
 	string(Addon),
 	string(PrivateCluster),
+	string(PrivateClusterWithMAN),
 	string(CNI))
 
 // Set converts the value string to FeatureType

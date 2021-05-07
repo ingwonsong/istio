@@ -16,8 +16,12 @@ replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 require (
 	cloud.google.com/go/compute v1.2.0
 	cloud.google.com/go/security v1.1.1
+	cloud.google.com/go v0.97.0
+	cloud.google.com/go/container v0.1.0
+	cloud.google.com/go/security v1.1.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20220128185157-8216dc216151
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20211102141018-f7be0cbad29c
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/aws/aws-sdk-go v1.42.45
 	github.com/cenkalti/backoff/v4 v4.1.2
@@ -47,6 +51,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-version v1.4.0
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/hashicorp/vault/api v1.1.0
 	github.com/kr/pretty v0.3.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/lestrrat-go/jwx v1.2.18
@@ -56,6 +61,8 @@ require (
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/onsi/gomega v1.18.1
+	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/onsi/gomega v1.17.0
 	github.com/openshift/api v0.0.0-20200713203337-b2494ecb17dd
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.12.1
@@ -66,6 +73,8 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
+	github.com/tebeka/selenium v0.9.9
+	github.com/thalescpl-io/k8s-kms-plugin v0.5.1-0.20220205004901-68806ed18998 // Latest release doesn't include required APIs
 	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5
 	github.com/yl2chen/cidranger v1.0.2
 	go.opencensus.io v0.23.0

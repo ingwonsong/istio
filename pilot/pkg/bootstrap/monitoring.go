@@ -20,11 +20,10 @@ import (
 	"net/http"
 	"time"
 
-	ocprom "contrib.go.opencensus.io/exporter/prometheus"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
 
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
+	"istio.io/istio/pkg/asm"
 	"istio.io/pkg/log"
 	"istio.io/pkg/monitoring"
 	"istio.io/pkg/version"
@@ -52,11 +51,7 @@ var (
 )
 
 func addMonitor(mux *http.ServeMux) error {
-	exporter, err := ocprom.NewExporter(ocprom.Options{Registry: prometheus.DefaultRegisterer.(*prometheus.Registry)})
-	if err != nil {
-		return fmt.Errorf("could not set up prometheus exporter: %v", err)
-	}
-	asmExporter, err := gcpmonitoring.NewASMExporter(exporter)
+	asmExporter, err := gcpmonitoring.NewControlPlaneExporter()
 	if err != nil {
 		return err
 	}
@@ -123,16 +118,20 @@ func (m *monitor) Close() error {
 // initMonitor initializes the configuration for the pilot monitoring server.
 func (s *Server) initMonitor(addr string) error { // nolint: unparam
 	s.addStartFunc(func(stop <-chan struct{}) error {
-		gcpmonitoring.SetTrustDomain(s.environment.Mesh().TrustDomain)
-		gcpmonitoring.SetPodName(podNameVar.Get())
-		gcpmonitoring.SetPodNamespace(PodNamespaceVar.Get())
-		if s.environment.Mesh().DefaultConfig != nil {
-			gcpmonitoring.SetMeshUID(s.environment.Mesh().DefaultConfig.MeshId)
-		}
-		loggingOpts := gcpmonitoring.ASMLogOptions()
-		if err := log.Configure(loggingOpts); err != nil {
-			log.Warnf("Logging not configured: %v", err)
-			return err
+		// For MCP, we skip this as we do it instead at the very start of the process, to ensure ALL logs get handled by stackdriver
+		// For in cluster we need mesh config access which requires us to configure things later.
+		if !asm.IsCloudRun() {
+			gcpmonitoring.SetTrustDomain(s.environment.Mesh().TrustDomain)
+			gcpmonitoring.SetPodName(PodName)
+			gcpmonitoring.SetPodNamespace(PodNamespace)
+			if s.environment.Mesh().DefaultConfig != nil {
+				gcpmonitoring.SetMeshUID(s.environment.Mesh().DefaultConfig.MeshId)
+			}
+			loggingOpts := gcpmonitoring.ASMLogOptions(log.DefaultOptions())
+			if err := log.Configure(loggingOpts); err != nil {
+				log.Warnf("Logging not configured: %v", err)
+				return err
+			}
 		}
 		monitor, err := startMonitor(addr, s.monitoringMux)
 		if err != nil {

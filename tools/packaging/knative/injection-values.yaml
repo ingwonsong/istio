@@ -4,7 +4,7 @@
 agentLogLevel: default:info
 
 istio_cni:
-  enabled: ${CNI}
+  enabled: {{.CNIEnabled}}
 
 global:
   # Used to locate istio-pilot.
@@ -27,10 +27,10 @@ global:
   # Default hub for Istio images.
   # Releases are published to docker hub under 'istio' project.
   # Dev builds from prow are on gcr.io
-  hub: ${HUB}
+  hub: "{{.Hub}}"
 
   # Default tag for Istio images.
-  tag: "${TAG}"
+  tag: "{{.Tag}}"
 
   # Comma-separated minimum per-scope logging level of messages to output, in the form of <scope>:<level>,<scope>:<level>
   # The control plane has different scopes depending on component, but can configure default log level across all components
@@ -198,18 +198,6 @@ global:
   # Whether to perform server-side validation of configuration.
   configValidation: true
 
-  # Custom DNS config for the pod to resolve names of services in other
-  # clusters. Use this to add additional search domains, and other settings.
-  # see
-  # https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#dns-config
-  # This does not apply to gateway pods as they typically need a different
-  # set of DNS settings than the normal application pods (e.g., in
-  # multicluster scenarios).
-  # NOTE: If using templates, follow the pattern in the commented example below.
-  #podDNSSearchNamespaces:
-  #- global
-  #- "{{ valueOrDefault .DeploymentMeta.Namespace \"default\" }}.global"
-
   # If set to true, the pilot and citadel mtls will be exposed on the
   # ingress gateway
   meshExpansion:
@@ -226,7 +214,7 @@ global:
     enabled: true
     # Should be set to the name of the cluster this installation will run in. This is required for sidecar injection
     # to properly label proxies
-    clusterName: cn-${PROJECT}-${ZONE}-${CLUSTER}
+    clusterName: "cn-{{.Project}}-{{.Zone}}-{{.Cluster}}"
 
   # A minimal set of requested resources to applied to all deployments so that
   # Horizontal Pod Autoscaler will be able to function (if set).
@@ -263,7 +251,7 @@ global:
   # The default depends on the environment.
   #   kubernetes: cluster.local
   #   else:  default dns domain
-  trustDomain: "${TRUST_DOMAIN}"
+  trustDomain: "{{.TrustDomain}}"
 
   # Mesh ID means Mesh Identifier. It should be unique within the scope where
   # meshes will interact with each other, but it is not required to be
@@ -286,7 +274,7 @@ global:
   # If the mesh admin does not specify a value, Istio will use the value of the
   # mesh's Trust Domain. The best practice is to select a proper Trust Domain
   # value.
-  meshID: proj-${PROJECT_NUMBER}
+  meshID: "proj-{{.ProjectNumber}}"
 
 
   # The namespace where globally shared configurations should be present.
@@ -304,16 +292,16 @@ global:
   omitSidecarInjectorConfigMap: false
   sds:
     token:
-      aud: ${AUDIENCE}
+      aud: "{{.TrustDomain}}"
 
   sts:
     # The service port used by Security Token Service (STS) server to handle token exchange requests.
     # Setting this port to a non-zero value enables STS server.
-    servicePort: 15009
+    servicePort: 15463
 
   # The customized CA address to retrieve certificates for the pods in the cluster.
   # CSR clients such as the Istio Agent and ingress gateways can use this to specify the CA endpoint.
-  caAddress: "${CA_ADDR}"
+  caAddress: "meshca.googleapis.com:443"
 
   # Configure the mesh networks to be used by the Split Horizon EDS.
   #

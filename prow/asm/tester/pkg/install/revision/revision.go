@@ -16,16 +16,20 @@ package revision
 
 import (
 	"fmt"
-	"github.com/ghodss/yaml"
-	"github.com/hashicorp/go-multierror"
 	"io/ioutil"
 	"regexp"
+	"strings"
+
+	"istio.io/istio/prow/asm/tester/pkg/exec"
+
+	"github.com/hashicorp/go-multierror"
+	"gopkg.in/yaml.v2"
 )
 
 // Configs carries the Config for all ASM control plane revisions.
 // Revision configuration files are unmarshalled into this struct.
 type Configs struct {
-	Configs []Config `json:"revisions"`
+	Configs []Config `yaml:"revisions"`
 }
 
 // Config carries config for an ASM control plane revision.
@@ -33,15 +37,15 @@ type Configs struct {
 // versions may use this to configure their SUT.
 type Config struct {
 	// Name determines the revision's name and injection label.
-	Name string `json:"name"`
+	Name string `yaml:"name"`
 	// Version is the ASM version to use for this revision. Expected in the form "1.x",
 	// as we only support installing the latest 1.x minor version releases.
-	Version string `json:"version"`
+	Version string `yaml:"version"`
 	// CA is the CA to use for this revision, either `CITADEL` or `MESHCA`.
 	// Defaults to CITADEL.
-	CA string `json:"ca"`
+	CA string `yaml:"ca"`
 	// Overlay is a path to additional configuration for this revision.
-	Overlay string `json:"overlay"`
+	Overlay string `yaml:"overlay"`
 }
 
 func ParseConfig(path string) (*Configs, error) {
@@ -87,4 +91,14 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// RevisionLabel generates a revision label name from the istioctl version.
+func RevisionLabel() string {
+	istioVersion, _ := exec.RunWithOutput(
+		"bash -c \"istioctl version --remote=false -o json | jq -r '.clientVersion.tag'\"")
+	versionParts := strings.Split(istioVersion, "-")
+	version := fmt.Sprintf("asm-%s-%s", versionParts[0], versionParts[1])
+	r := strings.NewReplacer(".", "", "\n", "")
+	return r.Replace(version)
 }

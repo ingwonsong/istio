@@ -90,7 +90,7 @@ func CheckIngressOrFail(ctx framework.TestContext, ingr ingress.Instance, host s
 	} else {
 		headers["Host"] = []string{host}
 	}
-	if os.Getenv("CLUSTER_TYPE") == "bare-metal" {
+	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" {
 		// Request will be sent to host in the host header with HTTP proxy
 		// Modify the /etc/hosts file on the bootstrap VM to direct the request to ingress gateway
 		if err := SetupEtcHostsFile(ingr, host); err != nil {

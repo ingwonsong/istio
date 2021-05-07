@@ -96,7 +96,7 @@ var (
 		"Custom address for the DNS proxy. If it ends with :53 and running as root allows running without iptable DNS capture")
 
 	// Ability of istio-agent to retrieve proxyConfig via XDS for dynamic configuration updates
-	enableProxyConfigXdsEnv = env.RegisterBoolVar("PROXY_CONFIG_XDS_AGENT", false,
+	enableProxyConfigXdsEnv = env.RegisterBoolVar("PROXY_CONFIG_XDS_AGENT", true,
 		"If set to true, agent retrieves dynamic proxy-config updates via xds channel").Get()
 
 	// Ability of istio-agent to retrieve bootstrap via XDS

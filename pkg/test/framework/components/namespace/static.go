@@ -22,6 +22,14 @@ var (
 // Static is a namespace that may or may not exist. It is used for configuration purposes only
 type Static string
 
+func (s Static) SetAnnotation(key, value string) error {
+	panic("implement me")
+}
+
+func (s Static) RemoveAnnotation(key string) error {
+	panic("implement me")
+}
+
 func (s Static) Name() string {
 	return string(s)
 }

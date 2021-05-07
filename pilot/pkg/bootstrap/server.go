@@ -1218,7 +1218,7 @@ func (s *Server) addIstioCAToTrustBundle(args *PilotArgs) error {
 			log.Infof("unable to retrieve self signed CA secret: %v", err)
 			return nil
 		}
-		rootCertBytes := caSecret.Data[ca.CaCertID]
+		rootCertBytes := caSecret.Data[ca.CACertFile]
 		err = s.workloadTrustBundle.UpdateTrustAnchor(&tb.TrustAnchorUpdate{
 			TrustAnchorConfig: tb.TrustAnchorConfig{Certs: []string{string(rootCertBytes)}},
 			Source:            tb.SourceIstioCA,

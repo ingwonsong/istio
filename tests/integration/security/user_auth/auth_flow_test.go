@@ -99,10 +99,10 @@ func TestBasicAuthFlow(t *testing.T) {
 func validatePortForward(ctx framework.TestContext, port string) {
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort("localhost", port), time.Second)
 	if err != nil {
-		ctx.Fatalf("port-forward is not available: ", err)
+		ctx.Fatalf("port-forward is not available: %v", err)
 	}
 	if conn != nil {
 		defer conn.Close()
-		ctx.Logf("port-forward is available: ", net.JoinHostPort("localhost", "8443"))
+		ctx.Logf("port-forward is available: %v", net.JoinHostPort("localhost", "8443"))
 	}
 }

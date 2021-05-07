@@ -24,14 +24,12 @@ const (
 	caCertID = "ca-cert.pem"
 	// caPrivateKeyID is the private key file of CA.
 	caPrivateKeyID = "ca-key.pem"
-	// CASecret stores the key/cert of self-signed CA for persistency purpose.
-	CASecret = "istio-ca-secret"
-	// CertChainID is the ID/name for the certificate chain file.
-	CertChainID = "cert-chain.pem"
-	// PrivateKeyID is the ID/name for the private key file.
-	PrivateKeyID = "key.pem"
-	// RootCertID is the ID/name for the CA root certificate file.
-	RootCertID = "root-cert.pem"
+	// certChainID is the ID/name for the certificate chain file.
+	certChainID = "cert-chain.pem"
+	// privateKeyID is the ID/name for the private key file.
+	privateKeyID = "key.pem"
+	// rootCertID is the ID/name for the CA root certificate file.
+	rootCertID = "root-cert.pem"
 	// KeyIDName is the ID/name for the Key ID file.
 	KEKID = "kek-id"
 	// EncryptedDEK stores the encrypted DEK.
@@ -42,8 +40,8 @@ const (
 	EncryptedCSR = "encrypted-csr"
 	// CSRID is an id of the CSR.  This is used to visually verify CSR before decrypting and signing.
 	CSRID = "csr-id"
-	// ServiceAccountNameAnnotationKey is the key to specify corresponding service account in the annotation of K8s secrets.
-	ServiceAccountNameAnnotationKey = "istio.io/service-account.name"
+	// serviceAccountNameAnnotationKey is the key to specify corresponding service account in the annotation of K8s secrets.
+	serviceAccountNameAnnotationKey = "istio.io/service-account.name"
 )
 
 // BuildSecret returns a secret struct, contents of which are filled with parameters passed in.

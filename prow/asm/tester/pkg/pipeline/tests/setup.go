@@ -17,7 +17,9 @@ package tests
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 
+	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
@@ -34,6 +36,12 @@ func Setup(settings *resource.Settings) error {
 
 	if err := tests.Setup(settings); err != nil {
 		return fmt.Errorf("error setting up the tests: %w", err)
+	}
+
+	// TODO: convert the remainder of the script to Go
+	setupTestsScript := filepath.Join(settings.RepoRootDir, "prow/asm/tester/scripts/setup-tests.sh")
+	if err := exec.Run(setupTestsScript); err != nil {
+		return fmt.Errorf("error running tests setup script: %w", err)
 	}
 
 	return nil

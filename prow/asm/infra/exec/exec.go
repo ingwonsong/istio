@@ -72,6 +72,19 @@ func Run(rawCommand string, options ...Option) error {
 	return cmd.Run()
 }
 
+// RunMultiple will run the commands with the given options and stop if there is an error.
+// It will wait until the command is finished.
+func RunMultiple(rawCommands []string, options ...Option) error {
+	var err error
+	for _, cmd := range rawCommands {
+		err = Run(cmd, options...)
+		if err != nil {
+			return fmt.Errorf("command %q failed with error: %w", cmd, err)
+		}
+	}
+	return nil
+}
+
 // Output will run the command with the given args and options, and
 // return the output string.
 // It will wait until the command is finished.

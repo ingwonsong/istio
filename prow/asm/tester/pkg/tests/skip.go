@@ -19,7 +19,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/ghodss/yaml"
+	"gopkg.in/yaml.v2"
+
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -28,7 +29,9 @@ const (
 	clusterTypeSkipLabel     = "cluster_type"
 	clusterTopologySkipLabel = "cluster_topology"
 	wipSkipLabel             = "wip"
+	featureSkipLabel         = "feature_to_test"
 	gceVmSkipLabel           = "gce_vms"
+	multiversion             = "multiversion"
 )
 
 // TargetSkipConfig defines the schema for our skipped test configuration.
@@ -48,23 +51,27 @@ type TargetGroup struct {
 
 type Target struct {
 	// Name are the names or regexes for the tests or packages to skip.
-	Names []string `json:"names,omitempty"`
+	Names []string `yaml:"names"`
 	// Reason is a brief description of the reason this test is skipped.
-	Reason string `json:"reason,omitempty"`
+	Reason string `yaml:"reason"`
 	// BuganizerID is a link to the BuganizerID issue tracking this test skip.
-	BuganizerID string `json:"buganizer,omitempty"`
+	BuganizerID string `yaml:"buganizerID"`
+	// SkippedBy is the LDAP for skipper of this test.
+	SkippedBy string `yaml:"skippedBy"`
+	// SignedOffBy are the LDAPs for code owners approving this skip.
+	SignedOffBy []string `yaml:"signedOffBy"`
 }
 
 type SkipLabels map[string]string
 
-func parseSkipConfig(path string) (*TargetSkipConfig, error) {
+func ParseSkipConfig(path string) (*TargetSkipConfig, error) {
 	yamlContents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read test skip config file %q: %w",
 			path, err)
 	}
 	config := new(TargetSkipConfig)
-	err = yaml.Unmarshal(yamlContents, config)
+	err = yaml.UnmarshalStrict(yamlContents, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal test skip config from file %q: %w",
 			path, err)
@@ -133,7 +140,11 @@ func skipLabels(settings *resource.Settings) SkipLabels {
 	labelMap[clusterTypeSkipLabel] = strings.ToLower(settings.ClusterType.String())
 	labelMap[clusterTopologySkipLabel] = strings.ToLower(settings.ClusterTopology.String())
 	labelMap[wipSkipLabel] = strings.ToLower(settings.WIP.String())
+	labelMap[featureSkipLabel] = strings.ToLower(settings.FeatureToTest.String())
 	labelMap[gceVmSkipLabel] = fmt.Sprintf("%t", settings.UseGCEVMs || settings.VMStaticConfigDir != "")
+	labelMap[multiversion] = fmt.Sprintf("%t", settings.RevisionConfig != "")
+	// a common label to easily allow selecting every test without having an empty selector
+	labelMap["all"] = "true"
 	return labelMap
 }
 

@@ -32,6 +32,7 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/util"
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pilot/pkg/util/network"
 	"istio.io/istio/pkg/bootstrap/option"
 	"istio.io/istio/pkg/bootstrap/platform"
@@ -72,6 +73,8 @@ type Config struct {
 // newTemplateParams creates a new template configuration for the given configuration.
 func (cfg Config) toTemplateParams() (map[string]interface{}, error) {
 	opts := make([]option.Instance, 0)
+
+	opts = append(opts, option.EnableCloudESF(asm.IsCloudESF()))
 
 	discHost := strings.Split(cfg.Metadata.ProxyConfig.DiscoveryAddress, ":")[0]
 

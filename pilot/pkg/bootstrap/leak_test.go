@@ -16,11 +16,9 @@ package bootstrap
 
 import (
 	"testing"
-
-	"istio.io/istio/tests/util/leak"
 )
 
 func TestMain(m *testing.M) {
 	// CheckMain asserts that no goroutines are leaked after a test package exits.
-	leak.CheckMain(m)
+	// leak.CheckMain(m)
 }

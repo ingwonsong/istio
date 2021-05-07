@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: configure-core-dump
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: configure-core-dump
+  template:
+    metadata:
+      labels:
+        name: configure-core-dump
+    spec:
+      initContainers:
+      - name: setsysctls
+        command:
+        - sh
+        - -c
+        - sysctl -w kernel.core_pattern=/var/lib/istio/data/core.proxy && ulimit -c unlimited
+        image: alpine:3.6
+        imagePullPolicy: IfNotPresent
+        resources: {}
+        securityContext:
+          privileged: true
+      containers:
+      - name: sleepforever
+        resources:
+          requests:
+            cpu: 1m
+        image: alpine:3.6
+        command: ["tail"]
+        args: ["-f", "/dev/null"]

@@ -21,6 +21,9 @@ type Settings struct {
 	// A list of kubeconfig files that can be used to connnect to the test clusters
 	Kubeconfig string
 
+	// The GCP projects used for creating GKE clusters and other resources
+	GCPProjects []string
+
 	// Type of the cluster
 	ClusterType ClusterType
 
@@ -50,12 +53,17 @@ type Settings struct {
 
 	VMSettings
 
+	MCPSettings
+
 	RuntimeSettings
 }
 
 type VMSettings struct {
 	// Whether to use VM in the control plane setup
 	UseVMs bool
+
+	// The GCS bucket path for downloading the service proxy agent binary.
+	VMServiceProxyAgentGCSPath string
 
 	// A directory in echo-vm-provisioner/configs that contains config files for
 	// provisioning the VM test environment
@@ -74,6 +82,11 @@ type VMSettings struct {
 	VMImageProject string
 }
 
+type MCPSettings struct {
+	// Whether to use production MeshConfig API endpoint for Managed Control Plane.
+	UseProdMeshConfigAPI bool
+}
+
 // RuntimeSettings contains fields that are only populated and shared during the
 // test runtime.
 type RuntimeSettings struct {
@@ -85,11 +98,11 @@ type RuntimeSettings struct {
 
 	// A list of GCP projects for where the GKE clusters are created.
 	// They can be used in the test flow for e.g. hosting the test images with the GCRs
-	GCPProjects []string
+	ClusterGCPProjects []string
 
-	// The host GCP project when ASM is testing the multi-project profile.
-	HostGCPProject string
-
-	// The project for the GCR that will be used to host the test images
+	// The project for the GCR that will be used to host the test images.
 	GCRProject string
+
+	// The commit ID of Scriptaro repo to use install_asm to install ASM.
+	ScriptaroCommit string
 }

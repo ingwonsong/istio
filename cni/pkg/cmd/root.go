@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"github.com/spf13/viper"
+	"go.opencensus.io/stats/view"
 
 	"istio.io/istio/cni/pkg/config"
 	"istio.io/istio/cni/pkg/constants"
@@ -80,6 +81,11 @@ var rootCmd = &cobra.Command{
 
 		repair.StartRepair(ctx, &cfg.RepairConfig)
 
+		log.Info("Creating CNI metrics exporter")
+		if err := registerExporter(); err != nil {
+			log.Fatalf("Failed to register CNI metrics exporter: %v", err)
+		}
+
 		if err = installer.Run(ctx); err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				log.Infof("Installer exits with %v", err)
@@ -100,6 +106,15 @@ var rootCmd = &cobra.Command{
 
 		return
 	},
+}
+
+func registerExporter() error {
+	cniExporter, err := monitoring.NewCNIExporter()
+	if err != nil {
+		return err
+	}
+	view.RegisterExporter(cniExporter)
+	return nil
 }
 
 // GetCommand returns the main cobra.Command object for this application

@@ -153,6 +153,44 @@ spec:
           - name: "TAINT_CONFIGMAP-NAMESPACE"
             value: {{ .Release.Namespace | quote }}
 {{- end }}
+        {{- if .Values.mdp.enabled }}
+        - name: mdp-controller
+          image: "{{ .Values.mdp.hub | default .Values.global.hub }}/mdp:{{ .Values.mdp.tag | default .Values.global.tag }}"
+          command:
+            - mdp
+            - server
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1337
+            runAsUser: 1337
+            runAsNonRoot: true
+          imagePullPolicy: IfNotPresent
+          resources:
+{{ toYaml .Values.mdp.resources | trim | indent 12 }}
+          env:
+            - name: WATCH_NAMESPACE
+              value: {{.Values.mdp.istioNamespace | quote}}
+            - name: LEADER_ELECTION_NAMESPACE
+              value: {{.Values.mdp.mdpNamespace | quote}}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- if eq .Values.global.jwtPolicy "third-party-jwt" }}
+          volumeMounts:
+          - mountPath: /var/run/secrets/tokens
+            name: istio-token
+          {{- end }}
+      {{- end }}
       volumes:
         # Used to install CNI.
         - name: cni-bin-dir
@@ -165,3 +203,12 @@ spec:
         - name: cni-log-dir
           hostPath:
             path: /var/run/istio-cni
+        {{- if eq .Values.global.jwtPolicy "third-party-jwt" }}
+        - name: istio-token
+          projected:
+            sources:
+            - serviceAccountToken:
+                path: istio-token
+                expirationSeconds: 43200
+                audience: {{ .Values.global.sds.token.aud }}
+        {{- end }}

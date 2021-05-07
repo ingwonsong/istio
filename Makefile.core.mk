@@ -203,6 +203,7 @@ ifeq ($(PULL_POLICY),)
 endif
 
 include operator/operator.mk
+include mdp/controller/api.mk
 include pkg/dns/proto/nds.mk
 
 .PHONY: default
@@ -282,6 +283,7 @@ STANDARD_BINARIES:=./istioctl/cmd/istioctl \
   ./cni/cmd/istio-cni-taint \
   ./cni/cmd/install-cni \
   ./tools/istio-iptables \
+  ./mdp/controller/cmd/mdp \
   ./tools/bug-report
 BINARIES:=$(STANDARD_BINARIES) $(AGENT_BINARIES)
 
@@ -365,7 +367,8 @@ gen: \
 	gen-nds-proto \
 	copy-templates \
 	gen-kustomize \
-	update-golden ## Update all generated code.
+	update-golden \
+	mdp-proto ## Update all generated code.
 
 gen-check: gen check-clean-repo
 
@@ -549,6 +552,7 @@ include common/Makefile.common.mk
 # Target: ASM specific tests
 #-----------------------------------------------------------------------------
 include tests/integration/tests-asm.mk
+include prow/asm/tester/tester.mk
 
 #-----------------------------------------------------------------------------
 # Target: Cloudrun

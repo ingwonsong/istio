@@ -1,4 +1,4 @@
-revision: "${REVISION}"
+revision: "gotemplatereplace_Revision"
 
 meshConfig:
   rootNamespace: istio-system
@@ -18,6 +18,7 @@ telemetry:
       wasmEnabled: false
     # Indicate if prometheus stats filter is enabled or not
     prometheus:
+      # SD and Prometheus are both enabled until Telemetry API becomes available.
       enabled: true
       # Indicates whether to enable WebAssembly runtime for stats filter.
       wasmEnabled: false
@@ -31,7 +32,7 @@ telemetry:
       enabled: true
       inboundAccessLogging: "FULL"
       outboundAccessLogging: "ERRORS_ONLY"
-      topology: true
+      topology: false
       #  configOverride parts give you the ability to override the low level configuration params passed to envoy filter.
 
       configOverride: {}

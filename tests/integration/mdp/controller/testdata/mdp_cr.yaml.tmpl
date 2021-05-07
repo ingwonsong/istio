@@ -1,0 +1,8 @@
+apiVersion: mesh.cloud.google.com/v1alpha1
+kind: DataPlaneControl
+metadata:
+  name: test-mdp
+spec:
+  proxyVersion: {{ .NewProxyVersion }}
+  proxyTargetBasisPoints: 10000
+  revision: "asm-master"

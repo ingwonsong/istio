@@ -170,6 +170,8 @@ features:
         upgrade:
       firstpartyjwt:
         install:
+    clusters:
+      upgrade:
     upgrade:
   # describes internal build and testing infrastrcuture
   infrastructure:
@@ -177,3 +179,5 @@ features:
     framework:
   vm:
     autoregistration:
+  mdp:
+    upgrade:

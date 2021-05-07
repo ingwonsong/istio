@@ -196,6 +196,10 @@ func (d *Instance) GetAndValidateTimeSeries(ctx context.Context, t framework.Tes
 		var err error
 		for _, filter := range filters {
 			timeSeries, err = fetchTimeSeries(ctx, t, d.ms, projectID, filter, aligner, startTime, endTime)
+			if len(timeSeries) == 0 {
+				t.Logf("cannot find any time series")
+				return errors.New("cannot find any time series")
+			}
 			if err == nil {
 				t.Logf("succeeded getting metrics response with %d time series items", len(timeSeries))
 				err = d.ValidateMetrics(t, timeSeries, expLabel, templlabels)
@@ -235,6 +239,7 @@ func (d *Instance) CheckForLogEntry(ctx context.Context, t framework.TestContext
 				t.Log(msg)
 				t.Log("want Log Entry: \n", want)
 				t.Log("got Log Entry: \n", got)
+				continue
 			}
 
 			found = true
@@ -283,6 +288,10 @@ func fetchLog(ctx context.Context, t framework.TestContext, loggingService *logg
 // ValidateMetrics validate metrics from stackdriver.
 func (d *Instance) ValidateMetrics(t framework.TestContext, ts []*monitoring.TimeSeries, expLabel []byte,
 	templlabels map[string]interface{}) error {
+	if len(expLabel) == 0 {
+		// if no expected labels provided, skip verifying metric labels.
+		return nil
+	}
 	expLabel = execute(t, string(expLabel), templlabels)
 	expm := make(map[string]string)
 	if err := json.Unmarshal(expLabel, &expm); err != nil {

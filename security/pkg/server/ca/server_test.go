@@ -48,10 +48,6 @@ func (authn *mockAuthenticator) AuthenticatorType() string {
 	return "mockAuthenticator"
 }
 
-func (authn *mockAuthenticator) AuthenticateRequest(req *http.Request) (*security.Caller, error) {
-	return nil, errors.New("not implemented")
-}
-
 func (authn *mockAuthenticator) Authenticate(ctx context.Context) (*security.Caller, error) {
 	if len(authn.errMsg) > 0 {
 		return nil, fmt.Errorf("%v", authn.errMsg)

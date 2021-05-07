@@ -1,6 +1,6 @@
 sidecarInjectorWebhook:
   useLegacySelectors: false
 istiodRemote:
-  injectionURL: https://${CLOUDRUN_ADDR}/inject/ISTIO_META_CLOUDRUN_ADDR/${CLOUDRUN_ADDR}
+  injectionURL: https://gotemplatereplace_CloudrunAddr/inject/ISTIO_META_CLOUDRUN_ADDR/gotemplatereplace_CloudrunAddr
 global: {}
-revision: "${REVISION}"
+revision: "gotemplatereplace_Revision"

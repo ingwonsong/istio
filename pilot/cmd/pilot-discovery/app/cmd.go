@@ -51,9 +51,14 @@ func NewRootCommand() *cobra.Command {
 		},
 	}
 
+	mcpCmd := newMCPCommand()
+	addFlags(mcpCmd)
+
 	discoveryCmd := newDiscoveryCommand()
 	addFlags(discoveryCmd)
 	rootCmd.AddCommand(discoveryCmd)
+	rootCmd.AddCommand(mcpCmd)
+
 	rootCmd.AddCommand(version.CobraCommand())
 	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, &doc.GenManHeader{
 		Title:   "Istio Pilot Discovery",

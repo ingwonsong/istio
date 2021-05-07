@@ -115,6 +115,14 @@ func (n *kubeNamespace) RemoveLabel(key string) error {
 	return n.removeNamespaceLabel(key)
 }
 
+func (n *kubeNamespace) SetAnnotation(key, value string) error {
+	return n.setNamespaceAnnotation(key, value)
+}
+
+func (n *kubeNamespace) RemoveAnnotation(key string) error {
+	return n.removeNamespaceAnnotation(key)
+}
+
 func (n *kubeNamespace) ID() resource.ID {
 	return n.id
 }
@@ -172,6 +180,40 @@ func (n *kubeNamespace) removeNamespaceLabel(key string) error {
 	for _, cluster := range n.ctx.Clusters().Kube() {
 		nsLabelPatch := fmt.Sprintf(`[{"op":"remove","path":"/metadata/labels/%s"}]`, jsonPatchEscapedKey)
 		if _, err := cluster.CoreV1().Namespaces().Patch(context.TODO(), n.name, types.JSONPatchType, []byte(nsLabelPatch), metav1.PatchOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setNamespaceAnnotation annotates a namespace with the given key, value pair
+func (n *kubeNamespace) setNamespaceAnnotation(key, value string) error {
+	// patch is not well-suited to annotating a ns with no existing annotations, use update instead.
+	for _, cluster := range n.ctx.Clusters().Kube() {
+		originalNS, err := cluster.CoreV1().Namespaces().Get(context.TODO(), n.name, kubeApiMeta.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if originalNS.Annotations == nil {
+			originalNS.Annotations = map[string]string{}
+		}
+		originalNS.Annotations[key] = value
+		_, err = cluster.CoreV1().Namespaces().Update(context.TODO(), originalNS, kubeApiMeta.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// removeNamespaceAnnotation removes namespace annotation with the given key
+func (n *kubeNamespace) removeNamespaceAnnotation(key string) error {
+	// need to convert '/' to '~1' as per the JSON patch spec http://jsonpatch.com/#operations
+	jsonPatchEscapedKey := strings.ReplaceAll(key, "/", "~1")
+	for _, cluster := range n.ctx.Clusters().Kube() {
+		anLabelPatch := fmt.Sprintf(`[{"op":"remove","path":"/metadata/annotations/%s"}]`, jsonPatchEscapedKey)
+		if _, err := cluster.CoreV1().Namespaces().Patch(context.TODO(), n.name, types.JSONPatchType, []byte(anLabelPatch), kubeApiMeta.PatchOptions{}); err != nil {
 			return err
 		}
 	}

@@ -28,9 +28,12 @@ import (
 
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
 
 	// Side-effect import to register cmd line flags
+	"istio.io/istio/pkg/test/framework/components/echo/common"
+
+	// Side-effect import to register cmd line flags
+	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
 	_ "istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	stackdriver "istio.io/istio/pkg/test/framework/components/stackdriverasm"
@@ -39,7 +42,6 @@ import (
 	"istio.io/istio/pkg/test/util/file"
 	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/istio/pkg/test/util/tmpl"
-	"istio.io/istio/tests/integration/pilot/common"
 )
 
 const (
@@ -96,6 +98,7 @@ func TestStackdriver(t *testing.T) {
 				// Verify metrics and logs on cluster1 in project id 1
 				ctx.Logf("Validating Telemetry for Cluster in project %v", projectID1)
 				validateTelemetry(ctx, projectID1, st, ns, src, dest, "grpc", "server-accesslog-stackdriver")
+				validateControlPlaneTelemetry(ctx, projectID1, st)
 
 				// Verify metrics and logs on cluster2 in project id 2
 				// TODO metrics only seem to be in project1 until traffic is sent from both projects
@@ -178,6 +181,26 @@ func validateTelemetry(ctx framework.TestContext,
 	}, retry.Timeout(30*time.Minute))
 
 	validateLog(ctx, projectID, sd, src, dest, param, startTime, filter)
+}
+
+func validateControlPlaneTelemetry(t framework.TestContext, projectID string, sd *stackdriver.Instance) {
+	param := &stackdriver.ResourceFilterParam{
+		Namespace:     "istio-system",
+		ContainerName: "discovery",
+		ResourceType:  stackdriver.ContainerResourceType,
+		FilterFor:     "metric",
+	}
+	now := time.Now()
+	startTime := now.Format(time.RFC3339)
+	// Add a buffer to endTime for metrics to show up.
+	endTime := now.Add(5 * time.Minute).Format(time.RFC3339)
+
+	filter := fmt.Sprintf("%s AND metric.type = %q", *param, "istio.io/control/proxy_clients")
+	_, err := sd.GetAndValidateTimeSeries(context.Background(), t, []string{filter},
+		"ALIGN_NEXT_OLDER", startTime, endTime, projectID, []byte{}, map[string]interface{}{})
+	if err != nil {
+		t.Errorf("failed to validate proxy_clients time series %v", err)
+	}
 }
 
 func sendTraffic(t framework.TestContext, src, dest echo.Instance, portName string) error {

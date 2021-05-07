@@ -49,16 +49,14 @@ func installASMUserAuth(settings *resource.Settings) error {
 
 		// TODO(b/182914654): deploy app in go code
 		"kubectl -n userauth-test apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml",
-		"kubectl wait --for=condition=Ready --timeout=2m --namespace=userauth-test --all pod",
 
+		fmt.Sprintf("kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git@main %s/user-auth", settings.ConfigDir),
 		// Create the kubernetes secret for the encryption and signing key.
 		fmt.Sprintf(`kubectl create secret generic secret-key  \
-			--from-file="session_cookie.key"="%s/user-auth/aes_symmetric_key.json"  \
-			--from-file="rctoken.key"="%s/user-auth/rsa_signing_key.json"  \
+			--from-file="session_cookie.key"="%s/user-auth/asm-user-auth/samples/cookie_encryption_key.json"  \
+			--from-file="rctoken.key"="%s/user-auth/asm-user-auth/samples/rctoken_signing_key.json"  \
 			--namespace=asm-user-auth`, settings.ConfigDir, settings.ConfigDir),
-
-		fmt.Sprintf("kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git/pkg@main %s/user-auth/pkg", settings.ConfigDir),
-		fmt.Sprintf("kubectl apply -f %s/user-auth/pkg/asm_user_auth_config_v1alpha1.yaml", settings.ConfigDir),
+		fmt.Sprintf("kubectl apply -f %s/user-auth/asm-user-auth/pkg/asm_user_auth_config_v1beta1.yaml", settings.ConfigDir),
 	}
 	if err := exec.RunMultiple(cmds); err != nil {
 		return err
@@ -75,15 +73,23 @@ func installASMUserAuth(settings *resource.Settings) error {
 	oidcClientSecret := res["client_secret"].(string)
 	oidcIssueURI := res["issuer"].(string)
 	// TODO(b/182918059): Fetch image from GCR release repo and GitHub packet.
-	userAuthImage := "gcr.io/gke-release-staging/asm/asm_user_auth:staging"
+	userAuthImage := "gcr.io/gke-release-staging/ais:staging"
 	cmds = []string{
-		fmt.Sprintf("kpt cfg set %s/user-auth/pkg anthos.servicemesh.user-auth.image %s", settings.ConfigDir, userAuthImage),
-		fmt.Sprintf("kpt cfg set %s/user-auth/pkg anthos.servicemesh.user-auth.oidc.clientID %s", settings.ConfigDir, oidcClientID),
-		fmt.Sprintf("kpt cfg set %s/user-auth/pkg anthos.servicemesh.user-auth.oidc.clientSecret %s", settings.ConfigDir, oidcClientSecret),
-		fmt.Sprintf("kpt cfg set %s/user-auth/pkg anthos.servicemesh.user-auth.oidc.issuerURI %s", settings.ConfigDir, oidcIssueURI),
-		fmt.Sprintf("kubectl apply -R -f %s/user-auth/pkg/", settings.ConfigDir),
-		"kubectl wait --for=condition=Ready --timeout=2m --namespace=asm-user-auth --all pod",
+		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.image %s", settings.ConfigDir, userAuthImage),
+		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientID %s", settings.ConfigDir, oidcClientID),
+		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientSecret %s", settings.ConfigDir, oidcClientSecret),
+		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.issuerURI %s", settings.ConfigDir, oidcIssueURI),
+		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.redirectURIPath %s", settings.ConfigDir, "/_gcp_anthos_callback"),
+		fmt.Sprintf("kubectl apply -R -f %s/user-auth/asm-user-auth/pkg/", settings.ConfigDir),
 		fmt.Sprintf("kubectl apply -f %s/user-auth/httpbin-route.yaml", settings.ConfigDir),
+	}
+	if err := exec.RunMultiple(cmds); err != nil {
+		return err
+	}
+
+	cmds = []string{
+		"kubectl wait --for=condition=Ready --timeout=2m --namespace=userauth-test --all pod",
+		"kubectl wait --for=condition=Ready --timeout=2m --namespace=asm-user-auth --all pod",
 	}
 	if err := exec.RunMultiple(cmds); err != nil {
 		return err
@@ -109,9 +115,12 @@ func downloadUserAuthDependencies(settings *resource.Settings) error {
 	chromiumURL := "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F" + revision + "%2Fchrome-linux.zip?alt=media"
 	driverURL := "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F" + revision + "%2Fchromedriver_linux64.zip?alt=media"
 	seleniumURL := "https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar"
+
 	cmds := []string{
-		//  TODO(b/182939536): add apt-get to https://github.com/istio/tools/blob/master/docker/build-tools/Dockerfile
-		"bash -c 'apt-get update && apt-get install -y --no-install-recommends unzip openjdk-11-jre xvfb chromium-browser'",
+		// TODO(b/182939536): add apt-get to https://github.com/istio/tools/blob/master/docker/build-tools/Dockerfile
+		fmt.Sprintf("bash -c 'echo %s >> %s'", "deb http://dl.google.com/linux/chrome/deb/ stable main", "/etc/apt/sources.list.d/google.list"),
+		"bash -c 'wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -'",
+		"bash -c 'apt-get update && apt-get install -y --no-install-recommends unzip openjdk-11-jre xvfb google-chrome-stable'",
 
 		fmt.Sprintf("bash -c 'curl -# %s > %s/user-auth/dependencies/chrome-linux.zip'", chromiumURL, settings.ConfigDir),
 		fmt.Sprintf("bash -c 'curl -# %s > %s/user-auth/dependencies/chromedriver-linux.zip'", driverURL, settings.ConfigDir),

@@ -76,3 +76,22 @@ roleRef:
   kind: ClusterRole
   name: istio-cni-taint-role
 {{- end }}
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: mdp-controller
+  labels:
+    k8s-app: mdp-controller
+    istio.io/rev: {{ .Values.revision | default "default" }}
+    install.operator.istio.io/owning-resource: {{ .Values.ownerName | default "unknown" }}
+    operator.istio.io/component: "Cni"
+subjects:
+- kind: ServiceAccount
+  name: istio-cni
+  namespace: {{ .Release.Namespace}}
+roleRef:
+  kind: ClusterRole
+  name: mdp-controller
+  apiGroup: rbac.authorization.k8s.io
+---

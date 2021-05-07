@@ -41,11 +41,14 @@ var inst istio.Instance
 const (
 	ASvc            = "a"
 	BSvc            = "b"
+	CSvc            = "c"
+	DSvc            = "d"
 	IstioCARevision = "asm-revision-istiodca"
 	MeshCARevision  = "asm-revision-meshca"
 )
 
-func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances, b echo.Instances, testPrefix string) {
+func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances, b echo.Instances,
+	expectSuccess bool, testPrefix string) {
 	t.Helper()
 	ctx.NewSubTest(testPrefix).Run(func(ctx framework.TestContext) {
 		srcList := []echo.Instance{a[0], b[0]}
@@ -62,7 +65,7 @@ func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances
 			checker := connection.Checker{
 				From:          src,
 				Options:       callOptions,
-				ExpectSuccess: true,
+				ExpectSuccess: expectSuccess,
 				DestClusters:  b.Clusters(),
 			}
 			checker.CheckOrFail(ctx)
@@ -76,25 +79,38 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 		RequiresSingleCluster().
 		Features("security.migrationca.citadel-meshca").
 		Run(func(ctx framework.TestContext) {
-			oldCaNamespace := namespace.NewOrFail(t, ctx, namespace.Config{
-				Prefix:   "citadel",
+			nsA := namespace.NewOrFail(t, ctx, namespace.Config{
+				Prefix:   "nsa",
 				Inject:   true,
 				Revision: IstioCARevision,
 			})
 
-			newCaNamespace := namespace.NewOrFail(t, ctx, namespace.Config{
-				Prefix:   "meshca",
+			nsB := namespace.NewOrFail(t, ctx, namespace.Config{
+				Prefix:   "nsb",
+				Inject:   true,
+				Revision: IstioCARevision,
+			})
+
+			nsC := namespace.NewOrFail(t, ctx, namespace.Config{
+				Prefix:   "nsc",
+				Inject:   true,
+				Revision: MeshCARevision,
+			})
+
+			nsD := namespace.NewOrFail(t, ctx, namespace.Config{
+				Prefix:   "nsd",
 				Inject:   true,
 				Revision: MeshCARevision,
 			})
 
 			builder := echoboot.NewBuilder(ctx)
 
-			// Create workloads in namespaces served by both CA's
 			builder.
 				WithClusters(ctx.Clusters()...).
-				WithConfig(util.EchoConfig(ASvc, oldCaNamespace, false, nil)).
-				WithConfig(util.EchoConfig(BSvc, newCaNamespace, false, nil))
+				WithConfig(util.EchoConfig(ASvc, nsA, false, nil)).
+				WithConfig(util.EchoConfig(BSvc, nsB, false, nil)).
+				WithConfig(util.EchoConfig(CSvc, nsC, false, nil)).
+				WithConfig(util.EchoConfig(DSvc, nsD, false, nil))
 
 			echos, err := builder.Build()
 			if err != nil {
@@ -104,33 +120,45 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 			cluster := ctx.Clusters().Default()
 			a := echos.Match(echo.Service(ASvc)).Match(echo.InCluster(cluster))
 			b := echos.Match(echo.Service(BSvc)).Match(echo.InCluster(cluster))
+			c := echos.Match(echo.Service(CSvc)).Match(echo.InCluster(cluster))
+			d := echos.Match(echo.Service(DSvc)).Match(echo.InCluster(cluster))
 
-			// Test Basic setup between workloads served by different CA's
-			checkConnectivity(t, ctx, a, b, "cross-ca-connectivity")
+			// 1. Setup Test
+			checkConnectivity(t, ctx, b, c, true, "init-test-cross-ca-mtls")
 
-			// Migration tests
+			// 2: Migration test
 
-			// Annotate oldCANamespace with newer CA control plane revision label.
-			err = oldCaNamespace.SetLabel("istio.io/rev", MeshCARevision)
+			err = nsB.SetLabel("istio.io/rev", MeshCARevision)
 			if err != nil {
 				t.Fatalf("unable to annotate namespace %v with label %v: %v",
-					oldCaNamespace.Name(), MeshCARevision, err)
+					nsB.Name(), MeshCARevision, err)
 			}
 
-			// Restart workload A to allow mutating webhook to do its job
-			if err := a[0].Restart(); err != nil {
+			if err := b[0].Restart(); err != nil {
 				t.Fatalf("revisioned instance rollout failed with: %v", err)
 			}
+			checkConnectivity(t, ctx, b, c, true, "post-migrate-test-same-ca-mtls")
+			checkConnectivity(t, ctx, a, b, true, "post-migrate-test-cross-ca-mtls")
 
-			// Check mTLS connectivity works after workload A is signed by meshca
-			checkConnectivity(t, ctx, a, b, "same-ca-connectivity")
+			// 3: Rollback Test
 
-			// Handle removal of root of trust
+			err = nsC.SetLabel("istio.io/rev", IstioCARevision)
+			if err != nil {
+				t.Fatalf("unable to annotate namespace %v with label %v: %v",
+					nsC.Name(), IstioCARevision, err)
+			}
+			if err := c[0].Restart(); err != nil {
+				t.Fatalf("revisioned instance rollout failed with: %v", err)
+			}
+			checkConnectivity(t, ctx, a, c, true, "post-rollback-test-same-ca-mtls")
+
+			// 4: Test removal of trust anchor: Same ca connectvity will work, cross ca connectivity will not
+
 			systemNs, err := istio.ClaimSystemNamespace(ctx)
 			if err != nil {
 				t.Fatalf("unable to retrieve istio-system namespace: %v", err)
 			}
-
+			// Remove trust roots of Istio CA
 			err = cluster.CoreV1().Secrets(systemNs.Name()).Delete(context.TODO(), "istio-ca-secret", metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				t.Fatalf("unable to delete secret %v from the cluster. Encountered error: %v", "istio-ca-secret", err)
@@ -140,11 +168,7 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 				t.Fatalf("unable to delete secret %v from the cluster. Encountered error: %v", "cacerts", err)
 			}
 
-			// TODO: need better way to determine that secret has been unmounted from istiod file-system in case of cacerts
-			// instead of sleeping
-			time.Sleep(10 * time.Second)
-
-			// Restart MeshCa Control plane to pick up new roots of trust
+			// Restart MeshCa Control plane to handle removal of trust roots
 			deploymentsClient := cluster.AppsV1().Deployments(systemNs.Name())
 			meshcaDeployment, err := deploymentsClient.Get(context.TODO(), fmt.Sprintf("istiod-%s", MeshCARevision), metav1.GetOptions{})
 			if err != nil {
@@ -156,11 +180,9 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 				t.Fatalf("unable to update meshca control plane deployment: %v", err)
 			}
 			// TODO: need better way to rollout and restart meshca deployment and wait until pods are active
-			// also need way to correctly determine if Istiod root has been removed from workload trustbundle
-			time.Sleep(10 * time.Second)
-
-			// Check mTLS works after roots of trust have been removed
-			checkConnectivity(t, ctx, a, b, "post-trust-removal-connectivity")
+			time.Sleep(20 * time.Second)
+			checkConnectivity(t, ctx, b, d, true, "post-trust-test-same-ca-conn")
+			checkConnectivity(t, ctx, a, b, false, "post-trust-test-cross-ca-conn")
 		})
 }
 

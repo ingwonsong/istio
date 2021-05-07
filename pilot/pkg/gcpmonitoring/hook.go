@@ -49,6 +49,10 @@ var (
 
 type gcpRecordHook struct{}
 
+func (r gcpRecordHook) OnRecordInt64Measure(i *stats.Int64Measure, tags []tag.Mutator, value int64) {
+	panic("OnRecordInt64Measure: implement me")
+}
+
 var _ monitoring.RecordHook = &gcpRecordHook{}
 
 func (r gcpRecordHook) OnRecordFloat64Measure(f *stats.Float64Measure, tags []tag.Mutator, value float64) {

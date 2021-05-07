@@ -32,7 +32,7 @@ const (
 
 func Setup(settings *resource.Settings) error {
 	skipConfigPath := filepath.Join(resource.ConfigDirPath, testSkipConfigFile)
-	skipConfig, err := parseSkipConfig(skipConfigPath)
+	skipConfig, err := ParseSkipConfig(skipConfigPath)
 	if err != nil {
 		return err
 	}
@@ -77,10 +77,10 @@ func Setup(settings *resource.Settings) error {
 
 func gcrProjectIDs(settings *resource.Settings) (gcrProjectID1, gcrProjectID2 string) {
 	gcrProjectID1 = settings.GCRProject
-	if len(settings.GCPProjects) == 2 {
+	if len(settings.ClusterGCPProjects) == 2 {
 		// If it's using multiple gke clusters, set gcrProjectID2 as the project
 		// for the second cluster.
-		gcrProjectID2 = settings.GCPProjects[1]
+		gcrProjectID2 = settings.ClusterGCPProjects[1]
 	} else {
 		gcrProjectID2 = gcrProjectID1
 	}

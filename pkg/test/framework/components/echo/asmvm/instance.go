@@ -15,8 +15,13 @@
 package asmvm
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -27,6 +32,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/common"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/scopes"
 	"istio.io/istio/pkg/test/util/retry"
 )
 
@@ -77,6 +83,7 @@ func newInstance(ctx resource.Context, config echo.Config) (echo.Instance, error
 		replicas:      1,
 		address:       svcAddr,
 		echoInstalled: map[uint64]bool{},
+		zone:          c.Zone(),
 	}
 	i.id = ctx.TrackResource(i)
 
@@ -120,6 +127,7 @@ type instance struct {
 
 	sync.Mutex
 	workloads []echo.Workload
+	zone      string
 	// echoInstalled tracks GCP resource IDs that have already had the echo app installed.
 	// This prevents initializeWorkloads calls for MIG scaling from having to re-install echo
 	// on an instance that already has it.
@@ -184,6 +192,73 @@ func (i *instance) CallWithRetryOrFail(t test.Failer, opts echo.CallOptions, ret
 		t.Fatal(err)
 	}
 	return res
+}
+
+const dumpScriptVM = `
+rm -rf ~/asmvm-ci-dump
+mkdir ~/asmvm-ci-dump
+cd ~/asmvm-ci-dump
+curl localhost:15000/clusters > clusters.txt
+curl localhost:15000/config_dump?include_eds > config-dump.json
+sudo journalctl -u echo.service > echo.log
+sudo journalctl -u service-proxy-agent.service > service-proxy-agent.log
+cp /var/log/envoy/* .
+tar -czvf ~/dump.tar.gz .
+`
+
+func (i *instance) Dump(ctx resource.Context) {
+	var err error
+	defer func() {
+		if err != nil {
+			scopes.Framework.Errorf("failed dumping asmvm %s.%s: %v", i.config.Service, i.config.Namespace.Name(), err)
+		}
+	}()
+	workloads, err := i.Workloads()
+	if err != nil {
+		return
+	}
+
+	dir, err := ctx.CreateDirectory(fmt.Sprintf("asmvm-%s.%s", i.config.Service, i.config.Namespace.Name()))
+	if err != nil {
+		return
+	}
+	errG := multierror.Group{}
+	for _, w := range workloads {
+		w := w
+		errG.Go(func() error {
+			if err := i.dumpWorkload(dir, w); err != nil {
+				return fmt.Errorf("failed dumping %s: %v", w.PodName(), err)
+			}
+			return nil
+		})
+	}
+	if err = errG.Wait().ErrorOrNil(); err != nil {
+		return
+	}
+}
+
+func (i *instance) dumpWorkload(wd string, workload echo.Workload) error {
+	wd = path.Join(wd, workload.PodName())
+	err := os.Mkdir(wd, 0o644)
+	if err != nil {
+		return fmt.Errorf("failed creating dump wd %s: %v", wd, err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "gcloud", "compute", "ssh",
+		"echovm@"+workload.PodName(),
+		"--zone", i.zone,
+		"--command", dumpScriptVM).CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to create dump for vm: %v: %s", err, out)
+	}
+	if out, err := exec.CommandContext(ctx, "gcloud", "compute", "scp",
+		"echovm@"+workload.PodName()+":~/dump.tar.gz", wd,
+		"--zone", i.zone).CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to scp dump for vm: %v: %s", err, out)
+	}
+	// TODO decompress dump
+	return nil
 }
 
 func (i *instance) Restart() error {

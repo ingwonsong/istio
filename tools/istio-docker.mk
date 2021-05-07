@@ -21,7 +21,9 @@
 DOCKER_TARGETS ?= docker.pilot docker.proxyv2 docker.app docker.app_sidecar_ubuntu_xenial \
 docker.app_sidecar_ubuntu_bionic docker.app_sidecar_ubuntu_focal docker.app_sidecar_debian_9 \
 docker.app_sidecar_debian_10 docker.app_sidecar_centos_8 docker.app_sidecar_centos_7 \
-docker.istioctl docker.operator docker.install-cni docker.cloudrun docker.vaultclient
+docker.mdp \
+docker.istioctl docker.operator docker.install-cni docker.cloudrun docker.vaultclient \
+docker.cloudesf_proxyv2
 
 ### Docker commands ###
 # Below provides various commands to build/push docker images.
@@ -147,6 +149,12 @@ build.docker.proxyv2: $(ISTIO_ENVOY_LINUX_RELEASE_DIR)/metadata-exchange-filter.
 build.docker.proxyv2: $(ISTIO_ENVOY_LINUX_RELEASE_DIR)/metadata-exchange-filter.compiled.wasm
 	$(DOCKER_RULE)
 
+build.docker.cloudesf_proxyv2: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap.json
+build.docker.cloudesf_proxyv2: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/gcp_envoy_bootstrap.json
+build.docker.cloudesf_proxyv2: $(ISTIO_OUT_LINUX)/pilot-agent
+build.docker.cloudesf_proxyv2: pilot/docker/Dockerfile.cloudesf_proxyv2
+	$(DOCKER_RULE)
+
 build.docker.pilot: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap.json
 build.docker.pilot: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/gcp_envoy_bootstrap.json
 build.docker.pilot: $(ISTIO_OUT_LINUX)/pilot-discovery
@@ -265,12 +273,16 @@ build.docker.vaultclient: $(ISTIO_OUT_LINUX)/vaultclient
 build.docker.vaultclient: security/docker/Dockerfile.vaultclient
 	$(DOCKER_RULE)
 
+# MDP controller
+build.docker.mdp: mdp/docker/Dockerfile.mdp
+build.docker.mdp: BUILD_PRE=
+build.docker.mdp: $(ISTIO_OUT_LINUX)/mdp
+	$(DOCKER_RULE)
+
 ### Base images ###
 build.docker.base: docker/Dockerfile.base
 	$(DOCKER_RULE)
 build.docker.distroless: docker/Dockerfile.distroless
-
-
 
 .PHONY: dockerx dockerx.save
 

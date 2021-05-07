@@ -15,9 +15,7 @@
 package tests
 
 import (
-	"fmt"
 	"log"
-	"path/filepath"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
@@ -26,18 +24,6 @@ import (
 func Run(settings *resource.Settings) error {
 	log.Println("🎬 start running the tests...")
 
-	// TODO: convert the remainder of the script to Go
-	runTestsScript := filepath.Join(settings.RepoRootDir, "prow/asm/tester/scripts/run-tests.sh")
-	if err := exec.Run(runTestsScript); err != nil {
-		return fmt.Errorf("error running the ASM tests: %w", err)
-	}
-
 	makeTarget := settings.TestTarget
-	// TODO(samnaser) move this to prow job config
-	if settings.ControlPlane == resource.Managed {
-		if settings.ClusterTopology == resource.SingleCluster {
-			makeTarget = "test.integration.asm.mcp"
-		}
-	}
 	return exec.Run("make " + makeTarget)
 }

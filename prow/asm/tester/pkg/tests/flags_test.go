@@ -15,9 +15,10 @@
 package tests
 
 import (
-	"github.com/google/go-cmp/cmp"
-	"istio.io/istio/prow/asm/tester/pkg/asm/install/revision"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 )
 
 func TestRevisionsFlag(t *testing.T) {

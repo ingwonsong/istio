@@ -27,7 +27,6 @@ import (
 	"istio.io/istio/pilot/pkg/networking/util"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/spiffe"
-	"istio.io/pkg/env"
 )
 
 const (
@@ -63,22 +62,15 @@ const (
 	AuthnFilterName = "istio_authn"
 )
 
-var (
-	SDSAdsConfig = &core.ConfigSource{
-		ConfigSourceSpecifier: &core.ConfigSource_Ads{
-			Ads: &core.AggregatedConfigSource{},
-		},
-		// We intentionally do *not* set InitialFetchTimeout to 0s here, as this is used for
-		// credentialName SDS which may refer to secrets which do not exist. We do not want to block the
-		// entire listener/cluster in these cases.
-		ResourceApiVersion: core.ApiVersion_V3,
-	}
-	// TODO: remove once ASM MCP Private Preview is removed. Will be true when the env is not set,
-	// false when running in CloudRun where we need to support the old images
-	asmNodeOnFirstEnv = env.RegisterStringVar("ASM_NODE_ON_FIRST_WORKAROUND", "",
-		"Address for Istiod when running in CloudRun").Get()
-	AsmSdsNodeOnFirst = asmNodeOnFirstEnv == ""
-)
+var SDSAdsConfig = &core.ConfigSource{
+	ConfigSourceSpecifier: &core.ConfigSource_Ads{
+		Ads: &core.AggregatedConfigSource{},
+	},
+	// We intentionally do *not* set InitialFetchTimeout to 0s here, as this is used for
+	// credentialName SDS which may refer to secrets which do not exist. We do not want to block the
+	// entire listener/cluster in these cases.
+	ResourceApiVersion: core.ApiVersion_V3,
+}
 
 // ConstructSdsSecretConfigForCredential constructs SDS secret configuration used
 // from certificates referenced by credentialName in DestinationRule or Gateway.
@@ -103,7 +95,7 @@ var (
 			ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
 				ApiConfigSource: &core.ApiConfigSource{
 					ApiType:                   core.ApiConfigSource_GRPC,
-					SetNodeOnFirstMessageOnly: AsmSdsNodeOnFirst,
+					SetNodeOnFirstMessageOnly: true,
 					TransportApiVersion:       core.ApiVersion_V3,
 					GrpcServices: []*core.GrpcService{
 						{
@@ -124,7 +116,7 @@ var (
 			ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
 				ApiConfigSource: &core.ApiConfigSource{
 					ApiType:                   core.ApiConfigSource_GRPC,
-					SetNodeOnFirstMessageOnly: AsmSdsNodeOnFirst,
+					SetNodeOnFirstMessageOnly: true,
 					TransportApiVersion:       core.ApiVersion_V3,
 					GrpcServices: []*core.GrpcService{
 						{
@@ -148,14 +140,10 @@ func ConstructSdsSecretConfig(name string) *tls.SdsSecretConfig {
 	}
 
 	if name == SDSDefaultResourceName {
-		if AsmSdsNodeOnFirst && util.IsIstioVersionGE19(node) {
-			return defaultSDSConfig
-		}
+		return defaultSDSConfig
 	}
 	if name == SDSRootResourceName {
-		if AsmSdsNodeOnFirst && util.IsIstioVersionGE19(node) {
-			return rootSDSConfig
-		}
+		return rootSDSConfig
 	}
 
 	cfg := &tls.SdsSecretConfig{
@@ -179,10 +167,6 @@ func ConstructSdsSecretConfig(name string) *tls.SdsSecretConfig {
 		},
 	}
 
-	// MCP: disable until PrivatePreview is retired.
-	if AsmSdsNodeOnFirst && util.IsIstioVersionGE19(node) {
-		cfg.SdsConfig.GetApiConfigSource().SetNodeOnFirstMessageOnly = true
-	}
 	return cfg
 }
 
