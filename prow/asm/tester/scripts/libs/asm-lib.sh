@@ -268,6 +268,54 @@ function install_certs() {
     --from-file=samples/certs/cert-chain.pem
 }
 
+# Creates remote secrets for each cluster pair for all the clusters under test
+function configure_remote_secrets_for_baremetal() {
+  declare -a HTTP_PROXYS
+  IFS=',' read -r -a HTTP_PROXYS <<< "${HTTP_PROXY_LIST}"
+  declare -a BM_ARTIFACTS_PATH_SET
+  declare -a BM_HOST_IP_SET
+  declare -a BM_CLUSTER_NAME_SET
+  for i in "${!MC_CONFIGS[@]}"; do
+    local BM_ARTIFACTS_PATH_LOCAL
+    BM_ARTIFACTS_PATH_LOCAL=${MC_CONFIGS[$i]%/*}
+    BM_ARTIFACTS_PATH_SET+=( "${BM_ARTIFACTS_PATH_LOCAL}")
+    local PORT_NUMBER
+    local BM_HOST_IP_LOCAL
+    read -r PORT_NUMBER BM_HOST_IP_LOCAL <<<"$(grep "localhost" "${BM_ARTIFACTS_PATH_LOCAL}/tunnel.sh" | sed 's/.*\-L\([0-9]*\):localhost.* root@\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) -N/\1 \2/')"
+    BM_HOST_IP_SET+=( "${BM_HOST_IP_LOCAL}")
+    local TB_CLUSTER_NAME
+    TB_CLUSTER_NAME="$(jq -r '.ClusterName' "$BM_ARTIFACTS_PATH_LOCAL"/metadata.json)"
+    local BM_CLUSTER_NAME
+    BM_CLUSTER_NAME="cn-tailorbird-global-${TB_CLUSTER_NAME}"
+    BM_CLUSTER_NAME_SET+=( "${BM_CLUSTER_NAME}")
+    echo "For index ${i}, BM_CLUSTER_NAME: ${BM_CLUSTER_NAME}, BM_ARTIFACTS_PATH: ${BM_ARTIFACTS_PATH_LOCAL}, BM_HOST_IP: ${BM_HOST_IP_LOCAL}, proxy port: ${PORT_NUMBER}"
+  done
+  for i in "${!MC_CONFIGS[@]}"; do
+    for j in "${!MC_CONFIGS[@]}"; do
+      if [[ "$i" != "$j" ]]; then
+        HTTP_PROXY=${HTTP_PROXYS[$j]} HTTPS_PROXY=${HTTP_PROXYS[$j]} istioctl x create-remote-secret \
+          --kubeconfig="${MC_CONFIGS[$j]}" \
+          --name="${BM_CLUSTER_NAME_SET[$j]}" > "secret-${j}"
+        local ORIGINAL_IP
+        ORIGINAL_IP=$(grep -oP '(?<=https://)\d+(\.\d+){3}' "secret-${j}")
+        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "${BM_ARTIFACTS_PATH_SET[$j]}"/id_rsa root@"${BM_HOST_IP_SET[$j]}" "iptables -t nat -I PREROUTING 1 -i ens4 -p tcp -m tcp --dport 8118 -j DNAT --to-destination ${ORIGINAL_IP}:443"
+        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "${BM_ARTIFACTS_PATH_SET[$j]}"/id_rsa root@"${BM_HOST_IP_SET[$j]}" "iptables -I FORWARD 1 -d ${ORIGINAL_IP}/32 -p tcp -m tcp --dport 443 -j ACCEPT"
+        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "${BM_ARTIFACTS_PATH_SET[$j]}"/id_rsa root@"${BM_HOST_IP_SET[$j]}" "iptables -t nat -I POSTROUTING 1 -d ${ORIGINAL_IP}/32 -o vxlan0 -j MASQUERADE"
+        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "${BM_ARTIFACTS_PATH_SET[$j]}"/id_rsa root@"${BM_HOST_IP_SET[$j]}" "iptables -A FORWARD -i vxlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT"
+        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "${BM_ARTIFACTS_PATH_SET[$j]}"/id_rsa root@"${BM_HOST_IP_SET[$j]}" "service privoxy restart"
+        local REACH_IP
+        REACH_IP=$(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "${BM_ARTIFACTS_PATH_SET[$j]}"/id_rsa root@"${BM_HOST_IP_SET[$j]}" "ip -4 addr show ens4 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'")
+        sed -i 's/server\:.*/server\: https:\/\/'"${REACH_IP}:8118"'/' "secret-${j}"
+        sed -i 's/certificate-authority-data\:.*/insecure-skip-tls-verify\: true/' "secret-${j}"
+        HTTP_PROXY=${HTTP_PROXYS[$i]} kubectl apply --kubeconfig="${MC_CONFIGS[$i]}" -f "secret-${j}"
+      fi
+    done
+  done
+  for i in "${!MC_CONFIGS[@]}"; do
+    sed -i 's/certificate-authority-data\:.*/insecure-skip-tls-verify\: true/' "${MC_CONFIGS[$i]}"
+  done
+}
+
 # on-prem specific fucntion to configure external ips for the gateways
 # Parameters:
 # $1    kubeconfig
@@ -308,6 +356,21 @@ function onprem::configure_external_ip() {
   echo "----------Configuring external IP for expansion gw----------"
   kubectl patch svc istio-eastwestgateway -n istio-system \
     --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": "'"${EXPANSION_IP}"'"}]' \
+    --kubeconfig="$1"
+}
+
+# baremetal specific fucntion to configure external ips for the eastwest gateway
+# Parameters:
+# $1    kubeconfig
+function baremetal::configure_external_ip() {
+  local BM_KUBECONFIG="$1"
+  local BM_ARTIFACTS_PATH_LOCAL
+  BM_ARTIFACTS_PATH_LOCAL=${BM_KUBECONFIG%/*}
+  local EXPANSION_IP
+  EXPANSION_IP="$(jq '.outputs.full_cluster.value.resources.networks.gce.ips."gce-vip-0"' "$BM_ARTIFACTS_PATH_LOCAL"/internal/terraform/terraform.tfstate)"
+  echo "----------Configuring external IP for expansion gw----------"
+  kubectl patch svc istio-eastwestgateway -n istio-system \
+    --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": '"${EXPANSION_IP}"'}]' \
     --kubeconfig="$1"
 }
 

@@ -189,8 +189,7 @@ func newProtocol(cfg Config) (protocol, error) {
 				return nil, err
 			}
 			proto.client.Transport.(*http.Transport).Proxy = http.ProxyURL(proxyURL)
-		}
-		if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" {
+		} else if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" {
 			proto.client.Transport.(*http.Transport).Proxy = http.ProxyFromEnvironment
 		}
 		if cfg.Request.Http3 && scheme.Instance(urlScheme) == scheme.HTTP {

@@ -42,9 +42,17 @@ func (c *installer) install(r *revision.Config) error {
 		case resource.GKEOnGCP:
 			log.Println("🏄 performing ASM installation")
 			return c.installASM(r)
-		case resource.BareMetal, resource.GKEOnAWS, resource.APM, resource.EKS:
+		case resource.GKEOnAWS, resource.APM, resource.EKS:
 			log.Println("🏄 performing ASM installation on proxied clusters")
 			return c.installASMOnProxiedClusters(r)
+		case resource.BareMetal:
+			if c.settings.ClusterTopology == resource.SingleCluster {
+				log.Println("🏄 performing ASM installation on proxied clusters")
+				return c.installASMOnProxiedClusters(r)
+			} else {
+				log.Println("🏄 performing ASM installation on proxy injected clusters")
+				return c.installASMOnProxyInjectedClusters(r)
+			}
 		default:
 			log.Println("🏄 performing ASM multi cloud installation")
 			return c.installASMOnMulticloud(r)

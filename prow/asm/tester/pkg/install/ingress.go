@@ -35,10 +35,10 @@ func gatewayDir() string {
 	return filepath.Join(ASMOutputDir(), ingressSamples)
 }
 
-func (c *installer) installIngressGateway(context, kubeconfig string) error {
+func (c *installer) installIngressGateway(context, kubeconfig string, idx int) error {
 	if c.settings.ClusterType == resource.BareMetal || c.settings.ClusterType == resource.GKEOnAWS || c.settings.ClusterType == resource.APM {
-		os.Setenv("HTTPS_PROXY", os.Getenv("MC_HTTP_PROXY"))
-		os.Setenv("http_proxy", os.Getenv("MC_HTTP_PROXY"))
+		os.Setenv("HTTPS_PROXY", c.settings.ClusterProxy[idx])
+		os.Setenv("http_proxy", c.settings.ClusterProxy[idx])
 		defer os.Unsetenv("HTTPS_PROXY")
 		defer os.Unsetenv("http_proxy")
 	}

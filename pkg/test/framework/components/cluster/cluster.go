@@ -211,4 +211,10 @@ type Cluster interface {
 
 	// HTTPProxy returns the HTTP proxy config to connect to the cluster
 	HTTPProxy() string
+
+	// SSHUser returns the ssh user to connect to the bootstrap VM of Baremetal/AWS cluster
+	SSHUser() string
+
+	// SSHKey returns the ssh key to connect to the bootstrap VM of Baremetal/AWS cluster
+	SSHKey() string
 }

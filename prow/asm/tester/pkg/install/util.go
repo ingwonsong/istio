@@ -229,15 +229,14 @@ func setGcpPermissions(settings *resource.Settings) error {
 
 // TODO: use kubernetes client-go library instead of kubectl.
 func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config) error {
-	if settings.ClusterType == resource.BareMetal || settings.ClusterType == resource.GKEOnAWS || settings.ClusterType == resource.APM {
-		os.Setenv("HTTP_PROXY", os.Getenv("MC_HTTP_PROXY"))
-		defer os.Unsetenv("HTTP_PROXY")
-	}
-
 	secretName := "test-gcr-secret"
 	cred := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 	configs := filepath.SplitList(settings.Kubeconfig)
 	for i, config := range configs {
+		if settings.ClusterType == resource.BareMetal || settings.ClusterType == resource.GKEOnAWS || settings.ClusterType == resource.APM {
+			os.Setenv("HTTP_PROXY", settings.ClusterProxy[i])
+			defer os.Unsetenv("HTTP_PROXY")
+		}
 		err := exec.Run(
 			fmt.Sprintf("kubectl create ns istio-system --kubeconfig=%s", config),
 		)

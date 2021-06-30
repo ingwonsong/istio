@@ -78,6 +78,12 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 		installFlags = append(installFlags,
 			"--ca", "citadel",
 		)
+		if settings.ClusterType == resource.BareMetal {
+			installFlags = append(installFlags, "--ca_cert", "samples/certs/ca-cert.pem",
+				"--ca_key", "samples/certs/ca-key.pem",
+				"--root_cert", "samples/certs/root-cert.pem",
+				"--cert_chain", "samples/certs/cert-chain.pem")
+		}
 	} else {
 		return nil, fmt.Errorf("unsupported CA type for multicloud installation: %s", ca)
 	}
@@ -106,7 +112,7 @@ func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
 		}
 		os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
 
-		for _, kubeconfig := range kubeconfigs {
+		for i, kubeconfig := range kubeconfigs {
 			kubeconfigLogger := log.New(os.Stdout,
 				fmt.Sprintf("[kubeconfig: %s] ", kubeconfig), log.Ldate|log.Ltime)
 			kubeconfigLogger.Println("Performing ASM installation...")
@@ -125,7 +131,7 @@ func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
 				return fmt.Errorf("ASM installation using script failed: %w", err)
 			}
 			if c.settings.UseASMCLI && !c.settings.InstallCloudESF {
-				if err := c.installIngressGateway("", kubeconfig); err != nil {
+				if err := c.installIngressGateway("", kubeconfig, i); err != nil {
 					return err
 				}
 			}
@@ -142,6 +148,65 @@ func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
 			}),
 		)
 	}
+}
+
+func (c *installer) installASMOnProxyInjectedClusters(rev *revision.Config) error {
+	kubeconfigs := strings.Split(c.settings.Kubeconfig, ":")
+	log.Println("Downloading ASM script for the installation...")
+	scriptPath, err := downloadInstallScript(c.settings, rev)
+	if err != nil {
+		return fmt.Errorf("failed to download the install script: %w", err)
+	}
+
+	// Use the first project as the environ name
+	// must do this here because each installation depends on the value
+	environProjectNumber, err := gcp.GetProjectNumber(proxiedClusterFleetProject)
+	if err != nil {
+		return fmt.Errorf("failed to read environ number: %w", err)
+	}
+	os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
+
+	for i, kubeconfig := range kubeconfigs {
+		kubeconfigLogger := log.New(os.Stdout,
+			fmt.Sprintf("[kubeconfig: %s] ", kubeconfig), log.Ldate|log.Ltime)
+		kubeconfigLogger.Println("Performing ASM installation...")
+		kubeconfigLogger.Println("Running installation using install script...")
+
+		networkID := "network" + strconv.Itoa(i)
+		clusterID := fmt.Sprintf("cn-%s-global-%s-cluster", proxiedClusterFleetProject, strings.Split(c.settings.KubeContexts[i], "-")[0])
+
+		multicloudFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev, kubeconfig)
+		if err != nil {
+			return fmt.Errorf("error generating multicloud install flags: %w", err)
+		}
+		if err := exec.Run(scriptPath,
+			exec.WithAdditionalEnvs(generateASMInstallEnvvars(c.settings, rev, "")),
+			exec.WithAdditionalEnvs([]string{
+				fmt.Sprintf("HTTPS_PROXY=%s", c.settings.ClusterProxy[i]),
+			}),
+			exec.WithAdditionalArgs(multicloudFlags),
+			exec.WithAdditionalArgs([]string{"--network_id", networkID})); err != nil {
+			return fmt.Errorf("ASM installation using script failed: %w", err)
+		}
+		if err := c.installIngressGateway("", kubeconfig, i); err != nil {
+			return fmt.Errorf("failed to install ingress gateway for the cluster: %w", err)
+		}
+		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
+			return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)
+		}
+		if err := configureExternalIP(c.settings, kubeconfig, i); err != nil {
+			return fmt.Errorf("failed to configure external IP for the cluster: %w", err)
+		}
+	}
+
+	return exec.Dispatch(
+		c.settings.RepoRootDir,
+		"configure_remote_secrets_for_baremetal",
+		nil,
+		exec.WithAdditionalEnvs([]string{
+			fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
+		}),
+	)
 }
 
 func (c *installer) installASMOnMulticloud(rev *revision.Config) error {
@@ -182,13 +247,13 @@ func (c *installer) installASMOnMulticloud(rev *revision.Config) error {
 			exec.WithAdditionalArgs([]string{"--network_id", networkID})); err != nil {
 			return fmt.Errorf("ASM installation using script failed: %w", err)
 		}
-		if err := c.installIngressGateway("", kubeconfig); err != nil {
+		if err := c.installIngressGateway("", kubeconfig, i); err != nil {
 			return fmt.Errorf("failed to install ingress gateway for on-prem cluster: %w", err)
 		}
-		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig); err != nil {
+		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
 			return fmt.Errorf("failed to install expansion gateway for on-prem cluster: %w", err)
 		}
-		if err := configureExternalIP(c.settings, kubeconfig); err != nil {
+		if err := configureExternalIP(c.settings, kubeconfig, i); err != nil {
 			return fmt.Errorf("failed to configure external IP for on-prem cluster: %w", err)
 		}
 	}
@@ -212,7 +277,13 @@ func installCerts(settings *resource.Settings, kubeconfig string) error {
 }
 
 // installExpansionGateway performs the steps documented at https://cloud.google.com/service-mesh/docs/on-premises-multi-cluster-setup
-func installExpansionGateway(settings *resource.Settings, rev *revision.Config, cluster, network, kubeconfig string) error {
+func installExpansionGateway(settings *resource.Settings, rev *revision.Config, cluster, network, kubeconfig string, idx int) error {
+	if settings.ClusterType == resource.BareMetal {
+		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
+		os.Setenv("http_proxy", settings.ClusterProxy[idx])
+		defer os.Unsetenv("HTTPS_PROXY")
+		defer os.Unsetenv("http_proxy")
+	}
 	revName := "default"
 	if rev.Name != "" {
 		revName = rev.Name
@@ -243,13 +314,24 @@ func installExpansionGateway(settings *resource.Settings, rev *revision.Config, 
 	return nil
 }
 
-func configureExternalIP(settings *resource.Settings, kubeconfig string) error {
-	const herculesLab = "atl_shared"
-	if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_external_ip",
-		[]string{kubeconfig},
-		exec.WithAdditionalEnvs(
-			[]string{fmt.Sprintf("HERCULES_CLI_LAB=%s", herculesLab)})); err != nil {
-		return err
+func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int) error {
+	// Patch BM
+	if settings.ClusterType == resource.BareMetal {
+		if err := exec.Dispatch(settings.RepoRootDir, "baremetal::configure_external_ip",
+			[]string{kubeconfig},
+			exec.WithAdditionalEnvs(
+				[]string{fmt.Sprintf("HTTPS_PROXY=%s", settings.ClusterProxy[idx])})); err != nil {
+			return err
+		}
+		return nil
+	} else {
+		const herculesLab = "atl_shared"
+		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_external_ip",
+			[]string{kubeconfig},
+			exec.WithAdditionalEnvs(
+				[]string{fmt.Sprintf("HERCULES_CLI_LAB=%s", herculesLab)})); err != nil {
+			return err
+		}
+		return nil
 	}
-	return nil
 }

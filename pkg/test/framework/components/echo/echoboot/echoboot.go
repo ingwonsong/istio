@@ -297,8 +297,8 @@ func (b builder) deployServices() error {
 		}
 	}
 
-	// HTTP_PROXY is used by Baremetal env and there is limiting on number of connections
-	if len(os.Getenv("HTTP_PROXY")) > 0 {
+	// There is limiting on number of connections in Baremetal and AWS env
+	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" {
 		for svcNs, svcYaml := range services {
 			svcYaml := svcYaml
 
@@ -324,8 +324,8 @@ func (b builder) deployServices() error {
 
 func (b builder) deployInstances() (echo.Instances, error) {
 	out := echo.Instances{}
-	// HTTP_PROXY is used by Baremetal env and there is limiting on number of connections
-	if len(os.Getenv("HTTP_PROXY")) > 0 {
+	// There is limiting on number of connections in Baremetal and AWS env
+	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" {
 		for kind, configs := range b.configs {
 			kind := kind
 			configs := configs

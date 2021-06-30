@@ -161,6 +161,44 @@ tests:
           - TestCanonicalServices
         buganizerID: 203557135
 
+  # Unmanaged CP + bare-metal
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: bare-metal
+      cluster_topology: mcmn
+    targets:
+    - names:
+      - TestReachability/no-peer-authn/headless*
+      - TestReachability/global-plaintext*
+      reason: MeshCA does not support ECDSA
+    - names:
+      - TestStrictMTLS
+      reason: MeshCA does not support ECDSA
+    - names:
+      - TestAuthorization_Custom
+      reason: requires mesh config
+    - names:
+      - TestStackdriver
+      - TestStackdriverAudit
+      - TestVMTelemetry
+      reason: Stackdriver is not enabled with ASM Distro Baremetal installation
+    # pilot/ tests
+    - names:
+      - TestTraffic/serverfirst/auto-tcp-server.*
+      - TestCustomGateway
+      - TestMultiVersionRevision
+      - TestAddToAndRemoveFromMesh
+      - TestGateway
+      - TestRevisionedUpgrade
+      - TestVMRegistrationLifecycle
+      - TestValidation
+      - TestRevision*
+      - TestMultiRevision
+      - TestUninstall*
+      - TestServiceExports*
+      - TestTraffic/dns
+      buganizerID: 187725074
+
   # Unmanaged CP + apm
   - selectors:
       control_plane: unmanaged

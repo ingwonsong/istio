@@ -42,6 +42,15 @@ type Settings struct {
 	// Use OnePlatform API to provision the cluster
 	UseOnePlatform bool `flag:"use-oneplatform" desc:"Whether to use oneplatform API to provision k8s clusters."`
 
+	// A list of http proxy used for multicloud cluster connection
+	ClusterProxy []string
+
+	// A list of ssh user to connect to the bootstrap VM of Baremetal/AWS cluster
+	ClusterSSHUser []string
+
+	// A list of ssh key to connect to the bootstrap VM of Baremetal/AWS cluster
+	ClusterSSHKey []string
+
 	// The feature to test for this test flow
 	FeatureToTest Feature `flag:"feature" desc:"Feature to test for this test flow."`
 

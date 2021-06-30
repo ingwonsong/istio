@@ -26,7 +26,7 @@ import (
 type Map = map[string]Cluster
 
 func NewTopology(config Config, allClusters Map) Topology {
-	return Topology{
+	topology := Topology{
 		ClusterName:        config.Name,
 		ClusterKind:        config.Kind,
 		Network:            config.Network,
@@ -36,6 +36,11 @@ func NewTopology(config Config, allClusters Map) Topology {
 		AllClusters:        allClusters,
 		Index:              len(allClusters),
 	}
+	if len(config.Meta.String("sshuser")) > 0 {
+		topology.ClusterSSHUser = config.Meta.String("sshuser")
+		topology.ClusterSSHKey = config.Meta.String("sshkey")
+	}
+	return topology
 }
 
 // Topology gives information about the relationship between clusters.
@@ -45,6 +50,8 @@ type Topology struct {
 	ClusterKind        Kind
 	Network            string
 	ClusterHTTPProxy   string
+	ClusterSSHUser     string
+	ClusterSSHKey      string
 	PrimaryClusterName string
 	ConfigClusterName  string
 	Index              int
@@ -55,6 +62,14 @@ type Topology struct {
 // NetworkName the cluster is on
 func (c Topology) NetworkName() string {
 	return c.Network
+}
+
+func (c Topology) SSHUser() string {
+	return c.ClusterSSHUser
+}
+
+func (c Topology) SSHKey() string {
+	return c.ClusterSSHKey
 }
 
 // Name provides the ClusterName this cluster used by Istio.
@@ -187,7 +202,9 @@ func (c Topology) String() string {
 	_, _ = fmt.Fprintf(buf, "PrimaryCluster:     %s\n", c.Primary().Name())
 	_, _ = fmt.Fprintf(buf, "ConfigCluster:      %s\n", c.Config().Name())
 	_, _ = fmt.Fprintf(buf, "Network:            %s\n", c.NetworkName())
-	_, _ = fmt.Fprintf(buf, "HTTPProxy:            %s\n", c.HTTPProxy())
+	_, _ = fmt.Fprintf(buf, "HTTPProxy:          %s\n", c.HTTPProxy())
+	_, _ = fmt.Fprintf(buf, "SSHKey:             %s\n", c.SSHKey())
+	_, _ = fmt.Fprintf(buf, "SSHUser:            %s\n", c.SSHUser())
 
 	return buf.String()
 }

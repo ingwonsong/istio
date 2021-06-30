@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -82,11 +83,16 @@ func configureEnvvars(settings *resource.Settings,
 		// for security and telemetry test.
 		"GCR_PROJECT_ID_1": gcrProjectID1,
 		"GCR_PROJECT_ID_2": gcrProjectID2,
-		// required for bare metal and multicloud environments
-		"HTTP_PROXY":  os.Getenv("MC_HTTP_PROXY"),
-		"HTTPS_PROXY": os.Getenv("MC_HTTP_PROXY"),
 		// required for gke upgrade test
-		"TEST_START_EVENT_URL": fmt.Sprintf("http://localhost:%s/%s", settings.TestStartEventPort, settings.TestStartEventPath),
+		"TEST_START_EVENT_URL":         fmt.Sprintf("http://localhost:%s/%s", settings.TestStartEventPort, settings.TestStartEventPath),
+		"HTTP_PROXY_LIST":              strings.Join(settings.ClusterProxy, ","),
+		"BOOTSTRAP_HOST_SSH_USER_LIST": strings.Join(settings.ClusterSSHUser, ","),
+		"BOOTSTRAP_HOST_SSH_KEY_LIST":  strings.Join(settings.ClusterSSHKey, ","),
+	}
+	// required for bare metal and multicloud environments single cluster jobs
+	if len(settings.ClusterProxy) == 1 {
+		envVars["HTTP_PROXY"] = os.Getenv("MC_HTTP_PROXY")
+		envVars["HTTPS_PROXY"] = os.Getenv("MC_HTTP_PROXY")
 	}
 	// MCP VPCSC tests relies on AFC which doesn't allow image overwrite in prod.
 	// So we'll only run this periodically with fix images that is consistent with regular channel.
@@ -135,7 +141,13 @@ func genTopologyFile(settings *resource.Settings) error {
 		if settings.ClusterType == resource.GKEOnGCP {
 			cs := kube.GKEClusterSpecFromContext(settings.KubeContexts[i])
 			clusterName = fmt.Sprintf("cn-%s-%s-%s", cs.ProjectID, cs.Location, cs.Name)
+		} else if settings.ClusterType == resource.BareMetal {
+			clusterName = "cluster" + strconv.Itoa(i)
 		} else {
+			if len(settings.ClusterProxy) > 1 {
+				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
+				defer os.Unsetenv("HTTPS_PROXY")
+			}
 			istiodPodsJson, err := exec.RunWithOutput("kubectl -n istio-system get pod -l app=istiod -o json --kubeconfig=" + kubeconfig)
 			if err != nil || strings.TrimSpace(istiodPodsJson) == "" {
 				return fmt.Errorf("error listing the istiod Pods: %w", err)
@@ -160,6 +172,11 @@ func genTopologyFile(settings *resource.Settings) error {
 		// Disable using simulated Pod-based "VMs" when testing real VMs
 		if settings.UseGCEVMs || settings.VMStaticConfigDir != "" {
 			cc += "\n    fakeVM: false"
+		}
+		if settings.ClusterType == resource.BareMetal {
+			cc += fmt.Sprintf("\n    sshuser: %s", settings.ClusterSSHUser[i])
+			cc += fmt.Sprintf("\n    sshkey: %s", settings.ClusterSSHKey[i])
+			cc += fmt.Sprintf("\n  httpProxy: %s", settings.ClusterProxy[i])
 		}
 		// Add network name for multicloud cluster config.
 		// TODO(landow): only set this if we actually installed using it

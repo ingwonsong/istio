@@ -485,17 +485,18 @@ func fixBareMetal(settings *resource.Settings) error {
 	if err != nil {
 		return err
 	}
-
-	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
-		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
-		clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
-		scriptRelPath:        "tunnel.sh",
-		regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
-		sshKeyRelPath:        "id_rsa",
-	}); err != nil {
-		return err
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
+			clusterArtifactsPath: filepath.Dir(config),
+			scriptRelPath:        "tunnel.sh",
+			regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
+			sshKeyRelPath:        "id_rsa",
+		}); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -611,6 +612,9 @@ func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloud
 	bootstrapHostSSHKey := filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath)
 	log.Printf("----------%s Cluster env----------", settings.ClusterType)
 	log.Print("MC_HTTP_PROXY: ", httpProxy)
+	settings.ClusterProxy = append(settings.ClusterProxy, httpProxy)
+	settings.ClusterSSHUser = append(settings.ClusterSSHUser, bootstrapHostSSHUser)
+	settings.ClusterSSHKey = append(settings.ClusterSSHKey, bootstrapHostSSHKey)
 	log.Printf("BOOTSTRAP_HOST_SSH_USER: %s, BOOTSTRAP_HOST_SSH_KEY: %s", bootstrapHostSSHUser, bootstrapHostSSHKey)
 
 	for name, val := range map[string]string{

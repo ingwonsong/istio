@@ -337,6 +337,9 @@ func CheckExistence(ctx framework.TestContext, instances ...echo.Instances) {
 }
 
 func WaitForConfig(ctx framework.TestContext, namespace namespace.Instance, configs ...string) {
+	if os.Getenv("CLUSTER_TYPE") == "bare-metal" {
+		return
+	}
 	for _, config := range configs {
 		for _, c := range ctx.Clusters().Primaries() {
 			c := c
