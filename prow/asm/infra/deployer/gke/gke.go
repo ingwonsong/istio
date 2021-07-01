@@ -149,7 +149,7 @@ func (d *Instance) flags() ([]string, error) {
 		var featureFlags []string
 		switch d.cfg.Feature {
 		case types.VPCServiceControls:
-			featureFlags, err = featureVPCSCPresetup(d.cfg.GCPProjects)
+			featureFlags, err = featureVPCSCPresetup(d.cfg.GCPProjects, d.cfg.Topology)
 		case types.UserAuth:
 		case types.Addon:
 		case types.PrivateClusterUnrestrictedAccess:
@@ -214,8 +214,13 @@ func (d *Instance) getReleaseChannel() (types.ReleaseChannel, error) {
 
 // singleClusterFlags returns the kubetest2 flags for single-cluster setup.
 func (d *Instance) singleClusterFlags(releaseChannel types.ReleaseChannel) ([]string, error) {
+	boskosResourceType := commonBoskosResource
+	// Testing with VPC-SC requires a different project type.
+	if d.cfg.Feature == types.VPCServiceControls {
+		boskosResourceType = vpcSCBoskosResource
+	}
 	flags, err := d.getProjectFlag(func() (string, error) {
-		return acquireBoskosProjectAndSetBilling(commonBoskosResource)
+		return acquireBoskosProjectAndSetBilling(boskosResourceType)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring GCP projects for singlecluster setup: %w", err)
@@ -264,7 +269,7 @@ func (d *Instance) multiClusterFlags(releaseChannel types.ReleaseChannel) ([]str
 
 // featureVPCSCPresetup runs the presetup for VPC Service Control and returns the extra kubetest2 flags for creating the clusters,
 // as per the instructions in https://docs.google.com/document/d/11yYDxxI-fbbqlpvUYRtJiBmGdY_nIKPJLbssM3YQtKI/edit#heading=h.e2laig460f1d
-func featureVPCSCPresetup(gcpProjects []string) ([]string, error) {
+func featureVPCSCPresetup(gcpProjects []string, topology types.Topology) ([]string, error) {
 	// networkProject is the project where the network is created.
 	networkProject := gcpProjects[0]
 	if err := exec.Run("gcloud config set project " + networkProject); err != nil {
@@ -320,23 +325,30 @@ func featureVPCSCPresetup(gcpProjects []string) ([]string, error) {
 	})
 	time.Sleep(1 * time.Minute)
 
-	// 2. Set up the cloud DNS for Google APIs.
-	if err := exec.RunMultiple(
-		[]string{fmt.Sprintf(`gcloud beta dns managed-zones create googleapis-zone --visibility=private \
+	// TODO(ruigu): This is a temporary hack. Tracking bug: http://b/195134581
+	// Before MCP officially support VPC-SC, private access to meshconfig.googleapis.com
+	// will not work. For now, only MCP VPC-SC tests uses single cluster setup. It
+	// will skip the private access related DNS routing. Also, adding this DNS
+	// route maybe not required for VPCSC testing.
+	if topology != types.SingleCluster {
+		// 2. Set up the cloud DNS for Google APIs.
+		if err := exec.RunMultiple(
+			[]string{fmt.Sprintf(`gcloud beta dns managed-zones create googleapis-zone --visibility=private \
 			--networks=https://www.googleapis.com/compute/v1/projects/%s/global/networks/%s \
 			--description="Zone for googleapis.com" --dns-name=googleapis.com`, networkProject, networkName),
-			"gcloud dns record-sets transaction start --zone=googleapis-zone",
-			`gcloud dns record-sets transaction add --name=*.googleapis.com. \
+				"gcloud dns record-sets transaction start --zone=googleapis-zone",
+				`gcloud dns record-sets transaction add --name=*.googleapis.com. \
 		--type=CNAME restricted.googleapis.com. \
 		--zone=googleapis-zone \
 		--ttl=300`,
-			`gcloud dns record-sets transaction add --name=restricted.googleapis.com. \
+				`gcloud dns record-sets transaction add --name=restricted.googleapis.com. \
 		--type=A 199.36.153.4 199.36.153.5 199.36.153.6 199.36.153.7 \
 		--zone=googleapis-zone \
 		--ttl=300`,
-			"gcloud dns record-sets transaction execute --zone=googleapis-zone",
-		}); err != nil {
-		return nil, fmt.Errorf("error seting up the cloud DNS for Google APIs for the %q network: %w", networkName, err)
+				"gcloud dns record-sets transaction execute --zone=googleapis-zone",
+			}); err != nil {
+			return nil, fmt.Errorf("error seting up the cloud DNS for Google APIs for the %q network: %w", networkName, err)
+		}
 	}
 	// 3. Set up the cloud DNS for Google Container Registry service gcr.io.
 	if err := exec.RunMultiple(
@@ -361,7 +373,15 @@ func featureVPCSCPresetup(gcpProjects []string) ([]string, error) {
 		return nil, fmt.Errorf("error setting up the cloud DNS for Google Container Registry service gcr.io: %w", err)
 	}
 
-	flags := []string{"--private-cluster-access-level=limited", "--private-cluster-master-ip-range=173.16.0.32/28,172.16.0.32/28,174.16.0.32/28,175.16.0.32/28,176.16.0.32/28,177.16.0.32/28"}
+	flags := []string{"--private-cluster-access-level=limited"}
+	switch topology {
+	case types.SingleCluster:
+		flags = append(flags, "--private-cluster-master-ip-range=172.16.0.32/28,173.16.0.32/28,174.16.0.32/28")
+	case types.MultiCluster, types.MultiProject:
+		flags = append(flags, "--private-cluster-master-ip-range=173.16.0.32/28,172.16.0.32/28,174.16.0.32/28,175.16.0.32/28,176.16.0.32/28,177.16.0.32/28")
+	default:
+		return nil, fmt.Errorf("topology %v for VPCSC is unsupported", topology)
+	}
 	return flags, nil
 }
 

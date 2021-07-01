@@ -133,7 +133,8 @@ func injectEnvVars(settings *resource.Settings) error {
 	if settings.ControlPlane == resource.Unmanaged {
 		hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, getBuildID())
 	} else {
-		hub = "gcr.io/asm-staging-images/asm-mcp-e2e-test"
+		// TODO(ruigu): Move this back to asm-staging-images after b/191049493.
+		hub = "gcr.io/wlhe-cr/asm-mcp-e2e-test"
 	}
 
 	var meshID string
@@ -347,7 +348,7 @@ func addIpsToAuthorizedNetworks(settings *resource.Settings) error {
 	case 1:
 		// Enable authorized networks for each cluster
 		if err := enableAuthorizedNetworks(gkeClusterSpecs[0].Name, gkeClusterSpecs[0].ProjectID, gkeClusterSpecs[0].Location, testRunnerCidr, "", ""); err != nil {
-			return fmt.Errorf("error enabling authorized networks on cluster: %w", err)
+			return fmt.Errorf("error enabling authorized networks on cluster %v: %w", gkeClusterSpecs[0], err)
 		}
 	case 2:
 		// Get the Pod IP CIDR block for each cluster
@@ -370,10 +371,10 @@ func addIpsToAuthorizedNetworks(settings *resource.Settings) error {
 
 		// Enable authorized networks for each cluster
 		if err := enableAuthorizedNetworks(gkeClusterSpecs[0].Name, gkeClusterSpecs[0].ProjectID, gkeClusterSpecs[0].Location, testRunnerCidr, clusterPodIpCidrs[1], subnetPrimaryIpCidrs[1]); err != nil {
-			return fmt.Errorf("error enabling authorized networks on cluster: %w", err)
+			return fmt.Errorf("error enabling authorized networks on cluster %v: %w", gkeClusterSpecs[0].Name, err)
 		}
 		if err := enableAuthorizedNetworks(gkeClusterSpecs[1].Name, gkeClusterSpecs[1].ProjectID, gkeClusterSpecs[1].Location, testRunnerCidr, clusterPodIpCidrs[0], subnetPrimaryIpCidrs[0]); err != nil {
-			return fmt.Errorf("error enabling authorized networks on cluster: %w", err)
+			return fmt.Errorf("error enabling authorized networks on cluster %v: %w", gkeClusterSpecs[1].Name, err)
 		}
 		// Sleep 10 seconds to wait for the cluster update command to take into effect
 		time.Sleep(10 * time.Second)

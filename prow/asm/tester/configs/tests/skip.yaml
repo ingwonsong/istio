@@ -398,6 +398,28 @@ tests:
       - names:
           - TestTelemetry/telemetry
         reason: Prometheus shouldn't be tested for MCP. We have a separate test for real stackdriver.
+  # Managed CP, cluster topology = sc OR SINGLECLUSTER, feature = VPC_SC
+  - selectors:
+      control_plane: managed
+      cluster_topology: sc
+      feature_to_test: VPC_SC
+    targets:
+    - names:
+      - TestTraffic/use-client-protocol/use_client_protocol_with_h2
+      reason: Unknown
+      buganizerID: 195128010
+    - names:
+      - TestTraffic/instanceip/instance_IP_without_sidecar
+      - TestTraffic/instanceip/instance_IP_with_empty_sidecar
+      - TestTraffic/instanceip/localhost_IP_with_empty_sidecar
+      - TestTraffic/instanceip/localhost_IP_without_sidecar
+      reason: Unkown
+      buganizerID: 195128010
+    - names:
+      - TestTraffic/virtualservice/set_authority_header*
+      reason: Unkown
+      buganizerID: 195128010
+
 packages:
 
   # skip endpointslice package
