@@ -51,6 +51,12 @@ type Settings struct {
 	// Test to disable
 	DisabledTests string
 
+	// Path to an event that can be triggered from within the test suite
+	TestStartEventPath string
+
+	// Port that clients should use to trigger events from within test suite
+	TestStartEventPort string
+
 	VMSettings
 
 	MCPSettings

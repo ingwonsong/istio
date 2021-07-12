@@ -62,6 +62,9 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.StringVar(&settings.VMImageProject, "vm-image-project", "debian-cloud", "VM image project that will be used as the `--image-project` flag value when using `gcloud compute instance-templates create` to create the VMs.")
 	// TODO(chizhg): delete after we update the Prow jobs to use --vm-image-project
 	flags.StringVar(&settings.VMImageProject, "image-project", "debian-cloud", "VM image project that will be used as the `--image-project` flag value when using `gcloud compute instance-templates create` to create the VMs.")
+	flags.StringVar(&settings.TestStartEventPath, "test-start-event-path", "upgrade-gke", "a path that is used to start an event from within the test suite, it used to make a request to a server residing in the infra code")
+	flags.StringVar(&settings.TestStartEventPort, "test-start-event-port", "", "port that clients should use to trigger events occuring in the infra code")
+
 
 	return flags
 }

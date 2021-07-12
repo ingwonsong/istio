@@ -16,6 +16,9 @@
 package longrunning
 
 import (
+	"log"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -34,7 +37,7 @@ const (
 	PodASvc          = "a"
 	PodBSvc          = "b"
 	runDuration      = 5 * time.Minute
-	successThreshold = 0.99
+	successThreshold = 0.70
 )
 
 var (
@@ -101,6 +104,8 @@ func TestLongRunning(t *testing.T) {
 	framework.NewTest(t).
 		Features("installation.clusters.upgrade").
 		Run(func(t framework.TestContext) {
+			time.Sleep(runDuration / 2)
+
 			g := traffic.NewGenerator(t, traffic.Config{
 				Source: PodA[0],
 				Options: echo.CallOptions{
@@ -109,7 +114,20 @@ func TestLongRunning(t *testing.T) {
 				},
 			}).Start()
 
-			time.Sleep(runDuration)
+			if url := os.Getenv("TEST_START_EVENT_URL"); url != "" {
+				client := &http.Client{Timeout: 1 * time.Hour}
+				log.Printf("firing test start event to %s", url)
+				resp, err := client.Get(url)
+				if err != nil {
+					t.Fatalf("HTTP called failed: %v", err)
+				}
+				defer resp.Body.Close()
+				if resp.StatusCode != http.StatusOK {
+					log.Printf("HTTP call (%s) returned non-ok status: %d", url, resp.StatusCode)
+				}
+			}
+
+			time.Sleep(runDuration / 2)
 
 			// Stop the traffic generator and get the result.
 			g.Stop().CheckSuccessRate(t, successThreshold)

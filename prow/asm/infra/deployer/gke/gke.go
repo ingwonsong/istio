@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -31,7 +33,6 @@ import (
 )
 
 const (
-	upgradeDelay = 10 * time.Minute
 	name         = "gke"
 
 	// These names correspond to the resources configured in
@@ -48,8 +49,8 @@ const (
 
 var (
 	retryableErrorPatterns = `.*does not have enough resources available to fulfill.*` +
-		`,.*only \d+ nodes out of \d+ have registered; this is likely due to Nodes failing to start correctly.*` +
-		`,.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*`
+			`,.*only \d+ nodes out of \d+ have registered; this is likely due to Nodes failing to start correctly.*` +
+			`,.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*`
 
 	baseFlags = []string{
 		"--machine-type=e2-standard-4",
@@ -87,13 +88,18 @@ func (d *Instance) Run() error {
 		return err
 	}
 
+	lis, err := d.newWebhookServer()
+
 	// Get the flags for the tester.
 	testFlags, err := d.cfg.GetTesterFlags()
 	if err != nil {
 		return err
 	}
 
-	startBackgroundTasks(flags, d.cfg.UpgradeClusterVersion, d.cfg.Topology)
+	// TODO(aakashshukla) when GKE upgrade is supported from TB this will be moved
+	//        to the generic deployer code
+	testFlags = append(testFlags,
+		"--test-start-event-port="+fmt.Sprintf("%d", lis.Addr().(*net.TCPAddr).Port))
 
 	// Prepare full list of flags for kubetest2.
 	cmd := fmt.Sprintf("kubetest2 %s", strings.Join(append(flags, testFlags...), " "))
@@ -411,7 +417,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 	}
 	// Remove all projects that are currently associated with this host project.
 	associatedProjects, err := exec.Output(fmt.Sprintf("gcloud beta compute shared-vpc"+
-		" associated-projects list %s --format=value(RESOURCE_ID)", hostProject))
+			" associated-projects list %s --format=value(RESOURCE_ID)", hostProject))
 	if err != nil {
 		return "", fmt.Errorf("error getting the associated projects for %q: %w", hostProject, err)
 	}
@@ -425,7 +431,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 			// since the error says the project has already been dissociated.
 			// TODO(chizhg): enable the error check after figuring out the cause.
 			_ = exec.Run(fmt.Sprintf("gcloud beta compute shared-vpc"+
-				" associated-projects remove %s --host-project=%s", project, hostProject))
+					" associated-projects remove %s --host-project=%s", project, hostProject))
 		}
 	}
 
@@ -443,7 +449,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 	// with one host project, remove the association.
 	for _, sp := range serviceProjects {
 		associatedHostProject, err := exec.Output(fmt.Sprintf("gcloud beta compute shared-vpc"+
-			" get-host-project %s --format=value(name)", sp))
+				" get-host-project %s --format=value(name)", sp))
 		if err != nil {
 			return "", fmt.Errorf("error getting the associated host project for %q: %w", sp, err)
 		}
@@ -451,7 +457,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 		if associatedHostProjectStr != "" {
 			// TODO(chizhg): enable the error check after figuring out the cause.
 			_ = exec.Run(fmt.Sprintf("gcloud beta compute shared-vpc"+
-				" associated-projects remove %s --host-project=%s", sp, associatedHostProjectStr))
+					" associated-projects remove %s --host-project=%s", sp, associatedHostProjectStr))
 		}
 	}
 
@@ -470,51 +476,78 @@ func acquireBoskosProjectAndSetBilling(projectType string) (string, error) {
 	return project, nil
 }
 
-// parse flag from list of existing flags
-// Note: deployer flags are of the form '--flag=value', while test flags are of the form '--flag value'. Consequently,
-// 		the value associated with a test flag will be stored in the next index of the existingFlags array
-func parseFlags(existingFlags []string, flagPrefix string) string {
-	for _, flag := range existingFlags {
-		if strings.HasPrefix(flag, flagPrefix) {
-			return strings.TrimLeft(flag, flagPrefix)
-		}
-	}
-	return ""
-}
-
-func startBackgroundTasks(flags []string, upgradeClusterVersion string, topology types.Topology) {
-	if upgradeClusterVersion != "" {
-		project := parseFlags(flags, "--project=")
-		switch topology {
-		case types.SingleCluster, types.MultiCluster:
-			go upgradeGKEVersion(project, upgradeClusterVersion)
-		case types.MultiProject:
-			// projectId's are separated with a comma in MultiProject testing
-			go upgradeGKEVersion(strings.Split(project, ",")[1], upgradeClusterVersion)
-			go upgradeGKEVersion(strings.Split(project, ",")[2], upgradeClusterVersion)
-		default:
-			log.Printf("upgrading gke version not supported with cluster topology: %s", topology)
-		}
-	}
-}
-
-func upgradeGKEVersion(project, upgradeVersion string) {
-	time.Sleep(upgradeDelay)
-	clusters, err := exec.Output("gcloud container clusters list --format='value(name,location)' --project=" + project)
-	if err != nil {
-		log.Printf("error listing the clusters in the project: %v", err)
-	}
-
-	for _, clusterRegion := range strings.Split(strings.TrimSpace(string(clusters)), "\n") {
-		arr := strings.Split(clusterRegion, "\t")
-		clusterName := arr[0]
-		region := arr[1]
-		upgradeCmd := fmt.Sprintf(`gcloud container clusters upgrade %s --project %s --region %s \
-	--cluster-version %s --master --quiet`, clusterName, project, region, upgradeVersion)
-
-		err := exec.Run(upgradeCmd)
+func (d *Instance) newWebhookServer() (net.Listener, error) {
+	// Create the mapping of URL paths to handlers.
+	router := http.NewServeMux()
+	for path, factory := range d.supportedHandlers() {
+		// Create an instance of this handler.
+		h, err := factory()
 		if err != nil {
-			log.Printf("error: %+v, while upgrading the cluster to version %s", err.Error(), upgradeVersion)
+			log.Printf("failed creating lifecycle handler for path %s: %v", path, err)
+			return nil, err
 		}
+		router.HandleFunc(fmt.Sprintf("/%s", path), h)
 	}
+
+	// Automatically assign the next available port.
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Printf("failed creating lifecycle server: %v", err)
+		return nil, err
+	}
+
+	// Start the server.
+	go func() {
+		if err := http.Serve(listener, router); err != nil {
+			log.Printf("webhook server exited with error: %v", err)
+		}
+	}()
+	return listener, nil
+}
+
+func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {
+
+	upgradeFunc := func(w http.ResponseWriter, _ *http.Request) {
+
+		projects := d.cfg.GCPProjects
+		if d.cfg.Topology == types.MultiProject {
+			projects = projects[1:]
+		}
+
+		var upgradeCmds []string
+		for _, project := range projects {
+			clusters, err := exec.Output("gcloud container clusters list --format='value(name,location)' --project=" + project)
+			if err != nil {
+				log.Printf("error listing the clusters in the project: %v", err)
+			}
+
+			for _, clusterRegion := range strings.Split(strings.TrimSpace(string(clusters)), "\n") {
+				arr := strings.Split(clusterRegion, "\t")
+				clusterName := arr[0]
+				region := arr[1]
+				upgradeCmds = append(upgradeCmds, fmt.Sprintf(`gcloud container clusters upgrade %s --project %s --region %s \
+					--cluster-version %s --master --quiet`, clusterName, project, region, d.cfg.UpgradeClusterVersion))
+			}
+
+		}
+
+		for _, upgradeCmd := range upgradeCmds {
+			if err := exec.Run(upgradeCmd); err != nil {
+				log.Printf("error: %+v, while upgrading the cluster to version %s", err.Error(), d.cfg.UpgradeClusterVersion)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
+	return upgradeFunc, nil
+}
+
+func (d *Instance) supportedHandlers() map[string]func() (func(http.ResponseWriter, *http.Request), error) {
+	supportedHandler := map[string]func() (func(http.ResponseWriter, *http.Request), error){}
+	if d.cfg.UpgradeClusterVersion != "" {
+		supportedHandler[common.UpgradePath] = d.newGkeUpgradeHandler
+	}
+	return supportedHandler
 }

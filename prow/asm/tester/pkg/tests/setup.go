@@ -67,6 +67,8 @@ func Setup(settings *resource.Settings) error {
 		// required for bare metal and multicloud environments
 		"HTTP_PROXY":  os.Getenv("MC_HTTP_PROXY"),
 		"HTTPS_PROXY": os.Getenv("MC_HTTP_PROXY"),
+		// required for gke upgrade test
+		"TEST_START_EVENT_URL": fmt.Sprintf("http://localhost:%s/%s", settings.TestStartEventPort, settings.TestStartEventPath),
 	}
 	for k, v := range envVars {
 		log.Printf("Set env %s=%s", k, v)

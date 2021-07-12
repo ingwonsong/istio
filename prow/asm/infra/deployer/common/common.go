@@ -18,6 +18,10 @@ import (
 	"os"
 )
 
+const (
+	UpgradePath = "upgrade-gke"
+)
+
 // IsRunningOnCI indicates whether we're running in a CI environment.
 func IsRunningOnCI() bool {
 	return os.Getenv("CI") == "true"
