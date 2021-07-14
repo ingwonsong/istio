@@ -70,7 +70,7 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		testFlags = append(testFlags,
 			"--istio.test.revision=asm-managed",
 			"--istio.test.skipVM=true",
-		  "--istio.test.skipDelta")
+			"--istio.test.skipDelta")
 	}
 
 	// Need to pass the revisions and versions to test framework if specified

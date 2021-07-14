@@ -41,7 +41,7 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 
 	flags.Var(&settings.ControlPlane, "control-plane", "type of the control plane, can be one of UNMANAGED or MANAGED")
 	flags.BoolVar(&settings.UseProdMeshConfigAPI, "prod-meshconfig", false, "whether to use production MeshConfig API endpoint for Managed Control Plane (MCP)")
-
+	flags.BoolVar(&settings.UseAFC, "use-afc", false, "Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP.")
 	flags.Var(&settings.CA, "ca", "Certificate Authority to use, can be one of CITADEL, MESHCA or PRIVATECA")
 	flags.Var(&settings.WIP, "wip", "Workload Identity Pool, can be one of GKE or HUB")
 	flags.StringVar(&settings.RevisionConfig, "revision-config", "", "path to the revision config file (see revision-deployer/README.md)")

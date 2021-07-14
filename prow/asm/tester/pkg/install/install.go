@@ -49,9 +49,12 @@ func (c *installer) install(r *revision.Config) error {
 			log.Println("🏄 performing ASM multi cloud installation")
 			return c.installASMOnMulticloud()
 		}
-	} else {
+	} else if c.settings.ControlPlane == resource.Managed && !c.settings.UseAFC {
 		log.Println("🏄 performing ASM MCP installation")
 		return c.installASMManagedControlPlane()
+	} else {
+		log.Println("🏄 performing ASM MCP installation via AFC")
+		return c.installASMManagedControlPlaneAFC()
 	}
 }
 

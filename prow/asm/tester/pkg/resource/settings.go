@@ -36,6 +36,9 @@ type Settings struct {
 	// UNMANAGED or MANAGED
 	ControlPlane ControlPlaneType
 
+	// Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP.
+	UseAFC bool
+
 	// Certificate Authority to use, can be one of CITADEL, MESHCA or PRIVATECA
 	CA CAType
 
