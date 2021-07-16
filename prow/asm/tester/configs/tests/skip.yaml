@@ -8,7 +8,7 @@ tests:
         - TestVersion
       reason: istioctl does not work
     - names:
-        - TestReachability/beta-mtls.*
+        - TestReachability/beta-mtls.*/headless.*
       buganizerID: 192372862
     - names:
         - TestAnalysisWritesStatus
@@ -267,7 +267,7 @@ tests:
         - TestReachability/no-peer-authn/naked.*
         buganizerID: 192372391
       - names:
-        - TestReachability/beta-mtls.*
+        - TestReachability/beta-mtls.*/headless.*
         buganizerID: 192372862
       - names:
           - TestXdsVersion
