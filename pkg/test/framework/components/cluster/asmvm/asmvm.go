@@ -47,29 +47,27 @@ var _ Cluster = &asmvm{}
 //   gkeCluster: prow-test1
 //   gkeNetwork: prow-test-network
 //   firewallTag: prow-to-vms
-//   asm_vm: /path/to/asm_vm
-//   env:
-//   - key: SERVICE_PROXY_AGENT_BUCKET
+//   instanceMetadata:
+//   - key: gce-service-proxy-agent-bucket
 //     value: gs://storage.googleapis.com/mesh-agent-canary/release.tgz
 func New(cfg cluster.Config, topology cluster.Topology) (cluster.Cluster, error) {
 	project := cfg.Meta.String("project")
 	projectNo := strconv.Itoa(cfg.Meta.Int("projectNumber"))
 	gkeLocation := cfg.Meta.String("gkeLocation")
-	script := cfg.Meta.String("asm_vm")
 	gkeCluster := cfg.Meta.String("gkeCluster")
 	gkeNetwork := cfg.Meta.String("gkeNetwork")
-	if project == "" || projectNo == "" || gkeLocation == "" || script == "" || gkeCluster == "" || gkeNetwork == "" {
+	if project == "" || projectNo == "" || gkeLocation == "" || gkeCluster == "" || gkeNetwork == "" {
 		return nil, fmt.Errorf(
-			"asm_vm (%s), project (%s), projectNumber (%s), gkeCluster (%s), gkeLocation (%s) and gkeNetwork (%s) must be in metadata",
-			script, project, projectNo, gkeCluster, gkeLocation, gkeNetwork,
+			"project (%s), projectNumber (%s), gkeCluster (%s), gkeLocation (%s) and gkeNetwork (%s) must be in metadata",
+			project, projectNo, gkeCluster, gkeLocation, gkeNetwork,
 		)
 	}
 
-	var env []string
-	for _, entry := range cfg.Meta.Slice("env") {
+	var metadata []string
+	for _, entry := range cfg.Meta.Slice("instanceMetadata") {
 		k, v := entry.String("key"), entry.String("value")
 		if k != "" && v != "" {
-			env = append(env, k+"="+v)
+			metadata = append(metadata, k+"="+v)
 		}
 	}
 
@@ -79,16 +77,15 @@ func New(cfg cluster.Config, topology cluster.Topology) (cluster.Cluster, error)
 	}
 
 	return &asmvm{
-		Topology:    topology,
-		script:      script,
-		project:     project,
-		projectNo:   projectNo,
-		gkeLocation: gkeLocation,
-		gkeCluster:  gkeCluster,
-		gkeNetwork:  gkeNetwork,
-		firewallTag: cfg.Meta.String("firewallTag"),
-		svc:         svc,
-		scriptEnv:   env,
+		Topology:         topology,
+		project:          project,
+		projectNo:        projectNo,
+		gkeLocation:      gkeLocation,
+		gkeCluster:       gkeCluster,
+		gkeNetwork:       gkeNetwork,
+		firewallTag:      cfg.Meta.String("firewallTag"),
+		svc:              svc,
+		instanceMetadata: metadata,
 	}, nil
 }
 
@@ -97,8 +94,8 @@ type Cluster interface {
 	echo.Cluster
 	cluster.Cluster
 
-	// InstanceTemplateScript path and environment vars to run with
-	InstanceTemplateScript() (path string, env []string)
+	// InstanceMetadata includes the custom metadata to be included in the VM
+	InstanceMetadata() []string
 	// Project containing the cluster to connect to
 	Project() string
 	// ProjectNumber corresponding to Project
@@ -131,14 +128,13 @@ type asmvm struct {
 	gkeNetwork  string
 	firewallTag string
 
-	script    string
-	scriptEnv []string
+	instanceMetadata []string
 
 	svc *compute.Service
 }
 
-func (a *asmvm) InstanceTemplateScript() (string, []string) {
-	return a.script, a.scriptEnv
+func (a *asmvm) InstanceMetadata() []string {
+	return a.instanceMetadata
 }
 
 func (a *asmvm) Service() *compute.Service {
@@ -200,8 +196,6 @@ func (a *asmvm) String() string {
 	_, _ = fmt.Fprintf(buf, "GKECluster:         %s\n", a.GKEClusterName())
 	_, _ = fmt.Fprintf(buf, "GKENetwork:         %s\n", a.GKENetworkName())
 	_, _ = fmt.Fprintf(buf, "FirewallTag:        %s\n", a.FirewallTag())
-	script, env := a.InstanceTemplateScript()
-	_, _ = fmt.Fprintf(buf, "Script:             %s\n", script)
-	_, _ = fmt.Fprintf(buf, "ScriptEnv:          %s\n", strings.Join(env, " "))
+	_, _ = fmt.Fprintf(buf, "InstanceMetadata:   %s\n", strings.Join(a.InstanceMetadata(), " "))
 	return buf.String()
 }

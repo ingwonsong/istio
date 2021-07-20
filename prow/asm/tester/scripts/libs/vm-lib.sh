@@ -63,8 +63,6 @@ function setup_gce_vms() {
   local PROJECT_ID="${VALS[1]}"
   local LOCATION="${VALS[2]}"
   local CLUSTER_NAME="${VALS[3]}"
-  local REVISION
-  REVISION="$(kubectl --context="${CONTEXT}" -n istio-system get service istio-eastwestgateway -ojsonpath='{.metadata.labels.istio\.io/rev}')"
 
   local PROJECT_NUMBER
   PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
@@ -80,14 +78,11 @@ function setup_gce_vms() {
     gkeLocation: ${LOCATION}
     gkeCluster: ${CLUSTER_NAME}
     gkeNetwork: prow-test-network
-    asm_vm: ${VM_SCRIPT}
     firewallTag: prow-test-vm
-    env:
-    - key: ASM_REVISION_PREFIX
-      value: ${REVISION}
-    - key: SERVICE_PROXY_AGENT_BUCKET
+    instanceMetadata:
+    - key: gce-service-proxy-agent-bucket
       value: ${VM_AGENT_BUCKET}
-    - key: _CI_ASM_IMAGE_TAG
-      value: ${TAG}
+    - key: gce-service-proxy-asm-version
+      value: ${VM_AGENT_ASM_VERSION}
 EOF
 }

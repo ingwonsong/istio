@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"google.golang.org/api/compute/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/test/env"
@@ -177,10 +176,9 @@ var (
 	}
 )
 
-// createInstanceTemplate uses the asm_vm script to create an instance template. createWorkloadGroup must be run first.
+// createInstanceTemplate uses gcloud to create an instance template. createWorkloadGroup must be run first.
 func (i *instance) createInstanceTemplate() error {
-	baseTemplateName := "base-" + i.resourceName()
-	scopes.Framework.Infof("Creating base instance template %s for echo vm", baseTemplateName)
+	scopes.Framework.Infof("Creating instance template %s for echo vm", i.resourceName())
 
 	project, distro := projects[i.config.VMDistro], distros[i.config.VMDistro]
 
@@ -190,70 +188,28 @@ func (i *instance) createInstanceTemplate() error {
 		distro = os.Getenv("VM_DISTRO")
 	}
 
-	_, err := i.cluster.Service().InstanceTemplates.Insert(i.cluster.Project(), &compute.InstanceTemplate{
-		Description: "base template to allow setting tags and OS for mig",
-		Kind:        "",
-		Name:        baseTemplateName,
-		Properties: &compute.InstanceProperties{
-			MachineType: "n1-standard-1",
-			Disks: []*compute.AttachedDisk{{
-				Type:       "PERSISTENT",
-				Boot:       true,
-				Mode:       "READ_WRITE",
-				AutoDelete: true,
-				DeviceName: "base-" + i.resourceName(),
-				InitializeParams: &compute.AttachedDiskInitializeParams{
-					SourceImage: fmt.Sprintf("projects/%s/global/images/family/%s", project, distro),
-					DiskType:    "pd-standard",
-					// cent 8 has this as the minimum size
-					DiskSizeGb: 20,
-				},
-			}},
-			CanIpForward: false,
-			NetworkInterfaces: []*compute.NetworkInterface{{
-				AccessConfigs: []*compute.AccessConfig{{Name: "External NAT", Type: "ONE_TO_ONE_NAT", NetworkTier: "PREMIUM"}},
-				AliasIpRanges: nil,
-				Network:       "projects/" + i.cluster.Project() + "/global/networks/" + i.cluster.GKENetworkName(),
-			}},
-			Scheduling: &compute.Scheduling{
-				Preemptible:       false,
-				OnHostMaintenance: "MIGRATE",
-				AutomaticRestart:  pointer.BoolPtr(true),
-			},
-			ReservationAffinity: &compute.ReservationAffinity{
-				ConsumeReservationType: "ANY_RESERVATION",
-			},
-			ServiceAccounts: []*compute.ServiceAccount{{Email: i.serviceAccount(), Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"}}},
-			// the test runner should have created a firewall rule to allow traffic from itself to all instances with FirewallTag
-			Tags: &compute.Tags{Items: []string{i.cluster.FirewallTag()}},
-		},
-	}).Do()
-	if err != nil {
-		return fmt.Errorf("failed creating base instance template: %v", err)
-	}
+	gkeCluster := fmt.Sprintf("%s/%s", i.cluster.GKELocation(), i.cluster.GKEClusterName())
+	workload := fmt.Sprintf("%s/%s", i.config.Namespace.Name(), i.config.Service+"-v1")
+	meshVal := fmt.Sprintf("gke-cluster=%s,workload=%s", gkeCluster, workload)
 
-	scopes.Framework.Infof("Creating instance template %s for echo vm", i.resourceName())
+	instanceMetadata := strings.Join(i.cluster.InstanceMetadata(), ",")
 
-	script, scriptEnv := i.cluster.InstanceTemplateScript()
-	cmd := exec.Command(script, "create_gce_instance_template",
-		i.resourceName(),
-		"--project_id", i.cluster.Project(),
-		"--cluster_name", i.cluster.GKEClusterName(),
-		"--cluster_location", i.cluster.GKELocation(),
-		// TODO make this configurable with subsets
-		"--workload_name", i.config.Service+"-v1",
-		"--workload_namespace", i.config.Namespace.Name(),
-		"--source_instance_template", baseTemplateName,
-	)
-	cmd.Env = append(cmd.Env, os.Environ()...)
-	cmd.Env = append(cmd.Env, scriptEnv...)
-
-	scopes.Framework.Infof("creating instance template: %s %s", strings.Join(scriptEnv, " "), cmd.String())
-	out, err := cmd.CombinedOutput()
-	if err != nil {
+	cmd := exec.Command("gcloud", "beta", "compute",
+		"instance-templates", "create", i.resourceName(),
+		"--mesh", meshVal,
+		"--metadata", instanceMetadata,
+		"--machine-type", "n1-standard-1", "--boot-disk-size", "20GB",
+		"--image-project", project, "--image-family", distro,
+		"--network", fmt.Sprintf("projects/%s/global/networks/%s", i.cluster.Project(), i.cluster.GKENetworkName()),
+		"--service-account", i.serviceAccount(),
+		// the test runner should have created a firewall rule to allow traffic from itself to all instances with FirewallTag
+		"--tags", i.cluster.FirewallTag())
+	scopes.Framework.Infof("Running command:\n%s", cmd.String())
+	if out, err := cmd.CombinedOutput(); err != nil {
 		scopes.Framework.Infof("failed creating instance template:\n%s", string(out))
-		return fmt.Errorf("failed creating instance template: %v", err)
+		return fmt.Errorf("failed to create instance template %s: %v:\n%s", i.resourceName(), err, string(out))
 	}
+
 	return nil
 }
 
@@ -262,9 +218,6 @@ func (i *instance) createInstanceTemplate() error {
 func (i *instance) createManagedInstanceGroup() error {
 	scopes.Framework.Infof("Creating managed instance group for echo VM %s", i.config.Service)
 	name := i.resourceName()
-
-	// TODO the instances need a tag to let the firewall rule select them
-	// i.cluster.FirewallTag()
 
 	if _, err := i.cluster.
 		Service().InstanceGroupManagers.

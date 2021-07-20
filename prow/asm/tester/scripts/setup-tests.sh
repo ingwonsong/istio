@@ -54,11 +54,6 @@ if [[ "${CONTROL_PLANE}" == "UNMANAGED" ]]; then
   if "${GCE_VMS}"; then
     echo "Setting up GCP VMs to test against"
     VM_CTX="${CONTEXTS[0]}"
-    # TODO(b/186187371) Use gcloud to setup VMs.
-    curl -O https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-service-mesh-packages/"${SCRIPTARO_COMMIT}"/scripts/asm-installer/asm_vm
-    chmod +x asm_vm
-    VM_SCRIPT="$PWD/asm_vm"
-    export VM_SCRIPT
 
     "${GCE_VMS}"  && setup_gce_vms "${INTEGRATION_TEST_TOPOLOGY_FILE}" "${VM_CTX}"
   fi

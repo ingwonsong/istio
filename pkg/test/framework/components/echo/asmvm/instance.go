@@ -36,6 +36,8 @@ import (
 	"istio.io/istio/pkg/test/util/retry"
 )
 
+const cloudSDKCIRepo = "https://storage.googleapis.com/cloud-sdk-testing/ci/staging/components-2.json"
+
 var _ echo.Instance = &instance{}
 
 func init() {
@@ -43,6 +45,10 @@ func init() {
 }
 
 func newInstances(ctx resource.Context, config []echo.Config) (echo.Instances, error) {
+	if err := updateCloudSDK(cloudSDKCIRepo); err != nil {
+		return nil, err
+	}
+
 	errG := multierror.Group{}
 	mu := sync.Mutex{}
 	var out echo.Instances
