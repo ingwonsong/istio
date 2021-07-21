@@ -40,17 +40,23 @@ func Setup(settings *resource.Settings) error {
 }
 
 func installASMUserAuth(settings *resource.Settings) error {
+	label := "istio-injection=enabled"
+	if settings.RevisionConfig != "" {
+		label = "istio-injection- istio.io/rev=asm-master"
+	}
+
 	cmds := []string{
 		"kubectl create namespace asm-user-auth",
-		"kubectl label namespace asm-user-auth istio-injection=enabled --overwrite",
+		fmt.Sprintf("kubectl label namespace asm-user-auth %s --overwrite", label),
 
 		"kubectl create namespace userauth-test",
-		"kubectl label namespace userauth-test istio-injection=enabled --overwrite",
+		fmt.Sprintf("kubectl label namespace userauth-test %s --overwrite", label),
 
 		// TODO(b/182914654): deploy app in go code
 		"kubectl -n userauth-test apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml",
 
 		fmt.Sprintf("kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git@main %s/user-auth", settings.ConfigDir),
+
 		// Create the kubernetes secret for the encryption and signing key.
 		fmt.Sprintf(`kubectl create secret generic secret-key  \
 			--from-file="session_cookie.key"="%s/user-auth/asm-user-auth/samples/cookie_encryption_key.json"  \

@@ -108,7 +108,7 @@ func InputByXPathOrFail(t test.Failer, wd selenium.WebDriver, value string, inpu
 	inputOrFail(t, wd, selenium.ByXPATH, value, input)
 }
 
-// InputByXPathOrFail input value into web element found by CSS selector or fail
+// InputByCSSOrFail input value into web element found by CSS selector or fail
 func InputByCSSOrFail(t test.Failer, wd selenium.WebDriver, value string, input string) {
 	inputOrFail(t, wd, selenium.ByCSSSelector, value, input)
 }
