@@ -38,6 +38,13 @@ tests:
     - names:
         - TestTraffic/virtualservice/shifting-*
       buganizerID: 189899340
+    - names:
+        - TestRemoteClusters
+      buganizerID: 194713967
+    - names:
+        - TestIngress/update-class-not-istio
+      buganizerID: 194841592
+
 
   # Multiversion test skips.
   - selectors:
@@ -290,6 +297,12 @@ tests:
       - names:
           - TestRevisionedUpgrade
         reason: OSS CP upgrade not supported with MCP
+      - names:
+          - TestRemoteClusters
+        buganizerID: 194713967
+      - names:
+          - TestIngress/update-class-not-istio
+        buganizerID: 194841592
 
       # telemetry/ tests
       - names:
