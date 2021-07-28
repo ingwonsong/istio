@@ -35,6 +35,7 @@ import (
 
 	"istio.io/istio/mdp/controller/pkg/apis"
 	"istio.io/istio/mdp/controller/pkg/apis/mdp/v1alpha1"
+	"istio.io/istio/mdp/controller/pkg/errors"
 	"istio.io/istio/mdp/controller/pkg/proxyupdater"
 	"istio.io/istio/mdp/controller/pkg/revision"
 	"istio.io/istio/mdp/controller/pkg/set"
@@ -232,8 +233,11 @@ func Test_calculateStatus(t *testing.T) {
 				failingPodCount: 51,
 			},
 			want: v1alpha1.DataPlaneControlStatus{
-				State:                  v1alpha1.Error,
-				ErrorDetails:           nil,
+				State: v1alpha1.Error,
+				ErrorDetails: &v1alpha1.DataPlaneControlError{
+					Code:    errors.TooManyEvictions,
+					Message: "One or more PodDistruptionBudgets are preventing upgrade.",
+				},
 				ProxyTargetBasisPoints: 4900,
 				ObservedGeneration:     1,
 			},

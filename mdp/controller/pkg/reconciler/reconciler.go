@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"istio.io/istio/mdp/controller/pkg/apis/mdp/v1alpha1"
+	mdperrors "istio.io/istio/mdp/controller/pkg/errors"
 	"istio.io/istio/mdp/controller/pkg/globalerrors"
 	"istio.io/istio/mdp/controller/pkg/metrics"
 	"istio.io/istio/mdp/controller/pkg/proxyupdater"
@@ -107,7 +108,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		dpc.Status = v1alpha1.DataPlaneControlStatus{
 			State: v1alpha1.Error,
 			ErrorDetails: &v1alpha1.DataPlaneControlError{
-				Code:    0, // TODO: where should these come from?
+				Code:    mdperrors.InvalidRevision,
 				Message: err.Error(),
 			},
 			ProxyTargetBasisPoints: 0,
@@ -221,6 +222,7 @@ func (n *NewReconciler) getOrMakeUpdater(ctx context.Context, dprNsName types.Na
 func calculateStatus(dpc *v1alpha1.DataPlaneControl, total int, actual int, failingPodCount int, mr *metricsRecord) v1alpha1.DataPlaneControlStatus {
 	revision, generation, targetPoints, UID := dpc.Spec.Revision, dpc.Generation, dpc.Spec.ProxyTargetBasisPoints, string(dpc.UID)
 	var state v1alpha1.DataPlaneState
+	var err *v1alpha1.DataPlaneControlError
 	var achievedBpts int32
 	if total < 1 {
 		achievedBpts = totalBasisPoints
@@ -237,6 +239,10 @@ func calculateStatus(dpc *v1alpha1.DataPlaneControl, total int, actual int, fail
 	} else {
 		if (total-failingPodCount)*totalBasisPoints/total < int(targetPoints) {
 			state = v1alpha1.Error
+			err = &v1alpha1.DataPlaneControlError{
+				Code:    mdperrors.TooManyEvictions,
+				Message: "One or more PodDistruptionBudgets are preventing upgrade.",
+			}
 		} else {
 			state = v1alpha1.Reconciling
 		}
@@ -252,5 +258,6 @@ func calculateStatus(dpc *v1alpha1.DataPlaneControl, total int, actual int, fail
 		State:                  state,
 		ProxyTargetBasisPoints: achievedBpts,
 		ObservedGeneration:     generation,
+		ErrorDetails:           err,
 	}
 }
