@@ -104,8 +104,6 @@ func TestLongRunning(t *testing.T) {
 	framework.NewTest(t).
 		Features("installation.clusters.upgrade").
 		Run(func(t framework.TestContext) {
-			time.Sleep(runDuration / 2)
-
 			g := traffic.NewGenerator(t, traffic.Config{
 				Source: PodA[0],
 				Options: echo.CallOptions{
@@ -113,6 +111,8 @@ func TestLongRunning(t *testing.T) {
 					PortName: "http",
 				},
 			}).Start()
+
+			time.Sleep(runDuration / 2)
 
 			if url := os.Getenv("TEST_START_EVENT_URL"); url != "" {
 				client := &http.Client{Timeout: 1 * time.Hour}

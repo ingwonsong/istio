@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,7 +27,10 @@ import (
 	"text/template"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"istio.io/istio/prow/asm/infra/config"
+	"istio.io/istio/prow/asm/infra/deployer/common"
 	"istio.io/istio/prow/asm/infra/exec"
 	"istio.io/istio/prow/asm/infra/types"
 )
@@ -62,6 +66,24 @@ type Instance struct {
 	cfg config.Instance
 }
 
+// Exported types to support unmarshalling rookery Yaml
+type Rookery struct {
+	Spec Spec
+}
+type Metadata struct {
+	Name string
+}
+type Spec struct {
+	Knests   []Knest
+	Clusters []Cluster
+}
+type Knest struct {
+	Spec Spec
+}
+type Cluster struct {
+	Metadata Metadata
+}
+
 func (d *Instance) Name() string {
 	return name
 }
@@ -77,6 +99,10 @@ func (d *Instance) Run() error {
 	if err != nil {
 		return err
 	}
+
+	lis, err := common.NewWebServer(d.supportedHandlers())
+
+	flags = append(flags, d.cfg.GetWebServerFlags(lis)...)
 
 	// Run the deployer
 	cmd := fmt.Sprintf("kubetest2 %s", strings.Join(flags, " "))
@@ -246,6 +272,8 @@ func (d *Instance) generateRookeryFile() (string, error) {
 		return "", fmt.Errorf("error executing the rookery template: %w", err)
 	}
 
+	d.cfg.Rookery = tmpFile.Name()
+
 	return tmpFile.Name(), nil
 }
 
@@ -258,4 +286,50 @@ func randSeq(n int) string {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
+}
+
+func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {
+
+	var upgradeCmds []string
+
+	tbFile, err := ioutil.ReadFile(d.cfg.Rookery)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't read file %s: %v", d.cfg.Rookery, err)
+	}
+
+	var rook Rookery
+
+	if err = yaml.Unmarshal(tbFile, &rook); err != nil {
+		return nil, fmt.Errorf("unable to unmarshall file %s: %v", tbFile, err)
+	}
+
+	for _, knest := range rook.Spec.Knests {
+		for _, cluster := range knest.Spec.Clusters {
+			log.Printf("cluster to upgrade: %s", cluster.Metadata.Name)
+			upgradeCmds = append(upgradeCmds, fmt.Sprintf(`kubetest2-tailorbird --up --upgrade-cluster --cluster-name %s --new-version %s`,
+				cluster.Metadata.Name, d.cfg.UpgradeClusterVersion))
+		}
+	}
+
+	upgradeFunc := func(w http.ResponseWriter, _ *http.Request) {
+
+		for _, upgradeCmd := range upgradeCmds {
+			if err := exec.Run(upgradeCmd); err != nil {
+				log.Printf("error: %+v, while upgrading the cluster to version %s", err.Error(), d.cfg.UpgradeClusterVersion)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
+	return upgradeFunc, nil
+}
+
+func (d *Instance) supportedHandlers() map[string]func() (func(http.ResponseWriter, *http.Request), error) {
+	supportedHandler := map[string]func() (func(http.ResponseWriter, *http.Request), error){}
+	if d.cfg.UpgradeClusterVersion != "" {
+		supportedHandler[common.UpgradePath] = d.newGkeUpgradeHandler
+	}
+	return supportedHandler
 }

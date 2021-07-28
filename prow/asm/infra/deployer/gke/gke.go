@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -88,7 +87,7 @@ func (d *Instance) Run() error {
 		return err
 	}
 
-	lis, err := d.newWebhookServer()
+	lis, err := common.NewWebServer(d.supportedHandlers())
 
 	// Get the flags for the tester.
 	testFlags, err := d.cfg.GetTesterFlags()
@@ -96,10 +95,8 @@ func (d *Instance) Run() error {
 		return err
 	}
 
-	// TODO(aakashshukla) when GKE upgrade is supported from TB this will be moved
-	//        to the generic deployer code
-	testFlags = append(testFlags,
-		"--test-start-event-port="+fmt.Sprintf("%d", lis.Addr().(*net.TCPAddr).Port))
+	webServerFlags := d.cfg.GetWebServerFlags(lis)
+	testFlags = append(testFlags, webServerFlags...)
 
 	// Prepare full list of flags for kubetest2.
 	cmd := fmt.Sprintf("kubetest2 %s", strings.Join(append(flags, testFlags...), " "))
@@ -497,35 +494,6 @@ func acquireBoskosProjectAndSetBilling(projectType string) (string, error) {
 	}
 
 	return project, nil
-}
-
-func (d *Instance) newWebhookServer() (net.Listener, error) {
-	// Create the mapping of URL paths to handlers.
-	router := http.NewServeMux()
-	for path, factory := range d.supportedHandlers() {
-		// Create an instance of this handler.
-		h, err := factory()
-		if err != nil {
-			log.Printf("failed creating lifecycle handler for path %s: %v", path, err)
-			return nil, err
-		}
-		router.HandleFunc(fmt.Sprintf("/%s", path), h)
-	}
-
-	// Automatically assign the next available port.
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		log.Printf("failed creating lifecycle server: %v", err)
-		return nil, err
-	}
-
-	// Start the server.
-	go func() {
-		if err := http.Serve(listener, router); err != nil {
-			log.Printf("webhook server exited with error: %v", err)
-		}
-	}()
-	return listener, nil
 }
 
 func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {

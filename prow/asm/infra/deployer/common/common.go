@@ -15,6 +15,10 @@
 package common
 
 import (
+	"fmt"
+	"log"
+	"net"
+	"net/http"
 	"os"
 )
 
@@ -25,4 +29,34 @@ const (
 // IsRunningOnCI indicates whether we're running in a CI environment.
 func IsRunningOnCI() bool {
 	return os.Getenv("CI") == "true"
+}
+
+
+func NewWebServer(supportedHandlers map[string]func() (func(http.ResponseWriter, *http.Request), error)) (net.Listener, error) {
+	// Create the mapping of URL paths to handlers.
+	router := http.NewServeMux()
+	for path, factory := range supportedHandlers {
+		// Create an instance of this handler.
+		h, err := factory()
+		if err != nil {
+			log.Printf("failed creating lifecycle handler for path %s: %v", path, err)
+			return nil, err
+		}
+		router.HandleFunc(fmt.Sprintf("/%s", path), h)
+	}
+
+	// Automatically assign the next available port.
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Printf("failed creating lifecycle server: %v", err)
+		return nil, err
+	}
+
+	// Start the server.
+	go func() {
+		if err := http.Serve(listener, router); err != nil {
+			log.Printf("webhook server exited with error: %v", err)
+		}
+	}()
+	return listener, nil
 }

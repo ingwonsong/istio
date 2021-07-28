@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	shell "github.com/kballard/go-shellquote"
@@ -54,6 +55,7 @@ type Instance struct {
 	WIP                   types.WIP
 	ReleaseChannel        types.ReleaseChannel
 	Feature               types.Feature
+	Rookery               string
 }
 
 // Default provides a config Instance with defaults filled in.
@@ -96,4 +98,9 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 		"--wip="+string(c.WIP),
 		"--feature="+string(c.Feature))
 	return append(testerFlags, extraTestFlagArr...), nil
+}
+
+// GetWebServerFlags contains flags needed to setup the infra webserver and to call it from the Test suite
+func (c Instance) GetWebServerFlags(lis net.Listener) []string {
+	return []string{fmt.Sprintf("--test-start-event-port=%d", lis.Addr().(*net.TCPAddr).Port)}
 }
