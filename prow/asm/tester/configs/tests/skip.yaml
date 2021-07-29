@@ -100,6 +100,9 @@ tests:
     - names:
       - TestTraffic/dns/.*
       buganizerID: 191802552
+    - names:
+      - TestAuthorization_mTLS
+      buganizerID: 194956814
 
   # Unmanaged CP + GKE_ON_PREM + HUB
   - selectors:
@@ -113,6 +116,9 @@ tests:
     - names:
         - TestTraffic/dns/.*
       buganizerID: 191802552
+    - names:
+      - TestAuthorization_mTLS
+      buganizerID: 194956814
 
   # Unmanaged CP + bare-metal
   - selectors:
