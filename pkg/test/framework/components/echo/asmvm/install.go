@@ -149,8 +149,13 @@ func (i *instance) generateConfig() error {
 func (i *instance) createWorkloadGroup(ctx resource.Context) error {
 	scopes.Framework.Infof("Creating WorkloadGroup for echo VM %s", i.config.Service)
 
-	// TODO take the label as a param... or fix asm_vm to assume the default rev
-	if err := i.config.Namespace.SetLabel("istio.io/rev", "default"); err != nil {
+	revision := "default"
+	// nolint: staticcheck
+	if ctx.Settings().Revision != "" {
+		revision = ctx.Settings().Revision
+	}
+	// TODO: use --istio.test.revision to label VM namespace
+	if err := i.config.Namespace.SetLabel("istio.io/rev", revision); err != nil {
 		return err
 	}
 

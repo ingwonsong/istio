@@ -126,6 +126,9 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		// Addon always will use CNI
 		installFlags = append(installFlags, "--option", "cni-managed")
 	}
+	if settings.UseVMs {
+		installFlags = append(installFlags, "--option", "vm")
+	}
 	return installFlags
 }
 

@@ -77,6 +77,9 @@ type VMSettings struct {
 	// The GCS bucket path for downloading the service proxy agent binary.
 	VMServiceProxyAgentGCSPath string
 
+	// The GCS bucket path for downloading the service proxy agent installer.
+	VMServiceProxyAgentInstallerGCSPath string
+
 	// The ASM version to be set in VM agent metadata in X.Y.Z format.
 	VMServiceProxyAgentASMVersion string
 

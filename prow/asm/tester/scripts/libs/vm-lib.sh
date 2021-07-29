@@ -84,5 +84,7 @@ function setup_gce_vms() {
       value: ${VM_AGENT_BUCKET}
     - key: gce-service-proxy-asm-version
       value: ${VM_AGENT_ASM_VERSION}
+    - key: gce-service-proxy-installer-bucket
+      value: ${VM_AGENT_INSTALLER}
 EOF
 }

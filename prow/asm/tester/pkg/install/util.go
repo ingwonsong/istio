@@ -118,15 +118,6 @@ func createRemoteSecrets(settings *resource.Settings, contexts []string) error {
 			if err := exec.Run(kubeCreateSecretCmd); err != nil {
 				return fmt.Errorf("failed to create remote secret: %w", err)
 			}
-			if settings.UseVMs {
-				// TODO(landow) this is temporary until we have a user-facing way to enable multi-cluster + VMs
-				// we have to wait for new pods, but we do this later so the pods can come up in parallel per-cluster
-				patchWLECmd := fmt.Sprintf("kubectl -n istio-system set env deployment/istiod"+
-					" --context %s PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY=true", context)
-				if err := exec.Run(patchWLECmd); err != nil {
-					return fmt.Errorf("failed to patch istiod: %w", err)
-				}
-			}
 		}
 	}
 	return nil

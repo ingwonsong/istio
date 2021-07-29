@@ -52,6 +52,8 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.BoolVar(&settings.UseVMs, "vm", false, "whether to use VM in the control plane setup")
 	flags.StringVar(&settings.VMServiceProxyAgentGCSPath, "vm-service-agent-gcs-path",
 		"gs://gce-service-proxy-canary/service-proxy-agent/releases/service-proxy-agent-staging-latest.tgz", "GCS bucket path for downloading the service proxy agent binary")
+	flags.StringVar(&settings.VMServiceProxyAgentInstallerGCSPath, "vm-service-agent-installer-gcs-path",
+		"gs://gce-service-proxy-canary/service-proxy-agent-installer/releases/installer-staging-latest.tgz", "GCS bucket path for downloading the service proxy agent installer")
 	flags.StringVar(&settings.VMServiceProxyAgentASMVersion, "vm-service-agent-asm-version", "1.10.0", "ASM version to be used in the VM agent metadata")
 	// TODO(landow): fully remove staticvm support
 	flags.StringVar(&settings.VMStaticConfigDir, "vm-static-config-dir", "", "a directory in echo-vm-provisioner/configs that contains config files for provisioning the VM test environment")

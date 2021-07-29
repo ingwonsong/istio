@@ -206,6 +206,7 @@ func injectEnvVars(settings *resource.Settings) error {
 		"VM_DISTRO":            settings.VMImageFamily,
 		"IMAGE_PROJECT":        settings.VMImageProject,
 		"VM_AGENT_BUCKET":      settings.VMServiceProxyAgentGCSPath,
+		"VM_AGENT_INSTALLER":   settings.VMServiceProxyAgentInstallerGCSPath,
 		"VM_AGENT_ASM_VERSION": settings.VMServiceProxyAgentASMVersion,
 	}
 

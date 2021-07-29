@@ -50,11 +50,8 @@ else
   multicloud::gen_topology_file "${INTEGRATION_TEST_TOPOLOGY_FILE}"
 fi
 
-if [[ "${CONTROL_PLANE}" == "UNMANAGED" ]]; then
-  if "${GCE_VMS}"; then
-    echo "Setting up GCP VMs to test against"
-    VM_CTX="${CONTEXTS[0]}"
-
-    "${GCE_VMS}"  && setup_gce_vms "${INTEGRATION_TEST_TOPOLOGY_FILE}" "${VM_CTX}"
-  fi
+if "${GCE_VMS}"; then
+  echo "Setting up GCP VMs to test against"
+  VM_CTX="${CONTEXTS[0]}"
+  "${GCE_VMS}"  && setup_gce_vms "${INTEGRATION_TEST_TOPOLOGY_FILE}" "${VM_CTX}"
 fi
