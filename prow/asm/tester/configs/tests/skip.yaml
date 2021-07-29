@@ -106,6 +106,9 @@ tests:
     - names:
       - TestAuthorization_Conditions
       buganizerID: 194958794
+    - names:
+      - TestAuthorization_JWT
+      buganizerID: 195037707
 
   # Unmanaged CP + GKE_ON_PREM + HUB
   - selectors:
@@ -125,6 +128,9 @@ tests:
     - names:
       - TestAuthorization_Conditions
       buganizerID: 194958794
+    - names:
+      - TestAuthorization_JWT
+      buganizerID: 195037707
 
   # Unmanaged CP + bare-metal
   - selectors:
