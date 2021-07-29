@@ -140,20 +140,22 @@ func (wip *WIPType) Type() string { return "wip" }
 type Feature string
 
 const (
-	UserAuth              Feature = "USER_AUTH"
-	VPCSC                 Feature = "VPC_SC"
-	Addon                 Feature = "ADDON"
-	PrivateCluster        Feature = "PRIVATE_CLUSTER"
-	PrivateClusterWithMAN Feature = "PRIVATE_CLUSTER_WITH_MAN"
-	CNI                   Feature = "CNI"
+	UserAuth                  Feature = "USER_AUTH"
+	VPCSC                     Feature = "VPC_SC"
+	Addon                     Feature = "ADDON"
+	PrivateClusterUnrestrictedAccess            Feature = "PRIVATE_CLUSTER_UNRESTRICTED_ACCESS"
+	PrivateClusterLimitedAccess     Feature = "PRIVATE_CLUSTER_LIMITED_ACCESS"
+	PrivateClusterNoAccess Feature = "PRIVATE_CLUSTER_AND_ENDPOINT"
+	CNI                       Feature = "CNI"
 )
 
 var validFeatureTypes = sets.NewString(
 	string(UserAuth),
 	string(VPCSC),
 	string(Addon),
-	string(PrivateCluster),
-	string(PrivateClusterWithMAN),
+	string(PrivateClusterUnrestrictedAccess),
+	string(PrivateClusterLimitedAccess),
+	string(PrivateClusterNoAccess),
 	string(CNI))
 
 // Set converts the value string to FeatureType

@@ -273,7 +273,7 @@ func fixGKE(settings *resource.Settings) error {
 		}
 	}
 
-	if settings.FeatureToTest == resource.PrivateClusterWithMAN {
+	if settings.FeatureToTest == resource.PrivateClusterLimitedAccess || settings.FeatureToTest == resource.PrivateClusterNoAccess {
 		if err := addIpsToAuthorizedNetworks(settings); err != nil {
 			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}

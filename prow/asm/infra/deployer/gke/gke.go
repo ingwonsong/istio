@@ -152,8 +152,9 @@ func (d *Instance) flags() ([]string, error) {
 			featureFlags, err = featureVPCSCPresetup(d.cfg.GCPProjects)
 		case types.UserAuth:
 		case types.Addon:
-		case types.PrivateCluster:
-		case types.PrivateClusterWithMAN:
+		case types.PrivateClusterUnrestrictedAccess:
+		case types.PrivateClusterLimitedAccess:
+		case types.PrivateClusterNoAccess:
 		case types.ContainerNetworkInterface:
 		default:
 			err = fmt.Errorf("feature %q is not supported", d.cfg.Feature)
@@ -226,10 +227,12 @@ func (d *Instance) singleClusterFlags(releaseChannel types.ReleaseChannel) ([]st
 		"--version="+d.getClusterVersion())
 
 	switch d.cfg.Feature {
-	case types.PrivateCluster:
+	case types.PrivateClusterUnrestrictedAccess:
 		flags = append(flags, "--private-cluster-access-level=unrestricted", "--private-cluster-master-ip-range=172.16.0.32/28,173.16.0.32/28,174.16.0.32/28")
-	case types.PrivateClusterWithMAN:
+	case types.PrivateClusterLimitedAccess:
 		flags = append(flags, "--private-cluster-access-level=limited", "--private-cluster-master-ip-range=172.16.0.32/28,173.16.0.32/28,174.16.0.32/28")
+	case types.PrivateClusterNoAccess:
+		flags = append(flags, "--private-cluster-access-level=no", "--private-cluster-master-ip-range=172.16.0.32/28,173.16.0.32/28,174.16.0.32/28")
 	}
 
 	return flags, nil

@@ -18,12 +18,13 @@ package types
 type Feature string
 
 var (
-	VPCServiceControls        = addFeature("VPC_SC")
-	Addon                     = addFeature("ADDON")
-	UserAuth                  = addFeature("USER_AUTH")
-	PrivateCluster            = addFeature("PRIVATE_CLUSTER")
-	PrivateClusterWithMAN     = addFeature("PRIVATE_CLUSTER_WITH_MAN")
-	ContainerNetworkInterface = addFeature("CNI")
+	VPCServiceControls               = addFeature("VPC_SC")
+	Addon                            = addFeature("ADDON")
+	UserAuth                         = addFeature("USER_AUTH")
+	PrivateClusterUnrestrictedAccess = addFeature("PRIVATE_CLUSTER_UNRESTRICTED_ACCESS")
+	PrivateClusterLimitedAccess      = addFeature("PRIVATE_CLUSTER_LIMITED_ACCESS")
+	PrivateClusterNoAccess           = addFeature("PRIVATE_CLUSTER_NO_ACCESS")
+	ContainerNetworkInterface        = addFeature("CNI")
 
 	SupportedFeatures []Feature
 )
