@@ -103,6 +103,9 @@ tests:
     - names:
       - TestAuthorization_mTLS
       buganizerID: 194956814
+    - names:
+      - TestAuthorization_Conditions
+      buganizerID: 194958794
 
   # Unmanaged CP + GKE_ON_PREM + HUB
   - selectors:
@@ -119,6 +122,9 @@ tests:
     - names:
       - TestAuthorization_mTLS
       buganizerID: 194956814
+    - names:
+      - TestAuthorization_Conditions
+      buganizerID: 194958794
 
   # Unmanaged CP + bare-metal
   - selectors:
