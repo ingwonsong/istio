@@ -97,7 +97,7 @@ spec:
 			retry.UntilSuccessOrFail(t, func() error {
 				_, err := kubetest.CheckPodsAreReady(kubetest.NewPodFetch(cs, gatewayNs.Name(), "istio=ingressgateway"))
 				return err
-			}, retry.Timeout(time.Minute*2), retry.Delay(time.Second))
+			}, retry.Timeout(time.Minute*5), retry.Delay(time.Second))
 			for _, tt := range common.XFFGatewayCase(apps, fmt.Sprintf("custom-gateway.%s.svc.cluster.local", gatewayNs.Name())) {
 				tt.Run(t, apps.Namespace.Name())
 			}

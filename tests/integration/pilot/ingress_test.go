@@ -561,7 +561,7 @@ spec:
 								fmt.Sprintf(ingressConfigTemplate, "ingress", "istio-test", c.path, c.path, c.prefixPath)); err != nil {
 								t.Fatal(err)
 							}
-							ingr.CallWithRetryOrFail(t, c.call, retry.Converge(3), retry.Delay(500*time.Millisecond), retry.Timeout(time.Minute*2))
+							ingr.CallWithRetryOrFail(t, c.call, retry.Converge(3), retry.Delay(500*time.Millisecond), retry.Timeout(time.Minute*5))
 						})
 					}
 				})
@@ -611,7 +611,7 @@ spec:
 						return fmt.Errorf("unexpected ingress status, got %+v want %v", got, host)
 					}
 					return nil
-				}, retry.Delay(time.Second*5), retry.Timeout(time.Second*90))
+				}, retry.Delay(time.Second*5), retry.Timeout(time.Minute*5))
 			})
 
 			// setup another ingress pointing to a different route; the ingress will have an ingress class that should be targeted at first
@@ -683,7 +683,7 @@ spec:
 					authn.SetupEtcHostsFile(apps.Ingress, c.call.Headers["Host"][0])
 				}
 				t.NewSubTest(c.name).Run(func(t framework.TestContext) {
-					apps.Ingress.CallWithRetryOrFail(t, c.call, retry.Timeout(time.Minute))
+					apps.Ingress.CallWithRetryOrFail(t, c.call, retry.Timeout(time.Minute*5))
 				})
 			}
 		})
@@ -783,7 +783,7 @@ spec:
 				retry.UntilSuccessOrFail(t, func() error {
 					_, err := kubetest.CheckPodsAreReady(kubetest.NewPodFetch(cs, gatewayNs.Name(), "istio=custom"))
 					return err
-				}, retry.Timeout(time.Minute*2))
+				}, retry.Timeout(time.Minute*5))
 				apps.PodB[0].CallWithRetryOrFail(t, echo.CallOptions{
 					Port:      &echo.Port{ServicePort: 80},
 					Scheme:    scheme.HTTP,
@@ -825,7 +825,7 @@ gateways:
 				retry.UntilSuccessOrFail(t, func() error {
 					_, err := kubetest.CheckPodsAreReady(kubetest.NewPodFetch(cs, gatewayNs.Name(), "istio=custom-gateway-helm"))
 					return err
-				}, retry.Timeout(time.Minute*2), retry.Delay(time.Millisecond*500))
+				}, retry.Timeout(time.Minute*5), retry.Delay(time.Millisecond*500))
 				_ = t.ConfigIstio().ApplyYAMLNoCleanup(gatewayNs.Name(), fmt.Sprintf(`apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
