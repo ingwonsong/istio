@@ -57,7 +57,7 @@ func TestAuthorization_mTLS(t *testing.T) {
 		Run(func(t framework.TestContext) {
 			// Wait for service end point populating for onprem multi-network setup
 			if os.Getenv("CLUSTER_TYPE") == "gke-on-prem" {
-				time.Sleep(time.Second * 30)
+				time.Sleep(time.Minute * 5)
 			}
 			b := apps.B.Match(echo.Namespace(apps.Namespace1.Name()))
 			vm := apps.VM.Match(echo.Namespace(apps.Namespace1.Name()))

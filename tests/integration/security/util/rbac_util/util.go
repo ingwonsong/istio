@@ -166,7 +166,7 @@ func RunRBACTest(ctx framework.TestContext, cases []TestCase) {
 				t.Skip()
 			}
 			retry.UntilSuccessOrFail(t, tc.CheckRBACRequest,
-				retry.Delay(250*time.Millisecond), retry.Timeout(30*time.Second))
+				retry.Delay(250*time.Millisecond), retry.Timeout(5*time.Minute))
 		})
 	}
 }
