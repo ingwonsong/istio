@@ -8,4 +8,6 @@ SELFPATH="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
 # shellcheck disable=SC1090
 . "${SELFPATH}/ci.sh"
 
-mage build:push master-asm
+# TODO(coryrc): while waiting for the taaa-project to be setup correctly, don't push image
+#mage build:push master-asm
+mage build:artifact
