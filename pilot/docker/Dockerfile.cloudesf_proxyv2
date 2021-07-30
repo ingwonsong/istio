@@ -4,7 +4,7 @@ ARG BASE_DISTRIBUTION=default
 # Version is the base image version from the TLD Makefile
 ARG BASE_VERSION=latest
 
-FROM gcr.io/cloudesf-testing/proxy:cloudesf_20210624_00_RC00 as cloudesf_gcr
+FROM gcr.io/cloudesf-release/proxy:cloudesf_20210803_00_RC00 as cloudesf_gcr
 
 # The following section is used as base image if BASE_DISTRIBUTION=distroless
 # This image is a custom built debian10 distroless image with multiarchitecture support.
@@ -21,7 +21,7 @@ FROM ${BASE_DISTRIBUTION}
 
 WORKDIR /
 
-ARG proxy_version=cloudesf_20210624_00_RC00
+ARG proxy_version=cloudesf_20210803_00_RC00
 ARG istio_version
 
 # Copy Envoy bootstrap templates used by pilot-agent
@@ -36,11 +36,15 @@ ENV ISTIO_META_ISTIO_VERSION $istio_version
 ARG TARGETARCH
 COPY ${TARGETARCH:-amd64}/pilot-agent /usr/local/bin/pilot-agent
 
-# TODO(yangshuo): replease cloudesf-testing with cloudesf-release after the permission
-# mode is added.
 # COPY all the Cloud ESF artifacts.
 COPY --from=cloudesf_gcr /envoy /usr/local/bin/envoy
 COPY --from=cloudesf_gcr /usr/grte /usr/grte
+
+# Add group nobody to workaround InitGoogle which by default
+# will chroot to nobody. See https://source.corp.google.com/piper///depot/google3/base/init_google.h;l=58-63.
+# 99 is an arbitrary gid for nobody. See: https://source.corp.google.com/piper///depot/google3/third_party/grte/docker/BUILD;rcl=388208170;l=221
+RUN groupadd -g 99 nobody
+
 
 # The pilot-agent will bootstrap Envoy.
 ENTRYPOINT ["/usr/local/bin/pilot-agent"]
