@@ -30,26 +30,33 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
-const scriptaroRepoBase = "https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-service-mesh-packages"
+const scriptRepoBase = "https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-service-mesh-packages"
 
-func downloadScriptaro(commit string, rev *revision.Config) (string, error) {
-	scriptaroURL := fmt.Sprintf("%s/%s/scripts/asm-installer/install_asm", scriptaroRepoBase, commit)
-	if rev != nil && rev.Version != "" {
-		scriptaroURL = fmt.Sprintf("%s/release-%s-asm/scripts/asm-installer/install_asm", scriptaroRepoBase, rev.Version)
+func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (string, error) {
+	var scriptBaseName string
+	var scriptURL string
+	if settings.UseASMCLI {
+		scriptBaseName = "asmcli"
+		scriptURL = fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, settings.NewtaroCommit, scriptBaseName)
+	} else {
+		scriptBaseName = "install_asm"
+		scriptURL = fmt.Sprintf("%s/%s/scripts/asm-installer/%s", scriptRepoBase, settings.ScriptaroCommit, scriptBaseName)
+		if rev != nil && rev.Version != "" {
+			scriptURL = fmt.Sprintf("%s/release-%s-asm/scripts/asm-installer/%s", scriptRepoBase, rev.Version, scriptBaseName)
+		}
 	}
-	scriptaroName := "install_asm"
 
-	log.Printf("Downloading scriptaro from %s...", scriptaroURL)
-	resp, err := http.Get(scriptaroURL)
+	log.Printf("Downloading script from %s...", scriptURL)
+	resp, err := http.Get(scriptURL)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
-		return "", fmt.Errorf("scriptaro not found at URL: %s", scriptaroURL)
+		return "", fmt.Errorf("script not found at URL: %s", scriptURL)
 	}
 
-	f, err := os.OpenFile(scriptaroName, os.O_WRONLY|os.O_CREATE, 0o555)
+	f, err := os.OpenFile(scriptBaseName, os.O_WRONLY|os.O_CREATE, 0o555)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +67,7 @@ func downloadScriptaro(commit string, rev *revision.Config) (string, error) {
 	}
 	f.Close()
 
-	path, err := filepath.Abs(scriptaroName)
+	path, err := filepath.Abs(scriptBaseName)
 	if err != nil {
 		return "", err
 	}

@@ -39,6 +39,9 @@ type Settings struct {
 	// Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP.
 	UseAFC bool
 
+	// Use asmcli as the installation script.
+	UseASMCLI bool
+
 	// Certificate Authority to use, can be one of CITADEL, MESHCA or PRIVATECA
 	CA CAType
 
@@ -117,4 +120,7 @@ type RuntimeSettings struct {
 
 	// The commit ID of Scriptaro repo to use install_asm to install ASM.
 	ScriptaroCommit string
+
+	// The commit ID of Newtaro repo to use asmcli to install ASM.
+	NewtaroCommit string
 }

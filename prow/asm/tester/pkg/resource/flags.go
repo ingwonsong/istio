@@ -42,6 +42,7 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.Var(&settings.ControlPlane, "control-plane", "type of the control plane, can be one of UNMANAGED or MANAGED")
 	flags.BoolVar(&settings.UseProdMeshConfigAPI, "prod-meshconfig", false, "whether to use production MeshConfig API endpoint for Managed Control Plane (MCP)")
 	flags.BoolVar(&settings.UseAFC, "use-afc", false, "Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP.")
+	flags.BoolVar(&settings.UseASMCLI, "use-asmcli", false, "Use asmcli as the installation script")
 	flags.Var(&settings.CA, "ca", "Certificate Authority to use, can be one of CITADEL, MESHCA or PRIVATECA")
 	flags.Var(&settings.WIP, "wip", "Workload Identity Pool, can be one of GKE or HUB")
 	flags.StringVar(&settings.RevisionConfig, "revision-config", "", "path to the revision config file (see revision-deployer/README.md)")
@@ -65,7 +66,6 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.StringVar(&settings.VMImageProject, "image-project", "debian-cloud", "VM image project that will be used as the `--image-project` flag value when using `gcloud compute instance-templates create` to create the VMs.")
 	flags.StringVar(&settings.TestStartEventPath, "test-start-event-path", "upgrade-gke", "a path that is used to start an event from within the test suite, it used to make a request to a server residing in the infra code")
 	flags.StringVar(&settings.TestStartEventPort, "test-start-event-port", "", "port that clients should use to trigger events occuring in the infra code")
-
 
 	return flags
 }

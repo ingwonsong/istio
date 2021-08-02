@@ -28,16 +28,16 @@ import (
 func (c *installer) installASMManagedControlPlane() error {
 	contexts := strings.Split(c.settings.KubectlContexts, ",")
 
-	log.Println("Downloading Scriptaro for the installation...")
-	scriptaroPath, err := downloadScriptaro(c.settings.ScriptaroCommit, nil)
+	log.Println("Downloading ASM script for the installation...")
+	scriptPath, err := downloadInstallScript(c.settings, nil)
 	if err != nil {
-		return fmt.Errorf("failed to download Scriptaro: %w", err)
+		return fmt.Errorf("failed to download the install script: %w", err)
 	}
 
 	// Most (except VPC-SC) ASM MCP Prow jobs connect to staging MeshConfig API.
 	// We use these jobs to test/alert our staging ADS proxy.
 	if !c.settings.UseProdMeshConfigAPI {
-		if err := exec.Run("sed -i 's/meshconfig\\.googleapis\\.com/staging-meshconfig.sandbox.googleapis.com/g' " + scriptaroPath); err != nil {
+		if err := exec.Run("sed -i 's/meshconfig\\.googleapis\\.com/staging-meshconfig.sandbox.googleapis.com/g' " + scriptPath); err != nil {
 			return fmt.Errorf("error replacing the meshconfig to staging-meshconfig API for MCP installation: %w", err)
 		}
 	}
@@ -65,11 +65,11 @@ func (c *installer) installASMManagedControlPlane() error {
 			}
 		}
 
-		contextLogger.Println("Running Scriptaro installation...")
-		if err := exec.Run(scriptaroPath,
+		contextLogger.Println("Running installation using install script...")
+		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateMCPInstallEnvvars(c.settings)),
 			exec.WithAdditionalArgs(generateMCPInstallFlags(c.settings, cluster))); err != nil {
-			return fmt.Errorf("scriptaro MCP installation failed: %w", err)
+			return fmt.Errorf("MCP installation using script failed: %w", err)
 		}
 
 		if err := exec.Run(
@@ -103,8 +103,14 @@ EOF'`, context)); err != nil {
 }
 
 func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
-	installFlags := []string{
-		"--mode", "install",
+	var installFlags []string
+	if settings.UseASMCLI {
+		installFlags = append(installFlags, "install")
+	} else {
+		installFlags = append(installFlags, "--mode", "install")
+	}
+
+	installFlags = append(installFlags,
 		"--project_id", cluster.ProjectID,
 		"--cluster_location", cluster.Location,
 		"--cluster_name", cluster.Name,
@@ -114,8 +120,7 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--enable_registration",
 		// Currently, MCP only uses mesh CA.
 		"--ca", "mesh_ca",
-		"--verbose",
-	}
+		"--verbose")
 
 	if settings.FeatureToTest == resource.CNI || settings.FeatureToTest == resource.Addon {
 		// Addon always will use CNI
@@ -125,15 +130,22 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 }
 
 func generateMCPInstallEnvvars(settings *resource.Settings) []string {
-	// _CI_ASM_PKG_LOCATION _CI_ASM_IMAGE_LOCATION are required for unreleased Scriptaro (master and staging branch).
-	// For sidecar proxy and Istiod, _CI_CLOUDRUN_IMAGE_HUB and _CI_CLOUDRUN_IMAGE_TAG are used.
+	// _CI_ASM_PKG_LOCATION _CI_ASM_IMAGE_LOCATION are required for unreleased
+	// ASM and its install script (master and staging branch).
+	// For sidecar proxy and Istiod, _CI_CLOUDRUN_IMAGE_HUB and
+	// _CI_CLOUDRUN_IMAGE_TAG are used.
 	envvars := []string{
 		"_CI_ASM_PKG_LOCATION=asm-staging-images",
 		"_CI_ASM_IMAGE_LOCATION=" + os.Getenv("HUB"),
 		"_CI_ASM_IMAGE_TAG=" + os.Getenv("TAG"),
-		"_CI_ASM_KPT_BRANCH=" + settings.ScriptaroCommit,
 		"_CI_CLOUDRUN_IMAGE_HUB=" + os.Getenv("HUB") + "/cloudrun",
 		"_CI_CLOUDRUN_IMAGE_TAG=" + os.Getenv("TAG"),
+	}
+
+	if settings.UseASMCLI {
+		envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.NewtaroCommit)
+	} else {
+		envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.ScriptaroCommit)
 	}
 	return envvars
 }

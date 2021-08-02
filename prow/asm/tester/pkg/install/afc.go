@@ -35,11 +35,6 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
 	}
 
-	// scriptaroPath, err := downloadScriptaro(c.settings.ScriptaroCommit, nil)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to download Scriptaro: %w", err)
-	// }
-
 	projectID := c.settings.GCPProjects[0]
 	// Use the first project as the environ name
 	// must do this here because each installation depends on the value

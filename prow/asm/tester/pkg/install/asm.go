@@ -31,10 +31,10 @@ func (c *installer) installASM(rev *revision.Config) error {
 	pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
 	kptSetPrefix := fmt.Sprintf("kpt cfg set %s", pkgPath)
 	contexts := strings.Split(c.settings.KubectlContexts, ",")
-	log.Println("Downloading Scriptaro for the installation...")
-	scriptaroPath, err := downloadScriptaro(c.settings.ScriptaroCommit, rev)
+	log.Println("Downloading ASM script for the installation...")
+	scriptPath, err := downloadInstallScript(c.settings, rev)
 	if err != nil {
-		return fmt.Errorf("failed to download Scriptaro: %w", err)
+		return fmt.Errorf("failed to download the install script: %w", err)
 	}
 
 	// Use the first project as the environ name
@@ -114,11 +114,11 @@ func (c *installer) installASM(rev *revision.Config) error {
 			}
 		}
 
-		contextLogger.Println("Running Scriptaro installation...")
-		if err := exec.Run(scriptaroPath,
+		contextLogger.Println("Running installation using install script...")
+		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateASMInstallEnvvars(c.settings, rev, trustedGCPProjects)),
 			exec.WithAdditionalArgs(generateASMInstallFlags(c.settings, rev, pkgPath, cluster))); err != nil {
-			return fmt.Errorf("scriptaro ASM installation failed: %w", err)
+			return fmt.Errorf("ASM installation using script failed: %w", err)
 		}
 	}
 
@@ -129,7 +129,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 }
 
 // generateASMInstallEnvvars generates the environment variables needed when
-// running install_asm script to install ASM.
+// running the ASM script to install ASM.
 func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config, trustedGCPProjects string) []string {
 	var envvars []string
 	varMap := map[string]string{
@@ -137,15 +137,20 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 		"_CI_NO_REVISION": "1",
 	}
 
-	// For installations from master we point scriptaro to the images we just built, however, for
-	// installations of older releases, we leave these vars out.
+	// For installations from master we point install script to use the images
+	// we just built, however, for installations of older releases, we leave
+	// these vars out.
 	if rev.Version == "" {
 		masterVars := map[string]string{
 			"_CI_ISTIOCTL_REL_PATH":  filepath.Join(settings.RepoRootDir, istioctlPath),
 			"_CI_ASM_IMAGE_LOCATION": os.Getenv("HUB"),
 			"_CI_ASM_IMAGE_TAG":      os.Getenv("TAG"),
-			"_CI_ASM_KPT_BRANCH":     settings.ScriptaroCommit,
 			"_CI_ASM_PKG_LOCATION":   "asm-staging-images",
+		}
+		if settings.UseASMCLI {
+			masterVars["_CI_ASM_KPT_BRANCH"] = settings.NewtaroCommit
+		} else {
+			masterVars["_CI_ASM_KPT_BRANCH"] = settings.ScriptaroCommit
 		}
 		for k, v := range masterVars {
 			varMap[k] = v
@@ -167,19 +172,24 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 	return envvars
 }
 
-// generateASMInstallFlags returns the flags required when running install_asm
+// generateASMInstallFlags returns the flags required when running the install
 // script to install ASM.
 func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, pkgPath string, cluster *kube.GKEClusterSpec) []string {
-	installFlags := []string{
+	var installFlags []string
+	if settings.UseASMCLI {
+		installFlags = append(installFlags, "install")
+	} else {
+		installFlags = append(installFlags, "--mode", "install")
+	}
+
+	installFlags = append(installFlags,
 		"--project_id", cluster.ProjectID,
 		"--cluster_name", cluster.Name,
 		"--cluster_location", cluster.Location,
-		"--mode", "install",
 		"--enable-all",
 		"--verbose",
 		"--option", "audit-authorizationpolicy",
-		"--option", "cni-gcp",
-	}
+		"--option", "cni-gcp")
 
 	// Use the CA from revision config for the revision we're installing
 	ca := settings.CA
@@ -221,7 +231,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	installFlags = append(installFlags, "--custom_overlay", strings.Join(overlays, ","))
 
 	// Set the revision name if specified on the per-revision config
-	// note that this flag only exists on newer Scriptaro versions
+	// note that this flag only exists on newer install script versions
 	if rev.Name != "" {
 		installFlags = append(installFlags, "--revision_name", rev.Name)
 	}
