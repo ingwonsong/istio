@@ -79,6 +79,10 @@ tests:
       - names:
           - TestNormalization
         reason: uses ctx.Settings().Revision to modify singular CM
+      - names:
+          - TestPassThroughFilterChain
+        reason: requires PR 28601, should add RequireIstioVersion to the test in OSS and then unskip.
+        buganizerID: 194120617
 
       # telemetry/
       - names:
