@@ -136,7 +136,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	log.Infof("Initializing MCP with options %+v", p)
 
-	if err := constructKubeConfigFile(p); err != nil {
+	if err := constructKubeConfigFile(p.Project, p.Zone, p.Cluster); err != nil {
 		return nil, fmt.Errorf("construct kube config: %v", err)
 	}
 	// Configure Istiod to read or configured kubeconfig file
@@ -321,16 +321,17 @@ func createCRDs(client kubelib.Client, template []byte) error {
 	return nil
 }
 
-// constructKubeConfigFile constructs a kubeconfig file that can be used to access the cluster
-// referenced by MCPParameters. This will lookup up the cluster information from the GKE api, and construct
-// a "fake" kubeconfig file that will later be read.
-// See https://ahmet.im/blog/authenticating-to-gke-without-gcloud/
-func constructKubeConfigFile(p MCPParameters) error {
+// constructKubeConfigFile constructs a kubeconfig file that can be
+// used to access the cluster referenced by the project/location/cluster.
+// This will lookup up the cluster information from the GKE api, and
+// construct a "fake" kubeconfig file that will later be read. See
+// https://ahmet.im/blog/authenticating-to-gke-without-gcloud/
+func constructKubeConfigFile(project, location, cluster string) error {
 	if err := pollIAMPropagation(); err != nil {
 		return err
 	}
 	t0 := time.Now()
-	c, err := container.NewClusterManagerClient(context.Background(), option.WithQuotaProject(p.Project))
+	c, err := container.NewClusterManagerClient(context.Background(), option.WithQuotaProject(project))
 	if err != nil {
 		return fmt.Errorf("create cluster manager client: %v", err)
 	}
@@ -340,7 +341,7 @@ func constructKubeConfigFile(p MCPParameters) error {
 	// to downstream services yet, etc, so we need to retry on all calls.
 	for attempts := 0; attempts < 50; attempts++ {
 		cl, err = c.GetCluster(context.Background(), &containerpb.GetClusterRequest{
-			Name: fmt.Sprintf("projects/%s/locations/%s/clusters/%s", p.Project, p.Zone, p.Cluster),
+			Name: fmt.Sprintf("projects/%s/locations/%s/clusters/%s", project, location, cluster),
 		})
 		if err == nil {
 			break

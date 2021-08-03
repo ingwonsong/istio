@@ -53,11 +53,14 @@ func NewRootCommand() *cobra.Command {
 
 	mcpCmd := newMCPCommand()
 	addFlags(mcpCmd)
+	mcpCheckCmd := newMCPCheckCommand()
+	addFlags(mcpCheckCmd)
 
 	discoveryCmd := newDiscoveryCommand()
 	addFlags(discoveryCmd)
 	rootCmd.AddCommand(discoveryCmd)
 	rootCmd.AddCommand(mcpCmd)
+	rootCmd.AddCommand(mcpCheckCmd)
 
 	rootCmd.AddCommand(version.CobraCommand())
 	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, &doc.GenManHeader{
