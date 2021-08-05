@@ -26,5 +26,8 @@ if [[ $2 == "distroless" ]]; then
   if [[ $1 =~ docker.app ]]; then
     exit 0
   fi
+  if [[ $1 == docker.cloudesf_proxyv2 ]]; then
+    exit 0
+  fi
 fi
 exit 1
