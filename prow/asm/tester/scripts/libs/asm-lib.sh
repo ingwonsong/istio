@@ -383,6 +383,8 @@ spec:
       multiCluster:
         clusterName: cluster${i}
       network: network${i}
+  meshConfig:
+    accessLogFile: /dev/stdout
 EOF
       # eastwest gateway is not needed for single cluster installation
       if [[ "${CLUSTER_TOPOLOGY}" != "sc" ]]; then
@@ -649,6 +651,8 @@ spec:
       multiCluster:
         clusterName: cluster${i}
       network: network${i}
+  meshConfig:
+    accessLogFile: /dev/stdout
 EOF
     fi
     configure_validating_webhook "${ASM_REVISION_LABEL}" "${MC_CONFIGS[$i]}"
