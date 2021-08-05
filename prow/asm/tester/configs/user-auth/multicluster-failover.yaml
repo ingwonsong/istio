@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: authservice-fail-over
+  namespace: asm-user-auth
+spec:
+  host: authservice.asm-user-auth.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      localityLbSetting:
+        enabled: true
+        failover:
+          - from: us-east
+            to: us-west
+          - from: us-west
+            to: us-east

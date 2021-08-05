@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
@@ -45,60 +46,73 @@ func installASMUserAuth(settings *resource.Settings) error {
 		label = "istio-injection- istio.io/rev=asm-master"
 	}
 
-	cmds := []string{
-		"kubectl create namespace asm-user-auth",
-		fmt.Sprintf("kubectl label namespace asm-user-auth %s --overwrite", label),
-
-		"kubectl create namespace userauth-test",
-		fmt.Sprintf("kubectl label namespace userauth-test %s --overwrite", label),
-
-		// TODO(b/182914654): deploy app in go code
-		"kubectl -n userauth-test apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml",
-
-		fmt.Sprintf("kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git@main %s/user-auth", settings.ConfigDir),
-
-		// Create the kubernetes secret for the encryption and signing key.
-		fmt.Sprintf(`kubectl create secret generic secret-key  \
-			--from-file="session_cookie.key"="%s/user-auth/asm-user-auth/samples/cookie_encryption_key.json"  \
-			--from-file="rctoken.key"="%s/user-auth/asm-user-auth/samples/rctoken_signing_key.json"  \
-			--namespace=asm-user-auth`, settings.ConfigDir, settings.ConfigDir),
-		fmt.Sprintf("kubectl apply -f %s/user-auth/asm-user-auth/pkg/asm_user_auth_config_v1beta1.yaml", settings.ConfigDir),
-	}
-	if err := exec.RunMultiple(cmds); err != nil {
-		return err
-	}
-
+	// Config install pkg
 	var res map[string]interface{}
 	// TODO(b/182940034): use ASM owned account once created
 	odicKeys, err := ioutil.ReadFile(fmt.Sprintf("%s/user-auth/userauth_oidc.json", settings.ConfigDir))
 	if err != nil {
 		return fmt.Errorf("error reading the odic key file: %w", err)
 	}
-	json.Unmarshal(odicKeys, &res)
+	err = json.Unmarshal(odicKeys, &res)
+	if err != nil {
+		return fmt.Errorf("error reading the odic key file: %w", err)
+	}
 	oidcClientID := res["client_id"].(string)
 	oidcClientSecret := res["client_secret"].(string)
 	oidcIssueURI := res["issuer"].(string)
 	// TODO(b/182918059): Fetch image from GCR release repo and GitHub packet.
 	userAuthImage := "gcr.io/gke-release-staging/ais:staging"
-	cmds = []string{
+	cmds := []string{
+		fmt.Sprintf("kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git@main %s/user-auth", settings.ConfigDir),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.image %s", settings.ConfigDir, userAuthImage),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientID %s", settings.ConfigDir, oidcClientID),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientSecret %s", settings.ConfigDir, oidcClientSecret),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.issuerURI %s", settings.ConfigDir, oidcIssueURI),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.redirectURIPath %s", settings.ConfigDir, "/_gcp_anthos_callback"),
-		fmt.Sprintf("kubectl apply -R -f %s/user-auth/asm-user-auth/pkg/", settings.ConfigDir),
-		fmt.Sprintf("kubectl apply -f %s/user-auth/httpbin-route.yaml", settings.ConfigDir),
 	}
 	if err := exec.RunMultiple(cmds); err != nil {
 		return err
 	}
 
-	cmds = []string{
-		"kubectl wait --for=condition=Ready --timeout=2m --namespace=userauth-test --all pod",
-		"kubectl wait --for=condition=Ready --timeout=2m --namespace=asm-user-auth --all pod",
-	}
-	if err := exec.RunMultiple(cmds); err != nil {
-		return err
+	contexts := strings.Split(settings.KubectlContexts, ",")
+	for _, context := range contexts {
+		cmds := []string{
+			fmt.Sprintf("kubectl create namespace asm-user-auth --context %s", context),
+			fmt.Sprintf("kubectl label namespace asm-user-auth %s --overwrite --context %s", label, context),
+
+			fmt.Sprintf("kubectl create namespace userauth-test --context %s", context),
+			fmt.Sprintf("kubectl label namespace userauth-test %s --overwrite --context %s", label, context),
+
+			// TODO(b/182914654): deploy app in go code
+			fmt.Sprintf("kubectl -n userauth-test apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml --context %s", context),
+
+			// Create the kubernetes secret for the encryption and signing key.
+			fmt.Sprintf(`kubectl create secret generic secret-key  \
+			--from-file="session_cookie.key"="%s/user-auth/asm-user-auth/samples/cookie_encryption_key.json"  \
+			--from-file="rctoken.key"="%s/user-auth/asm-user-auth/samples/rctoken_signing_key.json"  \
+			--namespace=asm-user-auth --context %s`, settings.ConfigDir, settings.ConfigDir, context),
+
+			fmt.Sprintf("kubectl apply -f %s/user-auth/asm-user-auth/pkg/asm_user_auth_config_v1beta1.yaml --context %s", settings.ConfigDir, context),
+			fmt.Sprintf("kubectl apply -R -f %s/user-auth/asm-user-auth/pkg/ --context %s", settings.ConfigDir, context),
+			fmt.Sprintf("kubectl apply -f %s/user-auth/httpbin-route.yaml --context %s", settings.ConfigDir, context),
+		}
+		if err := exec.RunMultiple(cmds); err != nil {
+			return err
+		}
+
+		if settings.ClusterTopology == resource.MultiCluster {
+			if err := exec.Run(fmt.Sprintf("kubectl apply -f %s/user-auth/multicluster-failover.yaml --context %s", settings.ConfigDir, context)); err != nil {
+				return err
+			}
+		}
+
+		cmds = []string{
+			fmt.Sprintf("kubectl wait --for=condition=Ready --timeout=10m --namespace=userauth-test --all pod --context %s", context),
+			fmt.Sprintf("kubectl wait --for=condition=Ready --timeout=10m --namespace=asm-user-auth --all pod --context %s", context),
+		}
+		if err := exec.RunMultiple(cmds); err != nil {
+			return err
+		}
 	}
 
 	return nil
