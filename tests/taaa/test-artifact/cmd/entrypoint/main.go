@@ -17,7 +17,7 @@ import (
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm"
 	k8spb "gke-internal.git.corp.google.com/taaa/protobufs.git/k8sbase"
-	"istio.io/istio/tests/taaa/internal/constants"
+	"istio.io/istio/tests/taaa/test-artifact/internal/constants"
 )
 
 func main() {

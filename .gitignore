@@ -60,4 +60,4 @@ var/
 # MacOS Desktop Services Store
 .DS_Store
 # Tests as an Artifact
-tests/taaa/out
+tests/taaa/**/out

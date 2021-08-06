@@ -2,9 +2,8 @@
 
 See go/taaa for an overview of the project.
 
-The image here compiles tests and stores them in an OCI image. We use them
-to get test results into GKE Networking Guitar dataplanev2 TestGrid.
+Each subdirectory here is a Go module that defines a TaaA docker image.
 
 ## Arbitrary Notes
 
-*  The out subdirectory of the TaaA builder directory is in .gitignore
+*  The magefile build `out` subdirectories generated during build is in .gitignore

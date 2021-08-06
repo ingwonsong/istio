@@ -20,14 +20,14 @@ import (
 	"github.com/magefile/mage/sh"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/gotest"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
-	"istio.io/istio/tests/taaa/internal/constants"
+	"istio.io/istio/tests/taaa/test-artifact/internal/constants"
 )
 
 const (
 	// TODO(coryrc): fix taaa-project
 	//ImgPath  = "gcr.io/taaa-project/host/gke-internal/istio/istio/integration-tests"
 	ImgPath  = "gcr.io/gke-prow/gke-internal/istio/istio/integration-tests"
-	repoRoot = "../../"
+	repoRoot = "../../../"
 )
 
 type Build mg.Namespace
@@ -47,7 +47,11 @@ func (Build) ArtifactNoDeps() error {
 	if err != nil {
 		return err
 	}
-	return sh.RunV("docker", "build", "--pull", "-t", ImgPath+":"+imgTag, "-f", "Dockerfile", "out")
+	err = sh.RunV("docker", "build", "--pull", "-t", ImgPath+":"+imgTag, "-f", "Dockerfile", "out")
+	if err != nil {
+		return err
+	}
+	return sh.RunV("docker", "tag", ImgPath+":"+imgTag, ImgPath+":latest")
 }
 
 // Docker push the image to its destination.
