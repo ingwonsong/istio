@@ -23,13 +23,16 @@ import (
 	"sync"
 	"time"
 
+	goversion "github.com/hashicorp/go-version"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
+	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/istio/security/pkg/pki/ca"
 	"istio.io/istio/security/pkg/pki/util"
 	certutil "istio.io/istio/security/pkg/util"
@@ -57,6 +60,15 @@ const (
 
 	// The interval for reading a certificate
 	certReadInterval = 500 * time.Millisecond
+
+	// The number of retries when attempting to request kubernetes version
+	versionRetryCount = 5
+
+	LegacyKubernetesSigner = "kubernetes.io/legacy-unknown"
+
+	gkeAsmKubernetesSigner = "pki.gke.io/istiod"
+
+	apiv1Beta1RemovedMinorVersion = 22
 )
 
 var certWatchTimeout = 5 * time.Second
@@ -86,6 +98,34 @@ type WebhookController struct {
 	// Ratio of the grace period for the certificate rotation.
 	gracePeriodRatio float32
 	certUtil         certutil.CertUtil
+}
+
+// GetAsmK8sSigner: Get the signerName and approval logic for (only) ASM based on GKE version
+func GetAsmK8sSigner(k8sClient kubelib.Client) (string, bool, error) {
+	var err error
+	var serverVersion *version.Info = nil
+
+	// retry since this is critical code
+	for retries := 0; retries < versionRetryCount; retries++ {
+		serverVersion, err = k8sClient.GetKubernetesVersion()
+		if err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("timeout when retrieving kubernetes server version: %v", err)
+	}
+	ver, err := goversion.NewVersion(serverVersion.String())
+	if err != nil {
+		return "", false, fmt.Errorf("could not parse kubernetes server version: %v", err)
+	}
+	major := ver.Segments()[0]
+	minor := ver.Segments()[1]
+	if major == 1 && minor < apiv1Beta1RemovedMinorVersion {
+		return LegacyKubernetesSigner, true, nil
+	}
+	return gkeAsmKubernetesSigner, false, nil
 }
 
 // NewWebhookController returns a pointer to a newly constructed WebhookController instance.
