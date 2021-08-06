@@ -47,6 +47,8 @@ spec:
   values:
     global:
       proxy:
+        logLevel: debug
+        componentLogLevel: "misc:debug,rbac:debug"
         resources:
           requests:
             cpu: 10m
