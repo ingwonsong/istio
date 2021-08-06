@@ -78,7 +78,6 @@ func GenKeyCertK8sCA(client clientset.Interface, dnsName,
 		certv1.UsageDigitalSignature,
 		certv1.UsageKeyEncipherment,
 		certv1.UsageServerAuth,
-		certv1.UsageClientAuth,
 	}
 	if signerName == "" {
 		signerName = LegacyKubernetesSigner
