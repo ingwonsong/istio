@@ -94,17 +94,18 @@ func (c *installer) preInstall(rev *revision.Config) error {
 		}
 	}
 
-	if c.settings.ControlPlane == resource.Unmanaged {
-		if c.settings.CA == resource.PrivateCA {
-			if err := exec.Dispatch(
-				c.settings.RepoRootDir,
-				"setup_private_ca",
-				[]string{
-					strings.Join(c.settings.KubeContexts, ","),
-				}); err != nil {
-				return err
-			}
+	if c.settings.CA == resource.PrivateCA {
+		if err := exec.Dispatch(
+			c.settings.RepoRootDir,
+			"setup_private_ca",
+			[]string{
+				strings.Join(c.settings.KubeContexts, ","),
+			}); err != nil {
+			return err
 		}
+	}
+
+	if c.settings.ControlPlane == resource.Unmanaged {
 		// gke-on-prem clusters are registered into Hub during cluster creations in the on-prem Hub CI jobs
 		if c.settings.WIP == resource.HUBWorkloadIdentityPool && c.settings.ClusterType == resource.GKEOnGCP {
 			if err := exec.Dispatch(

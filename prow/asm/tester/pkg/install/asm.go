@@ -97,19 +97,6 @@ func (c *installer) installASM(rev *revision.Config) error {
 				}
 			}
 
-			// Need to set kpt values per install
-			if ca == resource.PrivateCA {
-				subordinateCaId := fmt.Sprintf("%s-%s-%s",
-					subCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
-				caName := fmt.Sprintf("projects/%s/locations/%s/certificateAuthorities/%s",
-					cluster.ProjectID, cluster.Location, subordinateCaId)
-				if err := exec.RunMultiple([]string{
-					fmt.Sprintf("%s anthos.servicemesh.external_ca.ca_name %s", kptSetPrefix, caName),
-					fmt.Sprintf("%s gcloud.core.project %s", kptSetPrefix, cluster.ProjectID),
-				}); err != nil {
-					return err
-				}
-			}
 		}
 
 		contextLogger.Println("Running installation using install script...")
@@ -212,8 +199,14 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if rev.CA != "" {
 		ca = resource.CAType(rev.CA)
 	}
-	if ca == resource.MeshCA || ca == resource.PrivateCA {
+	if ca == resource.MeshCA {
 		installFlags = append(installFlags, "--ca", "mesh_ca")
+	} else if ca == resource.PrivateCA {
+		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", subCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
+		caName := fmt.Sprintf("projects/%s/locations/%s/caPool/%s",
+			cluster.ProjectID, cluster.Location, issuingCaPoolId)
+		installFlags = append(installFlags, "--ca", "gcp_cas")
+		installFlags = append(installFlags, "--ca_pool", caName)
 	} else if ca == resource.Citadel {
 		installFlags = append(installFlags,
 			"--ca", "citadel")
@@ -234,9 +227,6 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	// Apply per-revision overlay customizations
 	if rev.Overlay != "" {
 		overlays = append(overlays, filepath.Join(pkgPath, rev.Overlay))
-	}
-	if ca == resource.PrivateCA && settings.WIP != resource.HUBWorkloadIdentityPool {
-		overlays = append(overlays, filepath.Join(pkgPath, "overlay/private-ca.yaml"))
 	}
 	if settings.FeatureToTest == resource.UserAuth {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/user-auth.yaml"))

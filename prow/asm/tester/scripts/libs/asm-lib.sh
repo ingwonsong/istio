@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-readonly ROOT_CA_ID_PREFIX="asm-test-root-ca"
+readonly ROOT_CA_ID_PREFIX="asm-root-ca"
 readonly ROOT_CA_LOC="us-central1"
-readonly SUB_CA_ID_PREFIX="asm-test-sub-ca"
+readonly SUB_CA_ID_PREFIX="asm-sub-ca"
+readonly ROOT_CA_POOL_PREFIX="asm-root-pool"
+readonly SUB_CA_POOL_PREFIX="asm-sub-pool"
 
 # shellcheck disable=SC2034
 # holds multiple kubeconfigs for Multicloud test environments
@@ -132,74 +134,68 @@ function register_clusters_in_hub() {
 # Parameters: $1 - comma-separated string of k8s contexts
 function setup_private_ca() {
   IFS="," read -r -a CONTEXTS <<< "$1"
-
+ 
   local ROOT_CA_ID="${ROOT_CA_ID_PREFIX}-${BUILD_ID}"
+  local ROOT_CA_POOL="${ROOT_CA_POOL_PREFIX}-${BUILD_ID}"
+
   # Create root CA in the central project if it does not exist.
-  if ! gcloud beta privateca roots list --project "${SHARED_GCP_PROJECT}" --location "${ROOT_CA_LOC}" | grep -q "${ROOT_CA_ID}"; then
+  if ! gcloud privateca roots list --project "${SHARED_GCP_PROJECT}" --location "${ROOT_CA_LOC}" | grep -q "${ROOT_CA_ID}"; then
+    echo "Creating root CA Pool ${ROOT_CA_POOL}"
+    gcloud privateca pools create "${ROOT_CA_POOL}" \
+      --project "${SHARED_GCP_PROJECT}" \
+      --location "${ROOT_CA_LOC}" \
+      --tier enterprise
+
     echo "Creating root CA ${ROOT_CA_ID}..."
-    gcloud beta privateca roots create "${ROOT_CA_ID}" \
+    gcloud privateca roots create "${ROOT_CA_ID}" \
       --location "${ROOT_CA_LOC}" \
       --project "${SHARED_GCP_PROJECT}" \
       --subject "CN=ASM Test Root CA, O=Google LLC" \
-      --tier enterprise \
-      --reusable-config root-unconstrained \
-      --key-algorithm rsa-pkcs1-4096-sha256
+      --auto-enable \
+      --pool="${ROOT_CA_POOL}"
   fi
 
-  # Contains temporary files for subordinate CA activation.
-  WORKING_DIR=$(mktemp -d)
   for i in "${!CONTEXTS[@]}"; do
     IFS="_" read -r -a VALS <<< "${CONTEXTS[$i]}"
     PROJECT_ID="${VALS[1]}"
     LOCATION="${VALS[2]}"
     CLUSTER="${VALS[3]}"
-    local SUBORDINATE_CA_ID="${SUB_CA_ID_PREFIX}-${BUILD_ID}-${CLUSTER}"
-    local CSR_FILE="${WORKING_DIR}/${SUBORDINATE_CA_ID}.csr"
-    local CERT_FILE="${WORKING_DIR}/${SUBORDINATE_CA_ID}.crt"
-    local WORKLOAD_IDENTITY="$PROJECT_ID.svc.id.goog[istio-system/istiod-service-account]"
-    if ! gcloud beta privateca subordinates list --location "${LOCATION}" --project "${PROJECT_ID}" | grep -q "${SUBORDINATE_CA_ID}"; then
-      echo "Creating subordinate CA ${SUBORDINATE_CA_ID}..."
-      gcloud beta privateca subordinates create "${SUBORDINATE_CA_ID}" \
+    local SUB_CA_ID="${SUB_CA_ID_PREFIX}-${BUILD_ID}-${CLUSTER}"
+    local SUB_CA_POOL="${SUB_CA_POOL_PREFIX}-${BUILD_ID}-${CLUSTER}"
+    if ! gcloud privateca subordinates list --location "${LOCATION}" --project "${PROJECT_ID}" | grep -q "${SUB_CA_ID}"; then
+
+      echo "Creating subordinate CA pool ${SUB_CA_POOL}..."
+      gcloud privateca pools create "${SUB_CA_POOL}" \
+        --project "${PROJECT_ID}" \
+        --location "${LOCATION}" \
+        --tier devops
+
+      echo "Creating subordinate CA ${SUB_CA_ID}..."
+      gcloud privateca subordinates create "${SUB_CA_ID}" \
         --location "${LOCATION}" \
         --project "${PROJECT_ID}" \
+        --pool "${SUB_CA_POOL}" \
+        --issuer-location="${ROOT_CA_LOC}" \
+        --issuer-pool="projects/${SHARED_GCP_PROJECT}/locations/${ROOT_CA_LOC}/caPools/${ROOT_CA_POOL}" \
         --subject "CN=ASM Test Subordinate CA, O=Google LLC" \
-        --tier devops \
-        --reusable-config "subordinate-mtls-pathlen-0" \
         --key-algorithm rsa-pkcs1-2048-sha256 \
-        --create-csr \
-        --csr-output-file "${CSR_FILE}"
-
-      CERT_ID="cert-${SUBORDINATE_CA_ID}"
-      echo "Signing subordinate CA certificate ${CERT_ID}.."
-      gcloud beta privateca certificates create "${CERT_ID}" \
-        --issuer "${ROOT_CA_ID}" \
-        --issuer-location "${ROOT_CA_LOC}" \
-        --project "${SHARED_GCP_PROJECT}" \
-        --csr "${CSR_FILE}" \
-        --cert-output-file "${CERT_FILE}" \
-        --validity "P3Y" # Change this as needed - 3Y is the default for subordinate CAs.
-
-      echo "Activating subordinate CA.."
-      gcloud beta privateca subordinates activate "${SUBORDINATE_CA_ID}" \
-        --location "${LOCATION}" \
-        --project "${PROJECT_ID}" \
-        --pem-chain "${CERT_FILE}"
+        --auto-enable
     fi
-    gcloud beta privateca subordinates add-iam-policy-binding "${SUBORDINATE_CA_ID}" \
-      --location "${LOCATION}" \
-      --project "${PROJECT_ID}" \
-      --member "serviceAccount:$WORKLOAD_IDENTITY" \
-      --role "roles/privateca.certificateManager" \
-      --quiet
   done
+
 }
 
 # Cleanup the private CAs.
 function cleanup_private_ca() {
   # Install the uuid tool to generate uuid for the curl command to purge CA in
   # the end.
+  IFS="," read -r -a CONTEXTS <<< "$1"
   apt-get update
   apt-get install uuid -y
+
+  local ROOT_CA_ID="${ROOT_CA_ID_PREFIX}-${BUILD_ID}"
+  local ROOT_CA_POOL="${ROOT_CA_POOL_PREFIX}-${BUILD_ID}"
+
 
   for i in "${!CONTEXTS[@]}"; do
     IFS="_" read -r -a VALS <<< "${CONTEXTS[$i]}"
@@ -207,57 +203,58 @@ function cleanup_private_ca() {
     LOCATION="${VALS[2]}"
     CLUSTER="${VALS[3]}"
 
-    local SUBORDINATE_CA_ID="${SUB_CA_ID_PREFIX}-${BUILD_ID}-${CLUSTER}"
-    if gcloud beta privateca subordinates list --project "${PROJECT_ID}" --location "${LOCATION}" | grep -q "${SUBORDINATE_CA_ID}"; then
-      echo "Purging subordinate CA $SUBORDINATE_CA_ID.."
-      purge-ca "subordinates" "${SUBORDINATE_CA_ID}" "${LOCATION}" "${PROJECT_ID}"
+    local SUB_CA_ID="${SUB_CA_ID_PREFIX}-${BUILD_ID}-${CLUSTER}"
+    local SUB_CA_POOL="${SUB_CA_POOL_PREFIX}-${BUILD_ID}-${CLUSTER}"
+    if gcloud privateca subordinates list --project "${PROJECT_ID}" --location "${LOCATION}" | grep -q "${SUB_CA_ID}"; then
+      echo "Purging subordinate CA Pool $SUB_CA_POOL.."
+      purge-ca-pool "${SUB_CA_POOL}" "${LOCATION}" "${PROJECT_ID}"
     fi
   done
-  local ROOT_CA_ID="${ROOT_CA_ID_PREFIX}-${BUILD_ID}"
-  if gcloud beta privateca roots list --project "${SHARED_GCP_PROJECT}" --location "${ROOT_CA_LOC}" | grep -q "${ROOT_CA_ID}"; then
-    echo "Purging root CA $ROOT_CA_ID.."
-    purge-ca "roots" "${ROOT_CA_ID}" "${ROOT_CA_LOC}" "${SHARED_GCP_PROJECT}"
+
+  if gcloud privateca roots list --project "${SHARED_GCP_PROJECT}" --location "${ROOT_CA_LOC}" | grep -q "${ROOT_CA_ID}"; then
+    echo "Purging Root CA pool ${ROOT_CA_POOL}"
+    purge-ca-pool "${ROOT_CA_POOL}" "${ROOT_CA_LOC}" "${SHARED_GCP_PROJECT}"
   fi
+
 }
 
 # Purge the CA.
 # Parameters: $1 - the command group (roots|subordinates)
 #             $2 - the full CA resource name
-#             $3 - location
-#             $4 - project ID
+#             $3 - the ca pool
+#             $4 - location
+#             $5 - project ID
 function purge-ca() {
-  echo "Purging CA '$2'."
-  local certs
-  # shellcheck disable=SC2207
-  certs=($(gcloud beta privateca certificates list \
-    --issuer "$2" \
-    --format 'table(name.scope(), revocation_details)' \
-    --location="$3" --project="$4" | grep -Po '([^\s]+)(?=\s+ACTIVE)' || true))
 
-  echo "> Revoking ${#certs[@]} certificates.." >&2
+  echo "disabling and deleting CA '$2'."
 
-  for cert in "${certs[@]}"; do
-    gcloud beta privateca certificates revoke --certificate "$cert" --quiet
-  done
-
-  if gcloud beta privateca "$1" describe "$2" --format "value(state)" --location="$3" --project="$4" | grep -q "ENABLED" ; then
+  if gcloud privateca "${1}" describe "${2}" --format "value(state)" --pool="${3}" --location="${4}" --project="${5}" | grep -q "ENABLED" ; then
     echo "> Disabling and deleting CA.."
-    gcloud beta privateca "$1" disable "$2" --location="$3" --project="$4" --quiet
+    gcloud privateca "${1}" disable "${2}" --pool="${3}" --location="${4}" --project="${5}" --quiet
     # As suggested in
     # https://buganizer.corp.google.com/issues/179162450#comment10, delete root
-    # CA with the curl command instead of calling `gcloud beta privateca roots
-    # delete`
-    if [[ "$4" == "${SHARED_GCP_PROJECT}" ]]; then
-      curl \
-        -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-        -H "Content-Type: application/json" \
-        -X POST \
-        -d '{ "deletePendingDuration": "0s" }' \
-        "https://privateca.googleapis.com/v1beta1/projects/$4/locations/$3/certificateAuthorities/$2:scheduleDelete?requestId=$(uuid)"
-    else
-      gcloud beta privateca "$1" delete "$2" --location="$3" --project="$4" --quiet
-    fi
+    # CA with the curl command instead of calling `gcloud beta privateca roots delete`
+
+    curl \
+      -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+      -H "Content-Type: application/json" \
+      -X DELETE \
+      "https://privateca.googleapis.com/v1/projects/$5/locations/$4/caPools/$3/certificateAuthorities/$2?requestId=$(uuid)&deletePendingDuration=0s&ignoreActiveCertificates=true"
+
   fi
+}
+
+# Purge the CA Pool.
+# Parameters: $1 - The CA pool name
+#             $2 - location
+#             $3 - project ID
+function purge-ca-pool() {
+    echo "deleting CA Pool '$1'."
+    curl \
+      -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+      -H "Content-Type: application/json" \
+      -X DELETE \
+      "https://privateca.googleapis.com/v1/projects/$3/locations/$2/caPools/$1?requestId=$(uuid)&forceDelete=true"
 }
 
 # Install ASM on the clusters.

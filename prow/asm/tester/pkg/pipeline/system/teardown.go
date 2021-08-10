@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
@@ -27,16 +28,18 @@ import (
 func Teardown(settings *resource.Settings) error {
 	log.Println("🎬 start cleaning up ASM control plane installation...")
 
-	if settings.ControlPlane == resource.Unmanaged {
-		if settings.ClusterType == resource.GKEOnGCP && settings.CA == resource.PrivateCA {
-			if err := exec.Dispatch(
-				settings.RepoRootDir,
-				"cleanup_private_ca",
-				nil); err != nil {
-				return err
-			}
+	if settings.ClusterType == resource.GKEOnGCP && settings.CA == resource.PrivateCA {
+		if err := exec.Dispatch(
+			settings.RepoRootDir,
+			"cleanup_private_ca",
+			[]string{
+				strings.Join(settings.KubeContexts, ","),
+			}); err != nil {
+			return err
 		}
+	}
 
+	if settings.ControlPlane == resource.Unmanaged {
 		cleanUpImages()
 	} else {
 		cleanUpImagesForManagedControlPlane()
