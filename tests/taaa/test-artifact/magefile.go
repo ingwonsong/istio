@@ -18,6 +18,7 @@ import (
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
+	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/git"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/gotest"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	"istio.io/istio/tests/taaa/test-artifact/internal/constants"
@@ -26,8 +27,10 @@ import (
 const (
 	// TODO(coryrc): fix taaa-project
 	//ImgPath  = "gcr.io/taaa-project/host/gke-internal/istio/istio/integration-tests"
-	ImgPath  = "gcr.io/gke-prow/gke-internal/istio/istio/integration-tests"
-	repoRoot = "../../../"
+	ImgPath    = "gcr.io/gke-prow/gke-internal/istio/istio/integration-tests"
+	repoRoot   = "../../../"
+	outPath    = "./out/"
+	outBinPath = outPath + "usr/bin/"
 )
 
 type Build mg.Namespace
@@ -43,11 +46,15 @@ func (Build) Artifact() error {
 // If this is your first time, please run Artifact at least once.
 // Then only run build:Entrypoint/Tests/TestImages depending on what you changed.
 func (Build) ArtifactNoDeps() error {
-	imgTag, err := gitDescribe()
+	imgTag, err := git.DescribeCWD()
 	if err != nil {
 		return err
 	}
-	err = sh.RunV("docker", "build", "--pull", "-t", ImgPath+":"+imgTag, "-f", "Dockerfile", "out")
+	err = sh.RunV("docker", "build",
+		"--pull",
+		"-t", ImgPath+":"+imgTag,
+		"-f", "Dockerfile",
+		outPath)
 	if err != nil {
 		return err
 	}
@@ -62,7 +69,7 @@ func (Build) ArtifactNoDeps() error {
 // This shouldn't be a serious problem.
 func (Build) Push(branchName string) error {
 	mg.Deps(Build.Artifact)
-	imgTag, err := gitDescribe()
+	imgTag, err := git.DescribeCWD()
 	if err != nil {
 		return err
 	}
@@ -79,15 +86,15 @@ func (Build) Push(branchName string) error {
 
 // Compile the entrypoint binary.
 func (Build) Entrypoint() error {
-	if err := os.MkdirAll("out/usr/bin", 0775); err != nil {
+	if err := os.MkdirAll(outBinPath, 0775); err != nil {
 		return err
 	}
-	return sh.Run("go", "build", "-o", "out/usr/bin/entrypoint", "./cmd/entrypoint")
+	return sh.Run("go", "build", "-o", outBinPath+"entrypoint", "./cmd/entrypoint")
 }
 
 // Compile the tests.
 func (Build) Tests() error {
-	if err := os.MkdirAll("out/usr/bin", 0775); err != nil {
+	if err := os.MkdirAll(outBinPath, 0775); err != nil {
 		return err
 	}
 	var wg sync.WaitGroup
@@ -97,7 +104,7 @@ func (Build) Tests() error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			name := fmt.Sprintf("out/usr/bin/%s.test", strings.ReplaceAll(intTest, "/", "_"))
+			name := fmt.Sprintf(outBinPath+"%s.test", strings.ReplaceAll(intTest, "/", "_"))
 			log.Printf("Compiling %s", name)
 			err := gotest.CompileTest(
 				name,
@@ -118,9 +125,6 @@ func (Build) TestImages() error {
 	if err := os.MkdirAll("out"+constants.RegistryDestinationDirectory, 0775); err != nil {
 		return err
 	}
-	if err := os.MkdirAll("out/var/lib", 0775); err != nil {
-		return err
-	}
 
 	dir, err := ioutil.TempDir("/tmp", "taaa-*")
 	if err != nil {
@@ -134,7 +138,7 @@ func (Build) TestImages() error {
 	}
 
 	// Define a tag for the images to use.
-	imageTag, err := gitDescribe()
+	imageTag, err := git.DescribeCWD()
 	if err != nil {
 		return err
 	}
@@ -174,16 +178,21 @@ func (Build) TestImages() error {
 	if err != nil {
 		return fmt.Errorf("cannot archive %q: %v", dir, err)
 	}
-	configYml := "out" + constants.RegistryDestinationDirectory + "/config.yml"
-	err = exec.Command("rsync", outputDir+"/config.yml", configYml).Run()
+	outRegistryDir := "out" + constants.RegistryDestinationDirectory
+	configYml := outRegistryDir + "/config.yml"
+	err = sh.RunV("rsync", outputDir+"/config.yml", configYml)
 	if err != nil {
 		return err
 	}
-	err = exec.Command("rsync", outputDir+"/registry", "out/usr/bin/registry").Run()
+	err = sh.RunV("rsync", outputDir+"/registry", outRegistryDir+"/registry")
 	if err != nil {
 		return err
 	}
-	err = exec.Command("rsync", "-r", outputDir+"/varlibregistry/", "out/var/lib/registry").Run() // Trailing / is significant.
+	varLibRegistryDir := outPath + "var/lib/registry"
+	if err := os.MkdirAll(varLibRegistryDir, 0775); err != nil {
+		return err
+	}
+	err = sh.RunV("rsync", "--delete", "-r", outputDir+"/varlibregistry/", varLibRegistryDir) // Trailing / is significant.
 	if err != nil {
 		return err
 	}
@@ -206,15 +215,4 @@ func logWriter(out io.Writer) io.WriteCloser {
 		}
 	}()
 	return w
-}
-
-var describe string
-
-func gitDescribe() (string, error) {
-	if describe != "" {
-		return describe, nil
-	}
-	var err error
-	describe, err = sh.Output("git", "describe", "--match", "^$", "--dirty", "--always")
-	return describe, err
 }

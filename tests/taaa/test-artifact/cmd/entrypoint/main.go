@@ -11,18 +11,16 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/magefile/mage/sh"
 	"github.com/spf13/cobra"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/entrypoint"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm"
-	k8spb "gke-internal.git.corp.google.com/taaa/protobufs.git/k8sbase"
 	"istio.io/istio/tests/taaa/test-artifact/internal/constants"
 )
 
 func main() {
 	entrypoint.RunCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		m := asmpb.ASM{}
+		m := &asmpb.ASM{}
 		if err := entrypoint.ReadProto(m); err != nil {
 			return err
 		}
@@ -36,7 +34,7 @@ func main() {
 
 		var kubeconfigs []string
 		for _, cluster := range clusters {
-			k, err := getKubeConfig(cluster.GetClusterInformation())
+			k, err := entrypoint.GetKubeConfig(cluster.GetClusterInformation())
 			if err != nil {
 				return err
 			}
@@ -50,6 +48,7 @@ func main() {
 		// Upload test images.
 		// ASM tests use the flags "--istio.test.tag" and "--istio.test.hub" to find images.
 		istioTestHub := fmt.Sprintf("gcr.io/%s/asm-test-images", project)
+		log.Println("Starting registry server.")
 		server, err := registry.StartRegistry(constants.RegistryDestinationDirectory)
 		if err != nil {
 			return fmt.Errorf("cannot start registry server: %v", err)
@@ -57,6 +56,7 @@ func main() {
 		if err := server.CopyOut(istioTestHub); err != nil {
 			return fmt.Errorf("cannot copy out images from registry server: %v", err)
 		}
+		log.Println("Shutting down registry server.")
 		if err := server.Shutdown(); err != nil {
 			log.Printf("Warning: registry cannot be killed, might want to figure out why, error %v", err)
 		}
@@ -119,28 +119,4 @@ func main() {
 		return nil
 	}
 	entrypoint.Execute()
-}
-
-func getKubeConfig(cred *k8spb.CredentialRequirements) (string, error) {
-	cluster, project := cred.GetCluster(), cred.GetProject()
-	if cluster == "" || project == "" {
-		return "", fmt.Errorf("cluster or project is blank; c: %q; p: %q", cluster, project)
-	}
-	gcloudCredentialArgs := []string{"container", "clusters", "get-credentials", cluster, "--project=" + project}
-	if cred.GetRegion() != "" {
-		gcloudCredentialArgs = append(gcloudCredentialArgs, "--region="+cred.GetRegion())
-	} else {
-		gcloudCredentialArgs = append(gcloudCredentialArgs, "--zone="+cred.GetZone())
-	}
-	env := make(map[string]string)
-	if cred.EndpointOverride != "" {
-		env["CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"] = cred.EndpointOverride
-	}
-	ret := "/tmp/kubeconfig-" + cluster
-	env["KUBECONFIG"] = ret
-	err := sh.RunWithV(env, "gcloud", gcloudCredentialArgs...)
-	if err != nil {
-		return "", err
-	}
-	return ret, nil
 }

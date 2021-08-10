@@ -9,6 +9,6 @@ RUN apk add --no-cache jq coreutils && \
     rm -rf /var/cache/apk/*
 RUN gcloud components install --quiet kpt kubectl
 
-COPY * /
+COPY ./ /
 
 ENTRYPOINT ["entrypoint"]
