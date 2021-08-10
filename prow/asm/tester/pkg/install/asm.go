@@ -251,16 +251,78 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	return installFlags
 }
 
-func (c *installer) installASMOnProxiedClusters() error {
-	return exec.Dispatch(
-		c.settings.RepoRootDir,
-		"install_asm_on_proxied_clusters",
-		nil,
-		exec.WithAdditionalEnvs([]string{
-			fmt.Sprintf("HTTP_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
-			fmt.Sprintf("HTTPS_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
-		}),
+// generateASMMultiCloudInstallFlags returns the flags required when running the install
+// script to install ASM on multi cloud.
+func generateASMMultiCloudInstallFlags(settings *resource.Settings, kubeconfig string) []string {
+	var installFlags []string
+	installFlags = append(installFlags, "install",
+		"--kubeconfig", kubeconfig,
+		"--fleet_id", "tailorbird",
+		"--platform", "multicloud",
+		"--service-account", "prow-gob-storage@istio-prow-build.iam.gserviceaccount.com",
+		"--key-file", "/etc/service-account/service-account.json",
+		"--enable-all",
+		"--verbose",
 	)
+	ca := settings.CA
+	if ca == resource.MeshCA {
+		installFlags = append(installFlags,
+			"--ca", "mesh_ca",
+		)
+	} else {
+		installFlags = append(installFlags,
+			"--ca", "citadel",
+		)
+	}
+	return installFlags
+}
+
+func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
+	if c.settings.UseASMCLI {
+		kubeconfigs := strings.Split(c.settings.Kubeconfig, ",")
+		log.Println("Downloading ASM script for the installation...")
+		scriptPath, err := downloadInstallScript(c.settings, rev)
+		if err != nil {
+			return fmt.Errorf("failed to download the install script: %w", err)
+		}
+
+		// Use the first project as the environ name
+		// must do this here because each installation depends on the value
+		environProjectNumber, err := exec.RunWithOutput(fmt.Sprintf(
+			"gcloud projects describe %s --format=\"value(projectNumber)\"",
+			"tailorbird"))
+		if err != nil {
+			return fmt.Errorf("failed to read environ number: %w", err)
+		}
+		os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
+
+		for _, kubeconfig := range kubeconfigs {
+			kubeconfigLogger := log.New(os.Stdout,
+				fmt.Sprintf("[kubeconfig: %s] ", kubeconfig), log.Ldate|log.Ltime)
+			kubeconfigLogger.Println("Performing ASM installation...")
+
+			kubeconfigLogger.Println("Running installation using install script...")
+			if err := exec.Run(scriptPath,
+				exec.WithAdditionalEnvs(generateASMInstallEnvvars(c.settings, rev, "")),
+				exec.WithAdditionalEnvs([]string{
+					fmt.Sprintf("HTTPS_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
+				}),
+				exec.WithAdditionalArgs(generateASMMultiCloudInstallFlags(c.settings, kubeconfig))); err != nil {
+				return fmt.Errorf("ASM installation using script failed: %w", err)
+			}
+		}
+		return nil
+	} else {
+		return exec.Dispatch(
+			c.settings.RepoRootDir,
+			"install_asm_on_proxied_clusters",
+			nil,
+			exec.WithAdditionalEnvs([]string{
+				fmt.Sprintf("HTTP_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
+				fmt.Sprintf("HTTPS_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
+			}),
+		)
+	}
 }
 
 func (c *installer) installASMOnMulticloud() error {
