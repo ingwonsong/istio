@@ -16,4 +16,3 @@ defaultConfig:
 
   meshId: "proj-{{.ProjectNumber}}"
   discoveryAddress: "{{.XDSAddr}}"
-  tracing: {}
