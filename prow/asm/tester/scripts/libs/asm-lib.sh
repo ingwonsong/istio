@@ -70,12 +70,18 @@ function prepare_images() {
 
 # Prepare images (istiod, proxyv2) required for the managed control plane e2e test.
 # Depends on env var ${HUB} and ${TAG}
+# If testing addon migration, addon-migration job will be built as well.
 function prepare_images_for_managed_control_plane() {
+  local FEATURE_TO_TEST=${1:-};
+  local DOCKER_TARGETS="docker.cloudrun docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp"
+  if [[ "${FEATURE_TO_TEST}" == "ADDON" ]];then
+    DOCKER_TARGETS="${DOCKER_TARGETS} docker.addon-migration"
+  fi
   buildx-create
   # Configure Docker to authenticate with Container Registry.
   gcloud auth configure-docker
   # Build images from the current branch and push the images to gcr.
-  HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.cloudrun docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp" make dockerx.pushx
+  HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="${DOCKER_TARGETS}" make dockerx.pushx
 }
 
 # Build istioctl in the current branch to install ASM.

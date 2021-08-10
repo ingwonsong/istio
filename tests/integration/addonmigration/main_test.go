@@ -18,15 +18,19 @@
 package addonmigration
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
+	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/env"
@@ -36,11 +40,19 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo/util/traffic"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
+	"istio.io/istio/pkg/test/framework/image"
 	"istio.io/istio/pkg/test/framework/label"
-	"istio.io/istio/pkg/util/istiomultierror"
+	"istio.io/istio/pkg/test/kube"
+	"istio.io/istio/pkg/test/util/retry"
+	"istio.io/istio/pkg/test/util/tmpl"
 	"istio.io/istio/tests/integration/security/util"
 	"istio.io/istio/tests/integration/security/util/connection"
 	"istio.io/pkg/log"
+)
+
+const (
+	migrationStateConfigMap = "asm-addon-migration-state"
+	migrationSuccessState   = "SUCCESS"
 )
 
 var inst istio.Instance
@@ -269,25 +281,29 @@ spec:
 			}).Start()
 
 			t.Logf("starting migration")
-
-			c := exec.Command(filepath.Join(env.IstioSrc, "tools/packaging/knative/migrate-addon.sh"), "-y", "-z", "--command", "run-all")
-			c.Stdout = loggingWriter{}
-			c.Stderr = loggingWriter{}
-			if err := c.Run(); err != nil {
-				t.Fatal(err)
+			// replace with deploy migration job
+			bt, err := ioutil.ReadFile("testdata/migration_deployment.yaml")
+			if err != nil {
+				t.Fatalf("failed to read migration job yaml: %v", err)
+			}
+			cls, err := image.SettingsFromCommandLine()
+			if err != nil {
+				t.Fatalf("failed to get settings from CLI: %v", err)
+			}
+			md := tmpl.EvaluateOrFail(t, string(bt), map[string]string{"HUB": cls.Hub, "TAG": cls.Tag})
+			if err := t.ConfigIstio().ApplyYAMLNoCleanup("istio-system", md); err != nil {
+				t.Fatalf("failed to apply migration job manifest: %v", err)
+			}
+			defer dumpMigrationJobPod(t)
+			cs := t.Clusters().Default()
+			_, err = kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(cs, "istio-system", "istio=addon-migration"))
+			if err != nil {
+				t.Fatalf("migration pod not ready: %v", err)
 			}
 
-			t.Logf("migrating namespace to MCP")
-			if err := multierror.Append(istiomultierror.New(),
-				// nolint: staticcheck
-				migration14Namespace.SetLabel("istio.io/rev", t.Settings().Revision),
-				migration14Namespace.RemoveLabel("istio-injection")).ErrorOrNil(); err != nil {
-				t.Fatal(err)
-			}
-			// nolint: staticcheck
-			if err := migration16Namespace.SetLabel("istio.io/rev", t.Settings().Revision); err != nil {
-				t.Fatal(err)
-			}
+			// check the configMap for success status to make sure auto migration is done
+			verifyMigrationStateCM(t, t.Clusters().Default(), migrationSuccessState)
+
 			for _, i := range migration14 {
 				if err := i.Restart(); err != nil {
 					t.Fatal(err)
@@ -367,7 +383,7 @@ spec:
 				Interval: 200 * time.Millisecond,
 			}).Start()
 			// Check cleanup
-			c = exec.Command(filepath.Join(env.IstioSrc, "tools/packaging/knative/migrate-addon.sh"), "-y", "--command", "cleanup")
+			c := exec.Command(filepath.Join(env.IstioSrc, "tools/packaging/knative/migrate-addon.sh"), "-y", "--command", "cleanup")
 			c.Stdout = loggingWriter{}
 			c.Stderr = loggingWriter{}
 			if err := c.Run(); err != nil {
@@ -383,6 +399,30 @@ spec:
 			})
 			// TODO: delete ca-secrets/amend meshConfig to remove trustanchors and ensure that traffic from the 1.4 workloads stops
 		})
+}
+
+// verifyMigrationStateCM verifies the migration state configMap
+// TODO(iamwen): add check for migratedNamespace fields of the CM, currently only checks for migrationStatus
+func verifyMigrationStateCM(t framework.TestContext, a kubernetes.Interface, expectedStatus string) {
+	retry.UntilSuccessOrFail(t, func() error {
+		t.Log("Checking migration status configMap...")
+		fetched, err := a.CoreV1().ConfigMaps("istio-system").Get(context.TODO(), migrationStateConfigMap, v1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		data := fetched.Data
+		if status, ok := data["migrationStatus"]; ok && status == expectedStatus {
+			t.Log("verified migration state configMap")
+			return nil
+		}
+		msg := fmt.Sprintf("got unexpected migrationStatus: %v", data["migrationStatus"])
+		t.Log(msg)
+		return fmt.Errorf(msg)
+	}, retry.Timeout(time.Minute*12), retry.BackoffDelay(time.Second*1))
+}
+
+func dumpMigrationJobPod(t framework.TestContext) {
+	kube.DumpPods(t, t.CreateTmpDirectoryOrFail("addon-migration"), constants.IstioSystemNamespace, []string{"k8s-app=addon-migration"})
 }
 
 func TestMain(t *testing.M) {

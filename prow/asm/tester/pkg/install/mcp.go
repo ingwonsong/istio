@@ -28,6 +28,9 @@ import (
 )
 
 func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
+	if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
+		c.settings.UseASMCLI = true
+	}
 	contexts := c.settings.KubeContexts
 
 	log.Println("Downloading ASM script for the installation...")
@@ -63,6 +66,14 @@ func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
 			if err := exec.Run(fmt.Sprintf("bash -c 'kubectl --context=%s get cm istio -n istio-system -o yaml | sed \"s/accessLogFile\\:.*$/accessLogFile\\: \\/dev\\/stdout/g\" | kubectl replace -f -'", context)); err != nil {
 				return fmt.Errorf("error enabling access logs for testing with Addon: %w", err)
 			}
+			extraFlags := generateMCPInstallFlags(c.settings, cluster)
+			extraFlags = append(extraFlags, "--only_enable")
+			if err := exec.Run(scriptPath,
+				exec.WithAdditionalArgs(extraFlags)); err != nil {
+				return fmt.Errorf("setup prerequsite failed: %w", err)
+			}
+			contextLogger.Println("Running asmcli to enable prerequisites only, use migration tool to perform install instead")
+			return nil
 		}
 
 		contextLogger.Println("Running installation using install script...")

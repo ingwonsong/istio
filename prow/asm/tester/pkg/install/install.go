@@ -71,8 +71,12 @@ func (c *installer) preInstall(rev *revision.Config) error {
 				return err
 			}
 		} else {
+			var args []string
+			if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
+				args = append(args, string(resource.Addon))
+			}
 			if err := exec.Dispatch(c.settings.RepoRootDir,
-				"prepare_images_for_managed_control_plane", nil); err != nil {
+				"prepare_images_for_managed_control_plane", args); err != nil {
 				return err
 			}
 		}

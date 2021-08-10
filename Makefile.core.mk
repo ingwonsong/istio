@@ -284,6 +284,7 @@ STANDARD_BINARIES:=./istioctl/cmd/istioctl \
   ./cni/cmd/install-cni \
   ./tools/istio-iptables \
   ./mdp/controller/cmd/mdp \
+  ./tools/packaging/knative/addonmigration \
   ./tools/bug-report
 BINARIES:=$(STANDARD_BINARIES) $(AGENT_BINARIES)
 

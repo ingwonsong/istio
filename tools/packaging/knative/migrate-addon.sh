@@ -51,6 +51,9 @@ SKIP_CONFIRM=""
 CONTEXT=""
 SUB_COMMAND=""
 ZERO_DOWNTIME=""
+# SUCCESS represents the state when migration is complete
+SUCCESS="SUCCESS"
+
 # Setup colors, only if its a terminal
 if [[ -t 1 ]]; then
   blue='\x1B[0;34m'
@@ -469,7 +472,7 @@ spec:
         istio: ingressgateway
         app: istio-ingressgateway
         release: istio
-        istio.io/rev: asm-managed-rapid
+        istio.io/rev: asm-managed
     spec:
       serviceAccountName: asm-ingressgateway
       containers:
@@ -532,12 +535,12 @@ rollback_gateway() {
 replace_webhook() {
   prompt "Configuring sidecar injection to use Anthos Service Mesh by default..."
   kube patch mutatingwebhookconfigurations istio-sidecar-injector --type=json -p='[{"op": "replace", "path": "/webhooks"}]'
-  ${ISTIOCTL_BIN} x revision tag set default --revision=asm-managed-rapid --overwrite
+  ${ISTIOCTL_BIN} x revision tag set default --revision=asm-managed --overwrite
   echo -e "${green}OK${clr}"
 }
 
 write_marker() {
-  local STATUS; STATUS="${1:-COMPLETE}"
+  local STATUS; STATUS="${1:-${SUCCESS}}"
 
   heading "Current migration state: ${STATUS}"
   cat <<EOF | kube apply -f -
@@ -738,7 +741,7 @@ cleanup() {
   # TODO: ensure migration is complete, nothing is using addon, and the addon is not installed before proceeding
   heading "Cleaning up old resources..."
   STATE="$(kube get cm -n istio-system asm-addon-migration-state -ojsonpath='{.data.migrationStatus}' || true)"
-  if [[ "${STATE}" != "COMPLETE" ]]; then
+  if [[ "${STATE}" != "${SUCCESS}" ]]; then
     die "Migration must be completed before --cleanup can run"
   fi
   found=()
@@ -778,6 +781,54 @@ arg_required() {
   fi
 }
 
+# TODO(iamwen)
+rollback_all() {
+  heading "Start rolling back to Istio addon"
+  MG_STATE="$(kube get cm -n istio-system asm-addon-migration-state -ojsonpath='{.data.migrationStatus}' || true)"
+  if [[ -z "${MG_STATE}" ]]; then
+    die "There was no prior migration effort, skip rollback"
+  fi
+  # rollback webook
+  cat <<EOF | kube apply -f -
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  labels:
+    addonmanager.kubernetes.io/mode: EnsureExists
+    app: sidecarInjectorWebhook
+    chart: sidecarInjectorWebhook
+    heritage: Tiller
+    k8s-app: istio
+    release: istio
+  name: istio-sidecar-injector
+webhooks:
+- clientConfig:
+    caBundle: ""
+    service:
+      name: istio-sidecar-injector
+      namespace: istio-system
+      path: /inject
+  failurePolicy: Fail
+  name: sidecar-injector.istio.io
+  namespaceSelector:
+    matchLabels:
+      istio-injection: enabled
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - pods
+EOF
+  kube delete mutatingwebhookconfigurations/istio-revision-tag-default || true
+  rollback_mesh_ca
+  rollback_gateway
+  enable_galley_webhook
+}
+
 run_all() {
   check_prerequisites
   print_intro
@@ -789,7 +840,8 @@ run_all() {
     configure_mesh_ca
   fi
   replace_gateway
-  write_marker "COMPLETE"
+  replace_webhook
+  write_marker ${SUCCESS}
   # replace_webook and cleanup are invoked seperately and needed for completion
   print_restart_instructions
 }

@@ -1,0 +1,22 @@
+# Version is the base image version from the TLD Makefile
+ARG BASE_VERSION=latest
+
+# The following section is used as base image if BASE_DISTRIBUTION=debug
+FROM gcr.io/istio-release/base:${BASE_VERSION} as debug
+
+ENV WD=/usr/local/bin
+# hadolint ignore=SC2046
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+RUN mv ./kubectl $WD
+RUN chmod +x $WD/kubectl
+
+ARG TARGETARCH
+COPY ${TARGETARCH:-amd64}/istioctl /usr/local/bin/istioctl
+COPY ${TARGETARCH:-amd64}/addonmigration $WD/addon-migration
+COPY migrate-addon.sh $WD/migrate-addon
+COPY migration_cluster_list.yaml $WD/migration_cluster_list.yaml
+# this source is optional
+# COPY *rollback_cluster_list.yaml $WD/rollback_cluster_list.yaml
+
+WORKDIR $WD
+ENTRYPOINT ["./addon-migration"]

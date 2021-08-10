@@ -23,7 +23,7 @@ docker.app_sidecar_ubuntu_bionic docker.app_sidecar_ubuntu_focal docker.app_side
 docker.app_sidecar_debian_10 docker.app_sidecar_centos_8 docker.app_sidecar_centos_7 \
 docker.mdp \
 docker.istioctl docker.operator docker.install-cni docker.cloudrun docker.vaultclient \
-docker.cloudesf
+docker.addon-migration docker.cloudesf \
 
 ### Docker commands ###
 # Below provides various commands to build/push docker images.
@@ -275,8 +275,16 @@ build.docker.vaultclient: security/docker/Dockerfile.vaultclient
 
 # MDP controller
 build.docker.mdp: mdp/docker/Dockerfile.mdp
-build.docker.mdp: BUILD_PRE=
 build.docker.mdp: $(ISTIO_OUT_LINUX)/mdp
+	$(DOCKER_RULE)
+
+# addon auto migration
+build.docker.addon-migration: tools/packaging/knative/migrate-addon.sh
+build.docker.addon-migration: tools/packaging/knative/addonmigration/migration_cluster_list.yaml
+# add rollback_cluster_list.yaml when needed
+build.docker.addon-migration: $(ISTIO_OUT_LINUX)/addonmigration
+build.docker.addon-migration: $(ISTIO_OUT_LINUX)/istioctl
+build.docker.addon-migration: tools/packaging/knative/addonmigration/Dockerfile.addon-migration
 	$(DOCKER_RULE)
 
 ### Base images ###

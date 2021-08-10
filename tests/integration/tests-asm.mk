@@ -81,7 +81,7 @@ test.integration.asm.meshca-migration: | $(JUNIT_REPORT)
 # Custom test target for Istio on GKE to MCP with Mesh CA migration
 .PHONY: test.integration.asm.addon-migration
 test.integration.asm.addon-migration: | $(JUNIT_REPORT)
-	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/security/addon_migration/... -timeout 30m \
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/addonmigration/... -timeout 30m \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
