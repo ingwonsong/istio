@@ -1,0 +1,16 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-ingressgateway
+spec:
+  components:
+    ingressGateways:
+    - enabled: true
+      name: istio-ingressgateway
+      namespace: istio-system
+  profile: empty
+  revision: asm-managed-rapid
+  values:
+    gateways:
+      istio-ingressgateway:
+        injectionTemplate: gateway

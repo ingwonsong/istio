@@ -1,0 +1,31 @@
+Generating equivalent configuration for Anthos Service Mesh managed control plane...
+
+Migrating MeshConfig settings...
+✔ Wrote MeshConfig to output-path/meshconfig.yaml.
+
+Migrating gateway deployments...
+✔ Wrote Gateway to output-path/gateways-istiooperator/istio-ingressgateway.yaml
+✔ Wrote Gateway to output-path/gateways-kubernetes/istio-ingressgateway.yaml
+
+Checking configuration compatibility...
+✔ No incompatible configuration detected
+
+Actions required to migrate:
+- Found custom mesh configuration settings. To apply these settings to ASM managed control plane, run: `kubectl apply -f 'output-path/meshconfig.yaml'`
+- Found 1 gateway deployments. There are two options available to deploy these to ASM managed control plane. Both options will provide the same end result:
+
+(1) Simple Kubernetes Configuration (recommended)
+
+This option contains all of the standard Kubernetes configution, such as Deployment and Services, to deploy a gateway.
+If you want to modify the configuration in the future, you can modify these configurations directly.
+To deploy these to the cluster, run `kubectl apply -f 'output-path/gateways-kubernetes'` after installing ASM managed control plane.
+
+(2) Continue to use IstioOperator
+
+If you would prefer to continue to use the same IstioOperator API, you may continue to do so.
+The 'output-path/gateways-istiooperator' directory contains an IstioOperator per configured gateway. These have been modified to be compatible with ASM managed control plane.
+To deploy these to the cluster, run, for each gateway, one of the following commands:
+- `istioctl install -f 'output-path/gateways-istiooperator/GATEWAY_NAME.yaml'`
+- `istioctl manifest generate -f 'output-path/gateways-istiooperator/GATEWAY_NAME.yaml' | kubectl apply -f -`
+
+TIP: steps recommending `kubectl apply` to be run should be integrated into your CI/CD pipeline, if applicable.

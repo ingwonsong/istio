@@ -1,0 +1,31 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-egressgateway
+spec:
+  components:
+    ingressGateways:
+    - enabled: true
+      k8s:
+        nodeSelector:
+          cloud.google.com/gke-nodepool: gateway
+        service:
+          ports:
+          - name: redis-tls
+            port: 6378
+            targetPort: 6378
+        tolerations:
+        - key: dedicated
+          operator: Equal
+          value: gateway
+      label:
+        istio: egress
+      name: istio-egressgateway
+      namespace: istio-egress
+  profile: empty
+  revision: asm-managed-rapid
+  values:
+    gateways:
+      istio-egressgateway:
+        injectionTemplate: gateway
+    global: {}

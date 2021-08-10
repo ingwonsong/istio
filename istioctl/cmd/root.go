@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"istio.io/istio/istioctl/cmd/asm"
 	"istio.io/istio/istioctl/pkg/install"
 	"istio.io/istio/istioctl/pkg/multicluster"
 	"istio.io/istio/istioctl/pkg/validate"
@@ -280,6 +281,10 @@ debug and diagnose their Istio mesh.
 	rootCmd.AddCommand(remoteClustersCmd)
 	experimentalCmd.AddCommand(remoteSecretCmd)
 	experimentalCmd.AddCommand(remoteClustersCmd)
+
+	asmCmd := asm.Cmd()
+	hideInheritedFlags(asmCmd, "namespace", "istioNamespace", "charts")
+	rootCmd.AddCommand(asmCmd)
 
 	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, &doc.GenManHeader{
 		Title:   "Istio Control",

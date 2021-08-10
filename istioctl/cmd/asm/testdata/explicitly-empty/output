@@ -1,0 +1,13 @@
+Generating equivalent configuration for Anthos Service Mesh managed control plane...
+
+Migrating gateway deployments...
+
+Checking configuration compatibility...
+! Found unsupported configurations:
+    Components.Base: not configurable in managed control plane
+    Components.Pilot: not configurable in managed control plane
+
+Actions required to migrate:
+! Found potentially unsupported configurations; review warnings above before proceeding
+
+TIP: steps recommending `kubectl apply` to be run should be integrated into your CI/CD pipeline, if applicable.

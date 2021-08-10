@@ -1,0 +1,91 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+  name: istio-controlplane
+spec:
+  addonComponents:
+  meshConfig:
+    accessLogFile: /dev/stdout
+    accessLogEncoding: JSON
+    enableAutoMtls: true
+    enableTracing: true
+    enablePrometheusMerge: true #default, but explicitely here
+    defaultConfig:
+      holdApplicationUntilProxyStarts: true
+      tracing:
+        sampling: 100
+      proxyMetadata:
+        DD_TRACE_ANALYTICS_ENABLED: "true"
+  components:
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: false
+    pilot:
+      k8s:
+        podAnnotations:
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          apm.datadoghq.com/env: '{ "DD_ENV": "nonprod", "DD_TRACE_ANALYTICS_ENABLED": "true" }'
+        resources:
+          limits:
+            cpu: "4"
+            memory: 4Gi
+          requests:
+            cpu: "1000m"
+            memory: "512Mi"
+        hpaSpec:
+          maxReplicas: 10
+          minReplicas: 2
+        podDisruptionBudget:
+          minAvailable: 1
+        nodeSelector:
+          istio-nodepool: "true"
+        tolerations:
+          - effect: NoSchedule
+            key: istio
+            operator: Equal
+            value: "true"
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                      - key: istio
+                        operator: In
+                        values:
+                          - pilot
+                  topologyKey: failure-domain.beta.kubernetes.io/zone
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: istio
+                      operator: In
+                      values:
+                        - pilot
+                topologyKey: kubernetes.io/hostname
+        overlays:
+          - kind: Deployment
+            name: istiod-asm-1102-3-citadel
+            patches:
+              - path: spec.template.spec.hostAliases
+                value:
+                  - hostnames:
+                    - example.com
+                    ip: 1.2.3.4
+  values:
+    global:
+      defaultNodeSelector:
+        istio-nodepool: "true"
+      defaultTolerations:
+        - effect: NoSchedule
+          key: istio
+          operator: Equal
+          value: "true"
+      logAsJson: true
+      priorityClassName: common-critical
+      logging:
+        level: all:warn
+      proxy:
+        tracer: datadog

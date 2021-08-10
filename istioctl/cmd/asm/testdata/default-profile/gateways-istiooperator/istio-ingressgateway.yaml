@@ -1,0 +1,49 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-ingressgateway
+spec:
+  components:
+    ingressGateways:
+    - enabled: true
+      name: istio-ingressgateway
+      namespace: istio-system
+  profile: empty
+  revision: asm-managed-rapid
+  values:
+    gateways:
+      istio-egressgateway:
+        autoscaleEnabled: true
+        env: {}
+        name: istio-egressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/egressgateway-certs
+          name: egressgateway-certs
+          secretName: istio-egressgateway-certs
+        - mountPath: /etc/istio/egressgateway-ca-certs
+          name: egressgateway-ca-certs
+          secretName: istio-egressgateway-ca-certs
+        type: ClusterIP
+        zvpn: {}
+      istio-ingressgateway:
+        autoscaleEnabled: true
+        env: {}
+        injectionTemplate: gateway
+        name: istio-ingressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/ingressgateway-certs
+          name: ingressgateway-certs
+          secretName: istio-ingressgateway-certs
+        - mountPath: /etc/istio/ingressgateway-ca-certs
+          name: ingressgateway-ca-certs
+          secretName: istio-ingressgateway-ca-certs
+        type: LoadBalancer
+        zvpn: {}
+    global:
+      defaultNodeSelector: {}
+      defaultPodDisruptionBudget:
+        enabled: true
+      defaultResources:
+        requests:
+          cpu: 10m
+      priorityClassName: ""

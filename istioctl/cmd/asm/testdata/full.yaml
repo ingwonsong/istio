@@ -1,0 +1,74 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  meshConfig:
+    trustDomain: "custom"
+    defaultConfig:
+      proxyMetadata:
+        CUSTOM: value
+        XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
+        CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
+        OUTPUT_CERTS: /etc/istio/proxy
+        XDS_AUTH_PROVIDER: "gcp"
+        PROXY_CONFIG_XDS_AGENT: "true"
+      meshId: "custom"
+      discoveryAddress: "my-address:1234"
+      configPath: "why-would-you-set-this"
+  components:
+    cni:
+      enabled: true
+    ingressGateways:
+    - name: "custom-gw"
+      enabled: true
+      namespace: "custom"
+      label:
+        istio: "custom"
+      k8s:
+        service:
+          ports:
+          - name: redis-tls
+            port: 6378
+            targetPort: 6378
+        tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "gateway"
+        nodeSelector:
+          cloud.google.com/gke-nodepool: "gateway"
+    - name: "custom-gw-2"
+      enabled: true
+    egressGateways:
+    - name: "istio-egressgateway"
+      enabled: true
+      namespace: "istio-egress"
+      label:
+        istio: "egress"
+      k8s:
+        service:
+          ports:
+          - name: redis-tls
+            port: 6378
+            targetPort: 6378
+        tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "gateway"
+        nodeSelector:
+          cloud.google.com/gke-nodepool: "gateway"
+  hub: h2
+  tag: t2
+  revision: rev
+  values:
+    revision: rev2
+    istio_cni:
+      enabled: true
+    cni:
+      hub: custom-hub
+    global:
+      istioNamespace: bar
+      hub: h1
+      tag: t1
+    gateways:
+      istio-egressgateway:
+        # Enable gateway injection
+        injectionTemplate: gateway
