@@ -145,7 +145,7 @@ const (
 	Addon                     Feature = "ADDON"
 	PrivateClusterUnrestrictedAccess            Feature = "PRIVATE_CLUSTER_UNRESTRICTED_ACCESS"
 	PrivateClusterLimitedAccess     Feature = "PRIVATE_CLUSTER_LIMITED_ACCESS"
-	PrivateClusterNoAccess Feature = "PRIVATE_CLUSTER_AND_ENDPOINT"
+	PrivateClusterNoAccess Feature = "PRIVATE_CLUSTER_NO_ACCESS"
 	CNI                       Feature = "CNI"
 )
 

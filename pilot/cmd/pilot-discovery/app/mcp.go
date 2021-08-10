@@ -352,7 +352,15 @@ func constructKubeConfigFile(project, location, cluster string) error {
 	if cl == nil {
 		return fmt.Errorf("exceeded retry budget fetching cluster: %v", err)
 	}
-
+	publicEndpoint := cl.Endpoint
+	// For private cluster with public endpoint disabled, the default API server endpoint
+	// is a private IP address.
+	// https://cloud.google.com/kubernetes-engine/docs/concepts/private-cluster-concept#overview
+	// Replace the default Kubernetes API server endpoint (private endpoint),
+	// with its public endpoint.
+	if pcc := cl.GetPrivateClusterConfig(); pcc != nil {
+		publicEndpoint = pcc.PublicEndpoint
+	}
 	kubeConfig := fmt.Sprintf(`
 apiVersion: v1
 kind: Config
@@ -364,7 +372,7 @@ clusters:
   cluster:
     server: "https://%s"
     certificate-authority-data: "%s"
-`, cl.Endpoint, cl.MasterAuth.ClusterCaCertificate)
+`, publicEndpoint, cl.MasterAuth.ClusterCaCertificate)
 
 	log.Infof("Fetched cluster endpoint in %s: %v", time.Since(t0), cl.Endpoint)
 	if err := os.WriteFile("/tmp/kubeconfig.yaml", []byte(kubeConfig), 0o644); err != nil {
