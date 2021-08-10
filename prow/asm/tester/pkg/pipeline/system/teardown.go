@@ -37,18 +37,6 @@ func Teardown(settings *resource.Settings) error {
 			}
 		}
 
-		if settings.WIP == resource.HUBWorkloadIdentityPool && settings.ClusterType == resource.GKEOnGCP {
-			if err := exec.Dispatch(
-				settings.RepoRootDir,
-				"cleanup_hub_setup",
-				[]string{
-					settings.GCRProject,
-					settings.KubectlContexts,
-				}); err != nil {
-				return err
-			}
-		}
-
 		cleanUpImages()
 	} else {
 		cleanUpImagesForManagedControlPlane()

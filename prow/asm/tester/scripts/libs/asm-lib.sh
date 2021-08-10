@@ -128,28 +128,6 @@ function register_clusters_in_hub() {
   gcloud beta container hub memberships list --project="${GKEHUB_PROJECT_ID}"
 }
 
-# Revert the operations in register_clusters_in_hub.
-# Parameters: $1 - Hub host project
-#             $2 - a string of k8s contexts
-function cleanup_hub_setup() {
-  local GKEHUB_PROJECT_ID=$1
-  IFS="," read -r -a CONTEXTS <<< "$2"
-
-  local ENVIRON_PROJECT_NUMBER
-  ENVIRON_PROJECT_NUMBER=$(gcloud projects describe "${GKEHUB_PROJECT_ID}" --format="value(projectNumber)")
-  for i in "${!CONTEXTS[@]}"; do
-    IFS="_" read -r -a VALS <<< "${CONTEXTS[$i]}"
-    local PROJECT_ID=${VALS[1]}
-    local CLUSTER_NAME=${VALS[3]}
-    # Remove added IAM binding for Hub SA
-    if [[ "${PROJECT_ID}" != "${GKEHUB_PROJECT_ID}" ]]; then
-      gcloud projects remove-iam-policy-binding "${PROJECT_ID}" \
-        --member "serviceAccount:service-${ENVIRON_PROJECT_NUMBER}@gcp-sa-gkehub.iam.gserviceaccount.com" \
-        --role roles/gkehub.serviceAgent
-    fi
-  done
-}
-
 # Setup the private CAs.
 # Parameters: $1 - comma-separated string of k8s contexts
 function setup_private_ca() {

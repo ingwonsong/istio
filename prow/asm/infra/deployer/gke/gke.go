@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	name         = "gke"
+	name = "gke"
 
 	// These names correspond to the resources configured in
 	// https://gke-internal.googlesource.com/istio/test-infra-internal/+/refs/heads/master/boskos/config/resources.yaml
@@ -48,8 +48,8 @@ const (
 
 var (
 	retryableErrorPatterns = `.*does not have enough resources available to fulfill.*` +
-			`,.*only \d+ nodes out of \d+ have registered; this is likely due to Nodes failing to start correctly.*` +
-			`,.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*`
+		`,.*only \d+ nodes out of \d+ have registered; this is likely due to Nodes failing to start correctly.*` +
+		`,.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*`
 
 	baseFlags = []string{
 		"--machine-type=e2-standard-4",
@@ -437,7 +437,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 	}
 	// Remove all projects that are currently associated with this host project.
 	associatedProjects, err := exec.Output(fmt.Sprintf("gcloud beta compute shared-vpc"+
-			" associated-projects list %s --format=value(RESOURCE_ID)", hostProject))
+		" associated-projects list %s --format=value(RESOURCE_ID)", hostProject))
 	if err != nil {
 		return "", fmt.Errorf("error getting the associated projects for %q: %w", hostProject, err)
 	}
@@ -451,7 +451,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 			// since the error says the project has already been dissociated.
 			// TODO(chizhg): enable the error check after figuring out the cause.
 			_ = exec.Run(fmt.Sprintf("gcloud beta compute shared-vpc"+
-					" associated-projects remove %s --host-project=%s", project, hostProject))
+				" associated-projects remove %s --host-project=%s", project, hostProject))
 		}
 	}
 
@@ -469,7 +469,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 	// with one host project, remove the association.
 	for _, sp := range serviceProjects {
 		associatedHostProject, err := exec.Output(fmt.Sprintf("gcloud beta compute shared-vpc"+
-				" get-host-project %s --format=value(name)", sp))
+			" get-host-project %s --format=value(name)", sp))
 		if err != nil {
 			return "", fmt.Errorf("error getting the associated host project for %q: %w", sp, err)
 		}
@@ -477,7 +477,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 		if associatedHostProjectStr != "" {
 			// TODO(chizhg): enable the error check after figuring out the cause.
 			_ = exec.Run(fmt.Sprintf("gcloud beta compute shared-vpc"+
-					" associated-projects remove %s --host-project=%s", sp, associatedHostProjectStr))
+				" associated-projects remove %s --host-project=%s", sp, associatedHostProjectStr))
 		}
 	}
 
