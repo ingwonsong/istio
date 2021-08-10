@@ -28,7 +28,6 @@ import (
 	"text/template"
 	"time"
 
-	"cloud.google.com/go/compute/metadata"
 	container "cloud.google.com/go/container/apiv1"
 	"github.com/Masterminds/sprig/v3"
 	"github.com/spf13/cobra"
@@ -717,9 +716,6 @@ func configureMCPLogs(p MCPParameters, options *log.Options) error {
 	// Setup variables required for logging
 	platform.GCPMetadata = fmt.Sprintf("%s|%s|%s|%s", p.Project, p.ProjectNumber, p.Cluster, p.Zone)
 	gcpmonitoring.TeeLogsToStackdriver = true
-	if pnum, err := metadata.NumericProjectID(); err == nil { // if NO error
-		platform.GCPQuotaProjectVar = pnum
-	}
 	loggingOpts := gcpmonitoring.ASMLogOptions(options)
 	return log.Configure(loggingOpts)
 }

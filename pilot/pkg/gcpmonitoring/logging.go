@@ -43,17 +43,12 @@ func ASMLogOptions(opts *log.Options) *log.Options {
 	if TeeLogsToStackdriver {
 		meta := platform.NewGCP().Metadata()
 		proj := meta[platform.GCPProject]
-		quotaProj := meta[platform.GCPQuotaProject]
 		loc := meta[platform.GCPLocation]
 		mesh := meshUID
 		if mesh == "" {
 			mesh = meshUIDFromPlatformMeta(meta)
 		}
-		if quotaProj != "" {
-			opts = opts.WithTeeToStackdriverWithQuotaProject(proj, quotaProj, "istiod", loggingMonitoredResource(proj, loc, mesh))
-		} else {
-			opts = opts.WithTeeToStackdriverWithQuotaProject(proj, proj, "istiod", loggingMonitoredResource(proj, loc, mesh))
-		}
+		opts = opts.WithTeeToStackdriver(proj, "istiod", loggingMonitoredResource(proj, loc, mesh))
 	}
 	return opts
 }

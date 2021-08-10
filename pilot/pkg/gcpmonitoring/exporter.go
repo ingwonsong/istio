@@ -118,12 +118,7 @@ func AuthenticateClient(gcpMetadata map[string]string) []option.ClientOption {
 		// Workload identity is enabled and P4SA access token is used.
 		if err == nil {
 			ts := tokenmanager.NewTokenSource(trustDomain, string(subjectToken), authScope)
-			clientOptions = append(clientOptions, option.WithTokenSource(ts))
-			if quotaProj := gcpMetadata[platform.GCPQuotaProject]; quotaProj != "" {
-				clientOptions = append(clientOptions, option.WithQuotaProject(quotaProj))
-			} else {
-				clientOptions = append(clientOptions, option.WithQuotaProject(gcpMetadata[platform.GCPProject]))
-			}
+			clientOptions = append(clientOptions, option.WithTokenSource(ts), option.WithQuotaProject(gcpMetadata[platform.GCPProject]))
 			// Set up goroutine to read token file periodically and refresh subject token with new expiry.
 			go func() {
 				for range time.Tick(5 * time.Minute) {
@@ -218,11 +213,6 @@ func newASMExporter(s sdExporterConfigs) (*ASMExporter, error) {
 		mr.ContainerName = "cr-" + managedRevisionVar.Get()
 	}
 	clientOptions := []option.ClientOption{}
-	if quotaProj := gcpMetadata[platform.GCPQuotaProject]; quotaProj != "" {
-		clientOptions = append(clientOptions, option.WithQuotaProject(quotaProj))
-	} else {
-		clientOptions = append(clientOptions, option.WithQuotaProject(gcpMetadata[platform.GCPProject]))
-	}
 	if !asm.IsCloudRun() {
 		clientOptions = AuthenticateClient(gcpMetadata)
 	}
