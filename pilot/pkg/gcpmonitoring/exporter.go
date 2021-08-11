@@ -151,7 +151,7 @@ func NewControlPlaneExporter() (*ASMExporter, error) {
 		labels:        labels,
 		metricsPrefix: cpMetricsPrefix,
 		containerName: istiodContainerName,
-		sdEnabled:     enableSDVar.Get(),
+		sdEnabled:     EnableSD,
 		sdViewMap:     cpViewMap,
 	}
 	return newASMExporter(s)
@@ -181,7 +181,7 @@ func NewCNIExporter(viewMap map[string]bool, vs string) (*ASMExporter, error) {
 		labels:        labels,
 		metricsPrefix: cniMetricsPrefix,
 		containerName: cniInstallContainerName,
-		sdEnabled:     enableSDVar.Get(),
+		sdEnabled:     EnableSD,
 		sdViewMap:     viewMap,
 	}
 	return newASMExporter(s)
@@ -236,6 +236,7 @@ func newASMExporter(s sdExporterConfigs) (*ASMExporter, error) {
 	if asm.IsCloudRun() {
 		return &ASMExporter{
 			sdExporter: se,
+			sdViewMap:  s.sdViewMap,
 		}, nil
 	}
 	return &ASMExporter{

@@ -29,8 +29,9 @@ var (
 	proxyVersionKey = tag.MustNewKey("proxy_version")
 	typeKey         = tag.MustNewKey("type")
 
-	enableSDVar = env.RegisterBoolVar("ENABLE_STACKDRIVER_MONITORING", false,
-		"controls whether to enable control plane stackdriver monitoring, specifiec by GCP profile")
+	// EnableSD will be overridden in pilot-discovery/mcp.go
+	EnableSD = env.RegisterBoolVar("ENABLE_STACKDRIVER_MONITORING", false,
+		"controls whether to enable control plane stackdriver monitoring, specifiec by GCP profile").Get()
 
 	// TODO(bianpengyuan) use monitoring pkg from istio.io/pkg instead opencensus interface once it support integer value.
 	configEventMeasure        = stats.Int64("config_event_measure", "The number of user configuration events", "1")

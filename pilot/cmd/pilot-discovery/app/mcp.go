@@ -170,6 +170,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	serverArgs.RegistryOptions.KubeOptions.ClusterID = cluster.ID(features.ClusterName)
 	features.SharedMeshConfig = fmt.Sprintf("istio-%s", p.Revision)
 
+	features.EnableAuthDebug = true
 	features.WorkloadEntryCrossCluster = true
 	features.PilotCertProvider = constants.CertProviderNone
 	features.MultiRootMesh = true
@@ -716,6 +717,7 @@ func configureMCPLogs(p MCPParameters, options *log.Options) error {
 	// Setup variables required for logging
 	platform.GCPMetadata = fmt.Sprintf("%s|%s|%s|%s", p.Project, p.ProjectNumber, p.Cluster, p.Zone)
 	gcpmonitoring.TeeLogsToStackdriver = true
+	gcpmonitoring.EnableSD = true
 	loggingOpts := gcpmonitoring.ASMLogOptions(options)
 	return log.Configure(loggingOpts)
 }
