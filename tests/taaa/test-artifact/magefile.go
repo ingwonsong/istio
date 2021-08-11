@@ -1,4 +1,5 @@
-//+build mage
+//go:build mage
+// +build mage
 
 package main
 
@@ -13,24 +14,27 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/git"
-	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/gotest"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	"istio.io/istio/tests/taaa/test-artifact/internal/constants"
+	"knative.dev/test-infra/rundk/interactive"
 )
 
 const (
 	// TODO(coryrc): fix taaa-project
 	//ImgPath  = "gcr.io/taaa-project/host/gke-internal/istio/istio/integration-tests"
-	ImgPath    = "gcr.io/gke-prow/gke-internal/istio/istio/integration-tests"
-	repoRoot   = "../../../"
-	outPath    = "./out/"
-	outBinPath = outPath + "usr/bin/"
+	ImgPath         = "gcr.io/gke-prow/gke-internal/istio/istio/integration-tests"
+	compilerImgPath = ImgPath + "-compiler"
+	repoRoot        = "../../.."
+	outPath         = "./out"
+	outBinPath      = outPath + "/usr/bin"
 )
 
 type Build mg.Namespace
@@ -89,7 +93,7 @@ func (Build) Entrypoint() error {
 	if err := os.MkdirAll(outBinPath, 0775); err != nil {
 		return err
 	}
-	return sh.Run("go", "build", "-o", outBinPath+"entrypoint", "./cmd/entrypoint")
+	return sh.Run("go", "build", "-o", outBinPath+"/entrypoint", "./cmd/entrypoint")
 }
 
 // Compile the tests.
@@ -97,6 +101,23 @@ func (Build) Tests() error {
 	if err := os.MkdirAll(outBinPath, 0775); err != nil {
 		return err
 	}
+	// Build compiler image.
+	// Create an empty context directory to speed up build time.
+	emptyContextDir, err := os.MkdirTemp("/tmp/", "*")
+	if err != nil {
+		return err
+	}
+	if err := sh.RunV("docker", "build",
+		"--pull",
+		"-t", compilerImgPath,
+		"-f", "compiler.dockerfile",
+		emptyContextDir); err != nil {
+		return err
+	}
+	os.RemoveAll(emptyContextDir)
+	// Now use that image to build all the tests.
+	// We need to use an image to build the test to keep a consistent
+	// environment for the binary otherwise errors occur.
 	var wg sync.WaitGroup
 	var anyErr error
 	for _, intTest := range constants.Tests {
@@ -104,19 +125,29 @@ func (Build) Tests() error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			name := fmt.Sprintf(outBinPath+"%s.test", strings.ReplaceAll(intTest, "/", "_"))
+			name := fmt.Sprintf("%s.test", strings.ReplaceAll(intTest, "/", "_"))
 			log.Printf("Compiling %s", name)
-			err := gotest.CompileTest(
-				name,
-				repoRoot+"tests/integration/"+intTest,
-				"--tags=integ")
-			if err != nil {
+			if err := runCompile(name, "tests/integration/"+intTest, "--tags=integ"); err != nil {
 				anyErr = err
 			}
 		}()
 	}
 	wg.Wait()
-	return anyErr
+	if anyErr != nil {
+		return anyErr
+	}
+	log.Println("Copying supplementary test compilation files.")
+	repoRootOutPath := outPath + constants.RepoCopyRoot
+	if err := os.MkdirAll(repoRootOutPath, os.ModePerm); err != nil {
+		return err
+	}
+	for _, supplement := range constants.TestSupplements {
+		os.MkdirAll(filepath.Dir(repoRootOutPath+supplement), os.ModePerm)
+		if err := sh.RunV("rsync", repoRoot+supplement, repoRootOutPath+supplement); err != nil {
+			return err
+		}
+	}
+	return sh.RunV("rsync", "-r", repoRoot+"/out/", repoRootOutPath+"/out")
 }
 
 // Build the images needed during test execution.
@@ -201,6 +232,7 @@ func (Build) TestImages() error {
 	return sh.Run("touch", configYml)
 }
 
+// Clean removes the whole out directory.
 func Clean() error {
 	return sh.Run("rm", "-fR", "out")
 }
@@ -215,4 +247,29 @@ func logWriter(out io.Writer) io.WriteCloser {
 		}
 	}()
 	return w
+}
+
+// Compiles a test package using a container with the same base OS as the
+// TaaA integration test image.
+// It is necessary to build on the same OS since otherwise descrepencies
+// between the libraries of the image and the host machine cause errors.
+func runCompile(outputBinaryName string, pathToPackage string, otherGoTestArgs ...string) error {
+	cmd := interactive.Docker{
+		Command: interactive.NewCommand("docker", "run", "--rm"),
+	}
+	const internalOutDir = "/tmp/artifacts/"
+	const internalRepoDir = "/usr/lib/go/src/gke-internal/istio/istio"
+	absRepoRoot, _ := filepath.Abs(repoRoot)
+	cmd.AddMount("bind", absRepoRoot, internalRepoDir)
+	absOutBinPath, _ := filepath.Abs(outBinPath)
+	cmd.AddMount("bind", absOutBinPath, internalOutDir)
+	cmd.AddArgs("-w", path.Join(internalRepoDir, pathToPackage))
+
+	cmd.AddArgs(compilerImgPath)
+	cmd.AddArgs("go", "test",
+		"-c",
+		"-o", path.Join(internalOutDir, outputBinaryName))
+	cmd.AddArgs(otherGoTestArgs...)
+	log.Println("Running compiler image: ", compilerImgPath)
+	return cmd.Run()
 }

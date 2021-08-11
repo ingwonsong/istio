@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -67,6 +68,9 @@ func main() {
 		}
 		istioTestTag := string(istioTestTagBytes)
 
+		// Set up environment variables for tests.
+		os.Setenv("REPO_ROOT", constants.RepoCopyRoot)
+
 		// Run tests.
 		var overall_err error
 		// Execute networking tests.
@@ -88,8 +92,9 @@ func main() {
 				err := entrypoint.GoTest(
 					fmt.Sprintf("/usr/bin/%s.test", bin),
 					"istio.io/istio/tests/integration/"+bin,
-					"--test.p=1",
-					"--timeout=30m",
+					// -p doesn't apply to single test binaries
+					//"--test.p=1",
+					"--test.timeout=30m",
 					"--istio.test.kube.deploy=false",
 					"--istio.test.skipVM",
 					"--istio.test.ci",
