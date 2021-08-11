@@ -428,9 +428,10 @@ packages:
           - /telemetry/stats/prometheus/wasm
         buganizerID: 184312874
 
-  # MCP package skips
+  # MCP single cluster tests skips the following packages.
   - selectors:
       control_plane: managed
+      cluster_topology: sc
     targets:
       - names:
           - /multicluster
@@ -461,3 +462,37 @@ packages:
       - names:
           - /mdp/controller
         reason: requires setup of CNI and mutliversion of CP
+
+  # MCP multi-cluster tests skips the following packages.
+  - selectors:
+      control_plane: managed
+      cluster_topology: mc
+    targets:
+    - names:
+      - /helm
+      - /operator
+      - /pilot/cni
+      - /pilot/analysis
+      - /pilot/endpointslice
+      - /pilot/revisions
+      - /pilot/revisioncmd
+      - /telemetry/stackdriver/vm
+      - /telemetry/stats/prometheus/customizemetrics
+      - /telemetry/stats/prometheus/wasm
+      - /security/chiron
+      - /security/file_mounted_certs
+      - /security/ca_custom_root
+      - /security/filebased_tls_origination
+      - /security/mtls_first_party_jwt
+      - /security/mtlsk8sca
+      - /security/sds_ingress_k8sca
+      - /security/sds_tls_origination
+      - /security/ca_migration
+      - /security/user_auth
+      reason: not supported
+    - names:
+      - /pilot/mcs
+      buganizerID: 183429870
+    - names:
+      - /mdp/controller
+      reason: requires setup of CNI and mutliversion of CP

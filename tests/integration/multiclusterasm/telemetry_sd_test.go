@@ -1,4 +1,6 @@
+//go:build integ
 // +build integ
+
 //  Copyright Istio Authors
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
@@ -185,10 +187,9 @@ func validateTelemetry(ctx framework.TestContext,
 
 func validateControlPlaneTelemetry(t framework.TestContext, projectID string, sd *stackdriver.Instance) {
 	param := &stackdriver.ResourceFilterParam{
-		Namespace:     "istio-system",
-		ContainerName: "discovery",
-		ResourceType:  stackdriver.ContainerResourceType,
-		FilterFor:     "metric",
+		Namespace:    "istio-system",
+		ResourceType: stackdriver.ContainerResourceType,
+		FilterFor:    "metric",
 	}
 	now := time.Now()
 	startTime := now.Format(time.RFC3339)
