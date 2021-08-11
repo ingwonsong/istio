@@ -25,43 +25,45 @@ import (
 )
 
 const (
-	pluginInstallsCountName = "plugin_installs_count"
-	installStateName        = "install_state"
-	raceRepairsCountName    = "race_repairs_count"
+	// These are the metrics name defined in OSS
+	pluginInstallsCountName = "istio_cni_installs_total"
+	installReadyName        = "istio_cni_install_ready"
+	raceRepairsCountName    = "istio_cni_repair_pods_repaired_total"
+
+	installReadyState   = "READY"
+	installUnreadyState = "UNREADY"
+	installUnknownState = "UNKNOWN"
 )
 
-var (
-	stateHookTag  = tag.MustNewKey("state")
-	resultHookTag = tag.MustNewKey("result")
-)
+var resultHookTag = tag.MustNewKey("result")
 
 type cniRecordHook struct{}
 
 func (r cniRecordHook) OnRecordInt64Measure(i *stats.Int64Measure, tags []tag.Mutator, value int64) {
-	switch i.Name() {
-	case pluginInstallsCountName:
-		onPluginInstallCount(i, tags, value)
-	case installStateName:
-		onInstallState(i, tags)
-	case raceRepairsCountName:
-		onRaceRepairsCount(i, tags, value)
-	}
+	log.Debugf("CNI metric: %s does not have corresponding hook", i.Name())
 }
 
 var _ monitoring.RecordHook = &cniRecordHook{}
 
 func (r cniRecordHook) OnRecordFloat64Measure(f *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	panic("OnRecordFloat64Measure: implement me")
+	switch f.Name() {
+	case pluginInstallsCountName:
+		onPluginInstallCount(f, tags, value)
+	case installReadyName:
+		onInstallReady(value)
+	case raceRepairsCountName:
+		onRaceRepairsCount(f, tags, value)
+	}
 }
 
 func registerHook() {
 	hook := cniRecordHook{}
 	monitoring.RegisterRecordHook(pluginInstallsCountName, hook)
-	monitoring.RegisterRecordHook(installStateName, hook)
+	monitoring.RegisterRecordHook(installReadyName, hook)
 	monitoring.RegisterRecordHook(raceRepairsCountName, hook)
 }
 
-func onPluginInstallCount(_ *stats.Int64Measure, tags []tag.Mutator, value int64) {
+func onPluginInstallCount(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
 	tm := getOriginalTagMap(tags)
 	if tm == nil {
 		return
@@ -71,22 +73,31 @@ func onPluginInstallCount(_ *stats.Int64Measure, tags []tag.Mutator, value int64
 		return
 	}
 
-	pluginInstallCount.With(resultLabel.Value(r)).RecordInt(value)
+	pluginInstallCount.With(resultLabel.Value(r)).RecordInt(int64(value))
 }
 
-func onInstallState(_ *stats.Int64Measure, tags []tag.Mutator) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
+func onInstallReady(value float64) {
+	state := installUnknownState
+	if value == 1 {
+		state = installReadyState
+	} else if value == 0 {
+		state = installUnreadyState
 	}
-	s, found := tm.Value(stateHookTag)
-	if !found {
-		return
+
+	for _, s := range []string{
+		installReadyState, installUnreadyState, installUnknownState,
+	} {
+		v := 0
+		if s == state {
+			v = 1
+		}
+		installState.
+			With(stateLabel.Value(s)).
+			RecordInt(int64(v))
 	}
-	installState.With(stateLabel.Value(s)).Increment()
 }
 
-func onRaceRepairsCount(_ *stats.Int64Measure, tags []tag.Mutator, value int64) {
+func onRaceRepairsCount(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
 	tm := getOriginalTagMap(tags)
 	if tm == nil {
 		return
@@ -95,7 +106,8 @@ func onRaceRepairsCount(_ *stats.Int64Measure, tags []tag.Mutator, value int64) 
 	if !found {
 		return
 	}
-	raceRepairsCount.With(resultLabel.Value(r)).RecordInt(value)
+	// TODO: type label is absent in SD now
+	raceRepairsCount.With(resultLabel.Value(r)).RecordInt(int64(value))
 }
 
 func getOriginalTagMap(tags []tag.Mutator) *tag.Map {

@@ -216,6 +216,9 @@ func newASMExporter(s sdExporterConfigs) (*ASMExporter, error) {
 	if !asm.IsCloudRun() {
 		clientOptions = AuthenticateClient(gcpMetadata)
 	}
+	if ep := endpointOverride.Get(); ep != "" {
+		clientOptions = append(clientOptions, option.WithEndpoint(ep))
+	}
 	se, err := stackdriver.NewExporter(stackdriver.Options{
 		ProjectID:               gcpMetadata[platform.GCPProject],
 		Location:                gcpMetadata[platform.GCPLocation],

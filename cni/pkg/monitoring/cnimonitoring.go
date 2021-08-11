@@ -26,19 +26,19 @@ var (
 	resultLabel = monitoring.MustCreateLabel("result")
 
 	pluginInstallCount = monitoring.NewSum(
-		"plugin_installs_count_measure",
+		"plugin_installs_count",
 		"Count of Istio CNI network plugin installations done by an Istio CNI daemonset.",
 		monitoring.WithLabels(stateLabel),
 	)
 
 	installState = monitoring.NewGauge(
-		"install_state_measure",
+		"install_state",
 		"The CNI plugin installation state, one of [READY, UNREADY, UNKNOWN]",
 		monitoring.WithLabels(resultLabel),
 	)
 
 	raceRepairsCount = monitoring.NewSum(
-		"race_repairs_count_measure",
+		"race_repairs_count",
 		"Count of pods which are stuck at Istio CNI race condition and repaired by an Istio CNI daemonset",
 		monitoring.WithLabels(resultLabel),
 	)
