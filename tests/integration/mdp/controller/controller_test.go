@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"text/template"
@@ -34,6 +36,7 @@ import (
 	"istio.io/istio/mdp/controller/pkg/name"
 	"istio.io/istio/mdp/controller/pkg/util"
 	"istio.io/istio/pkg/config/constants"
+	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/echo"
@@ -42,17 +45,21 @@ import (
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	kube2 "istio.io/istio/pkg/test/kube"
 	"istio.io/istio/pkg/test/scopes"
+	"istio.io/istio/pkg/test/shell"
 	"istio.io/istio/pkg/test/util/retry"
 )
 
 const (
-	retryDelay     = 3 * time.Second
-	retryTimeOut   = 7 * time.Minute
-	workload1      = "mdp-app1"
-	workload2      = "mdp-app2"
-	workloadPDB    = "mdp-pdb-restricted"
-	revision19     = "asm-1-9"
-	revisionMaster = "asm-master"
+	retryDelay         = 3 * time.Second
+	retryTimeOut       = 7 * time.Minute
+	workload1          = "mdp-app1"
+	workload2          = "mdp-app2"
+	workloadPDB        = "mdp-pdb-restricted"
+	revision19         = "asm-1-9"
+	revisionMaster     = "asm-master"
+	crTemplatePath     = "testdata/mdp_cr.yaml.tmpl"
+	RunWithGenManifest = "RUN_WITH_GEN_MANIFEST"
+	GcrProjectIDENV    = "GCR_PROJECT_ID"
 )
 
 var (
@@ -61,8 +68,11 @@ var (
 		Version:  "v1alpha1",
 		Resource: "dataplanecontrols",
 	}
-	ns        namespace.Instance
-	instances echo.Instances
+	ns                namespace.Instance
+	instances         echo.Instances
+	prowTestImageHub  string
+	builtProxyVersion string
+	genManifestPath   = filepath.Join(env.IstioSrc, "mdp/manifest/gen-mdp-manifest.yaml")
 )
 
 func TestMain(m *testing.M) {
@@ -88,8 +98,12 @@ func TestProxiesRestarted(t *testing.T) {
 				Inject: true,
 				Labels: map[string]string{"istio.io/rev": revision19},
 			})
-			newVersion := getIstiodVersion(t, cs, "asm-master")
-			stubEnvironmentCM(t, "env", "istio-system", newVersion)
+			prowTestImageHub, builtProxyVersion = getIstiodVersion(t, cs, "asm-master")
+			t.Logf("got prow test hub: %v, tag: %v", prowTestImageHub, builtProxyVersion)
+			stubEnvironmentCM(t, "env", "istio-system", builtProxyVersion)
+			if af := os.Getenv(RunWithGenManifest); af == "true" {
+				applyGenMDPManifest(t)
+			}
 			builder := echoboot.NewBuilder(t).WithClusters(cs)
 			builder = builder.WithConfig(echo.Config{
 				Namespace: ns,
@@ -109,7 +123,6 @@ func TestProxiesRestarted(t *testing.T) {
 			testcases := []struct {
 				expectedPercentage float32
 				expectedDPState    mdpapi.DataPlaneState
-				mdpFileName        string
 				// This revision has to be match with available revision passed in to `--istio.test.revisions`
 				newRevision string
 				oldRevision string
@@ -117,7 +130,6 @@ func TestProxiesRestarted(t *testing.T) {
 				{
 					expectedPercentage: 66,
 					expectedDPState:    mdpapi.Ready,
-					mdpFileName:        "mdp_cr",
 					newRevision:        revisionMaster,
 					oldRevision:        revision19,
 				},
@@ -126,8 +138,10 @@ func TestProxiesRestarted(t *testing.T) {
 				// check proxy version before upgrade, all proxies should be at old version
 				verifyProxyVersion(t, cs, 100, test.oldRevision)
 				updateNamespace(t, ns, test.newRevision)
-				newVersion := getIstiodVersion(t, cs, test.newRevision)
-				createAndApplyMDPCR(t, test.mdpFileName, "", newVersion)
+				data := map[string]interface{}{
+					"NewProxyVersion": builtProxyVersion,
+				}
+				createAndApplyTemplate(t, crTemplatePath, "", data)
 				// check proxy version after upgrade, upgraded proxies percentage should be larger than expected.
 				verifyProxyVersion(t, cs, test.expectedPercentage, test.newRevision)
 				// check CR status
@@ -135,9 +149,31 @@ func TestProxiesRestarted(t *testing.T) {
 				// check workload
 				verifyPodStatus(t, cs)
 				// check pdb restricted workload
-				checkPDBWorkload(t, cs, builder, test.oldRevision, test.newRevision, newVersion)
+				checkPDBWorkload(t, cs, builder, test.oldRevision, test.newRevision, builtProxyVersion)
 			}
 		})
+}
+
+// applyGenMDPManifest is a helper function to apply gen mdp manifest template file
+func applyGenMDPManifest(t framework.TestContext) {
+	data := make(map[string]interface{})
+	data["MDP_HUB"] = prowTestImageHub
+	data["MDP_TAG"] = builtProxyVersion
+	data["PROJECT_ID"] = os.Getenv(GcrProjectIDENV)
+	createAndApplyTemplate(t, genManifestPath, name.KubeSystemNamespace, data)
+	retryFunc := func() error {
+		updateEnvCmd := fmt.Sprintf("kubectl set env daemonset/istio-cni-node -c mdp-controller MDP_RECONCILE_TIME=1m -n %s", name.KubeSystemNamespace)
+		if _, err := shell.Execute(true, updateEnvCmd); err != nil {
+			return fmt.Errorf("failed to update MDP_RECONCILE_TIME of mdp: %v", err)
+		}
+		return nil
+	}
+	if err := retry.UntilSuccess(retryFunc,
+		retry.Timeout(2*time.Minute), retry.Delay(time.Second*5)); err != nil {
+		t.Errorf(err.Error())
+	} else {
+		t.Logf("Successfully updated MDP_RECONCILE_TIME of mdp")
+	}
 }
 
 func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder echo.Builder, oldRevision, newRevision, newVersion string) {
@@ -156,10 +192,13 @@ func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder echo.
 		t.Fatalf("failed to get PDB restricted workload: %v", err)
 	}
 	pdbWLName := pdbWL[0].PodName()
-	createAndApplyTestdataFile(t, "pdb_unevictable", pdbns.Name())
+	createAndApplyTestdataFile(t, "testdata/pdb_unevictable.yaml", pdbns.Name())
 	updateNamespace(t, pdbns, newRevision)
+	data := map[string]interface{}{
+		"NewProxyVersion": newVersion,
+	}
 	// increase dpc target so mdp would attempt to upgrade pdb restricted wl
-	createAndApplyMDPCR(t, "mdp_cr", "", newVersion)
+	createAndApplyTemplate(t, crTemplatePath, "", data)
 	verifyFailureEventsAndLabels(t, cs, pdbWLName, pdbns.Name())
 }
 
@@ -177,7 +216,7 @@ func updateNamespace(t framework.TestContext, instance namespace.Instance, newRe
 	}
 }
 
-func getIstiodVersion(t framework.TestContext, cs cluster.Cluster, revision string) string {
+func getIstiodVersion(t framework.TestContext, cs cluster.Cluster, revision string) (hub, version string) {
 	ls := fmt.Sprintf("istio.io/rev=%s", revision)
 	istiodPods, err := cs.
 		CoreV1().Pods("istio-system").
@@ -185,16 +224,16 @@ func getIstiodVersion(t framework.TestContext, cs cluster.Cluster, revision stri
 	if err != nil {
 		t.Fatalf("failed to get istiod pods: %v for revision: %v", err, revision)
 	}
-	var version string
 	for _, pod := range istiodPods.Items {
 		for _, container := range pod.Spec.Containers {
 			vs := strings.Split(container.Image, ":")
 			if strings.Contains(vs[0], "pilot") {
+				hub = strings.TrimSuffix(vs[0], "/pilot")
 				version = vs[1]
 			}
 		}
 	}
-	return version
+	return
 }
 
 func verifyFailureEventsAndLabels(t framework.TestContext, cs cluster.Cluster, involvedObj, nsName string) {
@@ -239,7 +278,7 @@ func verifyFailureEventsAndLabels(t framework.TestContext, cs cluster.Cluster, i
 // verifyProxyVersion is a helper function to verify proxies percentage, it can be used before and after upgrade.
 func verifyProxyVersion(t framework.TestContext, cs cluster.Cluster,
 	expectedPercentage float32, revision string) {
-	expectedVersion := getIstiodVersion(t, cs, revision)
+	_, expectedVersion := getIstiodVersion(t, cs, revision)
 	scopes.Framework.Infof("expected proxy version is: %v", expectedVersion)
 
 	targetPodsSelection := fmt.Sprintf("app in (%s,%s,%s)", workload1, workload2, workloadPDB)
@@ -338,8 +377,7 @@ func stubEnvironmentCM(t framework.TestContext, envFile, namespace, targetVersio
 	}
 }
 
-func createAndApplyMDPCR(t framework.TestContext, mdpFileName, namespace, newVersion string) {
-	path := fmt.Sprintf("testdata/%s.yaml.tmpl", mdpFileName)
+func createAndApplyTemplate(t framework.TestContext, path, namespace string, data map[string]interface{}) {
 	tp, err := ioutil.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read template: %v", err)
@@ -349,24 +387,21 @@ func createAndApplyMDPCR(t framework.TestContext, mdpFileName, namespace, newVer
 		t.Fatalf("failed to create template: %v", err)
 	}
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]interface{}{
-		"NewProxyVersion": newVersion,
-	}); err != nil {
+	if err := tmpl.Execute(&buf, data); err != nil {
 		t.Fatalf("failed to render template: %v", err)
 	}
 	if err := t.Config().ApplyYAML(namespace, buf.String()); err != nil {
-		t.Fatalf("failed to apply MDP CR file: %s, %v", path, err)
+		t.Fatalf("failed to apply template: %s, %v", path, err)
 	}
 }
 
-func createAndApplyTestdataFile(t framework.TestContext, fileName, namespace string) {
-	path := fmt.Sprintf("testdata/%s.yaml", fileName)
+func createAndApplyTestdataFile(t framework.TestContext, path, namespace string) {
 	f, err := ioutil.ReadFile(path)
 	if err != nil {
-		t.Fatalf("failed to read testdata file: %s: %v", fileName, err)
+		t.Fatalf("failed to read file: %s: %v", path, err)
 	}
 	if err := t.Config().ApplyYAML(namespace, string(f)); err != nil {
-		t.Fatalf("failed to apply testdata file: %s, %v", path, err)
+		t.Fatalf("failed to apply file: %s, %v", path, err)
 	}
 }
 

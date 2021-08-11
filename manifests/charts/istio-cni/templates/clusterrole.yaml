@@ -15,12 +15,6 @@ rules:
   - nodes
   verbs:
   - get
-- apiGroups:
-  - mesh.cloud.google.com
-  resources:
-  - '*'
-  verbs:
-  - '*'
 ---
 {{- if .Values.cni.repair.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1

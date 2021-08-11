@@ -35,8 +35,8 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: istio-cni-repair-role
-{{- end }}
 ---
+{{- end }}
 {{- if ne .Values.cni.psp_cluster_role "" }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -55,8 +55,8 @@ subjects:
 - kind: ServiceAccount
   name: istio-cni
   namespace: {{ .Release.Namespace }}
-{{- end }}
 ---
+{{- end }}
 {{- if .Values.cni.taint.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -75,8 +75,8 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: istio-cni-taint-role
-{{- end }}
 ---
+{{- end }}
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -94,4 +94,3 @@ roleRef:
   kind: ClusterRole
   name: mdp-controller
   apiGroup: rbac.authorization.k8s.io
----

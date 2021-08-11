@@ -203,7 +203,7 @@ ifeq ($(PULL_POLICY),)
 endif
 
 include operator/operator.mk
-include mdp/controller/api.mk
+include mdp/manifest/gen.mk
 include pkg/dns/proto/nds.mk
 
 .PHONY: default
@@ -368,7 +368,7 @@ gen: \
 	copy-templates \
 	gen-kustomize \
 	update-golden \
-	mdp-proto ## Update all generated code.
+	gen-mdp-manifests ## Update all generated code.
 
 gen-check: gen check-clean-repo
 

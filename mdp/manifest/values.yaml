@@ -1,0 +1,13 @@
+# specific override for MDP on top of manifests/charts/istio-cni/value.yaml
+global:
+  # placeholder for mdp hub/tag in the template
+  hub: "{{ .MDP_HUB }}"
+  tag: "{{ .MDP_TAG }}"
+  sds:
+    token:
+      aud: "PROJECT_ID.svc.id.goog"
+
+cni:
+  cniBinDir: /home/kubernetes/bin
+mdp:
+  enabled: true
