@@ -23,7 +23,7 @@ docker.app_sidecar_ubuntu_bionic docker.app_sidecar_ubuntu_focal docker.app_side
 docker.app_sidecar_debian_10 docker.app_sidecar_centos_8 docker.app_sidecar_centos_7 \
 docker.mdp \
 docker.istioctl docker.operator docker.install-cni docker.cloudrun docker.vaultclient \
-docker.cloudesf_proxyv2
+docker.cloudesf
 
 ### Docker commands ###
 # Below provides various commands to build/push docker images.
@@ -149,10 +149,10 @@ build.docker.proxyv2: $(ISTIO_ENVOY_LINUX_RELEASE_DIR)/metadata-exchange-filter.
 build.docker.proxyv2: $(ISTIO_ENVOY_LINUX_RELEASE_DIR)/metadata-exchange-filter.compiled.wasm
 	$(DOCKER_RULE)
 
-build.docker.cloudesf_proxyv2: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap.json
-build.docker.cloudesf_proxyv2: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/gcp_envoy_bootstrap.json
-build.docker.cloudesf_proxyv2: $(ISTIO_OUT_LINUX)/pilot-agent
-build.docker.cloudesf_proxyv2: pilot/docker/Dockerfile.cloudesf_proxyv2
+build.docker.cloudesf: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap.json
+build.docker.cloudesf: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/gcp_envoy_bootstrap.json
+build.docker.cloudesf: $(ISTIO_OUT_LINUX)/pilot-agent
+build.docker.cloudesf: pilot/docker/Dockerfile.cloudesf_proxyv2
 	$(DOCKER_RULE)
 
 build.docker.pilot: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap.json
