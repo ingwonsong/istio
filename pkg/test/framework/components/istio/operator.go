@@ -423,7 +423,15 @@ func deploy(ctx resource.Context, env *kube.Environment, cfg Config) (Instance, 
 			}
 
 			// Wait for the eastwestgateway to have a public IP.
-			_ = i.CustomIngressFor(c, eastWestIngressServiceName, eastWestIngressIstioLabel).DiscoveryAddress()
+			gatewayAddr := i.CustomIngressFor(c, eastWestIngressServiceName, eastWestIngressIstioLabel).DiscoveryAddress()
+			// Wait until the IP is reachable, as well
+			if err := retry.UntilSuccess(func() error {
+				_, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", gatewayAddr.IP, gatewayAddr.Port), 1*time.Second)
+				return err
+			}, retry.Timeout(240*time.Second), retry.Delay(1*time.Second)); err != nil {
+				return i, fmt.Errorf("failed waiting for gateway to become reachable in %s: %v", c.Name(), err)
+			}
+
 		}
 	}
 
