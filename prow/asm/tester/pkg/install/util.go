@@ -137,7 +137,7 @@ func setupPermissions(settings *resource.Settings) error {
 }
 
 func setGcpPermissions(settings *resource.Settings) error {
-	cs := kube.GKEClusterSpecsFromContexts(settings.KubectlContexts)
+	cs := kube.GKEClusterSpecsFromContexts(settings.KubeContexts)
 	for _, c := range cs {
 		if c.ProjectID != settings.GCRProject {
 			projectNum, err := gcp.GetProjectNumber(c.ProjectID)

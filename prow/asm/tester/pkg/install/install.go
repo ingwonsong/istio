@@ -22,7 +22,6 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/install/multiversion"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
-	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -32,6 +31,7 @@ const (
 
 	// Envvar consts
 	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"
+	testEndpoint              = "https://test-container.sandbox.googleapis.com/"
 	stagingEndpoint           = "https://staging-container.sandbox.googleapis.com/"
 	staging2Endpoint          = "https://staging2-container.sandbox.googleapis.com/"
 )
@@ -84,7 +84,7 @@ func (c *installer) preInstall() error {
 				c.settings.RepoRootDir,
 				"setup_private_ca",
 				[]string{
-					c.settings.KubectlContexts,
+					strings.Join(c.settings.KubeContexts, ","),
 				}); err != nil {
 				return err
 			}
@@ -96,7 +96,7 @@ func (c *installer) preInstall() error {
 				"register_clusters_in_hub",
 				[]string{
 					c.settings.GCRProject,
-					kube.ContextArr(c.settings.KubectlContexts),
+					strings.Join(c.settings.KubeContexts, " "),
 				}); err != nil {
 				return err
 			}
@@ -119,8 +119,7 @@ func (c *installer) postInstall(rev *revision.Config) error {
 	}
 	// For cross-version compat testing we need to use webhooks with per-revision object
 	// selectors. Older Istio versions do not have this so we must manually create them.
-	contexts := strings.Split(c.settings.KubectlContexts, ",")
-	for _, context := range contexts {
+	for _, context := range c.settings.KubeContexts {
 		if err := multiversion.ReplaceWebhook(rev, context); err != nil {
 			return err
 		}

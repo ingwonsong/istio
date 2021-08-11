@@ -30,7 +30,7 @@ import (
 func (c *installer) installASM(rev *revision.Config) error {
 	pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
 	kptSetPrefix := fmt.Sprintf("kpt cfg set %s", pkgPath)
-	contexts := strings.Split(c.settings.KubectlContexts, ",")
+	contexts := c.settings.KubeContexts
 	log.Println("Downloading ASM script for the installation...")
 	scriptPath, err := downloadInstallScript(c.settings, rev)
 	if err != nil {
@@ -82,14 +82,12 @@ func (c *installer) installASM(rev *revision.Config) error {
 				contextLogger.Printf("Running with trusted GCP projects: %s", trustedGCPProjects)
 			}
 
-			// b/177358640: for Prow jobs running with GKE staging/staging2 clusters, overwrite
+			// For Prow jobs running with GKE test/staging/staging2 clusters, overwrite
 			// GKE_CLUSTER_URL with a custom overlay to fix the issue in installing ASM
-			// with MeshCA.
-			// TODO(samnaser) setting KPT properties cannot be done in parallel, must copy kpt directories
-			// for each installation
-			if os.Getenv(cloudAPIEndpointOverrides) == stagingEndpoint ||
-				os.Getenv(cloudAPIEndpointOverrides) == staging2Endpoint {
-				contextLogger.Println("Setting KPT for GKE staging/staging2 clusters...")
+			// with MeshCA. See b/177358640 for more details.
+			endpoint := os.Getenv(cloudAPIEndpointOverrides)
+			if endpoint == testEndpoint || endpoint == stagingEndpoint || endpoint == staging2Endpoint {
+				contextLogger.Println("Setting KPT for GKE test/staging/staging2 clusters...")
 				if err := exec.RunMultiple([]string{
 					fmt.Sprintf("%s gcloud.core.project %s", kptSetPrefix, cluster.ProjectID),
 					fmt.Sprintf("%s gcloud.compute.location %s", kptSetPrefix, cluster.Location),
@@ -221,6 +219,9 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	}
 	if settings.FeatureToTest == resource.UserAuth {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/user-auth.yaml"))
+	}
+	if os.Getenv(cloudAPIEndpointOverrides) == testEndpoint {
+		overlays = append(overlays, filepath.Join(pkgPath, "overlay/meshca-test-gke.yaml"))
 	}
 	if os.Getenv(cloudAPIEndpointOverrides) == stagingEndpoint {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/meshca-staging-gke.yaml"))

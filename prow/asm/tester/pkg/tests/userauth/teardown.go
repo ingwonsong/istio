@@ -21,6 +21,7 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
+// Teardown cleans up the test setups for usrauth tests.
 func Teardown(settings *resource.Settings) error {
 	exec.Run("bash -c 'kill -9 $(pgrep -f \"kubectl port-forward\")'")
 

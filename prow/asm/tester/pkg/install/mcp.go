@@ -26,7 +26,7 @@ import (
 )
 
 func (c *installer) installASMManagedControlPlane() error {
-	contexts := strings.Split(c.settings.KubectlContexts, ",")
+	contexts := c.settings.KubeContexts
 
 	log.Println("Downloading ASM script for the installation...")
 	scriptPath, err := downloadInstallScript(c.settings, nil)

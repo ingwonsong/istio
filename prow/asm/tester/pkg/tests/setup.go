@@ -15,14 +15,19 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+
+	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+	"istio.io/istio/prow/asm/tester/pkg/tests/topology"
 )
 
 const (
@@ -48,6 +53,18 @@ func Setup(settings *resource.Settings) error {
 	if err != nil {
 		return err
 	}
+	if err := configureEnvvars(settings, testFlags, packageSkipEnvvar, testSkipFlags); err != nil {
+		return err
+	}
+	if err := genTopologyFile(settings); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func configureEnvvars(settings *resource.Settings,
+	testFlags []string, packageSkipEnvvar string, testSkipFlags []string) error {
 	integrationTestFlags := append(testFlags, testSkipFlags...)
 	integrationTestFlagsEnvvar := strings.Join(integrationTestFlags, " ")
 
@@ -55,11 +72,12 @@ func Setup(settings *resource.Settings) error {
 
 	// environment variables required when running the test make target
 	envVars := map[string]string{
+		// The Makefile passes the path defined in INTEGRATION_TEST_TOPOLOGY_FILE to --istio.test.kube.topology on go test.
+		"INTEGRATION_TEST_TOPOLOGY_FILE": fmt.Sprintf("%s/integration_test_topology.yaml", os.Getenv("ARTIFACTS")),
 		"INTEGRATION_TEST_FLAGS":         integrationTestFlagsEnvvar,
 		"DISABLED_PACKAGES":              packageSkipEnvvar,
 		"TEST_SELECT":                    generateTestSelect(settings),
-		"INTEGRATION_TEST_TOPOLOGY_FILE": fmt.Sprintf("%s/integration_test_topology.yaml", os.Getenv("ARTIFACTS")),
-		"JUNIT_OUT":                      fmt.Sprintf("%s/junit1.xml", os.Getenv("ARTIFACTS")),
+		"JUNIT_OUT":                      fmt.Sprintf("%s/junit_test_result.xml", os.Getenv("ARTIFACTS")),
 		// exported GCR_PROJECT_ID_1 and GCR_PROJECT_ID_2
 		// for security and telemetry test.
 		"GCR_PROJECT_ID_1": gcrProjectID1,
@@ -72,7 +90,9 @@ func Setup(settings *resource.Settings) error {
 	}
 	for k, v := range envVars {
 		log.Printf("Set env %s=%s", k, v)
-		os.Setenv(k, v)
+		if err := os.Setenv(k, v); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -97,4 +117,51 @@ func gcrProjectIDs(settings *resource.Settings) (gcrProjectID1, gcrProjectID2 st
 		gcrProjectID2 = gcrProjectID1
 	}
 	return
+}
+
+// Outputs YAML to the topology file, in the structure of []cluster.Config to inform the test framework of details about
+// each cluster under test. cluster.Config is defined in pkg/test/framework/components/cluster/factory.go.
+func genTopologyFile(settings *resource.Settings) error {
+	for i, kubeconfig := range strings.Split(settings.Kubeconfig, string(os.PathListSeparator)) {
+		var clusterName string
+		if settings.ClusterType == resource.GKEOnGCP {
+			cs := kube.GKEClusterSpecFromContext(settings.KubeContexts[i])
+			clusterName = fmt.Sprintf("cn-%s-%s-%s", cs.ProjectID, cs.Location, cs.Name)
+		} else {
+			istiodPodsJson, err := exec.RunWithOutput("kubectl -n istio-system get pod -l app=istiod -o json --kubeconfig=" + kubeconfig)
+			if err != nil || strings.TrimSpace(istiodPodsJson) == "" {
+				return fmt.Errorf("error listing the istiod Pods: %w", err)
+			}
+			type pods struct {
+				Items []*corev1.Pod `json:"items,omitempty"`
+			}
+			istiodPods := &pods{}
+			json.Unmarshal([]byte(istiodPodsJson), istiodPods)
+			for _, env := range istiodPods.Items[0].Spec.Containers[0].Env {
+				if env.Name == "CLUSTER_ID" {
+					clusterName = env.Value
+					break
+				}
+			}
+		}
+
+		cc := fmt.Sprintf(`- clusterName: %s
+  kind: Kubernetes
+  meta:
+    kubeconfig: %s`, clusterName, kubeconfig)
+		// Disable using simulated Pod-based "VMs" when testing real VMs
+		if settings.UseGCEVMs || settings.VMStaticConfigDir != "" {
+			cc += "\n    fakeVM: false"
+		}
+		// Add network name for multicloud cluster config.
+		// TODO: confirm if it's needed or not.
+		if settings.ClusterType != resource.GKEOnGCP {
+			cc += fmt.Sprintf("\n  network: network%d", i)
+		}
+
+		if err := topology.AddClusterConfig(cc); err != nil {
+			return err
+		}
+	}
+	return nil
 }

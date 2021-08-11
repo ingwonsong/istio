@@ -17,31 +17,32 @@ package tests
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 
-	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
+	"istio.io/istio/prow/asm/tester/pkg/tests/vm"
 )
 
 func Setup(settings *resource.Settings) error {
 	log.Println("🎬 start running the setups for the tests...")
 
+	if err := tests.Setup(settings); err != nil {
+		return fmt.Errorf("error setting up the tests: %w", err)
+	}
+
 	if settings.ControlPlane == resource.Unmanaged && settings.FeatureToTest == resource.UserAuth {
+		log.Printf("Start running the test setup for UserAuth test")
 		if err := userauth.Setup(settings); err != nil {
 			return err
 		}
 	}
 
-	if err := tests.Setup(settings); err != nil {
-		return fmt.Errorf("error setting up the tests: %w", err)
-	}
-
-	// TODO: convert the remainder of the script to Go
-	setupTestsScript := filepath.Join(settings.RepoRootDir, "prow/asm/tester/scripts/setup-tests.sh")
-	if err := exec.Run(setupTestsScript); err != nil {
-		return fmt.Errorf("error running tests setup script: %w", err)
+	if settings.UseGCEVMs || settings.VMStaticConfigDir != "" {
+		log.Printf("Start running the test setup for VM test")
+		if err := vm.Setup(settings, settings.KubeContexts[0]); err != nil {
+			return err
+		}
 	}
 
 	return nil

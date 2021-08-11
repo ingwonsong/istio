@@ -64,6 +64,7 @@ type Target struct {
 
 type SkipLabels map[string]string
 
+// ParseSkipConfig parses the configuration for skipping tests from the config file.
 func ParseSkipConfig(path string) (*TargetSkipConfig, error) {
 	yamlContents, err := ioutil.ReadFile(path)
 	if err != nil {

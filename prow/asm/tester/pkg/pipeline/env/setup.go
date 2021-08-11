@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -80,7 +79,7 @@ func Setup(settings *resource.Settings) error {
 // deployments.
 func enableCoreDumps(settings *resource.Settings) error {
 	yaml := filepath.Join(settings.ConfigDir, "core-dump-daemonset.yaml")
-	for _, kc := range strings.Split(settings.KubectlContexts, ",") {
+	for _, kc := range settings.KubeContexts {
 		cmd := fmt.Sprintf("kubectl apply -f %s --context=%s", yaml, kc)
 		if err := exec.Run(cmd); err != nil {
 			return fmt.Errorf("error deploying core dump daemonset: %w", err)
@@ -100,11 +99,11 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 	if err != nil {
 		return err
 	}
-	settings.KubectlContexts = kubectlContexts
+	settings.KubeContexts = strings.Split(kubectlContexts, ",")
 
 	var gcrProjectID string
 	if settings.ClusterType == resource.GKEOnGCP {
-		cs := kube.GKEClusterSpecsFromContexts(kubectlContexts)
+		cs := kube.GKEClusterSpecsFromContexts(settings.KubeContexts)
 		projectIDs := make([]string, len(cs))
 		for i, c := range cs {
 			projectIDs[i] = c.ProjectID
@@ -178,14 +177,9 @@ func injectEnvVars(settings *resource.Settings) error {
 		"SHARED_GCP_PROJECT": sharedGCPProject,
 
 		"GCR_PROJECT_ID":   settings.GCRProject,
-		"CONTEXT_STR":      settings.KubectlContexts,
 		"CONFIG_DIR":       settings.ConfigDir,
 		"CLUSTER_TYPE":     settings.ClusterType.String(),
 		"CLUSTER_TOPOLOGY": settings.ClusterTopology.String(),
-		"FEATURE_TO_TEST":  settings.FeatureToTest.String(),
-
-		// The scriptaro repo commit ID to use to download the script.
-		"SCRIPTARO_COMMIT": settings.ScriptaroCommit,
 
 		// exported TAG and HUB are used for ASM installation, and as the --istio.test.tag and
 		// --istio-test.hub flags of the testing framework
@@ -194,19 +188,12 @@ func injectEnvVars(settings *resource.Settings) error {
 
 		"MESH_ID": meshID,
 
-		"CONTROL_PLANE":        settings.ControlPlane.String(),
-		"CA":                   settings.CA.String(),
-		"WIP":                  settings.WIP.String(),
-		"REVISION_CONFIG_FILE": settings.RevisionConfig,
-		"TEST_TARGET":          settings.TestTarget,
-		"DISABLED_TESTS":       settings.DisabledTests,
+		"CONTROL_PLANE": settings.ControlPlane.String(),
+		"CA":            settings.CA.String(),
+		"WIP":           settings.WIP.String(),
 
-		"GCE_VMS":              strconv.FormatBool(settings.UseGCEVMs || settings.VMStaticConfigDir != ""),
-		"VM_DISTRO":            settings.VMImageFamily,
-		"IMAGE_PROJECT":        settings.VMImageProject,
-		"VM_AGENT_BUCKET":      settings.VMServiceProxyAgentGCSPath,
-		"VM_AGENT_INSTALLER":   settings.VMServiceProxyAgentInstallerGCSPath,
-		"VM_AGENT_ASM_VERSION": settings.VMServiceProxyAgentASMVersion,
+		"VM_DISTRO":     settings.VMImageFamily,
+		"IMAGE_PROJECT": settings.VMImageProject,
 	}
 
 	for name, val := range envVars {
@@ -250,7 +237,7 @@ func fixGKE(settings *resource.Settings) error {
 	}
 
 	if settings.FeatureToTest == resource.VPCSC {
-		networkName := "prow-test-network"
+		networkName := resource.GKENetworkName
 
 		// Create router and NAT
 		if err := exec.Run(fmt.Sprintf(
@@ -265,7 +252,7 @@ func fixGKE(settings *resource.Settings) error {
 		}
 
 		// Setup the firewall for VPC-SC
-		for _, c := range kube.GKEClusterSpecsFromContexts(settings.KubectlContexts) {
+		for _, c := range kube.GKEClusterSpecsFromContexts(settings.KubeContexts) {
 			getFirewallRuleCmd := fmt.Sprintf("bash -c \"gcloud compute firewall-rules list --filter=\"name~gke-\"%s\"-[0-9a-z]*-master\" --format=json | jq -r '.[0].name'\"", c.Name)
 			firewallRuleName, err := exec.RunWithOutput(getFirewallRuleCmd)
 			if err != nil {
@@ -323,19 +310,16 @@ func addFirewallRules(settings *resource.Settings) error {
 		return fmt.Errorf("failed to retrieve test runner IP: %w", err)
 	}
 
-	allowableSourceRanges := strings.Join(append(sourceRanges, testRunnerCidr), ",")
-	// Set the env var to allow the VM script to read and set the allowable
-	// source ranges.
-	os.Setenv("ALLOWABLE_SOURCE_RANGES", allowableSourceRanges)
+	settings.TrustableSourceRanges = strings.Join(append(sourceRanges, testRunnerCidr), ",")
 
 	if err := exec.Run(fmt.Sprintf(`gcloud compute firewall-rules create multicluster-firewall-rule \
-	--network=prow-test-network \
+	--network=%s \
 	--project=%s \
 	--allow=tcp,udp,icmp,esp,ah,sctp \
 	--direction=INGRESS \
 	--priority=900 \
 	--source-ranges=%s \
-	--target-tags=%s --quiet`, networkProject, allowableSourceRanges, strings.Join(targetTags, ","))); err != nil {
+	--target-tags=%s --quiet`, resource.GKENetworkName, networkProject, settings.TrustableSourceRanges, strings.Join(targetTags, ","))); err != nil {
 		return fmt.Errorf("error creating the firewall rule to allow multi-cluster communication")
 	}
 
@@ -350,7 +334,7 @@ func addIpsToAuthorizedNetworks(settings *resource.Settings) error {
 	}
 
 	// Get clusters' details
-	gkeClusterSpecs := kube.GKEClusterSpecsFromContexts(settings.KubectlContexts)
+	gkeClusterSpecs := kube.GKEClusterSpecsFromContexts(settings.KubeContexts)
 
 	switch len(gkeClusterSpecs) {
 	case 1:

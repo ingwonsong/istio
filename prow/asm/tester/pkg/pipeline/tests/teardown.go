@@ -16,6 +16,7 @@ package tests
 
 import (
 	"log"
+	"os"
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
@@ -26,6 +27,13 @@ func Teardown(settings *resource.Settings) error {
 
 	if settings.ControlPlane == resource.Unmanaged && settings.FeatureToTest == resource.UserAuth {
 		return userauth.Teardown(settings)
+	}
+
+	clusterType := settings.ClusterType
+	// Unset the proxy if the tests are run on proxied clusters.
+	if clusterType == resource.BareMetal || clusterType == resource.GKEOnAWS || clusterType == resource.APM {
+		os.Unsetenv("HTTP_PROXY")
+		os.Unsetenv("HTTPS_PROXY")
 	}
 
 	return nil

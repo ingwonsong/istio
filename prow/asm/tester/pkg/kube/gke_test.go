@@ -36,27 +36,27 @@ func TestGKEClusterSpecsFromContexts(t *testing.T) {
 
 	tcs := []struct {
 		name            string
-		kubectlContexts string
+		kubectlContexts []string
 		want            []*GKEClusterSpec
 	}{
 		{
 			"empty context string returns an empty array",
-			"",
+			[]string{},
 			[]*GKEClusterSpec{},
 		},
 		{
 			"non GKE context string returns an empty array",
-			"gke-on-prem_context1,gke-on-prem_context2",
+			[]string{"gke-on-prem_context1", "gke-on-prem_context2"},
 			[]*GKEClusterSpec{},
 		},
 		{
 			"one GKE cluster context string returns an array of size 1",
-			ctx1,
+			[]string{ctx1},
 			[]*GKEClusterSpec{&cluster1},
 		},
 		{
 			"two GKE clusters context string returns an array of size 1",
-			ctx1 + "," + ctx2,
+			[]string{ctx1, ctx2},
 			[]*GKEClusterSpec{&cluster1, &cluster2},
 		},
 	}

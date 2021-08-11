@@ -27,7 +27,7 @@ import (
 )
 
 func (c *installer) installASMManagedControlPlaneAFC() error {
-	contexts := strings.Split(c.settings.KubectlContexts, ",")
+	contexts := c.settings.KubeContexts
 
 	// ASM MCP Prow job should use staging AFC since we should alert before
 	// issues reach production.

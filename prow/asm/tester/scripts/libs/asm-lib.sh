@@ -260,36 +260,6 @@ function purge-ca() {
   fi
 }
 
-# Outputs YAML to the given file, in the structure of []cluster.Config to inform the test framework of details about
-# each cluster under test. cluster.Config is defined in pkg/test/framework/components/cluster/factory.go.
-# Parameters: $1 - path to the file to append to
-#             $2 - array of k8s contexts
-# Depends on env var ${KUBECONFIG}
-function gen_topology_file() {
-  local file="$1"; shift
-  local contexts=("${@}")
-
-  local kubeconfpaths
-  IFS=":" read -r -a kubeconfpaths <<< "${KUBECONFIG}"
-
-  for i in "${!contexts[@]}"; do
-    IFS="_" read -r -a VALS <<< "${contexts[$i]}"
-    local PROJECT_ID=${VALS[1]}
-    local CLUSTER_LOCATION=${VALS[2]}
-    local CLUSTER_NAME=${VALS[3]}
-    cat <<EOF >> "${file}"
-- clusterName: "cn-${PROJECT_ID}-${CLUSTER_LOCATION}-${CLUSTER_NAME}"
-  kind: Kubernetes
-  meta:
-    kubeconfig: "${kubeconfpaths[i]}"
-EOF
-    # Disable using simulated Pod-based "VMs" when testing real VMs
-    if "${GCE_VMS}"; then
-      echo '    fakeVM: false' >> "${file}"
-    fi
-  done
-}
-
 # Install ASM on the clusters.
 # Parameters: $1 - WIP: GKE or HUB
 # Depends on env var ${HUB} and ${TAG}
@@ -381,39 +351,6 @@ EOF
   done
 
   configure_remote_secrets
-}
-
-# Outputs YAML to the given file, in the structure of []cluster.Config to inform the test framework of details about
-# each cluster under test. cluster.Config is defined in pkg/test/framework/components/cluster/factory.go.
-# Parameters: $1 - path to the file to append to
-# Depends on env var ${KUBECONFIG} and that ASM is already installed (istio-system is present)
-function multicloud::gen_topology_file() {
-  local TOPO_FILE="$1"; shift
-  local KUBECONFIGPATHS
-  IFS=":" read -r -a KUBECONFIGPATHS <<< "${KUBECONFIG}"
-
-  if [[ "${CLUSTER_TYPE}" == "bare-metal" || "${CLUSTER_TYPE}" == "aws" ]]; then
-    export HTTP_PROXY="${MC_HTTP_PROXY}"
-  fi
-
-  # Each kubeconfig file should have one and only one cluster context.
-  for i in "${!KUBECONFIGPATHS[@]}"; do
-    local CLUSTER_NAME
-    CLUSTER_NAME=$(kubectl -n istio-system get pod -l app=istiod -o json --kubeconfig="${KUBECONFIGPATHS[$i]}" | \
-      jq -r '.items[0].spec.containers[0].env[] | select(.name == "CLUSTER_ID") | .value')
-
-    cat <<EOF >> "${TOPO_FILE}"
-- clusterName: "${CLUSTER_NAME}"
-  kind: Kubernetes
-  meta:
-    kubeconfig: "${KUBECONFIGPATHS[$i]}"
-EOF
-    echo "  network: network${i}" >> "${TOPO_FILE}"
-  done
-
-  if [[ "${CLUSTER_TYPE}" == "bare-metal" || "${CLUSTER_TYPE}" == "aws" ]]; then
-    export -n HTTP_PROXY
-  fi
 }
 
 # Creates ca certs on the cluster
@@ -550,29 +487,6 @@ spec:
    app: istiod
    istio.io/rev: ${1}
 EOF
-}
-
-# Creates virtual machines, registers them with the cluster and install the test echo app.
-# Parameters: $1 - the name of a directory in echo-vm-provisioner describing how to setup the VMs.
-#             $2 - the context of the cluster VMs will connect to
-function setup_asm_vms() {
-  local VM_DIR="${CONFIG_DIR}/echo-vm-provisioner/$1"
-  local CONTEXT=$2
-  local VM_DISTRO="${3:-debian-10}"
-  local IMAGE_PROJECT="${4:-debian-cloud}"
-
-  IFS="_" read -r -a VALS <<< "${CONTEXT}"
-  local PROJECT_ID=${VALS[1]}
-  local CLUSTER_LOCATION=${VALS[2]}
-  local CLUSTER_NAME=${VALS[3]}
-
-  local PROJECT_NUMBER
-  PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
-  local REVISION
-  REVISION="$(kubectl --context="${CONTEXT}" -n istio-system get service istio-eastwestgateway -ojsonpath='{.metadata.labels.istio\.io/rev}')"
-
-  export ISTIO_OUT="$PWD/out"
-  setup_static_vms "${CONTEXT}" "${CLUSTER_NAME}" "${CLUSTER_LOCATION}" "${PROJECT_NUMBER}" "${REVISION}" "${VM_DIR}" "${VM_DISTRO}" "${IMAGE_PROJECT}"
 }
 
 function install_asm_on_proxied_clusters() {

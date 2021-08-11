@@ -20,12 +20,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
+// Setup runs the test setups for userauth tests.
 func Setup(settings *resource.Settings) error {
 	if err := installASMUserAuth(settings); err != nil {
 		return fmt.Errorf("error installing user auth: %w", err)
@@ -74,8 +74,7 @@ func installASMUserAuth(settings *resource.Settings) error {
 		return err
 	}
 
-	contexts := strings.Split(settings.KubectlContexts, ",")
-	for _, context := range contexts {
+	for _, context := range settings.KubeContexts {
 		cmds := []string{
 			fmt.Sprintf("kubectl create namespace asm-user-auth --context %s", context),
 			fmt.Sprintf("kubectl label namespace asm-user-auth %s --overwrite --context %s", label, context),

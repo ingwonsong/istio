@@ -14,4 +14,7 @@
 
 package resource
 
-const ConfigDirPath = "prow/asm/tester/configs"
+const (
+	GKENetworkName = "prow-test-network"
+	ConfigDirPath  = "prow/asm/tester/configs"
+)

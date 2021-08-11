@@ -36,9 +36,6 @@ type Settings struct {
 	// UNMANAGED or MANAGED
 	ControlPlane ControlPlaneType
 
-	// Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP.
-	UseAFC bool
-
 	// Use asmcli as the installation script.
 	UseASMCLI bool
 
@@ -103,13 +100,16 @@ type VMSettings struct {
 type MCPSettings struct {
 	// Whether to use production MeshConfig API endpoint for Managed Control Plane.
 	UseProdMeshConfigAPI bool
+
+	// Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP.
+	UseAFC bool
 }
 
 // RuntimeSettings contains fields that are only populated and shared during the
 // test runtime.
 type RuntimeSettings struct {
-	// The kubectl contexts string for the current test clusters.
-	KubectlContexts string
+	// The kubectl contexts name array for the current test clusters.
+	KubeContexts []string
 
 	// The directory that stores configuration files for running the tests flows.
 	ConfigDir string
@@ -120,6 +120,9 @@ type RuntimeSettings struct {
 
 	// The project for the GCR that will be used to host the test images.
 	GCRProject string
+
+	// The source ranges that are trustable when creating/updating firewall rules.
+	TrustableSourceRanges string
 
 	// The commit ID of Scriptaro repo to use install_asm to install ASM.
 	ScriptaroCommit string
