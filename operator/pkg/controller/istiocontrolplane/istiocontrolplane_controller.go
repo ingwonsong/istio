@@ -330,11 +330,6 @@ func (r *ReconcileIstioOperator) Reconcile(_ context.Context, request reconcile.
 		}
 		globalValues["jwtPolicy"] = string(jwtPolicy)
 	}
-	err = util.ValidateIOPCAConfig(r.kubeClient, iopMerged)
-	if err != nil {
-		scope.Errorf(errdict.OperatorFailedToConfigure, "failed to apply IstioOperator resources. Error %s", err)
-		return reconcile.Result{}, err
-	}
 	helmReconcilerOptions := &helmreconciler.Options{
 		Log:         clog.NewDefaultLogger(),
 		ProgressLog: progress.NewLog(),
