@@ -8,5 +8,11 @@ SELFPATH="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
 # shellcheck disable=SC1090
 . "${SELFPATH}/ci.sh"
 
+pushd tests/taaa/integration-tests
 mage build:artifact
+popd
+
+pushd tests/taaa/install
+mage build:artifact
+popd
 

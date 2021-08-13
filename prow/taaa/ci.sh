@@ -22,4 +22,4 @@ export GOPRIVATE='*.googlesource.com,*.git.corp.google.com'
 pushd /home/prow/go/src/github.com/magefile/mage
 go run bootstrap.go
 popd
-cd tests/taaa/test-artifact
+
