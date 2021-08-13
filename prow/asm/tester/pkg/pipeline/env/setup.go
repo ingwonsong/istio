@@ -201,7 +201,6 @@ func injectEnvVars(settings *resource.Settings) error {
 		"TEST_TARGET":          settings.TestTarget,
 		"DISABLED_TESTS":       settings.DisabledTests,
 
-		"USE_VM":               strconv.FormatBool(settings.UseVMs),
 		"GCE_VMS":              strconv.FormatBool(settings.UseGCEVMs || settings.VMStaticConfigDir != ""),
 		"VM_DISTRO":            settings.VMImageFamily,
 		"IMAGE_PROJECT":        settings.VMImageProject,

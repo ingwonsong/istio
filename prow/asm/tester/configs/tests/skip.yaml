@@ -251,6 +251,26 @@ tests:
         - TestReachability/no-peer-authn/naked.*
         buganizerID: 192372391
 
+  # Unmanaged CP, cluster topology = mc OR multiproject
+  - selectors:
+      control_plane: unmanaged
+      cluster_topology: mc
+    targets:
+      - names:
+          - TestStatsFilter
+          - TestTcpMetric
+          - TestWasmStatsFilter
+          - TestWasmTcpMetric
+        buganizerID: 177606974
+      # pilot/ tests
+      - names:
+          - TestTraffic/dns.*
+        buganizerID: 191802552
+      - names:
+        - TestReachability/no-peer-authn/headless.*
+        - TestReachability/no-peer-authn/naked.*
+        buganizerID: 192372391
+
   # MCP test skips
   - selectors:
       control_plane: managed
