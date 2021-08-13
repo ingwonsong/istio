@@ -22,15 +22,12 @@ import (
 	"github.com/magefile/mage/sh"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/git"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
-	"istio.io/istio/tests/taaa/test-artifact/internal/constants"
+	"istio.io/istio/tests/taaa/test-artifact/internal"
 	"knative.dev/test-infra/rundk/interactive"
 )
 
 const (
-	// TODO(coryrc): fix taaa-project
-	//ImgPath  = "gcr.io/taaa-project/host/gke-internal/istio/istio/integration-tests"
-	ImgPath         = "gcr.io/gke-prow/gke-internal/istio/istio/integration-tests"
-	compilerImgPath = ImgPath + "-compiler"
+	compilerImgPath = internal.ImgPath + "-compiler"
 	repoRoot        = "../../.."
 	outPath         = "./out"
 	outBinPath      = outPath + "/usr/bin"
@@ -55,13 +52,13 @@ func (Build) ArtifactNoDeps() error {
 	}
 	err = sh.RunV("docker", "build",
 		"--pull",
-		"-t", ImgPath+":"+imgTag,
+		"-t", internal.ImgPath+":"+imgTag,
 		"-f", "Dockerfile",
 		outPath)
 	if err != nil {
 		return err
 	}
-	return sh.RunV("docker", "tag", ImgPath+":"+imgTag, ImgPath+":latest")
+	return sh.RunV("docker", "tag", internal.ImgPath+":"+imgTag, internal.ImgPath+":latest")
 }
 
 // Docker push the image to its destination.
@@ -76,15 +73,15 @@ func (Build) Push(branchName string) error {
 	if err != nil {
 		return err
 	}
-	err = sh.RunV("docker", "tag", ImgPath+":"+imgTag, ImgPath+":"+branchName)
+	err = sh.RunV("docker", "tag", internal.ImgPath+":"+imgTag, internal.ImgPath+":"+branchName)
 	if err != nil {
 		return err
 	}
-	err = sh.RunV("docker", "push", ImgPath+":"+imgTag)
+	err = sh.RunV("docker", "push", internal.ImgPath+":"+imgTag)
 	if err != nil {
 		return err
 	}
-	return sh.RunV("docker", "push", ImgPath+":"+branchName)
+	return sh.RunV("docker", "push", internal.ImgPath+":"+branchName)
 }
 
 // Compile the entrypoint binary.
@@ -119,7 +116,7 @@ func (Build) Tests() error {
 	// environment for the binary otherwise errors occur.
 	var wg sync.WaitGroup
 	var anyErr error
-	for _, intTest := range constants.Tests {
+	for _, intTest := range internal.Tests {
 		intTest := intTest
 		wg.Add(1)
 		go func() {
@@ -136,11 +133,11 @@ func (Build) Tests() error {
 		return anyErr
 	}
 	log.Println("Copying supplementary test compilation files.")
-	repoRootOutPath := outPath + constants.RepoCopyRoot
+	repoRootOutPath := outPath + internal.RepoCopyRoot
 	if err := os.MkdirAll(repoRootOutPath, os.ModePerm); err != nil {
 		return err
 	}
-	for _, supplement := range constants.TestSupplements {
+	for _, supplement := range internal.TestSupplements {
 		os.MkdirAll(filepath.Dir(repoRootOutPath+supplement), os.ModePerm)
 		if err := sh.RunV("rsync", repoRoot+supplement, repoRootOutPath+supplement); err != nil {
 			return err
@@ -152,7 +149,7 @@ func (Build) Tests() error {
 // Build the images needed during test execution.
 func (Build) TestImages() error {
 	// Make output directories.
-	if err := os.MkdirAll("out"+constants.RegistryDestinationDirectory, 0775); err != nil {
+	if err := os.MkdirAll("out"+internal.RegistryDestinationDirectory, 0775); err != nil {
 		return err
 	}
 
@@ -174,7 +171,7 @@ func (Build) TestImages() error {
 	}
 
 	// Store said tag so the artifact knows which to use.
-	f, err := os.Create("out" + constants.ImageTagFile)
+	f, err := os.Create("out" + internal.ImageTagFile)
 	if err != nil {
 		return err
 	}
@@ -208,7 +205,7 @@ func (Build) TestImages() error {
 	if err != nil {
 		return fmt.Errorf("cannot archive %q: %v", dir, err)
 	}
-	outRegistryDir := "out" + constants.RegistryDestinationDirectory
+	outRegistryDir := "out" + internal.RegistryDestinationDirectory
 	configYml := outRegistryDir + "/config.yml"
 	err = sh.RunV("rsync", outputDir+"/config.yml", configYml)
 	if err != nil {

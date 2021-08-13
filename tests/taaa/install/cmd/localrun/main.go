@@ -9,13 +9,12 @@ import (
 
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/local"
 	asm "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_installer"
+	"istio.io/istio/tests/taaa/install/internal"
 )
-
-const asmImagePath = "gcr.io/taaa-project/host/gke-internal/istio/istio/install:latest"
 
 func main() {
 	asmpb := &asm.ASMInstaller{}
-	if err := local.NewLocalRun(asmpb, asmImagePath).Execute(); err != nil {
+	if err := local.NewLocalRun(asmpb, internal.ImgPath+":latest").Execute(); err != nil {
 		os.Exit(1)
 	}
 }

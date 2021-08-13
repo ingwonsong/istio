@@ -16,7 +16,7 @@ import (
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/entrypoint"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm"
-	"istio.io/istio/tests/taaa/test-artifact/internal/constants"
+	"istio.io/istio/tests/taaa/test-artifact/internal"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 		// ASM tests use the flags "--istio.test.tag" and "--istio.test.hub" to find images.
 		istioTestHub := fmt.Sprintf("gcr.io/%s/asm-test-images", project)
 		log.Println("Starting registry server.")
-		server, err := registry.StartRegistry(constants.RegistryDestinationDirectory)
+		server, err := registry.StartRegistry(internal.RegistryDestinationDirectory)
 		if err != nil {
 			return fmt.Errorf("cannot start registry server: %v", err)
 		}
@@ -62,14 +62,14 @@ func main() {
 			log.Printf("Warning: registry cannot be killed, might want to figure out why, error %v", err)
 		}
 
-		istioTestTagBytes, err := ioutil.ReadFile(constants.ImageTagFile)
+		istioTestTagBytes, err := ioutil.ReadFile(internal.ImageTagFile)
 		if err != nil {
 			return fmt.Errorf("/IMAGE_TAG file needed to know which image tag to use: %v", err)
 		}
 		istioTestTag := string(istioTestTagBytes)
 
 		// Set up environment variables for tests.
-		os.Setenv("REPO_ROOT", constants.RepoCopyRoot)
+		os.Setenv("REPO_ROOT", internal.RepoCopyRoot)
 
 		// Run tests.
 		var overall_err error
@@ -86,7 +86,7 @@ func main() {
 				ok      istio.io/istio/tests/integration/pilot/revisioncmd      0.002s
 				ok      istio.io/istio/tests/integration/pilot/revisions        0.003s
 			*/
-			for _, bin := range constants.Tests {
+			for _, bin := range internal.Tests {
 				// This set of arguments was obtained by extracting the test command from a log and making substitutions as necessary.
 				// There is currently no forcing function for keeping these in sync.
 				err := entrypoint.GoTest(

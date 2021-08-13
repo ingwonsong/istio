@@ -13,10 +13,10 @@ import (
 	"github.com/magefile/mage/sh"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/git"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/magetools"
+	"istio.io/istio/tests/taaa/install/internal"
 )
 
 const (
-	imgPath = "gcr.io/taaa-project/host/gke-internal/istio/istio/install"
 	outPath = "./out/"
 )
 
@@ -32,14 +32,14 @@ func (Build) Artifact() error {
 	}
 	err = sh.RunV("docker", "build",
 		"--pull",
-		"-t", imgPath+":"+imageTag,
+		"-t", internal.ImgPath+":"+imageTag,
 		"-f", "Dockerfile",
 		outPath,
 	)
 	if err != nil {
 		return err
 	}
-	return sh.RunV("docker", "tag", imgPath+":"+imageTag, imgPath+":latest")
+	return sh.RunV("docker", "tag", internal.ImgPath+":"+imageTag, internal.ImgPath+":latest")
 }
 
 // Compile the entrypoint binary.
@@ -72,15 +72,15 @@ func (Build) Push(branchName string) error {
 	if err != nil {
 		return fmt.Errorf("error running git describe to get image tag: %s", err)
 	}
-	err = sh.RunV("docker", "tag", imgPath+":"+imgTag, imgPath+":"+branchName)
+	err = sh.RunV("docker", "tag", internal.ImgPath+":"+imgTag, internal.ImgPath+":"+branchName)
 	if err != nil {
 		return fmt.Errorf("error tagging created image: %s", err)
 	}
-	err = sh.RunV("docker", "push", imgPath+":"+imgTag)
+	err = sh.RunV("docker", "push", internal.ImgPath+":"+imgTag)
 	if err != nil {
 		return fmt.Errorf("error pushing tagged image: %s", err)
 	}
-	return sh.RunV("docker", "push", imgPath+":"+branchName)
+	return sh.RunV("docker", "push", internal.ImgPath+":"+branchName)
 }
 
 func Clean() error {
