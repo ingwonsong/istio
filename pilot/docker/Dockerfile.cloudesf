@@ -3,7 +3,9 @@ ARG BASE_DISTRIBUTION=default
 
 # Version is the base image version from the TLD Makefile
 ARG BASE_VERSION=latest
-FROM gcr.io/cloudesf-release/proxy:cloudesf_20210803_00_RC00 as cloudesf_gcr
+
+ARG CLOUDESF_VERSION
+FROM gcr.io/cloudesf-release/proxy:${CLOUDESF_VERSION} as cloudesf_gcr
 # The following section is used as base image if BASE_DISTRIBUTION=distroless
 # This image is a custom built debian10 distroless image with multiarchitecture support.
 # It is built on the base distroless image, with iptables binary and libraries added
@@ -21,7 +23,7 @@ FROM default
 
 WORKDIR /
 
-ARG proxy_version=cloudesf_20210803_00_RC00
+ARG proxy_version
 ARG istio_version
 
 # Copy Envoy bootstrap templates used by pilot-agent
