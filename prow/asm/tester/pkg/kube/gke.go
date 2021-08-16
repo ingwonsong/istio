@@ -24,9 +24,9 @@ type GKEClusterSpec struct {
 
 // GKEClusterSpecsFromContexts parses the GCP project IDs from the contexts.
 // It will return an empty list if the current contexts are not for GKE-on-GCP.
-func GKEClusterSpecsFromContexts(kubectlContexts []string) []*GKEClusterSpec {
+func GKEClusterSpecsFromContexts(kubeContexts []string) []*GKEClusterSpec {
 	res := make([]*GKEClusterSpec, 0)
-	for _, context := range kubectlContexts {
+	for _, context := range kubeContexts {
 		cp := GKEClusterSpecFromContext(context)
 		if cp != nil {
 			res = append(res, cp)
@@ -37,8 +37,8 @@ func GKEClusterSpecsFromContexts(kubectlContexts []string) []*GKEClusterSpec {
 
 // GKEClusterSpecFromContext parses a GKEClusterSpec struct from a kubecontext.
 // It will return nil if the provided context is not for GKE-on-GCP.
-func GKEClusterSpecFromContext(kubectlContext string) *GKEClusterSpec {
-	parts := strings.Split(kubectlContext, "_")
+func GKEClusterSpecFromContext(kubeContext string) *GKEClusterSpec {
+	parts := strings.Split(kubeContext, "_")
 	if len(parts) == 4 && parts[0] == "gke" {
 		return &GKEClusterSpec{
 			ProjectID: parts[1],

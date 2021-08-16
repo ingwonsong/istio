@@ -21,20 +21,16 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 )
 
-// ContextStr returns the kubectl contexts name.
-func ContextStr() (string, error) {
+// Contexts returns the kubectl contexts name.
+func Contexts() ([]string, error) {
 	// Get all contexts of the clusters.
-	var kubectlContexts string
+	var kubeContexts string
 	var err error
-	kubectlContexts, err = exec.RunWithOutput("kubectl config view -o jsonpath=\"{range .contexts[*]}{.name}{','}{end}\"")
+	kubeContexts, err = exec.RunWithOutput("kubectl config view -o jsonpath=\"{range .contexts[*]}{.name}{','}{end}\"")
 	if err != nil {
-		return "", fmt.Errorf("error getting the kubectl contexts: %w", err)
+		return nil, fmt.Errorf("error getting the kubectl contexts: %w", err)
 	}
 	// Trim the trailing ","
-	kubectlContexts = kubectlContexts[:len(kubectlContexts)-1]
-	return kubectlContexts, nil
-}
-
-func ContextArr(contexts string) string {
-	return strings.Join(strings.Split(contexts, ","), " ")
+	kubeContexts = kubeContexts[:len(kubeContexts)-1]
+	return strings.Split(kubeContexts, ","), nil
 }

@@ -16,12 +16,35 @@ package system
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 
+	"github.com/hashicorp/go-multierror"
 	"istio.io/istio/prow/asm/tester/pkg/install"
+	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+)
+
+var (
+	systemLogDir     = filepath.Join(os.Getenv("ARTIFACTS"), "system-pod-logs")
+	systemNamespaces = []string{"istio-system", "asm-system"}
 )
 
 func Setup(settings *resource.Settings) error {
 	log.Println("🎬 start installing ASM control plane...")
-	return install.Install(settings)
+
+	err := install.Install(settings)
+	if err != nil {
+		// Export the Pod logs if the tests are run on CI.
+		if os.Getenv("CI") == "true" {
+			for _, kubeconfig := range filepath.SplitList(settings.Kubeconfig) {
+				for _, ns := range systemNamespaces {
+					exportLogErr := kube.ExportLogs(kubeconfig, ns, systemLogDir)
+					err = multierror.Append(err, exportLogErr)
+				}
+			}
+			log.Printf("ERROR: system installation failed, logs can be found at %q", systemLogDir)
+		}
+	}
+	return multierror.Flatten(err)
 }

@@ -22,9 +22,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
-func NewClient(context string) (*kubernetes.Clientset, error) {
-	config := getClientConfig(context)
-	restConfig, err := config.ClientConfig()
+func NewClient(kubeconfig string) (*kubernetes.Clientset, error) {
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -34,13 +33,4 @@ func NewClient(context string) (*kubernetes.Clientset, error) {
 	}
 
 	return client, nil
-}
-
-func getClientConfig(context string) clientcmd.ClientConfig {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides := &clientcmd.ConfigOverrides{}
-	if context != "" {
-		overrides.CurrentContext = context
-	}
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
 }

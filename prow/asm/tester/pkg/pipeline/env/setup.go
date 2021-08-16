@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -93,17 +94,13 @@ func enableCoreDumps(settings *resource.Settings) error {
 func populateRuntimeSettings(settings *resource.Settings) error {
 	settings.ConfigDir = filepath.Join(settings.RepoRootDir, configDir)
 
-	var kubectlContexts string
-	var err error
-	kubectlContexts, err = kube.ContextStr()
-	if err != nil {
-		return err
-	}
-	settings.KubeContexts = strings.Split(kubectlContexts, ",")
-
 	var gcrProjectID string
 	if settings.ClusterType == resource.GKEOnGCP {
-		cs := kube.GKEClusterSpecsFromContexts(settings.KubeContexts)
+		gkeContexts, err := kube.Contexts()
+		if err != nil {
+			return err
+		}
+		cs := kube.GKEClusterSpecsFromContexts(gkeContexts)
 		projectIDs := make([]string, len(cs))
 		for i, c := range cs {
 			projectIDs[i] = c.ProjectID
@@ -214,23 +211,37 @@ func getBuildID() string {
 // These fixes are considered as hacky and temporary, ideally in the future they
 // should all be handled by the corresponding deployer.
 func fixClusterConfigs(settings *resource.Settings) error {
+	var err error
+
 	switch resource.ClusterType(settings.ClusterType) {
 	case resource.GKEOnGCP:
-		return fixGKE(settings)
+		err = fixGKE(settings)
 	case resource.OnPrem:
-		return fixOnPrem(settings)
+		err = fixOnPrem(settings)
 	case resource.BareMetal:
-		return fixBareMetal(settings)
+		err = fixBareMetal(settings)
 	case resource.GKEOnAWS:
-		return fixAWS(settings)
+		err = fixAWS(settings)
 	case resource.APM:
-		return fixAPM(settings)
+		err = fixAPM(settings)
 	}
 
-	return nil
+	kubeContexts, kubeContextErr := kube.Contexts()
+	if kubeContextErr != nil {
+		err = multierror.Append(err, kubeContextErr)
+	}
+	// Set KubeContexts after the cluster configs are fixed.
+	settings.KubeContexts = kubeContexts
+
+	return multierror.Flatten(err)
 }
 
 func fixGKE(settings *resource.Settings) error {
+	gkeContexts, err := kube.Contexts()
+	if err != nil {
+		return err
+	}
+
 	// Add firewall rules to enable multi-cluster communication
 	if err := addFirewallRules(settings); err != nil {
 		return err
@@ -252,7 +263,7 @@ func fixGKE(settings *resource.Settings) error {
 		}
 
 		// Setup the firewall for VPC-SC
-		for _, c := range kube.GKEClusterSpecsFromContexts(settings.KubeContexts) {
+		for _, c := range kube.GKEClusterSpecsFromContexts(gkeContexts) {
 			getFirewallRuleCmd := fmt.Sprintf("bash -c \"gcloud compute firewall-rules list --filter=\"name~gke-\"%s\"-[0-9a-z]*-master\" --format=json | jq -r '.[0].name'\"", c.Name)
 			firewallRuleName, err := exec.RunWithOutput(getFirewallRuleCmd)
 			if err != nil {
@@ -264,13 +275,13 @@ func fixGKE(settings *resource.Settings) error {
 			}
 		}
 
-		if err := addIpsToAuthorizedNetworks(settings); err != nil {
+		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
 			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}
 	}
 
 	if settings.FeatureToTest == resource.PrivateClusterLimitedAccess || settings.FeatureToTest == resource.PrivateClusterNoAccess {
-		if err := addIpsToAuthorizedNetworks(settings); err != nil {
+		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
 			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}
 	}
@@ -326,7 +337,7 @@ func addFirewallRules(settings *resource.Settings) error {
 	return nil
 }
 
-func addIpsToAuthorizedNetworks(settings *resource.Settings) error {
+func addIpsToAuthorizedNetworks(settings *resource.Settings, gkeContexts []string) error {
 	// Get test runner IP
 	testRunnerCidr, err := getTestRunnerCidr()
 	if err != nil {
@@ -334,7 +345,7 @@ func addIpsToAuthorizedNetworks(settings *resource.Settings) error {
 	}
 
 	// Get clusters' details
-	gkeClusterSpecs := kube.GKEClusterSpecsFromContexts(settings.KubeContexts)
+	gkeClusterSpecs := kube.GKEClusterSpecsFromContexts(gkeContexts)
 
 	switch len(gkeClusterSpecs) {
 	case 1:
