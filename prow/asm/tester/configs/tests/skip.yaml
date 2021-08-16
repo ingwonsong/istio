@@ -211,6 +211,41 @@ tests:
         - TestMultiVersionRevision
         buganizerID: 187722953
 
+  # Unmanaged CP + EKS (don't confuse with regular AWS)
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: eks
+    targets:
+      # security/ tests
+      - names:
+          - TestStrictMTLS
+        reason: MeshCA does not support ECDSA
+      - names:
+          - TestAuthorization_Custom
+        reason: requires mesh config
+      # telemetry/ tests
+      - names:
+          - TestStackdriver
+          - TestStackdriverAudit
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro installation
+      # networking/ tests
+      - names:
+        - TestCustomGateway/helm
+        - TestAddToAndRemoveFromMesh
+        - TestRevisionedUpgrade
+        - TestServiceExports/exported/0/create
+        - TestRevisionCommand
+        - TestRevisionTags
+        - TestMultiRevision
+        - TestUninstallByRevision
+        - TestUninstallWithSetFlag
+        - TestTraffic/dns
+        - TestXdsVersion
+        - TestXdsProxyStatus
+        - TestMultiVersionRevision
+        buganizerID: 187722953
+
   # Unmanaged CP, cluster topology = mc, feature = VPC_SC
   # Keep the skipped test cases same as unmanaged cp, mp
   - selectors:
