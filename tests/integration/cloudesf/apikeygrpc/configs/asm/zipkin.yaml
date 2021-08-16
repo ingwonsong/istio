@@ -1,0 +1,10 @@
+data:
+  meshNetworks: |-
+    networks: {}
+  mesh: |-
+    defaultConfig:
+      discoveryAddress: istiod.istio-system.svc:15012
+      proxyMetadata: {}
+    enablePrometheusMerge: true
+    rootNamespace: istio-system
+    trustDomain: cluster.local

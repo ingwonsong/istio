@@ -37,6 +37,7 @@ func main() {
 	flag.StringVar(&cfg.ExtraDeployerFlags, "deployer-flags", cfg.ExtraDeployerFlags,
 		"extra flags corresponding to the deployer being used (optional). Supported flags can be"+
 			" checked by running `kubetest2 [deployer] --help`")
+	flag.StringVar(&cfg.GcloudExtraFlags, "gcloud-extra-flags", cfg.GcloudExtraFlags, "Extra gcloud flags to pass when creating the clusters.")
 	flag.StringVar(&cfg.TestScript, "test-script", cfg.TestScript,
 		"the script to run the tests after clusters are created (required for tailorbird)")
 	flag.StringVar(&cfg.TestFlags, "test-flags", cfg.TestFlags,
@@ -59,6 +60,7 @@ func main() {
 		fmt.Sprintf("the feature to test for ASM (optional). Can be one of %v", types.SupportedFeatures))
 	flag.StringVar(&cfg.GCSBucket, "gcs-bucket", cfg.GCSBucket,
 		"the GCS bucket to be used for the platform (optional). Supported values vary per platform")
+	flag.BoolVar(&cfg.IsCloudESFTest, "is-cloudesf-test", cfg.IsCloudESFTest, "whether it is the test using CloudESF as ingress gateway")
 	flag.Parse()
 
 	// Special case for testing the Addon.
@@ -66,6 +68,10 @@ func main() {
 		// We only support clusters that have EnsureExists, currently available on rapid only
 		cfg.ReleaseChannel = types.Rapid
 		cfg.ClusterVersion = "latest"
+	}
+
+	if cfg.IsCloudESFTest {
+		cfg.TestFlags = cfg.TestFlags + " --install-cloudesf"
 	}
 
 	if err := runTestFlow(cfg); err != nil {

@@ -1,0 +1,18 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-operator
+spec:
+  meshConfig:
+    enableTracing: false
+  values:
+    gateways:
+      istio-ingressgateway:
+        env:
+          ENABLE_CLOUD_ESF: "true"
+    telemetry:
+      v2:
+        enabled: false
+    pilot:
+      env:
+        ENABLE_CLOUD_ESF: "true"

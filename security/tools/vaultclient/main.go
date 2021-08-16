@@ -86,19 +86,19 @@ func runVaultClient() {
 		log.Fatalf("Failed to retrieve values from Vault: %v", err)
 	}
 	clientCertFilePath := path.Join(outputDir, clientCertFileName)
-	if err := ioutil.WriteFile(clientCertFilePath, clientCertPem, 0644); err != nil {
+	if err := ioutil.WriteFile(clientCertFilePath, clientCertPem, 0o644); err != nil {
 		log.Fatalf("Failed to write client cert to file: %s", err)
 	}
 	clientKeyFilePath := path.Join(outputDir, clientKeyFileName)
-	if err := ioutil.WriteFile(clientKeyFilePath, clientKeyPem, 0644); err != nil {
+	if err := ioutil.WriteFile(clientKeyFilePath, clientKeyPem, 0o644); err != nil {
 		log.Fatalf("Failed to write client key to file: %s", err)
 	}
 	serverCertFilePath := path.Join(outputDir, serverCertFileName)
-	if err := ioutil.WriteFile(serverCertFilePath, serverCertPem, 0644); err != nil {
+	if err := ioutil.WriteFile(serverCertFilePath, serverCertPem, 0o644); err != nil {
 		log.Fatalf("Failed to write server cert to file: %s", err)
 	}
 	pinFilePath := path.Join(outputDir, pinFileName)
-	if err := ioutil.WriteFile(pinFilePath, pin, 0644); err != nil {
+	if err := ioutil.WriteFile(pinFilePath, pin, 0o644); err != nil {
 		log.Fatalf("Failed to write PIN to file: %s", err)
 	}
 	log.Infof("Successfully written data from Vault to files in %v", outputDir)

@@ -1,0 +1,7 @@
+spec:
+  template:
+    spec:
+      containers:
+      - name: istio-proxy
+        securityContext:
+          readOnlyRootFilesystem: false

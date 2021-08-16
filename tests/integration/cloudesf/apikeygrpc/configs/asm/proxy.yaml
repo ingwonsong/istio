@@ -1,0 +1,7 @@
+spec:
+  template:
+    spec:
+      containers:
+      - name: istio-proxy
+        # TODO(b/197667831): replace with the built cloudESF image from HEAD.
+        image: gcr.io/cloudesf-release/asm/cloudesf_proxyv2:dev-stable

@@ -229,6 +229,10 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if os.Getenv(cloudAPIEndpointOverrides) == staging2Endpoint {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/meshca-staging2-gke.yaml"))
 	}
+	if settings.InstallCloudESF {
+		overlays = append(overlays, filepath.Join(pkgPath, "overlay/cloudesf-e2e.yaml"))
+	}
+
 	installFlags = append(installFlags, "--custom_overlay", strings.Join(overlays, ","))
 
 	// Set the revision name if specified on the per-revision config

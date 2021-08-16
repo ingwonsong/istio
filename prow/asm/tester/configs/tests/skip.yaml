@@ -411,6 +411,10 @@ tests:
       - names:
           - TestTelemetry
         buganizerID: 190420441
+      # cloudesf/tests
+      - names:
+          - TestCloudESFApiKeyGrpc
+        reason: it requires installing istiod first
   - selectors:
       gce_vms: true
     targets:

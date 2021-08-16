@@ -1,0 +1,570 @@
+{
+  "apiVersion": "networking.istio.io/v1alpha3",
+  "kind": "VirtualService",
+  "metadata": {
+    "creationTimestamp": null,
+    "name": "cap-e2e-codelabapikeys.sandbox.googleapis.com-vs",
+    "namespace": "default"
+  },
+  "spec": {
+    "gateways": [
+      "default/cap-e2e-codelabapikeys-sandbox-googleapis-com-asm-gw"
+    ],
+    "hosts": [
+      "*"
+    ],
+    "http": [
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "regex": "^/$discovery/[^\\/]+\\/?$"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/CreateApiKey"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.CreateApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/CreateApiKey/"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.CreateApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/DeleteApiKey"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.DeleteApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/DeleteApiKey/"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.DeleteApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/GetApiKey"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.GetApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/GetApiKey/"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.GetApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/ListApiKeys"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.ListApiKeys",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/ListApiKeys/"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.ListApiKeys",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/UpdateApiKey"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.UpdateApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/UpdateApiKey/"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.UpdateApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "regex": "^/v1/projects/[^\\/]+/apiKeys\\/?$"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.ListApiKeys",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "regex": "^/v1/projects/[^\\/]+/apiKeys\\/?$"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.CreateApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "DELETE"
+              }
+            },
+            "uri": {
+              "regex": "^/v1/projects/[^\\/]+/apiKeys/[^\\/]+\\/?$"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.DeleteApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "regex": "^/v1/projects/[^\\/]+/apiKeys/[^\\/]+\\/?$"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.GetApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "PATCH"
+              }
+            },
+            "uri": {
+              "regex": "^/v1/projects/[^\\/]+/apiKeys/[^\\/]+\\/?$"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.UpdateApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "status": {}
+}

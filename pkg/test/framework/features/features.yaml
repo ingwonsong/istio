@@ -181,3 +181,5 @@ features:
     autoregistration:
   mdp:
     upgrade:
+  cloudesf:
+    apikeygrpc:

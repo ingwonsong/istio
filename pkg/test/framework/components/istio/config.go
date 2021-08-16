@@ -177,6 +177,9 @@ type Config struct {
 	// TODO we could set this per-cluster if istiod was smarter about patching remotes.
 	IstiodlessRemotes bool
 
+	// Whether to install CloudESF as ingress gateway.
+	InstallCloudESF bool
+
 	// OperatorOptions overrides default operator configuration.
 	OperatorOptions map[string]string
 

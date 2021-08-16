@@ -44,6 +44,7 @@ var (
 type Instance struct {
 	RepoRootDir           string
 	ExtraDeployerFlags    string
+	GcloudExtraFlags      string
 	TestScript            string
 	TestFlags             string
 	GCPProjects           []string
@@ -51,6 +52,7 @@ type Instance struct {
 	Cluster               types.Cluster
 	UpgradeClusterVersion string
 	GCSBucket             string
+	IsCloudESFTest        bool
 	Topology              types.Topology
 	WIP                   types.WIP
 	ReleaseChannel        types.ReleaseChannel

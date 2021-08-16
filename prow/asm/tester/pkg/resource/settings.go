@@ -60,6 +60,9 @@ type Settings struct {
 	// Port that clients should use to trigger events from within test suite
 	TestStartEventPort string
 
+	// Whether to install CloudESF as ingress gateway.
+	InstallCloudESF bool
+
 	VMSettings
 
 	MCPSettings

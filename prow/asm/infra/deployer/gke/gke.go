@@ -186,6 +186,11 @@ func (d *Instance) getDeployerCreateCommandFlag() string {
 	if d.cfg.Feature == types.Addon {
 		addonFlag = " --addons=Istio"
 	}
+	if d.cfg.GcloudExtraFlags != "" {
+		addonFlag = fmt.Sprintf("%s %s", addonFlag, d.cfg.GcloudExtraFlags)
+	}
+
+	// kubetest2's `create-command` flag will make its `gcloud-extra-flags` skipped so append those flags into `create-command` directly.
 	return fmt.Sprintf("--create-command='beta container clusters %s --quiet --enable-network-policy%s'", name, addonFlag)
 }
 
