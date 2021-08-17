@@ -146,6 +146,8 @@ tests:
           - TestUninstall*
           - TestServiceExports*
           - TestTraffic/dns
+          - TestIngress/update-class-not-istio
+          - TestTraffic/consistent-hash/query_param
         buganizerID: 187725074
 
   # Unmanaged CP + apm
