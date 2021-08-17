@@ -144,7 +144,13 @@ func NewControlPlaneExporter() (*ASMExporter, error) {
 		meshUID = meshUIDFromPlatformMeta(gcpMetadata)
 	}
 	labels.Set("mesh_uid", meshUID, "ID for Mesh")
-	labels.Set("revision", revisionLabel(), "Control plane revision")
+	labels.Set("revision", version.Info.Version, "Control plane revision")
+	// control_plane_version was introduced when "revision" was
+	// changed to report the MCP revision instead of the version.
+	// Since the revision change was a breaking one, it was
+	// revered back to just the version, but we're keeping
+	// control_plane_version around even though it's identical to
+	// revision now.
 	labels.Set("control_plane_version", version.Info.Version, "Control plane version")
 
 	s := sdExporterConfigs{
