@@ -192,6 +192,9 @@ func injectEnvVars(settings *resource.Settings) error {
 		"VM_DISTRO":     settings.VMImageFamily,
 		"IMAGE_PROJECT": settings.VMImageProject,
 	}
+	if settings.RevisionConfig != "" {
+		envVars["MULTI_VERSION"] = "1"
+	}
 
 	for name, val := range envVars {
 		log.Printf("Set env var: %s=%s", name, val)

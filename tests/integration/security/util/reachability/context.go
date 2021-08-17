@@ -111,9 +111,12 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 				// TODO(https://github.com/istio/istio/issues/20460) We shouldn't need a retry loop
 				return t.ConfigIstio().ApplyYAML(c.Namespace.Name(), policyYAML)
 			})
-			t.NewSubTest("wait for config").Run(func(t framework.TestContext) {
-				util.WaitForConfig(t, c.Namespace, policyYAML)
-			})
+			// TODO(https://buganizer.corp.google.com/issues/197023893)
+			if os.Getenv("MULTI_VERSION") != "1" {
+				t.NewSubTest("wait for config").Run(func(t framework.TestContext) {
+					util.WaitForConfig(t, c.Namespace, policyYAML)
+				})
+			}
 			for _, clients := range []echo.Instances{apps.A, apps.B.Match(echo.Namespace(apps.Namespace1.Name())), apps.Headless, apps.Naked, apps.HeadlessNaked} {
 				for _, client := range clients {
 					client := client
