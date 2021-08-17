@@ -8,6 +8,9 @@ set -euxo pipefail
 apt-get update
 apt-get install rsync
 
+# Enable pushing to artifact registry
+gcloud auth configure-docker us-docker.pkg.dev
+
 git config --add --global url."https://gke-internal.googlesource.com".insteadOf sso://gke-internal.git.corp.google.com
 git config --add --global url."https://gke-internal.googlesource.com".insteadOf https://gke-internal.git.corp.google.com
 git config --add --global url."https://gke-internal.googlesource.com".insteadOf git://gke-internal.git.corp.google.com
