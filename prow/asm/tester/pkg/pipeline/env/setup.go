@@ -57,7 +57,7 @@ func Setup(settings *resource.Settings) error {
 		return err
 	}
 
-	if settings.ClusterType == resource.GKEOnGCP {
+	if settings.ClusterType == resource.GKEOnGCP && settings.FeatureToTest != resource.Autopilot {
 		// Enable core dumps for Istio proxy
 		if err := enableCoreDumps(settings); err != nil {
 			return err
@@ -318,7 +318,9 @@ func addFirewallRules(settings *resource.Settings) error {
 		if err != nil {
 			return fmt.Errorf("error getting all cluster tags for project %q: %w", p, err)
 		}
-		targetTags = append(targetTags, strings.Split(strings.TrimSpace(allClusterTags), "\n")...)
+		if strings.TrimSpace(allClusterTags) != "" {
+			targetTags = append(targetTags, strings.Split(strings.TrimSpace(allClusterTags), "\n")...)
+		}
 	}
 
 	// Get test runner CIDR
@@ -345,14 +347,23 @@ func addFirewallRules(settings *resource.Settings) error {
 		}
 	}
 	// Now actually make the firewall rule.
-	if err := exec.Run(fmt.Sprintf(`gcloud compute firewall-rules create %s \
+	firewallRuleCmd := fmt.Sprintf(`gcloud compute firewall-rules create %s \
 	--network=%s \
 	--project=%s \
 	--allow=tcp,udp,icmp,esp,ah,sctp \
 	--direction=INGRESS \
 	--priority=900 \
 	--source-ranges=%s \
-	--target-tags=%s --quiet`, resource.MCFireWallName, settings.GKENetworkName, networkProject, settings.TrustableSourceRanges, strings.Join(targetTags, ","))); err != nil {
+	--quiet`, resource.MCFireWallName, settings.GKENetworkName, networkProject, settings.TrustableSourceRanges)
+	// By default GKE Autopilot clusters do not have instance groups, the
+	// command to get the instance tags will return empty, and the `gcloud
+	// compute firewall-rules create` command does not allow setting
+	// `--target-tags` as empty. So do not set `--target-tags` if targetTags is
+	// empty.
+	if len(targetTags) != 0 {
+		firewallRuleCmd = fmt.Sprintf("%s --target-tags=%s", firewallRuleCmd, strings.Join(targetTags, ","))
+	}
+	if err := exec.Run(firewallRuleCmd); err != nil {
 		return fmt.Errorf("error creating the firewall rule to allow multi-cluster communication")
 	}
 

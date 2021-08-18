@@ -149,6 +149,7 @@ const (
 	PrivateClusterLimitedAccess      Feature = "PRIVATE_CLUSTER_LIMITED_ACCESS"
 	PrivateClusterNoAccess           Feature = "PRIVATE_CLUSTER_NO_ACCESS"
 	CNI                              Feature = "CNI"
+	Autopilot                        Feature = "AUTOPILOT"
 )
 
 var validFeatureTypes = sets.NewString(
@@ -158,7 +159,8 @@ var validFeatureTypes = sets.NewString(
 	string(PrivateClusterUnrestrictedAccess),
 	string(PrivateClusterLimitedAccess),
 	string(PrivateClusterNoAccess),
-	string(CNI))
+	string(CNI),
+	string(Autopilot))
 
 // Set converts the value string to FeatureType
 func (f *Feature) Set(value string) error {

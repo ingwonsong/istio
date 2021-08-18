@@ -126,8 +126,8 @@ func (d *Instance) flags() ([]string, error) {
 	// Append the base GKE flags.
 	flags = append(flags, baseFlags...)
 
-	// Append the create command.
-	flags = append(flags, d.getDeployerCreateCommandFlag())
+	// Append the extra deployer flags.
+	flags = append(flags, d.getExtraDeployerFlags()...)
 
 	// Get the release channel to use.
 	releaseChannel, err := d.getReleaseChannel()
@@ -153,6 +153,7 @@ func (d *Instance) flags() ([]string, error) {
 		case types.PrivateClusterLimitedAccess:
 		case types.PrivateClusterNoAccess:
 		case types.ContainerNetworkInterface:
+		case types.Autopilot:
 		default:
 			err = fmt.Errorf("feature %q is not supported", d.cfg.Feature)
 		}
@@ -177,11 +178,11 @@ func (d *Instance) getTopologyFlags(releaseChannel types.ReleaseChannel) ([]stri
 	}
 }
 
-func (d *Instance) getDeployerCreateCommandFlag() string {
-	name := "create"
-	if d.cfg.Cluster == types.GKEOnGCPWithAutoPilot {
-		name = "create-auto"
+func (d *Instance) getExtraDeployerFlags() []string {
+	if d.cfg.Feature == types.Autopilot {
+		return []string{"--autopilot=true", "--gcloud-command-group=beta"}
 	}
+
 	addonFlag := ""
 	if d.cfg.Feature == types.Addon {
 		addonFlag = " --addons=Istio"
@@ -191,7 +192,7 @@ func (d *Instance) getDeployerCreateCommandFlag() string {
 	}
 
 	// kubetest2's `create-command` flag will make its `gcloud-extra-flags` skipped so append those flags into `create-command` directly.
-	return fmt.Sprintf("--create-command='beta container clusters %s --quiet --enable-network-policy%s'", name, addonFlag)
+	return []string{"--gcloud-command-group=beta", fmt.Sprintf("--gcloud-extra-flags='--enable-network-policy%s'", addonFlag)}
 }
 
 func (d *Instance) getClusterVersion() string {

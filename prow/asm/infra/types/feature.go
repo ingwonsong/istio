@@ -25,6 +25,7 @@ var (
 	PrivateClusterLimitedAccess      = addFeature("PRIVATE_CLUSTER_LIMITED_ACCESS")
 	PrivateClusterNoAccess           = addFeature("PRIVATE_CLUSTER_NO_ACCESS")
 	ContainerNetworkInterface        = addFeature("CNI")
+	Autopilot                        = addFeature("AUTOPILOT")
 
 	SupportedFeatures []Feature
 )

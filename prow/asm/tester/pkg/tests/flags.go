@@ -75,6 +75,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		}
 	}
 
+	if settings.FeatureToTest == resource.Autopilot {
+		testFlags = append(testFlags, "--istio.test.skipTProxy=true")
+	}
+
 	// Need to pass the revisions and versions to test framework if specified
 	if settings.RevisionConfig != "" {
 		revisionConfigPath := filepath.Join(settings.RepoRootDir, resource.ConfigDirPath, "revision-deployer", settings.RevisionConfig)

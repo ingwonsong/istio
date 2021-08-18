@@ -68,10 +68,11 @@ func main() {
 	flag.Parse()
 
 	// Special case for testing the Addon.
+	// TODO: move it to Prow job config.
 	if cfg.Feature == types.Addon {
 		// We only support clusters that have EnsureExists, currently available on rapid only
 		cfg.ReleaseChannel = types.Rapid
-		cfg.ClusterVersion = "latest"
+		cfg.ClusterVersion = "1.21"
 	}
 
 	if cfg.IsCloudESFTest {

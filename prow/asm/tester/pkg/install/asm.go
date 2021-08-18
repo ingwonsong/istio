@@ -215,7 +215,6 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 		"--cluster_location", cluster.Location,
 		"--verbose",
 		"--option", "audit-authorizationpolicy",
-		"--option", "cni-gcp",
 	)
 	installFlags = append(installFlags, getInstallEnableFlags()...)
 
@@ -268,6 +267,9 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if settings.InstallCloudESF {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/cloudesf-e2e.yaml"))
 	}
+	if settings.FeatureToTest == resource.Autopilot {
+		overlays = append(overlays, filepath.Join(pkgPath, "overlay/autopilot-cni-image.yaml"))
+	}
 
 	installFlags = append(installFlags, "--custom_overlay", strings.Join(overlays, ","))
 
@@ -278,6 +280,11 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	}
 
 	// Other random options
+	if settings.FeatureToTest == resource.Autopilot {
+		installFlags = append(installFlags, "--option", "cni-gke-autopilot")
+	} else {
+		installFlags = append(installFlags, "--option", "cni-gcp")
+	}
 	if settings.ClusterTopology == resource.MultiProject {
 		installFlags = append(installFlags, "--option", "multiproject")
 	}

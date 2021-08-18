@@ -1,0 +1,24 @@
+apiVersion: operator.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  components:
+    cni:
+      k8s:
+        overlays:
+        - apiVersion: apps/v1
+          kind: DaemonSet
+          name: istio-cni-node
+          patches:
+          - path: spec.template.spec.containers[0].image
+            value: gcr.io/gke-release/asm/install-cni:1.11.1-asm.0
+          - path: spec.template.spec.containers[0].resources.requests.cpu
+            value: 500m
+          - path: spec.template.spec.containers[0].resources.requests.memory
+            value: 500Mi
+  values:
+    global:
+      proxy:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 500Mi
