@@ -217,6 +217,7 @@ func setMulticloudPermissions(settings *resource.Settings) error {
 		serviceAccts := []string{
 			"default",
 			"istio-ingressgateway-service-account",
+			"istio-eastwestgateway-service-account",
 			// TODO(samnaser) remove suffix if we move forward with using single service account with aggregated
 			// permissions for istio reader (https://github.com/istio/istio/pull/32888)
 			"istio-reader-" + rev,
