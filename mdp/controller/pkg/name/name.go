@@ -42,8 +42,8 @@ const (
 	// EnablementCMPrefix is used to identify the config map which controls MDP enablement per revision.
 	EnablementCMPrefix string = "istio-asm-managed-"
 
-	// IstioProxyImangeName is the proxy container's image name.
-	IstioProxyImangeName = "proxyv2"
+	// IstioProxyImageName is the proxy container's image name.
+	IstioProxyImageName = "proxyv2"
 
 	// UpgradeErrorEventReason represents the generic Reason used in different upgrade failure events.
 	// But The message part is specific, e.g. EvictionError.

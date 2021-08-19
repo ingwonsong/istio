@@ -113,7 +113,7 @@ func buildClient() client.Client {
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Image: "gcr.io/istio/" + name.IstioProxyImangeName + ":0.0.1",
+							Image: "gcr.io/istio/" + name.IstioProxyImageName + ":0.0.1",
 						},
 					},
 				},
@@ -129,6 +129,18 @@ func buildClient() client.Client {
 				{
 					Kind:       "FakeKind",
 					Controller: addr(true),
+				},
+			},
+		},
+	}, &v1.Pod{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "UncontrolledPod2",
+			Namespace: nss[0].GetName(),
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Image: "gcr.io/istio/" + name.IstioProxyImageName + ":0.0.1",
 				},
 			},
 		},
@@ -380,7 +392,7 @@ func TestPodCacheAndHandlers(t *testing.T) {
 	}
 	upod := pods.Items[0].DeepCopy()
 	// increment pod to v2
-	upod.Spec.Containers[0].Image = "gcr.io/istio/" + name.IstioProxyImangeName + ":0.0.2"
+	upod.Spec.Containers[0].Image = "gcr.io/istio/" + name.IstioProxyImageName + ":0.0.2"
 	sut.Update(event.UpdateEvent{
 		ObjectOld: &pods.Items[0],
 		ObjectNew: upod,

@@ -150,7 +150,7 @@ func getRelevantLabels(sel *metav1.LabelSelector, labels map[string]string) map[
 func ProxyVersion(pod *v1.Pod) (string, bool) {
 	for _, container := range pod.Spec.Containers {
 		vv := strings.Split(container.Image, ":")
-		if !strings.Contains(vv[0], name.IstioProxyImangeName) {
+		if !strings.Contains(vv[0], name.IstioProxyImageName) {
 			continue
 		}
 		if len(vv) == 1 {

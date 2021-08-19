@@ -296,6 +296,9 @@ func PodShouldBeInjected(pod *v1.Pod) bool {
 // has a replicaset controller, but this eligibility check may change in the future.
 func mdpControlsPod(pod *v1.Pod) bool {
 	ctrl := v12.GetControllerOf(pod)
+	if ctrl == nil {
+		return false
+	}
 	// skip pods without existing proxy https://b.corp.google.com/issues/191769400
 	if _, hasProxy := util.ProxyVersion(pod); hasProxy {
 		return ctrl.Kind == "ReplicaSet"
