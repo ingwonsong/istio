@@ -19,11 +19,11 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
+	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 func (c *installer) installASMManagedControlPlaneAFC() error {
@@ -51,53 +51,20 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 		contextLogger.Println("Performing ASM installation via AFC...")
 		cluster := kube.GKEClusterSpecFromContext(context)
 
-		exec.Run("gcloud container hub memberships delete prow-test -q")
-
-		if err := exec.Run(fmt.Sprintf("gcloud beta container hub memberships register %s --gke-cluster=%s/%s --enable-workload-identity", cluster.Name, cluster.Location, cluster.Name)); err != nil {
-			return fmt.Errorf("scriptaro MCP installation failed: %w", err)
+		log.Println("Downloading ASM script for the installation...")
+		if !c.settings.UseASMCLI {
+			return fmt.Errorf("asmcli must be used for afc: %w", err)
 		}
-
-		if err := exec.Run("gcloud components install alpha"); err != nil {
-			return fmt.Errorf("installing alpha failed: %w", err)
-		}
-
-		if err := exec.Run(fmt.Sprintf(`gcloud alpha container hub mesh enable --project=%s`, projectID)); err != nil {
-			return fmt.Errorf("enabling servicemesh feature failed: %w", err)
-		}
-
-		if err := exec.Run("kubectl create ns istio-system --context " + context); err != nil {
-			return fmt.Errorf("creating istio-system namespace failed: %w", err)
-		}
-
-		for i := 0; i < 10; i++ {
-			time.Sleep(10 * time.Second)
-			err = exec.Run("kubectl wait --for condition=established --timeout=10s crd/controlplanerevisions.mesh.cloud.google.com --context " + context)
-			if err == nil {
-				break
-			}
-		}
+		scriptPath, err := downloadInstallScript(c.settings, nil)
 		if err != nil {
-			return fmt.Errorf("waiting for crd failed: %w", err)
+			return fmt.Errorf("failed to download the install script: %w", err)
 		}
 
-		if err := exec.Run(
-			fmt.Sprintf(`bash -c 'cat <<EOF | kubectl apply --context=%s -f -
-apiVersion: mesh.cloud.google.com/v1alpha1
-kind: ControlPlaneRevision
-metadata:
-    name: asm-managed
-    namespace: istio-system
-    annotations:
-        mesh.cloud.google.com/image: %s
-spec:
-    type: managed_service
-    channel: regular
-EOF'`, context, os.Getenv("HUB")+"/cloudrun:"+os.Getenv("TAG"))); err != nil {
-			return fmt.Errorf("error applying CPRevision CR: %w", err)
-		}
-
-		if err := exec.Run("kubectl wait --for=condition=ProvisioningFinished controlplanerevision asm-managed -n istio-system  --timeout 240s --context " + context); err != nil {
-			return fmt.Errorf("waiting for ProvisioningFinished condition failed: %w", err)
+		contextLogger.Println("Running installation using install script...")
+		if err := exec.Run(scriptPath,
+			exec.WithAdditionalEnvs(generateAFCInstallEnvvars(c.settings)),
+			exec.WithAdditionalArgs(generateAFCInstallFlags(c.settings, cluster))); err != nil {
+			return fmt.Errorf("MCP installation via AFC failed: %w", err)
 		}
 
 		if err := exec.Run(
@@ -127,4 +94,31 @@ EOF'`, context)); err != nil {
 	}
 
 	return nil
+}
+
+func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
+	var installFlags []string
+	installFlags = append(installFlags, "x", "install")
+
+	installFlags = append(installFlags,
+		"--project_id", cluster.ProjectID,
+		"--cluster_location", cluster.Location,
+		"--cluster_name", cluster.Name,
+		"--managed",
+		"--enable-all",
+		"--verbose")
+	return installFlags
+}
+
+func generateAFCInstallEnvvars(settings *resource.Settings) []string {
+	// _CI_ASM_PKG_LOCATION _CI_ASM_IMAGE_LOCATION are required for unreleased
+	// ASM and its install script (master and staging branch).
+	envvars := []string{
+		"_CI_ASM_PKG_LOCATION=asm-staging-images",
+		"_CI_ASM_IMAGE_LOCATION=" + os.Getenv("HUB"),
+		"_CI_ASM_IMAGE_TAG=" + os.Getenv("TAG"),
+	}
+
+	envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.NewtaroCommit)
+	return envvars
 }

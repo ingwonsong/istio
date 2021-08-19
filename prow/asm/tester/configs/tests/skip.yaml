@@ -404,6 +404,9 @@ tests:
       - names:
           - TestStackdriverAudit
         buganizerID: 183508169
+      - names:
+          - TestCNI19Upgrade
+        reason: no longer needed
 
       # security/ tests
       - names:
