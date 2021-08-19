@@ -229,6 +229,7 @@ func doInstall() *installStatus {
 		"--kubeconfig", kubeconfigFile,
 		"--mode", "install",
 		"--enable_cluster_roles", "--enable_gcp_apis", "--enable_gcp_components", "--enable_cluster_labels",
+		"--revision_name", fmt.Sprintf("taaa-asm-%d-%d", clusterProto.GetMajor(), clusterProto.GetMinor()),
 		"--verbose",
 	}
 	if needsOverlay {

@@ -41,7 +41,8 @@ func main() {
 			}
 			kubeconfigs = append(kubeconfigs, k)
 		}
-		project := clusters[0].GetClusterInformation().GetProject()
+		ci := clusters[0].GetClusterInformation()
+		project := ci.GetProject()
 		if project == "" {
 			return errors.New("project name mustn't be blank")
 		}
@@ -67,10 +68,20 @@ func main() {
 			return fmt.Errorf("/IMAGE_TAG file needed to know which image tag to use: %v", err)
 		}
 		istioTestTag := string(istioTestTagBytes)
+		log.Printf("Using image tag: [%s]", istioTestTag)
 
 		// Set up environment variables for tests.
 		os.Setenv("REPO_ROOT", internal.RepoCopyRoot)
 
+		// We expect ASM to be installed via the TaaA `install` image.
+		// That image tags the ASM revision with that particular pattern and
+		// we specify to the tests those are the ASM revisions that are valid to use.
+		// We don't care about duplicates in this set since the flag parser will just
+		// use the last one in the set.
+		revisions := make([]string, len(clusters))
+		for i, ci := range clusters {
+			revisions[i] = fmt.Sprintf("taaa-asm-%d-%d", ci.GetMajor(), ci.GetMinor())
+		}
 		// Run tests.
 		var overall_err error
 		// Execute networking tests.
@@ -87,7 +98,8 @@ func main() {
 				ok      istio.io/istio/tests/integration/pilot/revisions        0.003s
 			*/
 			for _, bin := range internal.Tests {
-				// This set of arguments was obtained by extracting the test command from a log and making substitutions as necessary.
+				// This set of arguments was obtained by extracting the test
+				// command from a log and making substitutions as necessary.
 				// There is currently no forcing function for keeping these in sync.
 				err := entrypoint.GoTest(
 					fmt.Sprintf("/usr/bin/%s.test", bin),
@@ -99,6 +111,10 @@ func main() {
 					"--istio.test.skipVM",
 					"--istio.test.ci",
 					"--istio.test.pullpolicy=IfNotPresent",
+					"--istio.test.revisions="+strings.Join(revisions, ","),
+					// compatibility is set automatically right now when revisions
+					// is supplied, but it's better to explicitly set it here.
+					"--istio.test.compatibility",
 					fmt.Sprintf("--istio.test.work_dir=%s/%s", entrypoint.OutputDirectory, bin),
 					"--istio.test.hub="+istioTestHub,
 					"--istio.test.tag="+istioTestTag,

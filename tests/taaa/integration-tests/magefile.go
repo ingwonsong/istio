@@ -1,4 +1,5 @@
-//+build mage
+//go:build mage
+// +build mage
 
 package main
 
@@ -21,6 +22,7 @@ import (
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/git"
+	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/magetools"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	"istio.io/istio/tests/taaa/test-artifact/internal"
 	"knative.dev/test-infra/rundk/interactive"
@@ -86,6 +88,11 @@ func (Build) Push(branchName string) error {
 
 // Compile the entrypoint binary.
 func (Build) Entrypoint() error {
+	dockerConfigPath := outPath + "/root/.docker/"
+	if err := os.MkdirAll(dockerConfigPath, 0775); err != nil {
+		return err
+	}
+	magetools.CopyFile("cmd/entrypoint/docker-config.json", dockerConfigPath+"config.json")
 	if err := os.MkdirAll(outBinPath, 0775); err != nil {
 		return err
 	}
@@ -215,7 +222,7 @@ func (Build) TestImages() error {
 	if err != nil {
 		return err
 	}
-	varLibRegistryDir := outPath + "var/lib/registry"
+	varLibRegistryDir := outPath + "/var/lib/registry"
 	if err := os.MkdirAll(varLibRegistryDir, 0775); err != nil {
 		return err
 	}
