@@ -327,10 +327,17 @@ spec:
   tag: ${TAG}
   values:
     global:
+      proxy:
+        logLevel: debug
+        componentLogLevel: "misc:debug,rbac:debug"
       meshID: ${MESH_ID}
       multiCluster:
         clusterName: cluster${i}
       network: network${i}
+    pilot:
+      env:
+        UNSAFE_ENABLE_ADMIN_ENDPOINTS: true
+        PILOT_REMOTE_CLUSTER_TIMEOUT: 15s
   meshConfig:
     accessLogFile: /dev/stdout
 EOF
@@ -539,10 +546,17 @@ spec:
   tag: ${TAG}
   values:
     global:
+      proxy:
+        logLevel: debug
+        componentLogLevel: "misc:debug,rbac:debug"
       meshID: ${MESH_ID}
       multiCluster:
         clusterName: cluster${i}
       network: network${i}
+    pilot:
+      env:
+        UNSAFE_ENABLE_ADMIN_ENDPOINTS: true
+        PILOT_REMOTE_CLUSTER_TIMEOUT: 15s
   meshConfig:
     accessLogFile: /dev/stdout
 EOF
