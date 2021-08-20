@@ -39,7 +39,7 @@ func main() {
 			" checked by running `kubetest2 [deployer] --help`")
 	flag.StringVar(&cfg.GcloudExtraFlags, "gcloud-extra-flags", cfg.GcloudExtraFlags, "Extra gcloud flags to pass when creating the clusters.")
 	flag.StringVar(&cfg.TestScript, "test-script", cfg.TestScript,
-		"the script to run the tests after clusters are created (required for tailorbird)")
+		"the script to run the tests after clusters are created")
 	flag.StringVar(&cfg.TestFlags, "test-flags", cfg.TestFlags,
 		"flags to pass through to the test script (optional)")
 	flag.StringVar((*string)(&cfg.ReleaseChannel), "release-channel", string(cfg.ReleaseChannel),
@@ -47,9 +47,13 @@ func main() {
 			"If not specified, a default release channel will be chosen for the cluster-version",
 			types.SupportedReleaseChannels))
 	flag.StringVar(&cfg.ClusterVersion, "cluster-version", cfg.ClusterVersion,
-		"the GKE version to be loaded onto the clusters (optional). Defaults to `latest`")
+		"version for the the clusters (optional). Defaults to `latest`")
+	flag.IntVar(&cfg.TRACClusterIndex, "trac-cluster-index", cfg.TRACClusterIndex,
+		"cluster index defined by go/anthos-trac. If its value is >=0, the rookery config file with the n-x version in go/trac-qual "+
+			"will be used by tailorbird to spin up the clusters. If <0, the custom config files in deployer/tailorbird/config in the ASM repo "+
+			"will be used. Defaults to -1 to use the custom config files.")
 	flag.StringVar(&cfg.UpgradeClusterVersion, "upgrade-cluster-version", cfg.UpgradeClusterVersion,
-		"GKE version that cluster will be upgraded to, formatted as x.y1.z. Clusters will run for a short duration to ensure functionality after the cluster upgrade.")
+		"version that cluster will be upgraded to, formatted as x.y1.z. Clusters will run for a short duration to ensure functionality after the cluster upgrade.")
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
 		fmt.Sprintf("the cluster type, can be one of %v", types.SupportedClusters))
 	flag.StringVar((*string)(&cfg.Topology), "topology", string(cfg.Topology),

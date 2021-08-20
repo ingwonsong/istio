@@ -1,20 +1,20 @@
 apiVersion: sut.tailorbird.io/v1alpha1
 kind: Rookery
 metadata:
-  name: asm-ci-aws-sc-{{.Random6}}
+  name: asm-ci-aws-sc
   namespace: tailorbird-users
 spec:
   knests:
     - apiVersion: sut.tailorbird.io/v1alpha1
       kind: Knest
       metadata:
-        name: asm-ci-aws-sc-knest-{{.Random6}}
+        name: asm-ci-aws-sc-knest
       spec:
         clusters:
           - apiVersion: sut.tailorbird.io/v1alpha1
             kind: Cluster
             metadata:
-              name: asm-ci-aws-sc-cluster-{{.Random6}}
+              name: asm-ci-aws-sc-cluster
             spec:
               provider: aws
               distribution: gke

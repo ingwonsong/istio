@@ -18,14 +18,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
-	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -38,8 +36,10 @@ import (
 const (
 	name = "tailorbird"
 
-	// the relative dir to find the tailorbird config files
-	configRelDir = "deployer/tailorbird/config"
+	// the relative dir to the repo root dir to find the tailorbird custom config files
+	configRelDir = "prow/asm/infra/deployer/tailorbird/config"
+	// the relative dir to the repo root dir to find the tailorbird trac config files
+	tracConfigRelDir = "../trac/configs"
 
 	// GCS path for downloading kubetest2-tailorbird binary
 	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2021-09-21-001841/kubetest2-tailorbird"
@@ -155,7 +155,7 @@ func (d *Instance) flags() ([]string, error) {
 	flags = append(flags, baseFlags...)
 
 	// Append the config file flag.
-	fp, err := d.generateRookeryFile()
+	fp, err := d.rookeryFile()
 	if err != nil {
 		return nil, fmt.Errorf("error getting the config file for tailorbird: %w", err)
 	}
@@ -260,28 +260,44 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 	return
 }
 
-// generateRookeryFile generates the rookery file for the configuration and returns the full path to the generated file.
-func (d *Instance) generateRookeryFile() (string, error) {
+// rookeryFile returns the full path for the rookery config file.
+func (d *Instance) rookeryFile() (string, error) {
+	// Find the rookery config file from TRAC config if the trac cluster version
+	// is specified.
+	if d.cfg.TRACClusterIndex >= 0 {
+		variant := string(d.cfg.Topology)
+		if d.cfg.WIP == types.HUB {
+			variant = strings.ToLower(string(d.cfg.WIP)) + "-" + string(d.cfg.Topology)
+		}
+		f := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDir, string(d.cfg.Cluster), variant,
+			fmt.Sprintf("rookery-%d.yaml", d.cfg.TRACClusterIndex))
+		if _, err := os.Stat(f); err != nil {
+			return "", fmt.Errorf("Tailorbird rookery config file %q does not exist in TRAC, "+
+				"please follow http://g3doc/cloud/anthos/trac/g3doc/user_guide/generators to generate the config file correctly", f)
+		}
+		return f, nil
+	}
+
 	// Get the path to the rookery template file and verify it exists.
 	tmplFileName := fmt.Sprintf("%s-%s.yaml", d.cfg.Cluster, d.cfg.Topology)
 	if d.cfg.WIP == types.HUB {
 		tmplFileName = fmt.Sprintf("%s-%s-%s.yaml", d.cfg.Cluster, strings.ToLower(string(d.cfg.WIP)), d.cfg.Topology)
 	}
-	tmplFile := filepath.Join(configRelDir, tmplFileName)
+	tmplFile := filepath.Join(d.cfg.RepoRootDir, configRelDir, tmplFileName)
 	if _, err := os.Stat(tmplFile); err != nil {
-		return "", fmt.Errorf("rookery template %q does not exist in %q", tmplFile, configRelDir)
+		return "", fmt.Errorf("Tailorbird rookery template %q does not exist in %q", tmplFile, configRelDir)
 	}
 
 	// Create the template from the template file.
 	tmpl, err := template.New(path.Base(tmplFile)).ParseFiles(tmplFile)
 	if err != nil {
-		return "", fmt.Errorf("error parsing the rookery template file %s: %w", tmplFile, err)
+		return "", fmt.Errorf("error parsing the Tailorbird rookery template file %s: %w", tmplFile, err)
 	}
 
 	// Create a temp file to hold the result of the template execution.
 	tmpFile, err := ioutil.TempFile("", "tailorbird-config-*.yaml")
 	if err != nil {
-		return "", fmt.Errorf("error creating the temporary rookery file: %w", err)
+		return "", fmt.Errorf("error creating the temporary Tailorbird rookery file: %w", err)
 	}
 
 	// Struct providing template parameters for the YAML.
@@ -290,33 +306,20 @@ func (d *Instance) generateRookeryFile() (string, error) {
 		GCSBucket     string
 		Version       string
 		VersionPrefix string
-		Random6       string
 	}{
 		GCSBucket:     d.getGCSBucket(),
 		Version:       version,
 		VersionPrefix: versionPrefix,
-		Random6:       randSeq(6),
 	}
 
 	// Execute the template and store the result in the temp file.
 	if err := tmpl.Execute(tmpFile, rep); err != nil {
-		return "", fmt.Errorf("error executing the rookery template: %w", err)
+		return "", fmt.Errorf("error executing the Tailorbird rookery template: %w", err)
 	}
 
 	d.cfg.Rookery = tmpFile.Name()
 
 	return tmpFile.Name(), nil
-}
-
-var letters = []rune("abcdefghijklmnopqrstuvwxyz")
-
-func randSeq(n int) string {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
 }
 
 func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {

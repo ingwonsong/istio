@@ -49,6 +49,7 @@ type Instance struct {
 	TestFlags             string
 	GCPProjects           []string
 	ClusterVersion        string
+	TRACClusterIndex      int
 	Cluster               types.Cluster
 	UpgradeClusterVersion string
 	GCSBucket             string
@@ -63,9 +64,10 @@ type Instance struct {
 // Default provides a config Instance with defaults filled in.
 func Default() Instance {
 	return Instance{
-		Cluster:  types.GKEOnGCP,
-		Topology: types.SingleCluster,
-		WIP:      types.GKE,
+		Cluster:          types.GKEOnGCP,
+		Topology:         types.SingleCluster,
+		WIP:              types.GKE,
+		TRACClusterIndex: -1,
 	}
 }
 

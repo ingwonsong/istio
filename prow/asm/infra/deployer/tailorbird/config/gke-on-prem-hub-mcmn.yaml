@@ -11,21 +11,21 @@ metadata:
   # kubectl get clusters.sut.tailorbird.io -n tailorbird-users
   # e.g., use your Google username as prefix.
   # !!!IMPORTANT!!!! READ ABOVE
-  name: asm-ci-onprem-hub-mcmn-{{.Random6}}
+  name: asm-ci-onprem-hub-mcmn
   namespace: tailorbird-users
 spec:
   knests:
     - apiVersion: sut.tailorbird.io/v1alpha1
       kind: Knest
       metadata:
-        name: asm-ci-onprem-hub-mcmn-knest-{{.Random6}}
+        name: asm-ci-onprem-hub-mcmn-knest
       spec:
         clusters:
           # TODO(tairan): use two clusters after b/176177944 is fixed
           - apiVersion: sut.tailorbird.io/v1alpha1
             kind: Cluster
             metadata:
-              name: asm-ci-onprem-hub-mcmn-cluster-{{.Random6}}-01
+              name: asm-ci-onprem-hub-mcmn-cluster-01
             spec:
               provider: vsphere
               distribution: gke
@@ -59,7 +59,7 @@ spec:
           - apiVersion: sut.tailorbird.io/v1alpha1
             kind: Cluster
             metadata:
-              name: asm-ci-onprem-hub-mcmn-cluster-{{.Random6}}-02
+              name: asm-ci-onprem-hub-mcmn-cluster-02
             spec:
               provider: vsphere
               distribution: gke
