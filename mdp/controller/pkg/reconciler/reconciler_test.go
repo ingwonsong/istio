@@ -162,6 +162,7 @@ func TestReconcile(t *testing.T) {
 
 	// expect some status calls
 	g.Expect(r.statusWorker.Len()).To(gomega.Equal(1))
+	r.statusWorker = status.NewWorker(rate.Inf, cl)
 	dpr := &v1alpha1.DataPlaneControl{}
 	err = cl.Get(context.Background(), client.ObjectKey{Namespace: myrev, Name: myrev}, dpr)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -174,6 +175,7 @@ func TestReconcile(t *testing.T) {
 		Name:      myrev,
 	}})
 	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(r.statusWorker.Len()).To(gomega.Equal(1))
 }
 
 func Test_calculateStatus(t *testing.T) {

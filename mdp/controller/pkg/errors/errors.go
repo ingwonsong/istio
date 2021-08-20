@@ -19,4 +19,5 @@ package errors
 const (
 	InvalidRevision  = 1
 	TooManyEvictions = 2
+	VersionMismatch  = 3
 )

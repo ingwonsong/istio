@@ -123,14 +123,35 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	if err != nil {
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.ResourceError
+		dpc.Status = v1alpha1.DataPlaneControlStatus{
+			State: v1alpha1.Error,
+			ErrorDetails: &v1alpha1.DataPlaneControlError{
+				Code:    mdperrors.VersionMismatch,
+				Message: err.Error(),
+			},
+			ProxyTargetBasisPoints: 0,
+			ObservedGeneration:     dpc.Generation,
+		}
+		n.statusWorker.EnqueueStatus(dpc)
 		return result, fmt.Errorf("unable to determine control plane injection version for revision %s, "+
 			"cannot reconcile: %v", dpc.Spec.Revision, err)
 	}
 	if dpc.Spec.ProxyVersion == "" || cpVersion != dpc.Spec.ProxyVersion {
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.VersionError
-		return result, fmt.Errorf("DataPlaneControl for revision %s expects version '%s', but Control Plane is "+
+		err := fmt.Errorf("DataPlaneControl for revision %s expects version '%s', but Control Plane is "+
 			"injecting version '%s', cannot reconcile", dpc.Spec.Revision, dpc.Spec.ProxyVersion, cpVersion)
+		dpc.Status = v1alpha1.DataPlaneControlStatus{
+			State: v1alpha1.Error,
+			ErrorDetails: &v1alpha1.DataPlaneControlError{
+				Code:    mdperrors.VersionMismatch,
+				Message: err.Error(),
+			},
+			ProxyTargetBasisPoints: 0,
+			ObservedGeneration:     dpc.Generation,
+		}
+		n.statusWorker.EnqueueStatus(dpc)
+		return result, err
 	}
 
 	// TODO: if version is unsupported, what do we do?  exit?
@@ -157,6 +178,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
 			0, n.metricsRecord)
+		n.statusWorker.EnqueueStatus(dpc)
 		log.Infof("revision %s meets goal of zero proxies", dpc.Spec.Revision)
 		resultMetricLabel = metrics.Success
 		return result, nil
