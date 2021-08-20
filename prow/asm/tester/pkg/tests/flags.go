@@ -108,9 +108,9 @@ func generateTestSelect(settings *resource.Settings) string {
 	testSelect := ""
 	if settings.ControlPlane == resource.Unmanaged {
 		// TODO(nmittler): remove this once we no longer run the multicluster tests.
-		if settings.TestTarget == mcPresubmitTarget {
-			testSelect = "+multicluster"
-		}
+		//if settings.TestTarget == mcPresubmitTarget {
+		//	testSelect = "+multicluster"
+		//}
 		if settings.TestTarget == asmSecurityTarget ||
 			settings.TestTarget == asmNetworkingTarget {
 			if testSelect == "" {
@@ -125,11 +125,11 @@ func generateTestSelect(settings *resource.Settings) string {
 		if settings.TestTarget == migrationTarget {
 			testSelect = ""
 		}
-		if settings.ClusterTopology == resource.MultiCluster {
-			if settings.TestTarget == mcPresubmitTarget {
-				testSelect += ",+multicluster"
-			}
-		}
+		//if settings.ClusterTopology == resource.MultiCluster {
+		//	if settings.TestTarget == mcPresubmitTarget {
+		//		testSelect += ",+multicluster"
+		//	}
+		//}
 	}
 
 	return testSelect

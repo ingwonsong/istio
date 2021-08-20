@@ -26,7 +26,6 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/features"
-	"istio.io/istio/pkg/test/framework/label"
 	"istio.io/istio/pkg/test/util/retry"
 )
 
@@ -37,7 +36,6 @@ const (
 
 func SecurityTest(t *testing.T, apps AppContext, features ...features.Feature) {
 	framework.NewTest(t).
-		Label(label.Multicluster).
 		Features(features...).
 		Run(func(ctx framework.TestContext) {
 			ctx.NewSubTest("security").
