@@ -118,6 +118,24 @@ func (c *installer) installASM(rev *revision.Config) error {
 			exec.WithAdditionalArgs(generateASMInstallFlags(c.settings, rev, pkgPath, cluster))); err != nil {
 			return fmt.Errorf("ASM installation using script failed: %w", err)
 		}
+
+		// Install Gateway
+		if c.settings.UseASMCLI {
+			revision, err := exec.RunWithOutput(fmt.Sprintf("kubectl get deploy -n istio-system -l app=istiod -o jsonpath='{.items[*].metadata.labels.istio\\.io\\/rev}' --context=%s", context))
+			if err != nil {
+				return fmt.Errorf("error getting istiod revision: %w", err)
+			}
+
+			gatewayNamespace := "istio-system"
+			if err := exec.Run(fmt.Sprintf("kubectl label namespace %s istio-injection- istio.io/rev=%s --overwrite --context=%s", gatewayNamespace, revision, context)); err != nil {
+				return fmt.Errorf("error labeling gateway namespace: %w", err)
+			}
+
+			ingressGateway := fmt.Sprintf("https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-service-mesh-packages/%s/samples/gateways/istio-ingressgateway.yaml", c.settings.NewtaroCommit)
+			if err := exec.Run(fmt.Sprintf("kubectl apply -n %s -f %s --context=%s", gatewayNamespace, ingressGateway, context)); err != nil {
+				return fmt.Errorf("error installing ingress gateway: %w", err)
+			}
+		}
 	}
 
 	if err := createRemoteSecrets(c.settings, contexts); err != nil {
