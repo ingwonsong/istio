@@ -101,6 +101,10 @@ tests:
     - names:
       - TestTraffic/dns/.*
       buganizerID: 191802552
+    - names:
+      - TestReachability/beta-mtls.*/.*/.*headless.*
+      - TestReachability/no-peer.*/.*/.*headless.*
+      buganizerID: 197235650
 
   # Unmanaged CP + GKE_ON_PREM + HUB
   - selectors:
@@ -114,6 +118,10 @@ tests:
     - names:
         - TestTraffic/dns/.*
       buganizerID: 191802552
+    - names:
+      - TestReachability/beta-mtls.*/.*/.*headless.*
+      - TestReachability/no-peer.*/.*/.*headless.*
+      buganizerID: 197235650
 
   # Unmanaged CP + bare-metal
   - selectors:
