@@ -59,7 +59,7 @@ func (c *installer) install(r *revision.Config) error {
 }
 
 // preInstall contains all steps required before performing the direct install
-func (c *installer) preInstall() error {
+func (c *installer) preInstall(rev *revision.Config) error {
 	if c.settings.ControlPlane == resource.Unmanaged {
 		if err := exec.Dispatch(c.settings.RepoRootDir,
 			"prepare_images", nil); err != nil {
@@ -105,7 +105,7 @@ func (c *installer) preInstall() error {
 	// Setup permissions to allow pulling images from GCR registries.
 	// TODO(samnaser) should be in env setup but since service account name
 	// depends on revision name, we must have istioctl built before we can do this step.
-	if err := setupPermissions(c.settings); err != nil {
+	if err := setupPermissions(c.settings, rev); err != nil {
 		return err
 	}
 	os.Setenv("ASM_REVISION_LABEL", revision.RevisionLabel())

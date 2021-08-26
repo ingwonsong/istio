@@ -129,14 +129,14 @@ func createRemoteSecrets(settings *resource.Settings, contexts []string) error {
 	return nil
 }
 
-func setupPermissions(settings *resource.Settings) error {
+func setupPermissions(settings *resource.Settings, rev *revision.Config) error {
 	if settings.ControlPlane == resource.Unmanaged {
 		if settings.ClusterType == resource.GKEOnGCP {
 			log.Print("Set permissions to allow the Pods on the GKE clusters to pull images...")
 			return setGcpPermissions(settings)
 		} else {
 			log.Print("Set permissions to allow the Pods on the multicloud clusters to pull images...")
-			return setMulticloudPermissions(settings)
+			return setMulticloudPermissions(settings, rev)
 		}
 	}
 	return nil
@@ -166,7 +166,7 @@ func setGcpPermissions(settings *resource.Settings) error {
 }
 
 // TODO: use kubernetes client-go library instead of kubectl.
-func setMulticloudPermissions(settings *resource.Settings) error {
+func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config) error {
 	if settings.ClusterType == resource.BareMetal || settings.ClusterType == resource.GKEOnAWS || settings.ClusterType == resource.APM {
 		os.Setenv("HTTP_PROXY", os.Getenv("MC_HTTP_PROXY"))
 		defer os.Unsetenv("HTTP_PROXY")
@@ -219,17 +219,18 @@ func setMulticloudPermissions(settings *resource.Settings) error {
 		}
 
 		// Patch the service accounts to use imagePullSecrets. Should do this for each revision on cluster.
-		rev := revision.RevisionLabel()
+		var istiodSvcAccount string
+		if rev.Name != "" {
+			istiodSvcAccount = fmt.Sprintf("istiod-%s", rev.Name)
+		} else {
+			istiodSvcAccount = fmt.Sprintf("istiod-%s", revision.RevisionLabel())
+		}
 		serviceAccts := []string{
 			"default",
 			"istio-ingressgateway-service-account",
 			"istio-eastwestgateway-service-account",
-			"istiod",
-			"istio-reader",
-			// TODO(samnaser) remove suffix if we move forward with using single service account with aggregated
-			// permissions for istio reader (https://github.com/istio/istio/pull/32888)
-			"istio-reader-" + rev,
-			"istiod-" + rev,
+			"istio-reader-service-account",
+			istiodSvcAccount,
 		}
 		for _, serviceAcct := range serviceAccts {
 			err = exec.Run(

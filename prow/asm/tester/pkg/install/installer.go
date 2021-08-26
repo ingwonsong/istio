@@ -66,7 +66,7 @@ func (c *installer) Install() error {
 }
 
 func (c *installer) installInner(r *revision.Config) error {
-	if err := c.preInstall(); err != nil {
+	if err := c.preInstall(r); err != nil {
 		return err
 	}
 	if err := c.install(r); err != nil {
