@@ -52,6 +52,8 @@ spec:
                 # TODO(tairan): use a new CI project with permission for creating public GCS buckets
                 --connect-project: "tairan-asm-multi-cloud-dev"
                 herculesEnvTtl: "4h"
+                # default is 192.168.0.0/16 and 10.96.232.0/24, we split pod subnet in two and use lower subnet
+                userExtraConfig: "network.podCIDR=192.168.0.0/17,network.serviceCIDR=10.96.232.0/24"
           - apiVersion: sut.tailorbird.io/v1alpha1
             kind: Cluster
             metadata:
@@ -82,3 +84,5 @@ spec:
                 # TODO(tairan): use a new CI project with permission for creating public GCS buckets
                 --connect-project: "tairan-asm-multi-cloud-dev"
                 herculesEnvTtl: "4h"
+                # default is 192.168.0.0/16 and 10.96.232.0/24, we split pod in two and use higher subnet, and use next /24 for service
+                userExtraConfig: "network.podCIDR=192.168.128.0/17,network.serviceCIDR=10.96.233.0/24"
