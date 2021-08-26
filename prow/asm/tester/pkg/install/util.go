@@ -55,17 +55,23 @@ func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (s
 	if resp.StatusCode == http.StatusNotFound {
 		return "", fmt.Errorf("script not found at URL: %s", scriptURL)
 	}
-
-	f, err := os.OpenFile(scriptBaseName, os.O_WRONLY|os.O_CREATE, 0o555)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
-	_, err = io.Copy(f, resp.Body)
+	f, err := os.OpenFile(scriptBaseName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o555)
 	if err != nil {
 		return "", err
 	}
-	f.Close()
+	_, err = f.Write(bodyBytes)
+	if err != nil {
+		return "", err
+	}
+	err = f.Close()
+	if err != nil {
+		return "", err
+	}
 
 	path, err := filepath.Abs(scriptBaseName)
 	if err != nil {
