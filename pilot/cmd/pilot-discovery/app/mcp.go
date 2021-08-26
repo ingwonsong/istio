@@ -158,6 +158,8 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	}
 	log.Infof("Fetched ASM options in %v: %+v", time.Since(asmOptsStartTime), asmOptions)
 
+	setupInjectEnvironment(client)
+
 	// We multiplex on a single port, so disable everything else
 	serverArgs.ServerOptions.HTTPSAddr = ""
 	serverArgs.ServerOptions.SecureGRPCAddr = ""
@@ -274,6 +276,22 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	log.Infof("Created MCP configurations in %v", time.Since(createConfig))
 
 	return client, nil
+}
+
+func setupInjectEnvironment(client kubelib.Client) {
+	// For https://github.com/istio/istio/issues/26882. Basically, older Kubernetes versions we needed
+	// to set the pod securityContext.fsGroup to read the projected JWT token. This also breaks some customer
+	// volume mounts though. In Kubernetes 1.19+, this is no longer required. In OSS, this is determined
+	// at install time; in this case we need to do it at runtime.
+	// NOTE: The 1.19 version dependency is on the *node* versions. We don't have a reasonable way to check
+	// the node version. Instead, we can check the control plane version, and assume based on the
+	// supported version skew (https://cloud.google.com/kubernetes-engine/docs/how-to/upgrading-a-cluster#upgrade_nodes)
+	// that their nodes are recent enough as well.
+	if kubelib.IsAtLeastVersion(client, 21) {
+		// This needs to literally set the env, not just a local go variable, because the injection template
+		// is looking for `env "ENABLE_LEGACY_FSGROUP_INJECTION" "true"`.
+		os.Setenv("ENABLE_LEGACY_FSGROUP_INJECTION", "false")
+	}
 }
 
 func createSystemNamespace(client kubelib.Client) error {
