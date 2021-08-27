@@ -55,6 +55,7 @@ func (c *installer) Install() error {
 	if err != nil {
 		return err
 	}
+	fixCitadelRevisions(revisionConfig, c.settings)
 	for _, config := range revisionConfig.Configs {
 		log.Printf("🍳 installing ASM revision %q", config.Name)
 		if err := c.installInner(&config); err != nil {
@@ -63,6 +64,19 @@ func (c *installer) Install() error {
 	}
 
 	return nil
+}
+
+// fixCitadelRevisions makes the first Citadel-enabled revision specify certificate flags
+// TODO(samnaser) revisit when https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages/issues/918 is resolved
+// if this behavior is expected, update the revision config instead of doing this here.
+func fixCitadelRevisions(configs *revision.Configs, settings *resource.Settings) {
+	for i, config := range configs.Configs {
+		if resource.CAType(config.CA) == resource.Citadel ||
+			(config.CA == "" && settings.CA == resource.Citadel) {
+			configs.Configs[i].CustomCerts = true
+			break
+		}
+	}
 }
 
 func (c *installer) installInner(r *revision.Config) error {

@@ -216,11 +216,14 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 		installFlags = append(installFlags, "--ca", "mesh_ca")
 	} else if ca == resource.Citadel {
 		installFlags = append(installFlags,
-			"--ca", "citadel",
-			"--ca_cert", "samples/certs/ca-cert.pem",
-			"--ca_key", "samples/certs/ca-key.pem",
-			"--root_cert", "samples/certs/root-cert.pem",
-			"--cert_chain", "samples/certs/cert-chain.pem")
+			"--ca", "citadel")
+		// if no revision or the revision specifies to use custom certs, add the Citadel flags
+		if rev.Name == "" || rev.CustomCerts {
+			installFlags = append(installFlags, "--ca_cert", "samples/certs/ca-cert.pem",
+				"--ca_key", "samples/certs/ca-key.pem",
+				"--root_cert", "samples/certs/root-cert.pem",
+				"--cert_chain", "samples/certs/cert-chain.pem")
+		}
 	}
 
 	// Set kpt overlays

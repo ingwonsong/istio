@@ -44,6 +44,8 @@ type Config struct {
 	// CA is the CA to use for this revision, either `CITADEL` or `MESHCA`.
 	// Defaults to CITADEL.
 	CA string `yaml:"ca"`
+	// CustomCerts determines whether we should specify the CA cert, key, and chain to the installer
+	CustomCerts bool
 	// Overlay is a path to additional configuration for this revision.
 	Overlay string `yaml:"overlay"`
 }
@@ -62,6 +64,9 @@ func ParseConfig(path string) (*Configs, error) {
 	}
 
 	var errs error
+	if len(configs.Configs) == 0 {
+		errs = fmt.Errorf("revision config must have at least 1 revision specified")
+	}
 	for _, config := range configs.Configs {
 		if err := config.Validate(); err != nil {
 			errs = multierror.Append(errs, err).ErrorOrNil()
