@@ -37,6 +37,9 @@ type Settings struct {
 	// Is set from a string in the form "${HUB}:${TAG}[:ASM_IMAGE_BUCKET]".
 	InstallOverride InstallOverride
 
+	// Use OnePlatform API to provision the cluster
+	UseOnePlatform bool
+
 	// The feature to test for this test flow
 	FeatureToTest Feature
 

@@ -37,6 +37,7 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.StringSliceVar(&settings.GCPProjects, "gcp-projects", []string{}, "a list of GCP projects used for creating GKE clusters and other resources")
 	flags.Var(&settings.ClusterType, "cluster-type", "type of the k8s cluster")
 	flags.Var(&settings.ClusterTopology, "cluster-topology", "topology of the k8s clusters")
+	flags.BoolVar(&settings.UseOnePlatform, "use-oneplatform", false, "whether to use oneplatform API to provision k8s clusters")
 	flags.Var(&settings.FeatureToTest, "feature", "feature to test for this test flow")
 	flags.StringVar(&settings.GKENetworkName, "gke-network-name", DefaultGKENetworkName, "The name of the GKE Network to use.")
 
@@ -103,6 +104,9 @@ func ValidateSettings(settings *Settings) error {
 	}
 	if settings.TestTarget == "" {
 		errs = append(errs, errors.New("--test-target must be set"))
+	}
+	if settings.UseOnePlatform && settings.ClusterType != GKEOnAWS {
+		errs = append(errs, errors.New("--use-oneplatform can only be used with GKE on AWS"))
 	}
 
 	return multierr.Combine(errs...)

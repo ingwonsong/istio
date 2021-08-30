@@ -56,6 +56,7 @@ func main() {
 		"version that cluster will be upgraded to, formatted as x.y1.z. Clusters will run for a short duration to ensure functionality after the cluster upgrade.")
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
 		fmt.Sprintf("the cluster type, can be one of %v", types.SupportedClusters))
+	flag.BoolVar(&cfg.UseOnePlatform, "use-oneplatform", cfg.UseOnePlatform, "whether to use One Platform API to provision the cluster")
 	flag.StringVar((*string)(&cfg.Topology), "topology", string(cfg.Topology),
 		fmt.Sprintf("the cluster topology for the SUT (optional). Can be one of %v", types.SupportedTopologies))
 	flag.StringVar((*string)(&cfg.WIP), "wip", string(cfg.WIP),

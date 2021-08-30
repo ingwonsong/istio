@@ -527,21 +527,33 @@ func fixAPM(settings *resource.Settings) error {
 // 1. Removes gke_aws_management.conf entry from the KUBECONFIG for aws
 // 2. Configure cluster proxy.
 func fixAWS(settings *resource.Settings) error {
-	err := filterKubeconfigFiles(settings, func(name string) bool {
-		return !strings.HasSuffix(name, "gke_aws_management.conf")
-	})
-	if err != nil {
-		return err
-	}
+	if settings.UseOnePlatform {
+		if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
+			clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
+			scriptRelPath:        ".deployer/tunnel.sh",
+			regexMatcher:         `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
+			sshKeyRelPath:        ".deployer/id_rsa",
+		}); err != nil {
+			return err
+		}
+	} else {
+		err := filterKubeconfigFiles(settings, func(name string) bool {
+			return !strings.HasSuffix(name, "gke_aws_management.conf")
+		})
+		if err != nil {
+			return err
+		}
 
-	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
-		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/.kube/gke_aws_default_t96ea7cc97f047f5.conf
-		clusterArtifactsPath: filepath.Dir(filepath.Dir(settings.Kubeconfig)),
-		scriptRelPath:        "tunnel-script.sh",
-		regexMatcher:         `.*\-L([0-9]*):localhost.* (ubuntu@.*compute\.amazonaws\.com)`,
-		sshKeyRelPath:        ".ssh/anthos-gke",
-	}); err != nil {
-		return err
+		if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/.kube/gke_aws_default_t96ea7cc97f047f5.conf
+			clusterArtifactsPath: filepath.Dir(filepath.Dir(settings.Kubeconfig)),
+			scriptRelPath:        "tunnel-script.sh",
+			regexMatcher:         `.*\-L([0-9]*):localhost.* (ubuntu@.*compute\.amazonaws\.com)`,
+			sshKeyRelPath:        ".ssh/anthos-gke",
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -594,7 +606,7 @@ func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloud
 		return fmt.Errorf("error finding PORT_NUMBER and BOOTSTRAP_HOST_SSH_USER from: %q", tunnelScriptContent)
 	}
 	portNum, bootstrapHostSSHUser := matches[1], matches[2]
-	httpProxy := "localhost:" + portNum
+	httpProxy := "http://localhost:" + portNum
 	bootstrapHostSSHKey := filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath)
 	log.Printf("----------%s Cluster env----------", settings.ClusterType)
 	log.Print("MC_HTTP_PROXY: ", httpProxy)

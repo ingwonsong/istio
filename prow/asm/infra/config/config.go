@@ -51,6 +51,7 @@ type Instance struct {
 	ClusterVersion        string
 	TRACClusterIndex      int
 	Cluster               types.Cluster
+	UseOnePlatform        bool
 	UpgradeClusterVersion string
 	GCSBucket             string
 	IsCloudESFTest        bool
@@ -101,6 +102,9 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 		"--cluster-topology="+string(c.Topology),
 		"--wip="+string(c.WIP),
 		"--feature="+string(c.Feature))
+	if c.UseOnePlatform {
+		testerFlags = append(testerFlags, "--use-oneplatform")
+	}
 	return append(testerFlags, extraTestFlagArr...), nil
 }
 

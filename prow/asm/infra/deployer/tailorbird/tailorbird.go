@@ -279,10 +279,14 @@ func (d *Instance) rookeryFile() (string, error) {
 	}
 
 	// Get the path to the rookery template file and verify it exists.
-	tmplFileName := fmt.Sprintf("%s-%s.yaml", d.cfg.Cluster, d.cfg.Topology)
+	tmplFileName := fmt.Sprintf("%s-%s", d.cfg.Cluster, d.cfg.Topology)
 	if d.cfg.WIP == types.HUB {
-		tmplFileName = fmt.Sprintf("%s-%s-%s.yaml", d.cfg.Cluster, strings.ToLower(string(d.cfg.WIP)), d.cfg.Topology)
+		tmplFileName = fmt.Sprintf("%s-%s-%s", d.cfg.Cluster, strings.ToLower(string(d.cfg.WIP)), d.cfg.Topology)
 	}
+	if d.cfg.UseOnePlatform {
+		tmplFileName = fmt.Sprintf("%s-%s", tmplFileName, "oneplatform")
+	}
+	tmplFileName = fmt.Sprintf("%s.%s", tmplFileName, "yaml")
 	tmplFile := filepath.Join(d.cfg.RepoRootDir, configRelDir, tmplFileName)
 	if _, err := os.Stat(tmplFile); err != nil {
 		return "", fmt.Errorf("Tailorbird rookery template %q does not exist in %q", tmplFile, configRelDir)
