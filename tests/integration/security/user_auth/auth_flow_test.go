@@ -16,7 +16,6 @@
 package userauth
 
 import (
-	"net"
 	"strings"
 	"testing"
 	"time"
@@ -31,9 +30,15 @@ func TestBasicAuthFlow(t *testing.T) {
 		NewTest(t).
 		Features("security.user.auth").
 		Run(func(ctx framework.TestContext) {
-			// check the port-forward availability
-			validatePortForward(ctx, "8443")
 			util.SetupConfig(ctx)
+
+			// port-forward to cluster
+			forwarder := util.GetIngressPortForwarderOrFail(ctx, ist, 8443, 8443)
+			if err := forwarder.Start(); err != nil {
+				t.Fatalf("failed starting port forwarder for pod: %v", err)
+			}
+			// check the port-forward availability
+			util.ValidatePortForward(ctx, "8443")
 
 			// setup chrome and chromedriver
 			service, wd := selenium.StartChromeOrFail(ctx)
@@ -93,16 +98,7 @@ func TestBasicAuthFlow(t *testing.T) {
 				ctx.Fatalf("X-Asm-Rctoken is not in the header")
 			}
 			ctx.Log("Refresh finished.")
-		})
-}
 
-func validatePortForward(ctx framework.TestContext, port string) {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort("localhost", port), time.Second)
-	if err != nil {
-		ctx.Fatalf("port-forward is not available: %v", err)
-	}
-	if conn != nil {
-		defer conn.Close()
-		ctx.Logf("port-forward is available: %v", net.JoinHostPort("localhost", "8443"))
-	}
+			forwarder.Close()
+		})
 }

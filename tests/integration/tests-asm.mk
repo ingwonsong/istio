@@ -95,7 +95,7 @@ test.integration.asm.longrunning: | $(JUNIT_REPORT)
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug,mcp:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
-# Custom test target for User Auth basic flow test.
+# Custom test target for User Auth tests.
 .PHONY: test.integration.asm.userauth
 test.integration.asm.userauth: | $(JUNIT_REPORT)
 	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/security/user_auth/... -timeout 30m \

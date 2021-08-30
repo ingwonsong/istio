@@ -19,6 +19,7 @@ package selenium
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/tebeka/selenium"
 	"github.com/tebeka/selenium/chrome"
@@ -84,7 +85,7 @@ func GoogleSignInPageIdleCondition() selenium.Condition {
 			return false, nil
 		}
 
-		return err.Error() == "nil return value", nil
+		return strings.Contains(err.Error(), "nil return value"), nil
 	}
 }
 
@@ -136,7 +137,7 @@ func WaitForTitleCondition(newTitle string) selenium.Condition {
 		if err != nil {
 			return false, err
 		}
-		return title == newTitle, nil
+		return strings.Contains(title, newTitle), nil
 	}
 }
 

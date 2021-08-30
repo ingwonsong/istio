@@ -33,10 +33,6 @@ func Setup(settings *resource.Settings) error {
 	if err := downloadUserAuthDependencies(settings); err != nil {
 		return fmt.Errorf("error installing user auth dependencies: %w", err)
 	}
-
-	// TODO(b/182912549): port-forward in go test code instead of here
-	go exec.Run("kubectl port-forward service/istio-ingressgateway 8443:443 -n istio-system")
-
 	return nil
 }
 
