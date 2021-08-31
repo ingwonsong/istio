@@ -29,6 +29,7 @@ import (
 	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/istio"
+	"istio.io/istio/pkg/test/framework/image"
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/shell"
 	"istio.io/istio/pkg/test/util/retry"
@@ -56,6 +57,9 @@ var (
 	// This image wraps CloudESF test logic and its source is located at
 	// https://source.corp.google.com/piper///depot/google3/apiserving/cloudesf/tests/e2e/cep/clients/BUILD;rcl=392444512;l=39
 	cloudESFTestClientImage = "us.gcr.io/cloudesf-testing/e2e_apikey_grpc_test_client:cloudesf_e2eeac51e02"
+
+	defaultHub = "gcr.io/cloudesf-testing/asm"
+	defaultTag = "dev-stable"
 )
 
 func TestMain(m *testing.M) {
@@ -85,8 +89,8 @@ func TestCloudESFApiKeyGrpc(t *testing.T) {
 				fmt.Sprintf(`kubectl  patch deployment istio-ingressgateway -n istio-system --type strategic --patch-file %s`,
 					cloudESFApiKeyGrpcTestFolder+"/configs/asm/read_only_root.yaml"))
 			executeShell(t, "swapping ingress gateway",
-				fmt.Sprintf(`kubectl  patch deployment istio-ingressgateway -n istio-system --type strategic --patch-file %s`,
-					cloudESFApiKeyGrpcTestFolder+"/configs/asm/proxy.yaml"))
+				fmt.Sprintf("kubectl patch deployment istio-ingressgateway -n istio-system --type strategic --patch \"%s\"",
+					proxyPatchConfig()))
 			executeShell(t, "adding initContainer",
 				fmt.Sprintf(`kubectl  patch deployment istio-ingressgateway -n istio-system --type merge --patch-file %s`,
 					cloudESFApiKeyGrpcTestFolder+"/configs/asm/init_container.yaml"))
@@ -179,6 +183,28 @@ spec:
 		})
 }
 
+func proxyPatchConfig() string {
+	config := `
+spec:
+ template:
+   spec:
+     containers:
+     - name: istio-proxy
+       image: %s/cloudesf:%s`
+	s, _ := image.SettingsFromCommandLine()
+	hub := defaultHub
+	if s.Hub != image.DefaultHub {
+		hub = s.Hub
+	}
+
+	tag := defaultTag
+	if s.Tag != image.DefaultTag {
+		tag = s.Tag
+	}
+
+	return fmt.Sprintf(config, hub, tag)
+}
+
 func healthCheck(t framework.TestContext, address string, expectedStatusCode int) {
 	retry.UntilSuccessOrFail(t, func() error {
 		resp, err := http.Get(address)
@@ -193,6 +219,7 @@ func healthCheck(t framework.TestContext, address string, expectedStatusCode int
 
 func executeShell(t framework.TestContext, operation, cmd string) string {
 	t.Logf("start %s", operation)
+	t.Logf("cmd is:\n%s", cmd)
 	var ret string
 	var err error
 	if ret, err = shell.Execute(true, cmd); err != nil {

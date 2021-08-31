@@ -22,10 +22,15 @@ import (
 	"istio.io/istio/pkg/test/framework/config"
 )
 
+const (
+	DefaultHub = "gcr.io/istio-testing"
+	DefaultTag = "latest"
+)
+
 // Settings we will collect from the command-line.
 var settingsFromCommandLine = &Settings{
-	Hub:        env.HUB.ValueOrDefault("gcr.io/istio-testing"),
-	Tag:        env.TAG.ValueOrDefault("latest"),
+	Hub:        env.HUB.ValueOrDefault(DefaultHub),
+	Tag:        env.TAG.ValueOrDefault(DefaultTag),
 	PullPolicy: env.PULL_POLICY.Value(),
 }
 
