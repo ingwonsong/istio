@@ -29,6 +29,6 @@ spec:
     spec:
       containers:
       - name: apikey-server
-        image: gcr.io/cloudesf-release/apikeys-server:stable
+        image: gcr.io/cloudesf-testing/apikeys-server:stable
         ports:
         - containerPort: 26000
