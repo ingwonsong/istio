@@ -33,6 +33,8 @@ import (
 	"istio.io/istio/prow/asm/infra/deployer/common"
 	"istio.io/istio/prow/asm/infra/exec"
 	"istio.io/istio/prow/asm/infra/types"
+	exectester "istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 const (
@@ -90,6 +92,14 @@ func (d *Instance) Name() string {
 
 func (d *Instance) Run() error {
 	log.Println("Will run kubetest2 tailorbird deployer to create the clusters...")
+
+	// If clustertype is on-prem, clean up stale hub memberships to avoid exceeding quota
+	if string(d.cfg.Cluster) == string(resource.OnPrem) {
+		if err := exectester.Dispatch(d.cfg.RepoRootDir,
+			"cleanup_stale_hub_memberships", nil); err != nil {
+			return err
+		}
+	}
 
 	if err := d.installTools(); err != nil {
 		return fmt.Errorf("error installing tools for testing with Tailorbird: %w", err)
