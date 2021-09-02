@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	boskosLocation       = "http://boskos.test-pods.svc.cluster.local."
-	boskosAcquireTimeout = 600
+	boskosLocation          = "http://boskos.test-pods.svc.cluster.local."
+	boskosAcquireTimeout    = 600
+	boskosHeartbeatInterval = 600
 )
 
 // AcquireBoskosResource returns a boskos resource name of the given type.
@@ -34,7 +35,7 @@ func AcquireBoskosResource(resourceType string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error creating the boskos client: %w", err)
 	}
-	r, err := boskos.Acquire(cli, resourceType, boskosAcquireTimeout, make(chan struct{}))
+	r, err := boskos.Acquire(cli, resourceType, boskosAcquireTimeout, boskosHeartbeatInterval, make(chan struct{}))
 	if err != nil {
 		return "", fmt.Errorf("error acquiring a boskos resource with type %s: %w", resourceType, err)
 	}

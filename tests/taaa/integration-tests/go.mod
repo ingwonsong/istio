@@ -11,5 +11,5 @@ require (
 	gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210805225820-a46291bf7c71
 	gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210618173102-cf79218d2fc2
 	istio.io/istio/prow/asm/tester v0.0.0-00010101000000-000000000000
-	knative.dev/test-infra/rundk v0.0.0-20210901221705-a474cfb61299
+	knative.dev/test-infra/rundk v0.0.0-20210902040405-e5d384603f05
 )
