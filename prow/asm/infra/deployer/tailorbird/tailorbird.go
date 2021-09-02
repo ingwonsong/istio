@@ -41,6 +41,9 @@ const (
 	// the relative dir to find the tailorbird config files
 	configRelDir = "deployer/tailorbird/config"
 
+	// GCS path for downloading kubetest2-tailorbird binary
+	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2021-09-02-220738/kubetest2-tailorbird"
+
 	installawsIamAuthenticatorCmd = `curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/aws-iam-authenticator \
 			&& chmod +x ./aws-iam-authenticator \
 			&& mv ./aws-iam-authenticator /usr/local/bin/aws-iam-authenticator`
@@ -169,13 +172,13 @@ func (d *Instance) flags() ([]string, error) {
 func (d *Instance) installTools() error {
 	log.Println("Installing tools required by tailorbird deployer")
 
-	clonePath := os.Getenv("GOPATH") + "/src/gke-internal/test-infra"
-	if _, err := os.Stat(clonePath); !os.IsNotExist(err) {
-		if err := exec.Run(fmt.Sprintf("bash -c 'cd %s && go install ./anthos/tailorbird/cmd/kubetest2-tailorbird'", clonePath)); err != nil {
-			return fmt.Errorf("error installing kubetest2 tailorbird deployer: %w", err)
-		}
-	} else {
-		return fmt.Errorf("path %q does not seem to exist, please double check", clonePath)
+	// Install kubetest2-tailorbird.
+	ktPath := "/usr/local/bin/kubetest2-tailorbird"
+	if err := exec.RunMultiple([]string{
+		fmt.Sprintf("gsutil cp %s %s", kubetest2TailorbirdPath, ktPath),
+		"chmod 755 " + ktPath,
+	}); err != nil {
+		return fmt.Errorf("error installing kubetest2-tailorbird: %w", err)
 	}
 
 	// GKE-on-AWS needs terraform for generation of kubeconfigs
