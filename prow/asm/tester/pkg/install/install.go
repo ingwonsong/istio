@@ -15,6 +15,7 @@
 package install
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -60,22 +61,37 @@ func (c *installer) install(r *revision.Config) error {
 
 // preInstall contains all steps required before performing the direct install
 func (c *installer) preInstall(rev *revision.Config) error {
-	if c.settings.ControlPlane == resource.Unmanaged {
-		if err := exec.Dispatch(c.settings.RepoRootDir,
-			"prepare_images", nil); err != nil {
-			return err
+	if c.settings.InstallOverride != "" {
+		installDetails := strings.Split(c.settings.InstallOverride, ":")
+		if len(installDetails) != 2 {
+			return fmt.Errorf("Malformed install override supplied %s", c.settings.InstallOverride)
+		}
+		for k, v := range map[string]string{
+			"HUB": installDetails[0],
+			"TAG": installDetails[1],
+		} {
+			log.Printf("Set env var: %s=%s", k, v)
+			if err := os.Setenv(k, v); err != nil {
+				return fmt.Errorf("error setting env var %q to %q", k, v)
+			}
 		}
 	} else {
+		if c.settings.ControlPlane == resource.Unmanaged {
+			if err := exec.Dispatch(c.settings.RepoRootDir,
+				"prepare_images", nil); err != nil {
+				return err
+			}
+		} else {
+			if err := exec.Dispatch(c.settings.RepoRootDir,
+				"prepare_images_for_managed_control_plane", nil); err != nil {
+				return err
+			}
+		}
 		if err := exec.Dispatch(c.settings.RepoRootDir,
-			"prepare_images_for_managed_control_plane", nil); err != nil {
+			"build_istioctl",
+			nil); err != nil {
 			return err
 		}
-	}
-
-	if err := exec.Dispatch(c.settings.RepoRootDir,
-		"build_istioctl",
-		nil); err != nil {
-		return err
 	}
 
 	if c.settings.ControlPlane == resource.Unmanaged {

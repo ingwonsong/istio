@@ -17,5 +17,19 @@ var (
 	TestSupplements = []string{
 		"/pkg/test/framework/features/allowlist.txt",
 		"/pkg/test/framework/features/features.yaml",
+		"/tests/integration/iop-externalistiod-config-integration-test-defaults.yaml",
+		"/tests/integration/iop-externalistiod-primary-integration-test-defaults.yaml",
+		"/tests/integration/iop-externalistiod-remote-integration-test-defaults.yaml",
+		"/tests/integration/iop-externalistiod-remote-integration-test-gateways.yaml",
+		"/tests/integration/iop-integration-test-defaults.yaml",
+		"/tests/integration/iop-istiodless-remote-integration-test-defaults.yaml",
+		"/tests/integration/iop-remote-integration-test-defaults.yaml",
+	}
+	TesterDirs = []string{
+		"/prow/asm/tester/configs",
+		"/prow/asm/tester/scripts",
+		"/manifests/addons",
+		"/manifests/charts",
+		"/manifests/profiles",
 	}
 )

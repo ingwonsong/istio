@@ -2,7 +2,7 @@
 
 `tester` is a program for running ASM tests on existing k8s clusters. It
 implements the [kubetest2 pipeline tester
-interface](go/kubetest2-pipeline-tester-interface) and can be run as an
+interface](http://go/kubetest2-pipeline-tester-interface) and can be run as an
 executable by the kubetest2 main program, e.g. `kubetest2 gke --up --tester=exec
  tester --run-tests`.
 

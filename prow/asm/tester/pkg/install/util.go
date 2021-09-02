@@ -143,6 +143,10 @@ func setupPermissions(settings *resource.Settings, rev *revision.Config) error {
 }
 
 func setGcpPermissions(settings *resource.Settings) error {
+	if settings.InstallOverride != "" {
+		log.Print("No need to set IAM permission if the images are from a specified registry.")
+		return nil
+	}
 	cs := kube.GKEClusterSpecsFromContexts(settings.KubeContexts)
 	for _, c := range cs {
 		if c.ProjectID != settings.GCRProject {

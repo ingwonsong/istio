@@ -30,6 +30,10 @@ type Settings struct {
 	// Topology of the cluster
 	ClusterTopology ClusterToplology
 
+	// Overrides building ASM from source and installing it that way.
+	// If not empty will be assumed to be a string in the form "${HUB}:${TAG}".
+	InstallOverride string
+
 	// The feature to test for this test flow
 	FeatureToTest Feature
 

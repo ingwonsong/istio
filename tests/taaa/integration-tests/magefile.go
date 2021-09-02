@@ -33,13 +33,24 @@ const (
 	repoRoot        = "../../.."
 	outPath         = "./out"
 	outBinPath      = outPath + "/usr/bin"
+	repoRootOutPath = outPath + internal.RepoCopyRoot
+	// The directory inside the compiler image that is bound to the outPath.
+	// The compiler image will output it's binaries here.
+	internalOutDir = "/tmp/artifacts/"
 )
+
+func init() {
+	// Use docker buildkit.
+	os.Setenv("DOCKER_BUILDKIT", "1")
+}
 
 type Build mg.Namespace
 
 // Build the entire Test Artifact and dependencies
 func (Build) Artifact() error {
-	mg.Deps(Build.Entrypoint, Build.Tests, Build.TestImages)
+	mg.Deps(
+		Build.TestImages,
+		Build.Binaries)
 	mg.Deps(Build.ArtifactNoDeps)
 	return nil
 }
@@ -86,8 +97,22 @@ func (Build) Push(branchName string) error {
 	return sh.RunV("docker", "push", internal.ImgPath+":"+branchName)
 }
 
-// Compile the entrypoint binary.
+// Binaries builds all the non image based binaries and their dependencies.
+func (Build) Binaries() error {
+	mg.Deps(
+		Build.Entrypoint,
+		Build.Tests,
+		Build.Tester)
+	return nil
+}
+
+// Entrypoint compiles the entrypoint binary.
 func (Build) Entrypoint() error {
+	// The entrypoint doesn't appear to link in any C libraries so it shouldn't
+	// necessary to use the compiler image to build it.
+	// If it does in the future it will require some extra work to get the compiler
+	// image to work with the gerrit permissions needed.
+	log.Println("Copying docker config used for image repo authentication.")
 	dockerConfigPath := outPath + "/root/.docker/"
 	if err := os.MkdirAll(dockerConfigPath, 0775); err != nil {
 		return err
@@ -96,28 +121,29 @@ func (Build) Entrypoint() error {
 	if err := os.MkdirAll(outBinPath, 0775); err != nil {
 		return err
 	}
+	log.Println("Compiling TaaA entrypoint binary.")
 	return sh.Run("go", "build", "-o", outBinPath+"/entrypoint", "./cmd/entrypoint")
 }
 
-// Compile the tests.
+// Tester compiler the "Tester" application in the istio repo used to install and run tests.
+func (Build) Tester() error {
+	mg.Deps(Build.compilerImage)
+	log.Println("Copying Tester configs and scripts")
+	for _, dir := range internal.TesterDirs {
+		if err := os.MkdirAll(repoRootOutPath+dir, 0755); err != nil {
+			return err
+		}
+		if err := sh.RunV("rsync", "-r", "--delete", repoRoot+dir+"/", repoRootOutPath+dir); err != nil {
+			return err
+		}
+	}
+	log.Println("Compiling ASM tester binary.")
+	return compileGo(false, "asm_tester", "prow/asm/tester")
+}
+
+// Tests compilers the ASM integration go test binaries.
 func (Build) Tests() error {
-	if err := os.MkdirAll(outBinPath, 0775); err != nil {
-		return err
-	}
-	// Build compiler image.
-	// Create an empty context directory to speed up build time.
-	emptyContextDir, err := os.MkdirTemp("/tmp/", "*")
-	if err != nil {
-		return err
-	}
-	if err := sh.RunV("docker", "build",
-		"--pull",
-		"-t", compilerImgPath,
-		"-f", "compiler.dockerfile",
-		emptyContextDir); err != nil {
-		return err
-	}
-	os.RemoveAll(emptyContextDir)
+	mg.Deps(Build.compilerImage, Build.TestSupplements)
 	// Now use that image to build all the tests.
 	// We need to use an image to build the test to keep a consistent
 	// environment for the binary otherwise errors occur.
@@ -130,30 +156,30 @@ func (Build) Tests() error {
 			defer wg.Done()
 			name := fmt.Sprintf("%s.test", strings.ReplaceAll(intTest, "/", "_"))
 			log.Printf("Compiling %s", name)
-			if err := runCompile(name, "tests/integration/"+intTest, "--tags=integ"); err != nil {
+			if err := compileGo(true, name, "tests/integration/"+intTest, "--tags=integ"); err != nil {
 				anyErr = err
 			}
 		}()
 	}
 	wg.Wait()
-	if anyErr != nil {
-		return anyErr
-	}
+	return anyErr
+}
+
+func (Build) TestSupplements() error {
 	log.Println("Copying supplementary test compilation files.")
-	repoRootOutPath := outPath + internal.RepoCopyRoot
 	if err := os.MkdirAll(repoRootOutPath, os.ModePerm); err != nil {
 		return err
 	}
 	for _, supplement := range internal.TestSupplements {
 		os.MkdirAll(filepath.Dir(repoRootOutPath+supplement), os.ModePerm)
-		if err := sh.RunV("rsync", repoRoot+supplement, repoRootOutPath+supplement); err != nil {
+		if err := magetools.CopyFile(repoRoot+supplement, repoRootOutPath+supplement); err != nil {
 			return err
 		}
 	}
-	return sh.RunV("rsync", "-r", repoRoot+"/out/", repoRootOutPath+"/out")
+	return nil
 }
 
-// Build the images needed during test execution.
+// TestImages builds the images needed during test execution.
 func (Build) TestImages() error {
 	// Make output directories.
 	if err := os.MkdirAll("out"+internal.RegistryDestinationDirectory, 0775); err != nil {
@@ -166,6 +192,7 @@ func (Build) TestImages() error {
 	}
 
 	// Launch a local registry to hold test images.
+	log.Println("Creaing local registry for test images.")
 	dsr, err := registry.Create(dir)
 	if err != nil {
 		return fmt.Errorf("failed to start the docker registry image")
@@ -189,6 +216,7 @@ func (Build) TestImages() error {
 	f.Close()
 
 	// Actually build those images.
+	log.Println("Building test images.")
 	buildimages := exec.Command(
 		"make",
 		"dockerx.pushx",
@@ -207,6 +235,7 @@ func (Build) TestImages() error {
 	}
 
 	// Done building and pushing images. Archive it.
+	log.Println("Shutting down local registry server and archiving images.")
 	dsr.Shutdown()
 	outputDir, err := registry.Archive(dir)
 	if err != nil {
@@ -231,6 +260,15 @@ func (Build) TestImages() error {
 		return err
 	}
 
+	log.Println("Copying istioctl.")
+	if err := magetools.CopyFile(repoRoot+"/out/linux_amd64/istioctl", outBinPath+"/istioctl"); err != nil {
+		return err
+	}
+	log.Println("Copying all other binaries to same position in the code repo copy.")
+	if err := sh.RunV("rsync", "-r", "--delete", repoRoot+"/out/", repoRootOutPath+"/out"); err != nil {
+		return err
+	}
+
 	// Copying this file doesn't update its timestamp, so do this so we could only rebuild images when necessary.
 	return sh.Run("touch", configYml)
 }
@@ -252,27 +290,71 @@ func logWriter(out io.Writer) io.WriteCloser {
 	return w
 }
 
+// Prerequisites targets that rely on the compiler image.
+func (Build) compilerImage() error {
+	log.Println("Building compiler image.")
+	if err := os.MkdirAll(outBinPath, 0775); err != nil {
+		return err
+	}
+	// Build compiler image.
+	// Create an empty context directory to speed up build time.
+	emptyContextDir, err := os.MkdirTemp("/tmp/", "*")
+	if err != nil {
+		return err
+	}
+	if err := sh.RunV("docker", "build",
+		"--pull",
+		"-t", compilerImgPath,
+		"-f", "compiler.dockerfile",
+		emptyContextDir); err != nil {
+		return err
+	}
+	return os.RemoveAll(emptyContextDir)
+}
+
 // Compiles a test package using a container with the same base OS as the
 // TaaA integration test image.
 // It is necessary to build on the same OS since otherwise descrepencies
 // between the libraries of the image and the host machine cause errors.
-func runCompile(outputBinaryName string, pathToPackage string, otherGoTestArgs ...string) error {
-	cmd := interactive.Docker{
-		Command: interactive.NewCommand("docker", "run", "--rm"),
+func compileGo(isTest bool, outputBinaryName string, pathToPackage string, otherGoTestArgs ...string) error {
+	cmd := getDockerCmd(pathToPackage)
+	cmd.AddArgs("go")
+	if isTest {
+		cmd.AddArgs("test",
+			"-c")
+	} else {
+		cmd.AddArgs("build")
 	}
-	const internalOutDir = "/tmp/artifacts/"
-	const internalRepoDir = "/usr/lib/go/src/gke-internal/istio/istio"
-	absRepoRoot, _ := filepath.Abs(repoRoot)
-	cmd.AddMount("bind", absRepoRoot, internalRepoDir)
-	absOutBinPath, _ := filepath.Abs(outBinPath)
-	cmd.AddMount("bind", absOutBinPath, internalOutDir)
-	cmd.AddArgs("-w", path.Join(internalRepoDir, pathToPackage))
-
-	cmd.AddArgs(compilerImgPath)
-	cmd.AddArgs("go", "test",
-		"-c",
-		"-o", path.Join(internalOutDir, outputBinaryName))
+	cmd.AddArgs("-o", path.Join(internalOutDir, outputBinaryName))
 	cmd.AddArgs(otherGoTestArgs...)
 	log.Println("Running compiler image: ", compilerImgPath)
 	return cmd.Run()
+}
+
+// runCompile Runs the compiler image with minimal set up at the specified directory in the repo.
+func runCompile(pathToPackage string, command ...string) error {
+	cmd := getDockerCmd(pathToPackage)
+	cmd.AddArgs(command...)
+	log.Println("Running compiler image: ", compilerImgPath)
+	return cmd.Run()
+}
+
+// getDockerCmd returns an Docker command preset to run the compiler image.
+// It binds in the current
+func getDockerCmd(relativeWorkingDir string) *interactive.Docker {
+	cmd := &interactive.Docker{
+		Command: interactive.NewCommand("docker", "run", "--rm"),
+	}
+	const internalRepoDir = "/usr/lib/go/src/gke-internal/istio/istio"
+	absRepoRoot, _ := filepath.Abs(repoRoot)
+
+	homedir, _ := os.UserHomeDir()
+	cmd.AddMount("bind", path.Join(homedir, ".gitconfig"), "/root/.gitconfig")
+	cmd.AddMount("bind", absRepoRoot, internalRepoDir)
+	absOutBinPath, _ := filepath.Abs(outBinPath)
+	cmd.AddMount("bind", absOutBinPath, internalOutDir)
+	cmd.AddArgs("-w", path.Join(internalRepoDir, relativeWorkingDir))
+
+	cmd.AddArgs(compilerImgPath)
+	return cmd
 }

@@ -2,11 +2,14 @@ module istio.io/istio/tests/taaa/test-artifact
 
 go 1.16
 
+replace istio.io/istio/prow/asm/tester => ../../../prow/asm/tester
+
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/magefile/mage v1.11.0
 	github.com/spf13/cobra v1.2.1
-	gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210803195516-adac8bf45942
+	gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210805225820-a46291bf7c71
 	gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210618173102-cf79218d2fc2
-	knative.dev/test-infra/rundk v0.0.0-20210712170122-a1e6473a5b7e
+	istio.io/istio/prow/asm/tester v0.0.0-00010101000000-000000000000
+	knative.dev/test-infra/rundk v0.0.0-20210901221705-a474cfb61299
 )
