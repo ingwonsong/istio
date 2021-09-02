@@ -304,9 +304,27 @@ EOF
       kpt cfg set tmp anthos.servicemesh.hubTrustDomain "${ENVIRON_PROJECT_ID}.svc.id.goog"
       kpt cfg set tmp anthos.servicemesh.hub-idp-url "${IDENTITY_PROVIDER}"
 
+      cat > "tmp/debug-overlay.yaml" <<EOF
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  values:
+    global:
+      proxy:
+        logLevel: debug
+        componentLogLevel: "misc:debug,rbac:debug"
+    pilot:
+      env:
+        UNSAFE_ENABLE_ADMIN_ENDPOINTS: true
+        PILOT_REMOTE_CLUSTER_TIMEOUT: 15s
+  meshConfig:
+    accessLogFile: /dev/stdout
+EOF
+
       echo "----------Istio Operator YAML and Hub Overlay YAML----------"
       cat "tmp/istio/istio-operator.yaml"
       cat "tmp/istio/options/hub-meshca.yaml"
+      cat "tmp/debug-overlay.yaml"
 
       echo "----------Generating expansion gw YAML----------"
       samples/multicluster/gen-eastwest-gateway.sh \
@@ -315,7 +333,7 @@ EOF
         --revision "${ASM_REVISION_LABEL}" \
         --network "network${i}" > "tmp/eastwest-gateway.yaml"
       cat "tmp/eastwest-gateway.yaml"
-      istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" --context=cluster -f "tmp/istio/istio-operator.yaml" -f "tmp/istio/options/hub-meshca.yaml" -f "tmp/eastwest-gateway.yaml"
+      istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" --context=cluster -f "tmp/istio/istio-operator.yaml" -f "tmp/istio/options/hub-meshca.yaml" -f "tmp/eastwest-gateway.yaml" -f "tmp/debug-overlay.yaml"
     else
       cat <<EOF | istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f -
 apiVersion: install.istio.io/v1alpha1
@@ -527,12 +545,30 @@ EOF
       kpt cfg set tmp anthos.servicemesh.hubTrustDomain "${ENVIRON_PROJECT_ID}.svc.id.goog"
       kpt cfg set tmp anthos.servicemesh.hub-idp-url "${IDENTITY_PROVIDER}"
 
+      cat > "tmp/debug-overlay.yaml" <<EOF
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  values:
+    global:
+      proxy:
+        logLevel: debug
+        componentLogLevel: "misc:debug,rbac:debug"
+    pilot:
+      env:
+        UNSAFE_ENABLE_ADMIN_ENDPOINTS: true
+        PILOT_REMOTE_CLUSTER_TIMEOUT: 15s
+  meshConfig:
+    accessLogFile: /dev/stdout
+EOF
+
       echo "----------Istio Operator YAML and Hub Overlay YAML----------"
       cat "tmp/istio/istio-operator.yaml"
       cat "tmp/istio/options/hub-meshca.yaml"
+      cat "tmp/debug-overlay.yaml"
 
       echo "----------Installing ASM----------"
-      istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f "tmp/istio/istio-operator.yaml" -f "tmp/istio/options/hub-meshca.yaml" --revision="${ASM_REVISION_LABEL}"
+      istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f "tmp/istio/istio-operator.yaml" -f "tmp/istio/options/hub-meshca.yaml" -f "tmp/debug-overlay.yaml" --revision="${ASM_REVISION_LABEL}"
     else
       install_certs "${MC_CONFIGS[$i]}"
       echo "----------Installing ASM----------"
