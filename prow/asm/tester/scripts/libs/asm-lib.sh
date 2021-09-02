@@ -82,17 +82,6 @@ function build_istioctl() {
   cp "$PWD/out/linux_amd64/istioctl" "/usr/local/bin"
 }
 
-
-# Clean up stale hub memberships
-function cleanup_stale_hub_memberships() {
-  echo "Clean up stale hub memberships in the project tairan-asm-multi-cloud-dev"
-  # Clean up hub memberships that are older than 8-hour.
-  # https://buganizer.corp.google.com/issues/195998781, comment #10
-  gcloud --project=tairan-asm-multi-cloud-dev container hub memberships list \
-    --format='value(name)' --filter="updateTime<-P8H" \
-    | xargs --no-run-if-empty -n1 gcloud --project=tairan-asm-multi-cloud-dev container hub memberships delete --quiet
-}
-
 # Register the clusters into the Hub of the Hub host project.
 # Parameters: $1 - Hub host project
 #             $2 - array of k8s contexts

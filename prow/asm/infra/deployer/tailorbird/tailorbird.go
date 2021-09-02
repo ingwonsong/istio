@@ -33,8 +33,6 @@ import (
 	"istio.io/istio/prow/asm/infra/deployer/common"
 	"istio.io/istio/prow/asm/infra/exec"
 	"istio.io/istio/prow/asm/infra/types"
-	exectester "istio.io/istio/prow/asm/tester/pkg/exec"
-	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 const (
@@ -48,6 +46,9 @@ const (
 			&& mv ./aws-iam-authenticator /usr/local/bin/aws-iam-authenticator`
 
 	terraformVersion = "0.13.6"
+
+	// the host HUB project for testing with on-prem
+	onPremHubDevProject = "tairan-asm-multi-cloud-dev"
 )
 
 var (
@@ -93,11 +94,22 @@ func (d *Instance) Name() string {
 func (d *Instance) Run() error {
 	log.Println("Will run kubetest2 tailorbird deployer to create the clusters...")
 
-	// If clustertype is on-prem, clean up stale hub memberships to avoid exceeding quota
-	if string(d.cfg.Cluster) == string(resource.OnPrem) {
-		if err := exectester.Dispatch(d.cfg.RepoRootDir,
-			"cleanup_stale_hub_memberships", nil); err != nil {
+	// If clustertype is on-prem, clean up stale hub memberships that are older
+	// than 8-hour to avoid exceeding quota
+	// See http://b/195998781#comment10
+	if string(d.cfg.Cluster) == string(types.GKEOnPrem) {
+		log.Printf("Cleaning up stale hub memberships in the project %s", onPremHubDevProject)
+		hms, err := exec.Output("gcloud container hub memberships list --format='value(name)' --filter='updateTime<-P8H' --project=" +
+			onPremHubDevProject)
+		if err != nil {
 			return err
+		}
+
+		for _, hm := range strings.Split(strings.TrimSpace(string(hms)), "\n") {
+			if err := exec.Run(fmt.Sprintf("gcloud container hub memberships delete %s --quiet --project=%s",
+				hm, onPremHubDevProject)); err != nil {
+				return err
+			}
 		}
 	}
 
