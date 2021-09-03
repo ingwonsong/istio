@@ -25,7 +25,7 @@ SHELL := /bin/bash
 -include Makefile.overrides.mk
 
 # cloudesf specific overrides
--include Makefile.cloudesf.mk
+-include cloudesf/Makefile.cloudesf.mk
 
 # Set the environment variable BUILD_WITH_CONTAINER to use a container
 # to build the repo. The only dependencies in this mode are to have make and

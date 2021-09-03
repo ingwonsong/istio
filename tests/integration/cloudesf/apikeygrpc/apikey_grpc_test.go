@@ -28,6 +28,7 @@ import (
 
 	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
+	"istio.io/istio/pkg/test/framework/cloudesf"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/image"
 	"istio.io/istio/pkg/test/framework/resource"
@@ -38,7 +39,8 @@ import (
 var (
 	i istio.Instance
 
-	cloudESFApiKeyGrpcTestFolder = filepath.Join(env.IstioSrc, "tests/integration/cloudesf/apikeygrpc")
+	apiKeyGrpcTestConfigFolder   = filepath.Join(env.IstioSrc, "cloudesf/testconfigs/apikeygrpc")
+	cloudESFASMPatchConfigFolder = filepath.Join(env.IstioSrc, "tests/integration/cloudesf/patches")
 
 	// The test client image has to run with certain IAM roles, in order to generate
 	// access token by impersonating other identities.
@@ -56,7 +58,7 @@ var (
 	clientContainer = "apikey-grpc-test-client"
 	// This image wraps CloudESF test logic and its source is located at
 	// https://source.corp.google.com/piper///depot/google3/apiserving/cloudesf/tests/e2e/cep/clients/BUILD;rcl=392444512;l=39
-	cloudESFTestClientImage = "us.gcr.io/cloudesf-testing/e2e_apikey_grpc_test_client:cloudesf_e2eeac51e02"
+	cloudESFTestClientImage = fmt.Sprintf("us.gcr.io/cloudesf-testing/e2e_apikey_grpc_test_client:%s", cloudesf.Version())
 
 	defaultHub = "gcr.io/cloudesf-testing/asm"
 	defaultTag = "dev-stable"
@@ -84,23 +86,23 @@ func TestCloudESFApiKeyGrpc(t *testing.T) {
 			// the install_asm is not synced with that version yet, so for now, use kubectl
 			// patch to workaround.
 			executeShell(t, "disabling tracing zipkin",
-				fmt.Sprintf(`kubectl patch configmap/istio -n istio-system --type merge --patch-file %s`, cloudESFApiKeyGrpcTestFolder+"/configs/asm/zipkin.yaml"))
+				fmt.Sprintf(`kubectl patch configmap/istio -n istio-system --type merge --patch-file %s`, cloudESFASMPatchConfigFolder+"/zipkin.yaml"))
 			executeShell(t, "setting `readOnlyRootFilesystem: false`",
 				fmt.Sprintf(`kubectl  patch deployment istio-ingressgateway -n istio-system --type strategic --patch-file %s`,
-					cloudESFApiKeyGrpcTestFolder+"/configs/asm/read_only_root.yaml"))
+					cloudESFASMPatchConfigFolder+"/read_only_root.yaml"))
 			executeShell(t, "swapping ingress gateway",
 				fmt.Sprintf("kubectl patch deployment istio-ingressgateway -n istio-system --type strategic --patch \"%s\"",
 					proxyPatchConfig()))
 			executeShell(t, "adding initContainer",
 				fmt.Sprintf(`kubectl  patch deployment istio-ingressgateway -n istio-system --type merge --patch-file %s`,
-					cloudESFApiKeyGrpcTestFolder+"/configs/asm/init_container.yaml"))
+					cloudESFASMPatchConfigFolder+"/apikey_grpc_init_container.yaml"))
 
 			// Deploy CloudESF config.
 			configPaths := []string{
-				cloudESFApiKeyGrpcTestFolder + "/configs/cloudesf/apikey_grpc_codelab_asm_envoyfilter.json",
-				cloudESFApiKeyGrpcTestFolder + "/configs/cloudesf/apikey_grpc_codelab_asm_gateway.json",
-				cloudESFApiKeyGrpcTestFolder + "/configs/cloudesf/apikey_grpc_codelab_asm_virtual_service.json",
-				cloudESFApiKeyGrpcTestFolder + "/configs/cloudesf/asm_backend.yaml",
+				apiKeyGrpcTestConfigFolder + "/apikey_grpc_codelab_asm_envoyfilter.json",
+				apiKeyGrpcTestConfigFolder + "/apikey_grpc_codelab_asm_gateway.json",
+				apiKeyGrpcTestConfigFolder + "/apikey_grpc_codelab_asm_virtual_service.json",
+				apiKeyGrpcTestConfigFolder + "/asm_backend.yaml",
 			}
 			for _, configPath := range configPaths {
 				retry.UntilSuccessOrFail(t, func() error {

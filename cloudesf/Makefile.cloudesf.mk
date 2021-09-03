@@ -1,4 +1,4 @@
-CLOUDESF_VERSION = "cloudesf_20210816_00_RC00"
+-include cloudesf/Makefile.cloudesf.version.mk
 
 SHELL := /bin/bash -o pipefail
 
