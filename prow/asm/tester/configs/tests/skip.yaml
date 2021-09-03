@@ -441,6 +441,9 @@ tests:
       - names:
           - TestStackdriver
         buganizerID: 187956450
+      - names:
+          - TestWorkloadEntryUpdatesStatus
+        buganizerID: 198725015
 
   # Managed CP, cluster topology = sc OR SINGLECLUSTER
   - selectors:
