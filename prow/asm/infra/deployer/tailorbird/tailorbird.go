@@ -109,9 +109,15 @@ func (d *Instance) Run() error {
 		}
 
 		for _, hm := range strings.Split(strings.TrimSpace(string(hms)), "\n") {
+			if strings.TrimSpace(hm) == "" {
+				// hm may be empty
+				continue
+			}
 			if err := exec.Run(fmt.Sprintf("gcloud container hub memberships delete %s --quiet --project=%s",
 				hm, onPremHubDevProject)); err != nil {
-				return err
+				// Error may be expected and should not cause the program to return, e.g., other test instances
+				// may also be cleaning up, which causes an error when deleting a membership that has been deleted.
+				log.Printf("Cleaning up %s returns an err: %v", hm, err)
 			}
 		}
 	}
