@@ -275,6 +275,10 @@ spec:
               name: cni-net-dir
             - mountPath: /var/run/istio-cni
               name: cni-log-dir
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
         - name: mdp-controller
           image: "{{ .MDP_HUB }}/mdp:{{ .MDP_TAG }}"
           command:

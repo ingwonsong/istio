@@ -32,13 +32,8 @@ import (
 // SetupConfig Setup following items assuming httpbin is deployed to default namespace:
 // 1. Create k8s secret using existing cert
 func SetupConfig(ctx framework.TestContext) {
-	credName := "userauth-tls-cert"
-
 	// setup secrets
-	ingressutil.CreateIngressKubeSecret(ctx, []string{credName}, ingressutil.TLS, ingressutil.IngressCredentialA, false)
-	ctx.ConditionalCleanup(func() {
-		ingressutil.DeleteKubeSecret(ctx, []string{credName})
-	})
+	ingressutil.CreateIngressKubeSecret(ctx, "userauth-tls-cert", ingressutil.TLS, ingressutil.IngressCredentialA, false)
 }
 
 // ValidatePortForward Verify the port-forward from localhost to cluster

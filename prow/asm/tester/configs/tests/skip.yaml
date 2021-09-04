@@ -366,6 +366,13 @@ tests:
       - names:
           - TestRemoteClusters
         buganizerID: 194713967
+      - names:
+        - TestTlsGatewaysWithQUIC/quic
+        - TestMtlsGatewaysWithQUIC/quic
+        reason: Experemental code. Not supported by GKE
+      - names:
+        - TestLocality/FailoverPriority/EDS
+        buganizerID: 198848464
 
       # telemetry/ tests
       - names:
