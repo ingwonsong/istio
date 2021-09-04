@@ -115,6 +115,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 			ObservedGeneration:     dpc.Generation,
 		}
 		n.statusWorker.EnqueueStatus(dpc)
+		metrics.ReportReconcileState(dpc.Spec.Revision, dpc.Status.State)
 		resultMetricLabel = metrics.ResourceError
 		return result, err
 	}
@@ -140,6 +141,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
 			0, n.metricsRecord)
 		n.statusWorker.EnqueueStatus(dpc)
+		metrics.ReportReconcileState(dpc.Spec.Revision, dpc.Status.State)
 		resultMetricLabel = metrics.Success
 		return result, nil
 	}

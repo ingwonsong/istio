@@ -72,6 +72,13 @@ func ReportReconcileLoopCount(result ReconcileLoopResult, revision string) {
 func ReportReconcileState(revision string, state v1alpha1.DataPlaneState) {
 	// For a revision there is only one possible state.
 	// Set the given state to 1, but all other states to 0.
+
+	// if state is empty, skip reporting.
+	// This can happen if reconcile loop fails to get DPControl.
+	if revision == "" {
+		return
+	}
+
 	for _, s := range []v1alpha1.DataPlaneState{
 		v1alpha1.Unknown, v1alpha1.Error, v1alpha1.Ready, v1alpha1.Reconciling,
 	} {
