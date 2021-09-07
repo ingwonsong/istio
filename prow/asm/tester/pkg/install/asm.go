@@ -127,8 +127,16 @@ func (c *installer) installASM(rev *revision.Config) error {
 		}
 	}
 
-	if err := createRemoteSecrets(c.settings, contexts); err != nil {
-		return fmt.Errorf("failed to create remote secrets: %w", err)
+	if c.settings.UseASMCLI {
+		if err := exec.Run(scriptPath,
+			exec.WithAdditionalEnvs(generateASMInstallEnvvars(c.settings, rev, "")), // trustProjects is not used here
+			exec.WithAdditionalArgs(generateASMCreateMeshFlags(c.settings))); err != nil {
+			return fmt.Errorf("failed to create mesh using asmcli: %w", err)
+		}
+	} else {
+		if err := createRemoteSecrets(c.settings, contexts); err != nil {
+			return fmt.Errorf("failed to create remote secrets: %w", err)
+		}
 	}
 	return nil
 }
@@ -266,6 +274,24 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	}
 
 	return installFlags
+}
+
+// generateASMCreateMeshFlags returns the flags required when running the asmcli
+// script to register clusters and install remote secrets
+func generateASMCreateMeshFlags(settings *resource.Settings) []string {
+	contexts := settings.KubeContexts
+	var createMeshFlags []string
+	createMeshFlags = append(createMeshFlags, "create-mesh", kube.GKEClusterSpecFromContext(contexts[0]).ProjectID)
+
+	for _, context := range contexts {
+		cluster := kube.GKEClusterSpecFromContext(context)
+		createMeshFlags = append(createMeshFlags, fmt.Sprintf("%s/%s/%s",
+			cluster.ProjectID, cluster.Location, cluster.Name))
+	}
+
+	createMeshFlags = append(createMeshFlags, "--verbose")
+
+	return createMeshFlags
 }
 
 // generateASMMultiCloudInstallFlags returns the flags required when running the install
