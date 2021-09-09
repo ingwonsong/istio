@@ -770,19 +770,21 @@ type TemplateParameters struct {
 // MCPParameters represents the set of inputs from the CloudRun service environment variables
 // This is currently configured from google3/cloud/services_platform/thetis/meshconfig/cloudrun.go
 type MCPParameters struct {
-	Project         string
-	ProjectNumber   string
-	Zone            string
-	Cluster         string
-	KRevision       string
-	Revision        string
-	TrustDomain     string
-	PodName         string
-	CloudrunAddr    string
-	Hub             string
-	Tag             string
-	XDSAddr         string
-	XDSAuthProvider string
+	Project            string
+	ProjectNumber      string
+	Zone               string
+	Cluster            string
+	KRevision          string
+	Revision           string
+	TrustDomain        string
+	PodName            string
+	CloudrunAddr       string
+	Hub                string
+	Tag                string
+	XDSAddr            string
+	XDSAuthProvider    string
+	GKEClusterURL      string
+	FleetProjectNumber string
 }
 
 // nolint: golint
@@ -824,9 +826,15 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	if p.XDSAuthProvider == "" {
 		p.XDSAuthProvider = "gcp"
 	}
+	p.GKEClusterURL = os.Getenv("GKE_CLUSTER_URL")
+	p.FleetProjectNumber = os.Getenv("FLEET_PROJECT_NUMBER")
 	p.Tag = os.Getenv("TAG")
 	p.Hub = os.Getenv("HUB")
-	p.TrustDomain = fmt.Sprintf("%s.svc.id.goog", p.Project)
+	tdProj := os.Getenv("FLEET_PROJECT_ID")
+	if tdProj == "" {
+		tdProj = p.Project
+	}
+	p.TrustDomain = fmt.Sprintf("%s.svc.id.goog", tdProj)
 	p.PodName = fmt.Sprintf("%s-%d", p.KRevision, time.Now().Nanosecond())
 	return p, nil
 }

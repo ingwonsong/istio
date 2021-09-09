@@ -14,6 +14,8 @@ defaultConfig:
     XDS_AUTH_PROVIDER: "{{.XDSAuthProvider}}"
     PROXY_CONFIG_XDS_AGENT: "true"
     GCP_METADATA: "{{.Project}}|{{.ProjectNumber}}|{{.Cluster}}|{{.Zone}}"
+    {{if .GKEClusterURL}}GKE_CLUSTER_URL: "{{.GKEClusterURL}}"{{end}}
+    {{if .FleetProjectNumber}}FLEET_PROJECT_NUMBER: "{{.FleetProjectNumber}}"{{end}}
 
   meshId: "proj-{{.ProjectNumber}}"
   discoveryAddress: "{{.XDSAddr}}"
