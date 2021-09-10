@@ -157,6 +157,11 @@ tests:
           - TestIngress/update-class-not-istio
           - TestTraffic/consistent-hash/query_param
         buganizerID: 187725074
+      # security/ tests
+      - names:
+          - TestTlsGatewaysWithQUIC/quic*
+          - TestMtlsGatewaysWithQUIC/quic*
+        buganizerID: 199551889
 
   # Unmanaged CP + apm
   - selectors:
