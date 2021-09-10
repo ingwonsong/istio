@@ -1,5 +1,5 @@
 ---
-# Source: istio-cni/templates/serviceaccount.yaml
+# Source: cni/templates/serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -8,7 +8,7 @@ metadata:
   labels:
     app: istio-cni
 ---
-# Source: istio-cni/templates/configmap-cni.yaml
+# Source: cni/templates/configmap-cni.yaml
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -33,7 +33,7 @@ data:
           }
         }
 ---
-# Source: istio-cni/templates/clusterrole.yaml
+# Source: cni/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -48,7 +48,7 @@ rules:
   verbs:
   - get
 ---
-# Source: istio-cni/templates/clusterrole.yaml
+# Source: cni/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -63,7 +63,7 @@ rules:
   resources: ["events"]
   verbs: ["get", "list", "watch", "delete", "patch", "update", "create" ]
 ---
-# Source: istio-cni/templates/clusterrole.yaml
+# Source: cni/templates/clusterrole.yaml
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -119,7 +119,7 @@ rules:
   verbs:
   - '*'
 ---
-# Source: istio-cni/templates/clusterrolebinding.yaml
+# Source: cni/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -135,7 +135,7 @@ subjects:
   name: istio-cni
   namespace: kube-system
 ---
-# Source: istio-cni/templates/clusterrolebinding.yaml
+# Source: cni/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -151,7 +151,7 @@ roleRef:
   kind: ClusterRole
   name: istio-cni-repair-role
 ---
-# Source: istio-cni/templates/clusterrolebinding.yaml
+# Source: cni/templates/clusterrolebinding.yaml
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -167,7 +167,7 @@ roleRef:
   name: mdp-controller
   apiGroup: rbac.authorization.k8s.io
 ---
-# Source: istio-cni/templates/daemonset.yaml
+# Source: cni/templates/daemonset.yaml
 # This manifest installs the Istio install-cni container, as well
 # as the Istio CNI plugin and config on
 # each master and worker node in a Kubernetes cluster.
