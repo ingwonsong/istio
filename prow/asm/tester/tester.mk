@@ -19,3 +19,7 @@ SKIP_CONFIG_PATH := ./configs/tests/skip.yaml
 .PHONY: lint-skip-config
 lint-skip-config:
 	cd $(TESTER_PATH) && go run $(LINT_SCRIPT_PATH) $(SKIP_CONFIG_PATH)
+
+.PHONY: tester-unit-tests
+tester-unit-tests:
+	cd $(TESTER_PATH) && go test -v -race ./... 2>&1
