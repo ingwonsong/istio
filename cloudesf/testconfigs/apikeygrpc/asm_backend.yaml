@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: cloud-esf-asm-codelab
+  name: cloud-esf-asm-e2e
 spec:
   type: ClusterIP # Internal IP of the service
   selector:
-    app: cloud-esf-asm-codelab
+    app: cloud-esf-asm-e2e
   ports:
   # Istio needs the prefix "grpc-" to set the protocol explicitly to grpc
   # https://istio.io/latest/docs/ops/configuration/traffic-management/protocol-selection/#explicit-protocol-selection
@@ -16,16 +16,16 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cloud-esf-asm-codelab
+  name: cloud-esf-asm-e2e
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cloud-esf-asm-codelab
+      app: cloud-esf-asm-e2e
   template:
     metadata:
       labels:
-        app: cloud-esf-asm-codelab
+        app: cloud-esf-asm-e2e
     spec:
       containers:
       - name: apikey-server

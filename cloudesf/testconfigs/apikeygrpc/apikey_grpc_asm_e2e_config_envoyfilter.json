@@ -60,7 +60,7 @@
                 "key"
               ],
               "printOptions": {},
-              "protoDescriptor": "/etc/istio/proxy/apikey_grpc_codelab_asm_descriptor",
+              "protoDescriptor": "/etc/istio/proxy/apikey_grpc_asm_e2e_config_descriptor",
               "services": [
                 "google.example.apikeys.v1.ApiKeys",
                 "google.discovery.Discovery"
@@ -138,7 +138,7 @@
                     "metricCosts": [
                       {
                         "cost": "1",
-                        "name": "codelabapikeys.googleapis.com/requests"
+                        "name": "codelabapikeys.googleapis.com/update_requests"
                       }
                     ],
                     "operationName": "google.example.apikeys.v1.ApiKeys.UpdateApiKey",
@@ -186,7 +186,7 @@
                   {
                     "backendProtocol": "grpc",
                     "jwtPayloadMetadataName": "jwt_payloads",
-                    "producerProjectId": "xuyp-producer",
+                    "producerProjectId": "cloud-api-proxy-testing",
                     "serviceConfig": {
                       "analytics": {},
                       "apis": [
@@ -194,200 +194,26 @@
                           "methods": [
                             {
                               "name": "ListApiKeys",
-                              "options": [
-                                {
-                                  "name": "google.api.method_signature",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.protobuf.StringValue",
-                                    "value": "parent"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.http",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.HttpRule",
-                                    "get": "/v1/{parent=projects/*}/apiKeys"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.method_policy",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.MethodPolicy",
-                                    "auditing": "CLOUD_AUDIT_REQUEST_AND_RESPONSE,GIN_AUDIT,READ_ACTION",
-                                    "authorization": "AUTO_CLOUD_IAM",
-                                    "metadata": {
-                                      "cloudaudit.googleapis.com/onboarding_ticket": "b/123456789"
-                                    },
-                                    "requestPolicies": [
-                                      {
-                                        "auditing": "AUDIT,AUDIT_TARGET_RESOURCE",
-                                        "isServiceConsumer": true,
-                                        "resourceAccessType": "DATA_READ",
-                                        "resourcePermission": "codelabapikeys.googleapis.com/apiKeys.list",
-                                        "resourceType": "RESOURCE,cloudresourcemanager.googleapis.com/Project",
-                                        "selector": "parent"
-                                      }
-                                    ]
-                                  }
-                                }
-                              ],
                               "requestTypeUrl": "type.googleapis.com/google.example.apikeys.v1.ListApiKeysRequest",
                               "responseTypeUrl": "type.googleapis.com/google.example.apikeys.v1.ListApiKeysResponse"
                             },
                             {
                               "name": "GetApiKey",
-                              "options": [
-                                {
-                                  "name": "google.api.method_signature",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.protobuf.StringValue",
-                                    "value": "name"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.http",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.HttpRule",
-                                    "get": "/v1/{name=projects/*/apiKeys/*}"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.method_policy",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.MethodPolicy",
-                                    "auditing": "CLOUD_AUDIT_REQUEST_ONLY,GIN_AUDIT,READ_ACTION",
-                                    "authorization": "AUTO_CLOUD_IAM",
-                                    "metadata": {
-                                      "cloudaudit.googleapis.com/onboarding_ticket": "b/123456789"
-                                    },
-                                    "requestPolicies": [
-                                      {
-                                        "auditing": "AUDIT,AUDIT_TARGET_RESOURCE",
-                                        "isServiceConsumer": true,
-                                        "resourceAccessType": "DATA_READ",
-                                        "resourcePermission": "codelabapikeys.googleapis.com/apiKeys.get",
-                                        "resourceType": "RESOURCE,codelabapikeys.googleapis.com/ApiKey",
-                                        "selector": "name"
-                                      }
-                                    ]
-                                  }
-                                }
-                              ],
                               "requestTypeUrl": "type.googleapis.com/google.example.apikeys.v1.GetApiKeyRequest",
                               "responseTypeUrl": "type.googleapis.com/google.example.apikeys.v1.ApiKey"
                             },
                             {
                               "name": "CreateApiKey",
-                              "options": [
-                                {
-                                  "name": "google.api.http",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.HttpRule",
-                                    "body": "key",
-                                    "post": "/v1/{parent=projects/*}/apiKeys"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.method_policy",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.MethodPolicy",
-                                    "auditing": "CLOUD_AUDIT_REQUEST_AND_RESPONSE,GIN_AUDIT,READ_ACTION,WRITE_ACTION",
-                                    "authorization": "AUTO_CLOUD_IAM",
-                                    "metadata": {
-                                      "cloudaudit.googleapis.com/onboarding_ticket": "b/123456789"
-                                    },
-                                    "requestPolicies": [
-                                      {
-                                        "auditing": "AUDIT,AUDIT_TARGET_RESOURCE",
-                                        "childResourceType": "codelabapikeys.googleapis.com/ApiKey",
-                                        "isServiceConsumer": true,
-                                        "resourceAccessType": "DATA_WRITE",
-                                        "resourcePermission": "codelabapikeys.googleapis.com/apiKeys.create",
-                                        "resourceType": "RESOURCE,cloudresourcemanager.googleapis.com/Project",
-                                        "selector": "parent"
-                                      }
-                                    ]
-                                  }
-                                }
-                              ],
                               "requestTypeUrl": "type.googleapis.com/google.example.apikeys.v1.CreateApiKeyRequest",
                               "responseTypeUrl": "type.googleapis.com/google.example.apikeys.v1.ApiKey"
                             },
                             {
                               "name": "UpdateApiKey",
-                              "options": [
-                                {
-                                  "name": "google.api.http",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.HttpRule",
-                                    "body": "key",
-                                    "patch": "/v1/{key.name=projects/*/apiKeys/*}"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.method_policy",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.MethodPolicy",
-                                    "auditing": "CLOUD_AUDIT_REQUEST_AND_RESPONSE,GIN_AUDIT,READ_ACTION,WRITE_ACTION",
-                                    "authorization": "AUTO_CLOUD_IAM",
-                                    "metadata": {
-                                      "cloudaudit.googleapis.com/onboarding_ticket": "b/123456789"
-                                    },
-                                    "requestPolicies": [
-                                      {
-                                        "auditing": "AUDIT,AUDIT_TARGET_RESOURCE",
-                                        "isServiceConsumer": true,
-                                        "resourceAccessType": "DATA_WRITE",
-                                        "resourcePermission": "codelabapikeys.googleapis.com/apiKeys.update",
-                                        "resourceType": "RESOURCE,codelabapikeys.googleapis.com/ApiKey",
-                                        "selector": "key.name"
-                                      }
-                                    ]
-                                  }
-                                }
-                              ],
                               "requestTypeUrl": "type.googleapis.com/google.example.apikeys.v1.UpdateApiKeyRequest",
                               "responseTypeUrl": "type.googleapis.com/google.example.apikeys.v1.ApiKey"
                             },
                             {
                               "name": "DeleteApiKey",
-                              "options": [
-                                {
-                                  "name": "google.api.method_signature",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.protobuf.StringValue",
-                                    "value": "name"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.http",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.HttpRule",
-                                    "delete": "/v1/{name=projects/*/apiKeys/*}"
-                                  }
-                                },
-                                {
-                                  "name": "google.api.method_policy",
-                                  "value": {
-                                    "@type": "type.googleapis.com/google.api.MethodPolicy",
-                                    "auditing": "CLOUD_AUDIT_REQUEST_ONLY,GIN_AUDIT,READ_ACTION,WRITE_ACTION",
-                                    "authorization": "AUTO_CLOUD_IAM",
-                                    "metadata": {
-                                      "cloudaudit.googleapis.com/onboarding_ticket": "b/123456789"
-                                    },
-                                    "requestPolicies": [
-                                      {
-                                        "auditing": "AUDIT,AUDIT_TARGET_RESOURCE",
-                                        "isServiceConsumer": true,
-                                        "resourceAccessType": "DATA_WRITE",
-                                        "resourcePermission": "codelabapikeys.googleapis.com/apiKeys.delete",
-                                        "resourceType": "RESOURCE,codelabapikeys.googleapis.com/ApiKey",
-                                        "selector": "name"
-                                      }
-                                    ]
-                                  }
-                                }
-                              ],
                               "requestTypeUrl": "type.googleapis.com/google.example.apikeys.v1.DeleteApiKeyRequest",
                               "responseTypeUrl": "type.googleapis.com/google.protobuf.Empty"
                             }
@@ -1121,7 +947,7 @@
                                 "oauth2": {
                                   "scopes": {
                                     "https://www.googleapis.com/auth/cloud-platform": {
-                                      "description": "See, edit, configure, and delete your Google Cloud Platform data"
+                                      "description": "See, edit, configure, and delete your Google Cloud data and see the email address for your Google Account."
                                     }
                                   }
                                 }
@@ -1138,10 +964,10 @@
                                 "x16": "http://www.google.com/images/icons/product/search-16.gif",
                                 "x32": "http://www.google.com/images/icons/product/search-32.gif"
                               },
-                              "id": "xuyp_cap_codelabapikeys_sandbox:v1",
+                              "id": "cap_e2e_codelabapikeys_sandbox:v1",
                               "kind": "discovery#restDescription",
                               "mtlsRootUrl": "https://cap-e2e-codelabapikeys.mtls.sandbox.googleapis.com/",
-                              "name": "xuyp_cap_codelabapikeys_sandbox",
+                              "name": "cap_e2e_codelabapikeys_sandbox",
                               "ownerDomain": "google.com",
                               "ownerName": "Google",
                               "parameters": {
@@ -1231,7 +1057,7 @@
                                           "description": "Creates a new API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "POST",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.create",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.create",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -1259,7 +1085,7 @@
                                           "description": "Deletes an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "DELETE",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.delete",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.delete",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1284,7 +1110,7 @@
                                           "description": "Gets an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.get",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.get",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1309,7 +1135,7 @@
                                           "description": "Lists API keys.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.list",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.list",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -1345,7 +1171,7 @@
                                           "description": "Updates an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "PATCH",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.patch",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.patch",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1380,7 +1206,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210805",
+                              "revision": "20210910",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -1442,7 +1268,7 @@
                                 }
                               },
                               "servicePath": "",
-                              "title": "Codelab API Keys Playground for Cloud ESF",
+                              "title": "E2E API Keys Playground for Cloud ESF",
                               "version": "v1",
                               "version_module": true
                             },
@@ -1457,7 +1283,7 @@
                                 "oauth2": {
                                   "scopes": {
                                     "https://www.googleapis.com/auth/cloud-platform": {
-                                      "description": "See, edit, configure, and delete your Google Cloud Platform data"
+                                      "description": "See, edit, configure, and delete your Google Cloud data and see the email address for your Google Account."
                                     }
                                   }
                                 }
@@ -1474,10 +1300,10 @@
                                 "x16": "http://www.google.com/images/icons/product/search-16.gif",
                                 "x32": "http://www.google.com/images/icons/product/search-32.gif"
                               },
-                              "id": "xuyp_cap_codelabapikeys_sandbox:v1",
+                              "id": "cap_e2e_codelabapikeys_sandbox:v1",
                               "kind": "discovery#restDescription",
                               "mtlsRootUrl": "https://cap-e2e-codelabapikeys.mtls.sandbox.googleapis.com/",
-                              "name": "xuyp_cap_codelabapikeys_sandbox",
+                              "name": "cap_e2e_codelabapikeys_sandbox",
                               "ownerDomain": "google.com",
                               "ownerName": "Google",
                               "parameters": {
@@ -1567,7 +1393,7 @@
                                           "description": "Creates a new API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "POST",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.create",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.create",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -1595,7 +1421,7 @@
                                           "description": "Deletes an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "DELETE",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.delete",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.delete",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1620,7 +1446,7 @@
                                           "description": "Gets an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.get",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.get",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1645,7 +1471,7 @@
                                           "description": "Lists API keys.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.list",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.list",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -1681,7 +1507,7 @@
                                           "description": "Updates an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "PATCH",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.patch",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.patch",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1716,7 +1542,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210805",
+                              "revision": "20210910",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -1778,7 +1604,7 @@
                                 }
                               },
                               "servicePath": "",
-                              "title": "Codelab API Keys Playground for Cloud ESF",
+                              "title": "E2E API Keys Playground for Cloud ESF",
                               "version": "v1",
                               "version_module": true
                             },
@@ -1795,7 +1621,7 @@
                                 "oauth2": {
                                   "scopes": {
                                     "https://www.googleapis.com/auth/cloud-platform": {
-                                      "description": "See, edit, configure, and delete your Google Cloud Platform data"
+                                      "description": "See, edit, configure, and delete your Google Cloud data and see the email address for your Google Account."
                                     }
                                   }
                                 }
@@ -1812,10 +1638,10 @@
                                 "x16": "http://www.google.com/images/icons/product/search-16.gif",
                                 "x32": "http://www.google.com/images/icons/product/search-32.gif"
                               },
-                              "id": "xuyp_cap_codelabapikeys_sandbox:v1",
+                              "id": "cap_e2e_codelabapikeys_sandbox:v1",
                               "kind": "discovery#restDescription",
                               "mtlsRootUrl": "https://cap-e2e-codelabapikeys.mtls.sandbox.googleapis.com/",
-                              "name": "xuyp_cap_codelabapikeys_sandbox",
+                              "name": "cap_e2e_codelabapikeys_sandbox",
                               "ownerDomain": "google.com",
                               "ownerName": "Google",
                               "parameters": {
@@ -1905,7 +1731,7 @@
                                           "description": "Creates a new API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "POST",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.create",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.create",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -1933,7 +1759,7 @@
                                           "description": "Deletes an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "DELETE",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.delete",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.delete",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1958,7 +1784,7 @@
                                           "description": "Gets an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.get",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.get",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -1983,7 +1809,7 @@
                                           "description": "Lists API keys.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.list",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.list",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -2019,7 +1845,7 @@
                                           "description": "Updates an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "PATCH",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.patch",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.patch",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -2054,7 +1880,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210805",
+                              "revision": "20210910",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -2116,7 +1942,7 @@
                                 }
                               },
                               "servicePath": "",
-                              "title": "Codelab API Keys Playground for Cloud ESF",
+                              "title": "E2E API Keys Playground for Cloud ESF",
                               "version": "v1",
                               "version_module": true
                             },
@@ -2133,7 +1959,7 @@
                                 "oauth2": {
                                   "scopes": {
                                     "https://www.googleapis.com/auth/cloud-platform": {
-                                      "description": "See, edit, configure, and delete your Google Cloud Platform data"
+                                      "description": "See, edit, configure, and delete your Google Cloud data and see the email address for your Google Account."
                                     }
                                   }
                                 }
@@ -2150,10 +1976,10 @@
                                 "x16": "http://www.google.com/images/icons/product/search-16.gif",
                                 "x32": "http://www.google.com/images/icons/product/search-32.gif"
                               },
-                              "id": "xuyp_cap_codelabapikeys_sandbox:v1",
+                              "id": "cap_e2e_codelabapikeys_sandbox:v1",
                               "kind": "discovery#restDescription",
                               "mtlsRootUrl": "https://cap-e2e-codelabapikeys.mtls.sandbox.googleapis.com/",
-                              "name": "xuyp_cap_codelabapikeys_sandbox",
+                              "name": "cap_e2e_codelabapikeys_sandbox",
                               "ownerDomain": "google.com",
                               "ownerName": "Google",
                               "parameters": {
@@ -2243,7 +2069,7 @@
                                           "description": "Creates a new API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "POST",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.create",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.create",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -2271,7 +2097,7 @@
                                           "description": "Deletes an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "DELETE",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.delete",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.delete",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -2296,7 +2122,7 @@
                                           "description": "Gets an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.get",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.get",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -2321,7 +2147,7 @@
                                           "description": "Lists API keys.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.list",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.list",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -2357,7 +2183,7 @@
                                           "description": "Updates an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "PATCH",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.patch",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.patch",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -2392,7 +2218,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210805",
+                              "revision": "20210910",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -2454,7 +2280,7 @@
                                 }
                               },
                               "servicePath": "",
-                              "title": "Codelab API Keys Playground for Cloud ESF",
+                              "title": "E2E API Keys Playground for Cloud ESF",
                               "version": "v1",
                               "version_module": true
                             },
@@ -2471,7 +2297,7 @@
                                 "oauth2": {
                                   "scopes": {
                                     "https://www.googleapis.com/auth/cloud-platform": {
-                                      "description": "See, edit, configure, and delete your Google Cloud Platform data"
+                                      "description": "See, edit, configure, and delete your Google Cloud data and see the email address for your Google Account."
                                     }
                                   }
                                 }
@@ -2488,10 +2314,10 @@
                                 "x16": "http://www.google.com/images/icons/product/search-16.gif",
                                 "x32": "http://www.google.com/images/icons/product/search-32.gif"
                               },
-                              "id": "xuyp_cap_codelabapikeys_sandbox:v1",
+                              "id": "cap_e2e_codelabapikeys_sandbox:v1",
                               "kind": "discovery#restDescription",
                               "mtlsRootUrl": "https://cap-e2e-codelabapikeys.mtls.sandbox.googleapis.com/",
-                              "name": "xuyp_cap_codelabapikeys_sandbox",
+                              "name": "cap_e2e_codelabapikeys_sandbox",
                               "ownerDomain": "google.com",
                               "ownerName": "Google",
                               "parameters": {
@@ -2581,7 +2407,7 @@
                                           "description": "Creates a new API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "POST",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.create",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.create",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -2609,7 +2435,7 @@
                                           "description": "Deletes an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "DELETE",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.delete",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.delete",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -2634,7 +2460,7 @@
                                           "description": "Gets an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.get",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.get",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -2659,7 +2485,7 @@
                                           "description": "Lists API keys.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys",
                                           "httpMethod": "GET",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.list",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.list",
                                           "parameterOrder": [
                                             "parent"
                                           ],
@@ -2695,7 +2521,7 @@
                                           "description": "Updates an API key.",
                                           "flatPath": "v1/projects/{projectsId}/apiKeys/{apiKeysId}",
                                           "httpMethod": "PATCH",
-                                          "id": "xuyp_cap_codelabapikeys_sandbox.projects.apiKeys.patch",
+                                          "id": "cap_e2e_codelabapikeys_sandbox.projects.apiKeys.patch",
                                           "parameterOrder": [
                                             "name"
                                           ],
@@ -2730,7 +2556,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210805",
+                              "revision": "20210910",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -2792,7 +2618,7 @@
                                 }
                               },
                               "servicePath": "",
-                              "title": "Codelab API Keys Playground for Cloud ESF",
+                              "title": "E2E API Keys Playground for Cloud ESF",
                               "version": "v1",
                               "version_module": true
                             },
@@ -3243,11 +3069,11 @@
                         ]
                       },
                       "discovery": {
-                        "apiName": "xuyp_cap_codelabapikeys_sandbox",
+                        "apiName": "cap_e2e_codelabapikeys_sandbox",
                         "canonicalName": "API Keys",
                         "discoveryPerVersion": [
                           {
-                            "apiName": "xuyp_cap_codelabapikeys_sandbox",
+                            "apiName": "cap_e2e_codelabapikeys_sandbox",
                             "canonicalName": "API Keys",
                             "supportedSchemas": [
                               "GOOGLE_REST"
@@ -4344,12 +4170,19 @@
                           "name": "codelabapikeys.googleapis.com/requests",
                           "type": "codelabapikeys.googleapis.com/requests",
                           "valueType": "INT64"
+                        },
+                        {
+                          "displayName": "API Keys Update Requests",
+                          "metricKind": "DELTA",
+                          "name": "codelabapikeys.googleapis.com/update_requests",
+                          "type": "codelabapikeys.googleapis.com/update_requests",
+                          "valueType": "INT64"
                         }
                       ],
                       "migration": {},
                       "name": "cap-e2e-codelabapikeys.sandbox.googleapis.com",
                       "operations": {},
-                      "producerProjectId": "xuyp-producer",
+                      "producerProjectId": "cloud-api-proxy-testing",
                       "quota": {
                         "limits": [
                           {
@@ -4358,6 +4191,14 @@
                             "unit": "1/min/{project}",
                             "values": {
                               "STANDARD": "60"
+                            }
+                          },
+                          {
+                            "metric": "codelabapikeys.googleapis.com/update_requests",
+                            "name": "UpdateRequestsPerMinutePerProject",
+                            "unit": "1/min/{project}",
+                            "values": {
+                              "STANDARD": "20"
                             }
                           }
                         ],
@@ -4382,7 +4223,7 @@
                           },
                           {
                             "metricCosts": {
-                              "codelabapikeys.googleapis.com/requests": "1"
+                              "codelabapikeys.googleapis.com/update_requests": "1"
                             },
                             "selector": "google.example.apikeys.v1.ApiKeys.UpdateApiKey"
                           },
@@ -4930,7 +4771,7 @@
                           "name": "google.protobuf.Type"
                         }
                       ],
-                      "title": "Codelab API Keys Playground for Cloud ESF",
+                      "title": "E2E API Keys Playground for Cloud ESF",
                       "types": [
                         {
                           "fields": [

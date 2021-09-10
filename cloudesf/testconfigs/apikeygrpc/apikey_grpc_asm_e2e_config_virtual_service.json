@@ -31,7 +31,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -56,7 +56,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -81,7 +81,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -106,7 +106,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -131,7 +131,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -156,7 +156,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -181,7 +181,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -206,7 +206,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -231,7 +231,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -256,7 +256,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -281,7 +281,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -306,7 +306,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -331,7 +331,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -356,7 +356,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -381,7 +381,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -406,7 +406,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -431,7 +431,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -456,7 +456,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -481,7 +481,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -506,7 +506,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -531,7 +531,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }
@@ -556,7 +556,7 @@
         "route": [
           {
             "destination": {
-              "host": "cloud-esf-asm-codelab.default.svc.cluster.local",
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
               "port": {
                 "number": 8080
               }

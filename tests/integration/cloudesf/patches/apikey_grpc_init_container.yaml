@@ -1,9 +1,0 @@
-spec:
-  template:
-    spec:
-      initContainers:
-      - name: init-container
-        image: gcr.io/cloudesf-testing/apikey_grpc_codelab_asm:stable
-        volumeMounts:
-        - mountPath: /etc/istio/proxy
-          name: istio-envoy

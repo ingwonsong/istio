@@ -94,14 +94,14 @@ func TestCloudESFApiKeyGrpc(t *testing.T) {
 				fmt.Sprintf("kubectl patch deployment istio-ingressgateway -n istio-system --type strategic --patch \"%s\"",
 					proxyPatchConfig()))
 			executeShell(t, "adding initContainer",
-				fmt.Sprintf(`kubectl  patch deployment istio-ingressgateway -n istio-system --type merge --patch-file %s`,
-					cloudESFASMPatchConfigFolder+"/apikey_grpc_init_container.yaml"))
+				fmt.Sprintf("kubectl  patch deployment istio-ingressgateway -n istio-system --type merge --patch \"%s\"",
+					initImagePatch()))
 
 			// Deploy CloudESF config.
 			configPaths := []string{
-				apiKeyGrpcTestConfigFolder + "/apikey_grpc_codelab_asm_envoyfilter.json",
-				apiKeyGrpcTestConfigFolder + "/apikey_grpc_codelab_asm_gateway.json",
-				apiKeyGrpcTestConfigFolder + "/apikey_grpc_codelab_asm_virtual_service.json",
+				apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_envoyfilter.json",
+				apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_gateway.json",
+				apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_virtual_service.json",
 				apiKeyGrpcTestConfigFolder + "/asm_backend.yaml",
 			}
 			for _, configPath := range configPaths {
@@ -181,7 +181,7 @@ spec:
 				default:
 				}
 				return fmt.Errorf(" The test client container isn't completed yet")
-			}, retry.Delay(3*time.Second), retry.Timeout(60*time.Second))
+			}, retry.Delay(5*time.Second), retry.Timeout(600*time.Second))
 		})
 }
 
@@ -205,6 +205,19 @@ spec:
 	}
 
 	return fmt.Sprintf(config, hub, tag)
+}
+
+func initImagePatch() string {
+	return fmt.Sprintf(`
+spec:
+ template:
+  spec:
+   initContainers:
+   - name: init-container
+     image: gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image:%s
+     volumeMounts:
+     - mountPath: /etc/istio/proxy
+       name: istio-envoy`, cloudesf.Version())
 }
 
 func healthCheck(t framework.TestContext, address string, expectedStatusCode int) {
