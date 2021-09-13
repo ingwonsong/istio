@@ -29,3 +29,11 @@ func GetProjectNumber(projectId string) (string, error) {
 	}
 	return strings.TrimSpace(projectNum), err
 }
+
+func GetServiceAccount() (string, error) {
+	serviceAccount, err := exec.RunWithOutput("gcloud config get-value account")
+	if err != nil {
+		err = fmt.Errorf("Error getting service account: %w", err)
+	}
+	return strings.TrimSpace(serviceAccount), err
+}

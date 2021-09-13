@@ -35,10 +35,9 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
 	}
 
-	projectID := c.settings.GCPProjects[0]
 	// Use the first project as the environ name
 	// must do this here because each installation depends on the value
-
+	projectID := c.settings.GCPProjects[0]
 	environProjectNumber, err := gcp.GetProjectNumber(projectID)
 	if err != nil {
 		return fmt.Errorf("failed to read environ number: %w", err)

@@ -134,7 +134,7 @@ function register_clusters_in_hub() {
 # Parameters: $1 - comma-separated string of k8s contexts
 function setup_private_ca() {
   IFS="," read -r -a CONTEXTS <<< "$1"
- 
+
   local ROOT_CA_ID="${ROOT_CA_ID_PREFIX}-${BUILD_ID}"
   local ROOT_CA_POOL="${ROOT_CA_POOL_PREFIX}-${BUILD_ID}"
 

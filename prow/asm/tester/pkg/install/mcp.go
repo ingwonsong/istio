@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
@@ -44,9 +45,7 @@ func (c *installer) installASMManagedControlPlane() error {
 
 	// Use the first project as the environ name
 	// must do this here because each installation depends on the value
-	environProjectNumber, err := exec.RunWithOutput(fmt.Sprintf(
-		"gcloud projects describe %s --format=\"value(projectNumber)\"",
-		kube.GKEClusterSpecFromContext(contexts[0]).ProjectID))
+	environProjectNumber, err := gcp.GetProjectNumber(kube.GKEClusterSpecFromContext(contexts[0]).ProjectID)
 	if err != nil {
 		return fmt.Errorf("failed to read environ number: %w", err)
 	}

@@ -158,6 +158,35 @@ func createRemoteSecrets(settings *resource.Settings, contexts []string) error {
 	return nil
 }
 
+// createRemoteSecretsMulticloud is similar to createRemoteSecrets except it operates on kubeconfigs
+// and without GKE-on-GCP-specific logic.
+func createRemoteSecretsMulticloud(settings *resource.Settings, kubeconfigs []string) error {
+	for i, kubeconfig := range kubeconfigs {
+		for j, otherKubeconfig := range kubeconfigs {
+			if i == j {
+				continue
+			}
+			createRemoteSecretCmd := fmt.Sprintf("istioctl x create-remote-secret"+
+				" --kubeconfig %s --name %s", kubeconfig, fmt.Sprintf("secret-%d", i))
+			secretContents, err := exec.RunWithOutput(createRemoteSecretCmd)
+			if err != nil {
+				return fmt.Errorf("failed creating remote secret: %w", err)
+			}
+			secretFileName := fmt.Sprintf("%d_%d.secret",
+				i, j)
+			if err := os.WriteFile(secretFileName, []byte(secretContents), 0o644); err != nil {
+				return fmt.Errorf("failed to write secret to file: %w", err)
+			}
+			kubeCreateSecretCmd := fmt.Sprintf("kubectl apply -f %s --kubeconfig %s",
+				secretFileName, otherKubeconfig)
+			if err := exec.Run(kubeCreateSecretCmd); err != nil {
+				return fmt.Errorf("failed to create remote secret: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
 func setupPermissions(settings *resource.Settings, rev *revision.Config) error {
 	if settings.ControlPlane == resource.Unmanaged {
 		if settings.ClusterType == resource.GKEOnGCP {

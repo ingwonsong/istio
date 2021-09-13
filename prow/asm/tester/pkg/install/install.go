@@ -47,7 +47,7 @@ func (c *installer) install(r *revision.Config) error {
 			return c.installASMOnProxiedClusters(r)
 		default:
 			log.Println("🏄 performing ASM multi cloud installation")
-			return c.installASMOnMulticloud()
+			return c.installASMOnMulticloud(r)
 		}
 	} else if c.settings.ControlPlane == resource.Managed && !c.settings.UseAFC {
 		log.Println("🏄 performing ASM MCP installation")
