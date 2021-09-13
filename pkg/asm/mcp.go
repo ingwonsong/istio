@@ -15,7 +15,13 @@
 package asm
 
 import (
+	"os"
+
+	"cloud.google.com/go/profiler"
+
 	"istio.io/pkg/env"
+	"istio.io/pkg/log"
+	"istio.io/pkg/version"
 )
 
 var (
@@ -33,4 +39,28 @@ func IsCloudRun() bool {
 
 func IsCloudESF() bool {
 	return enableCloudESFEnv
+}
+
+var CloudProfilerEnabled = env.RegisterBoolVar("CLOUD_PROFILER_ENABLED", false, "").Get()
+
+func RunCloudProfiler() {
+	if !CloudProfilerEnabled {
+		return
+	}
+	cfg := profiler.Config{
+		Service:        cloudRunServiceVar.Get(),
+		ServiceVersion: version.Info.Version,
+		Instance:       os.Getenv("K_REVISION"),
+	}
+	// Start the profiler. This will run in the background and provides trivial overhead.
+	// The profiling logic takes into account how many instances of a cfg.Service+cfg.ServiceVersion we have,
+	// and aims to produce 1 profile/minute for this key.
+	// In practice this means that each service will have 1 profile per minute unless we roll out a new revision.
+	// https://cloud.google.com/profiler/docs/profiling-go#svc-name-and-version
+	if err := profiler.Start(cfg); err != nil {
+		// Profiling is optional, we should not fail closed.
+		log.Errorf("failed to start profiler: %v", err)
+	} else {
+		log.Infof("profiler started for %v/%v/%v", cfg.Service, cfg.ServiceVersion, cfg.Instance)
+	}
 }

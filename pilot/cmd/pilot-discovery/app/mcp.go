@@ -50,6 +50,7 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pilot/pkg/xds"
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/cmd"
@@ -132,6 +133,8 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	defer func() {
 		log.Infof("MCP initialization complete in %v for options %+v", time.Since(t0), p)
 	}()
+
+	asm.RunCloudProfiler()
 
 	log.Infof("Initializing MCP with options %+v", p)
 
@@ -270,9 +273,6 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	log.Infof("Created MCP configurations in %v", time.Since(createConfig))
 
-	// TODO create env file and CRD
-	// TODO create mesh configmap
-	// TODO create injector configmap
 	return client, nil
 }
 

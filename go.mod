@@ -18,6 +18,8 @@ require (
 	cloud.google.com/go/security v1.1.1
 	cloud.google.com/go v0.97.0
 	cloud.google.com/go/container v0.1.0
+	cloud.google.com/go/monitoring v1.1.0 // indirect
+	cloud.google.com/go/profiler v0.1.0
 	cloud.google.com/go/security v1.1.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20220128185157-8216dc216151
