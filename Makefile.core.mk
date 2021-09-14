@@ -275,6 +275,7 @@ endif
 AGENT_BINARIES:=./pilot/cmd/pilot-agent
 STANDARD_BINARIES:=./istioctl/cmd/istioctl \
   ./pilot/cmd/pilot-discovery \
+  ./pilot/cmd/mcputils \
   ./security/tools/vaultclient \
   ./pkg/test/echo/cmd/client \
   ./pkg/test/echo/cmd/server \

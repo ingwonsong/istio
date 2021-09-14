@@ -19,33 +19,26 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
 
-	container "cloud.google.com/go/container/apiv1"
 	"github.com/Masterminds/sprig/v3"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/cloudresourcemanager/v1"
-	"google.golang.org/api/option"
-	containerpb "google.golang.org/genproto/googleapis/container/v1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	// Import client auth libraries
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/yaml"
 
+	"istio.io/istio/pilot/cmd/pilot-discovery/app/mcpinit"
 	"istio.io/istio/pilot/pkg/bootstrap"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
@@ -55,12 +48,9 @@ import (
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/cmd"
 	"istio.io/istio/pkg/config/constants"
-	"istio.io/istio/pkg/config/schema/gvk"
-	"istio.io/istio/pkg/config/schema/resource"
 	"istio.io/istio/pkg/file"
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/security"
-	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
 
@@ -160,7 +150,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	log.Infof("Initializing MCP with options %+v", p)
 
-	if err := constructKubeConfigFile(p.Project, p.Zone, p.Cluster); err != nil {
+	if err := mcpinit.ConstructKubeConfigFile(context.Background(), p.Project, p.Zone, p.Cluster, "/tmp/kubeconfig.yaml"); err != nil {
 		return nil, fmt.Errorf("construct kube config: %v", err)
 	}
 	// Configure Istiod to read or configured kubeconfig file
@@ -168,7 +158,8 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	// Setup kube client. We will use it to do some MCP specific initialization, then later pass the
 	// same client to the main server to avoid re-initializing.
-	client, err := createKubeClient()
+	ko := serverArgs.RegistryOptions.KubeOptions
+	client, err := mcpinit.CreateKubeClient("/tmp/kubeconfig.yaml", ko.KubernetesAPIQPS, ko.KubernetesAPIBurst)
 	if err != nil {
 		return nil, err
 	}
@@ -242,14 +233,14 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	}
 	// We do not use in cluster mesh config, instead use a file. With SharedMeshConfig users can create
 	// a configmap in cluster that we merge with.
-	if err := executeTemplateTo(getMCPFile(meshTemplateFile), "./etc/istio/config/mesh", templateParams); err != nil {
+	if err := executeTemplateTo(mcpinit.GetMCPFile(mcpinit.MeshTemplateFile), "./etc/istio/config/mesh", templateParams); err != nil {
 		return nil, fmt.Errorf("write mesh config: %v", err)
 	}
 	// Same as mesh config - nothing in cluster. We do not support any injection customizations.
-	if err := executeTemplateTo(getMCPFile(valuesTemplateFile), filepath.Join(injectDir, "values"), templateParams); err != nil {
+	if err := executeTemplateTo(mcpinit.GetMCPFile(mcpinit.ValuesTemplateFile), filepath.Join(mcpinit.InjectDir, "values"), templateParams); err != nil {
 		return nil, fmt.Errorf("write injection values: %v", err)
 	}
-	if err := file.AtomicCopy(getMCPFile(injectionTemplateFile), injectDir, "config"); err != nil {
+	if err := file.AtomicCopy(mcpinit.GetMCPFile(mcpinit.InjectionTemplateFile), mcpinit.InjectDir, "config"); err != nil {
 		return nil, fmt.Errorf("write injection config template: %v", err)
 	}
 
@@ -266,7 +257,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 		return nil, fmt.Errorf("create env configmap: %v", err)
 	}
 
-	mwh, err := executeTemplate(getMCPFile(mutatingWebhookFile), templateParams)
+	mwh, err := executeTemplate(mcpinit.GetMCPFile(mcpinit.MutatingWebhookFile), templateParams)
 	if err != nil {
 		return nil, fmt.Errorf("mutating webhook template: %v", err)
 	}
@@ -276,12 +267,12 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	// This was our first time provisioning the environment, so we also need to write configmaps
 	if envProvisioned {
-		crdTemplate, err := ioutil.ReadFile(getMCPFile(crdsFile))
+		crdTemplate, err := ioutil.ReadFile(mcpinit.GetMCPFile(mcpinit.CRDsFile))
 		if err != nil {
 			return nil, fmt.Errorf("crd file: %v", err)
 		}
 		// Write to cluster for users to view, typically with old kube-inject
-		if err := createCRDs(client, crdTemplate); err != nil {
+		if err := mcpinit.CreateCRDs(context.Background(), client, crdTemplate); err != nil {
 			return nil, fmt.Errorf("create crd: %v", err)
 		}
 
@@ -328,105 +319,15 @@ func createSystemNamespace(client kubelib.Client) error {
 			},
 		}
 		_, err := client.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
-		return ignoreConflict(err)
+		return mcpinit.IgnoreConflict(err)
 	}
 	return err
-}
-
-func createCRDs(client kubelib.Client, template []byte) error {
-	reader := bytes.NewReader(template)
-
-	// We store configs as a YaML stream; there may be more than one decoder.
-	yamlDecoder := kubeyaml.NewYAMLOrJSONDecoder(reader, 512*1024)
-	for {
-		obj := &apiextensionsv1.CustomResourceDefinition{}
-		err := yamlDecoder.Decode(&obj)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		if obj == nil {
-			continue
-		}
-		kgvk := obj.GroupVersionKind()
-		if resource.FromKubernetesGVK(&kgvk) != gvk.CustomResourceDefinition {
-			continue
-		}
-		_, err = client.Ext().ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), obj, metav1.CreateOptions{})
-		if ignoreConflict(err) != nil {
-			return fmt.Errorf("failed to create %v: %v", obj.Name, err)
-		}
-		log.Infof("created CRD %v", obj.Name)
-	}
-	return nil
-}
-
-// constructKubeConfigFile constructs a kubeconfig file that can be
-// used to access the cluster referenced by the project/location/cluster.
-// This will lookup up the cluster information from the GKE api, and
-// construct a "fake" kubeconfig file that will later be read. See
-// https://ahmet.im/blog/authenticating-to-gke-without-gcloud/
-func constructKubeConfigFile(project, location, cluster string) error {
-	if err := pollIAMPropagation(); err != nil {
-		return err
-	}
-	t0 := time.Now()
-	c, err := container.NewClusterManagerClient(context.Background(), option.WithQuotaProject(project))
-	if err != nil {
-		return fmt.Errorf("create cluster manager client: %v", err)
-	}
-	defer c.Close()
-	var cl *containerpb.Cluster
-	// We add retries to account for IAM propagation delays. Even with pollIAMPropagation, sometimes it doesn't universally apply
-	// to downstream services yet, etc, so we need to retry on all calls.
-	for attempts := 0; attempts < 50; attempts++ {
-		cl, err = c.GetCluster(context.Background(), &containerpb.GetClusterRequest{
-			Name: fmt.Sprintf("projects/%s/locations/%s/clusters/%s", project, location, cluster),
-		})
-		if err == nil {
-			break
-		}
-		log.Warnf("failed to fetch cluster, will retry: %v", err)
-		time.Sleep(time.Second)
-	}
-	if cl == nil {
-		return fmt.Errorf("exceeded retry budget fetching cluster: %v", err)
-	}
-	publicEndpoint := cl.Endpoint
-	// For private cluster with public endpoint disabled, the default API server endpoint
-	// is a private IP address.
-	// https://cloud.google.com/kubernetes-engine/docs/concepts/private-cluster-concept#overview
-	// Replace the default Kubernetes API server endpoint (private endpoint),
-	// with its public endpoint.
-	if pcc := cl.GetPrivateClusterConfig(); pcc != nil {
-		publicEndpoint = pcc.PublicEndpoint
-	}
-	kubeConfig := fmt.Sprintf(`
-apiVersion: v1
-kind: Config
-current-context: cluster
-contexts: [{name: cluster, context: {cluster: cluster, user: user}}]
-users: [{name: user, user: {auth-provider: {name: gcp}}}]
-clusters:
-- name: cluster
-  cluster:
-    server: "https://%s"
-    certificate-authority-data: "%s"
-`, publicEndpoint, cl.MasterAuth.ClusterCaCertificate)
-
-	log.Infof("Fetched cluster endpoint in %s: %v", time.Since(t0), cl.Endpoint)
-	if err := os.WriteFile("/tmp/kubeconfig.yaml", []byte(kubeConfig), 0o644); err != nil {
-		return err
-	}
-	return nil
 }
 
 // setupLocalEnv sets some fake values for environment variables so 10s of variables are not required to get running
 // This allows running like `LOCAL_MCP=true ./out/linux_amd64/pilot-discovery mcp` without any other parameters
 func setupLocalEnv() {
-	if !LocalMCP {
+	if !mcpinit.LocalMCP {
 		return
 	}
 
@@ -503,7 +404,7 @@ func createOrSetWebhook(client kubelib.Client, mwh string) error {
 	if kerrors.IsNotFound(err) {
 		log.Infof("mutating webhook not found, creating it now")
 		_, err := client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), mwc, metav1.CreateOptions{})
-		return ignoreConflict(err)
+		return mcpinit.IgnoreConflict(err)
 	}
 	if err != nil {
 		return err
@@ -529,7 +430,7 @@ func createConfigmap(client kubelib.Client, name string, data map[string]string,
 	if kerrors.IsNotFound(err) {
 		log.Infof("configmap %q not found, creating it now", name)
 		_, err := cmAPI.Create(context.Background(), cm, metav1.CreateOptions{})
-		return true, ignoreConflict(err)
+		return true, mcpinit.IgnoreConflict(err)
 	}
 
 	if err != nil {
@@ -546,16 +447,7 @@ func createConfigmap(client kubelib.Client, name string, data map[string]string,
 		log.Infof("configmap %q updated", name)
 	}
 
-	return false, ignoreConflict(err)
-}
-
-// ignoreConflict is a helper to drop conflicts. This ensures that if two instances both attempt to initialize
-// a resource, we just ignore the error if we lose the race.
-func ignoreConflict(err error) error {
-	if kerrors.IsConflict(err) || kerrors.IsAlreadyExists(err) {
-		return nil
-	}
-	return err
+	return false, mcpinit.IgnoreConflict(err)
 }
 
 func getCniEnabled(options AsmOptions, client kubelib.Client) (bool, error) {
@@ -629,98 +521,6 @@ func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
 	return option, nil
 }
 
-// pollIAMPropagation waits until the default service account token is available, to workaround
-// some IAM propagation delays
-func pollIAMPropagation() error {
-	if LocalMCP {
-		return nil
-	}
-
-	timeout := time.Now().Add(time.Minute * 4)
-	attempt := 0
-	for {
-		if time.Now().After(timeout) {
-			return fmt.Errorf("timed out waiting for IAM propagation after %v attempts", attempt)
-		}
-		attempt++
-		err := checkIAM()
-		if err == nil {
-			log.Infof("IAM propagation succeeded after %v attempt", attempt)
-			break
-		}
-		log.Warnf("IAM propagation attempt %v failed: %v", attempt, err)
-		time.Sleep(time.Second * 5)
-	}
-	return nil
-}
-
-func checkIAM() error {
-	req, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Metadata-Flavor", "Google")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("got non 200 status code: %v", resp.StatusCode)
-	}
-	return nil
-}
-
-var LocalMCP = env.RegisterBoolVar("LOCAL_MCP", false, "If true, use local files and cluster for MCP.").Get()
-
-const (
-	meshTemplateFile      = "mesh_template.yaml"
-	valuesTemplateFile    = "values_template.yaml"
-	telemetrySDFile       = "telemetry-sd.yaml"
-	mutatingWebhookFile   = "mutatingwebhook.yaml"
-	crdsFile              = "gen-istio-cluster.yaml"
-	injectionTemplateFile = "config"
-
-	injectDir = "./var/lib/istio/inject"
-	configDir = "./var/lib/istio/config"
-)
-
-// getMCPFile translates a filename to its source directory. This allows pulling the location from
-// source or from the docker image.
-func getMCPFile(name string) string {
-	if LocalMCP {
-		const outDir = "out/linux_amd64/knative"
-		const toolsDir = "tools/packaging/knative"
-		const manifestDir = "manifests/charts/base/files"
-		switch name {
-		case valuesTemplateFile:
-			return filepath.Join(toolsDir, "injection-values.yaml")
-		case injectionTemplateFile:
-			return filepath.Join(outDir, "injection-template.yaml")
-		case meshTemplateFile:
-			return filepath.Join(toolsDir, name)
-		case crdsFile:
-			return filepath.Join(manifestDir, name)
-		case mutatingWebhookFile, telemetrySDFile:
-			return filepath.Join(outDir, name)
-		default:
-			panic(fmt.Sprintf("file not found: %v", name))
-		}
-	}
-	switch name {
-	case valuesTemplateFile, injectionTemplateFile, mutatingWebhookFile:
-		return filepath.Join(injectDir, name)
-	case telemetrySDFile, crdsFile:
-		return filepath.Join(configDir, name)
-	case meshTemplateFile:
-		return filepath.Join("/etc/istio/config", name)
-	default:
-		log.Errorf("unknown file name: %v", name)
-		// Do not panic here, but we will probably fail later
-		return filepath.Join(configDir, name)
-	}
-}
-
 // executeTemplate executes a go template over fromFile, with inputs from params
 func executeTemplate(fromFile string, params TemplateParameters) (string, error) {
 	by, err := ioutil.ReadFile(fromFile)
@@ -745,24 +545,6 @@ func executeTemplateTo(fromFile, toFile string, params TemplateParameters) error
 		log.Warnf("failed to create directory %v: %v", filepath.Dir(toFile), err)
 	}
 	return ioutil.WriteFile(toFile, []byte(expanded), 0o644)
-}
-
-// createKubeClient sets up a simple kube client, following standard OSS code
-func createKubeClient() (kubelib.Client, error) {
-	// Used by validation
-	kubeRestConfig, err := kubelib.DefaultRestConfig(serverArgs.RegistryOptions.KubeConfig, "", func(config *rest.Config) {
-		config.QPS = serverArgs.RegistryOptions.KubeOptions.KubernetesAPIQPS
-		config.Burst = serverArgs.RegistryOptions.KubeOptions.KubernetesAPIBurst
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	kubeClient, err := kubelib.NewClient(kubelib.NewClientConfigForRestConfig(kubeRestConfig))
-	if err != nil {
-		return nil, fmt.Errorf("failed creating kube client: %v", err)
-	}
-	return kubeClient, nil
 }
 
 // configureMCPLogs configures our custom logging to be compatible with SD and tee to the consumer project's logs

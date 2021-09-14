@@ -23,7 +23,7 @@ docker.app_sidecar_ubuntu_bionic docker.app_sidecar_ubuntu_focal docker.app_side
 docker.app_sidecar_debian_10 docker.app_sidecar_centos_8 docker.app_sidecar_centos_7 \
 docker.mdp \
 docker.istioctl docker.operator docker.install-cni docker.cloudrun docker.vaultclient \
-docker.addon-migration docker.cloudesf \
+docker.addon-migration docker.cloudesf docker.mcputils \
 
 ### Docker commands ###
 # Below provides various commands to build/push docker images.
@@ -172,6 +172,12 @@ build.docker.cloudrun: manifests/charts/base/files/gen-istio-cluster.yaml
 build.docker.cloudrun: tools/packaging/knative/injection-values.yaml
 build.docker.cloudrun: tools/packaging/knative/mesh_template.yaml
 build.docker.cloudrun: tools/packaging/knative/Dockerfile.cloudrun
+	$(DOCKER_RULE)
+
+# Image used to run utilities for mcp (e.g. precheck, install crds).
+build.docker.mcputils: $(ISTIO_OUT_LINUX)/mcputils
+build.docker.mcputils: tools/packaging/knative/Dockerfile.mcputils
+build.docker.mcputils: manifests/charts/base/files/gen-istio-cluster.yaml
 	$(DOCKER_RULE)
 
 # Test application
