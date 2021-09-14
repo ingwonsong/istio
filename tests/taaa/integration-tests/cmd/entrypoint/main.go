@@ -4,22 +4,80 @@ package main
 // not licensed under Apache License, Version 2
 
 import (
+	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/magefile/mage/sh"
 	"github.com/spf13/cobra"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/entrypoint"
+	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/magetools"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
-	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm"
+	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_integration"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/tests/taaa/test-artifact/internal"
 )
+
+// Creates the JUnit to store the result and error of installing ASM on each cluster.
+func createCmdJUnit(errorOutput string, cmdRunErr error) {
+	const successXML = `<testsuites>
+<testsuite tests="1" failures="0">
+<testcase classname="asmInstall/cluster"/>
+</testsuite>
+</testsuites>
+`
+	const failureXml = `<testsuites>
+<testsuite tests="1" failures="1">
+<testcase classname="asmInstall/cluster">
+<failure>
+%s
+</failure>
+</testcase>
+</testsuite>
+</testsuites>
+`
+
+	// Make output directory if it doesn't exist.
+	if err := os.MkdirAll(entrypoint.OutputDirectory, 0755); err != nil {
+		log.Fatalf("Failed to find or create output directory, error: %s\n", err)
+	}
+
+	// Create the XML contents according to error details available.
+	var xmlContent string
+	if cmdRunErr == nil {
+		xmlContent = fmt.Sprintf(successXML)
+	} else {
+		rawErrorMessage := fmt.Sprintf("Install failed with error:\n%s\n", cmdRunErr.Error())
+		if errorOutput != "" {
+			rawErrorMessage += fmt.Sprintf("\nRelevant standard error output:\n%s\n", errorOutput)
+		}
+		buf := bytes.NewBuffer(make([]byte, 0, len(rawErrorMessage)))
+		err := xml.EscapeText(buf, []byte(rawErrorMessage))
+		if err != nil {
+			log.Fatalf("failed to convert error message for XMl content: %s", rawErrorMessage)
+		}
+		xmlContent = fmt.Sprintf(failureXml, buf.String())
+	}
+
+	// Now create the and write the xml contents to the file.
+	xmlPath := filepath.Join(entrypoint.OutputDirectory, "junit_cluster_asm_install.xml")
+
+	outputFileWriter, err := os.OpenFile(xmlPath, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		log.Fatalf("cannot open file %q, got error %v", xmlPath, err)
+	}
+	_, err = outputFileWriter.WriteString(xmlContent)
+	if err != nil {
+		log.Fatalf("cannot write file %q, got error %v", xmlPath, err)
+	}
+}
 
 var testerSetting = &resource.Settings{
 	RepoRootDir:  internal.RepoCopyRoot,
@@ -30,6 +88,7 @@ var testerSetting = &resource.Settings{
 
 func main() {
 	entrypoint.RunCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		magetools.SetLogTemplate(log.New(os.Stdout, "", log.Default().Flags()))
 		m := &asmpb.ASM{}
 		if err := entrypoint.ReadProto(m); err != nil {
 			return err
@@ -103,10 +162,19 @@ func main() {
 		}
 
 		// Run install
-		if err := runInstall(m, envVars); err != nil {
-			return err
+		if m.Execution == asmpb.ASM_INSTALL || m.Execution == asmpb.ASM_BOTH {
+			if err := runInstall(envVars); err != nil {
+				return err
+			}
+			log.Println("Finished ASM install and post install set up.")
+		} else {
+			log.Println("Skipping ASM install per protobuf `Execution` field.")
 		}
-		log.Println("Finished ASM install and post install set up.")
+
+		if m.Execution != asmpb.ASM_BOTH && m.Execution != asmpb.ASM_TEST {
+			log.Println("Skipping ASM test execution and exiting.")
+			return nil
+		}
 
 		// We expect ASM to be installed via the `Tester` application.
 		// This disables any revision tagging done on the ASM version installed, so
@@ -225,8 +293,8 @@ func doSetup(pb *asmpb.ASM) error {
 	return nil
 }
 
-func runInstall(pb *asmpb.ASM, env map[string]string) error {
-	return sh.RunWithV(env,
+func runInstall(env map[string]string) error {
+	_, errorOutput, cmdRunErr := magetools.BothOutputLogWith(env,
 		"asm_tester",
 		"--setup-env",
 		"--setup-system",
@@ -239,4 +307,6 @@ func runInstall(pb *asmpb.ASM, env map[string]string) error {
 		"--cluster-type", "gke",
 		"--cluster-topology", testerSetting.ClusterTopology.String(),
 		"--test", "test.integration.asm.networking")
+	createCmdJUnit(errorOutput, cmdRunErr)
+	return cmdRunErr
 }

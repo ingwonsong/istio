@@ -4,9 +4,10 @@
 # If you wish to test multiple cluster installation locally you can do so by
 # adding repeated clusters elements.
 
-clusters:  {
+clusters: [
+{
 	cluster_information:  {
-		cluster:  "your-cluster-name"
+		cluster:  "your-cluster-name1"
 		project:  "your-cluster-project"
 		# Replace with `zone: "your-cluster-zone"` as needed
 		region:  "your-cluster-region"
@@ -14,8 +15,20 @@ clusters:  {
 		# replicate the environment guitar will run the container under.
 		endpoint_override: "https://test-container.sandbox.googleapis.com/"
 	}
-	major:  1
-	minor:  10
+},
+{
+	cluster_information:  {
+		cluster:  "your-cluster-name2"
+		project:  "your-cluster-project"
+		region:  "your-cluster-region"
+		endpoint_override: "https://test-container.sandbox.googleapis.com/"
+	}
 }
-# Zero to run ALL
+]
+# 0 = Run all tests.
+# 1 = Run networking tests only.
 test_suite: 0
+# 0 = Do both install then run tests.
+# 1 = Do only install.
+# 2 = Do only test execution.
+execution: 0

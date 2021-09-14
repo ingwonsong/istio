@@ -423,8 +423,9 @@ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9dec
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210805225820-a46291bf7c71 h1:ZC7HzR7x9r/og+LhRgKQJGHUy6S3ba4+tssL4Va3srE=
 gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210805225820-a46291bf7c71/go.mod h1:aDCRO3ao7FB4J8HjCyqu+UgkLSwLu9pQdAaKaFPSRso=
-gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210618173102-cf79218d2fc2 h1:knHxE6rpYvLZxG0U/fpqFYHPuBZhmKrdYPrNj7+ntB8=
 gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210618173102-cf79218d2fc2/go.mod h1:WxuwRzKGktBEJU2/f3A74+pTlS4vkkIMD/FHmNaVu8w=
+gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210909220842-1af680420a1c h1:43JV4zX2D0lurNMfD0Lqm1cOoZhAVZPT0iS1WJnJR8s=
+gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210909220842-1af680420a1c/go.mod h1:Hlu23BKzxNtbUbkzxb12E9F3/eT/eny8TAl17nE1QSI=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/etcd/api/v3 v3.5.0/go.mod h1:cbVKeC6lCfl7j/8jBhAK6aIYO9XOjdptoxU/nLQcPvs=
 go.etcd.io/etcd/client/pkg/v3 v3.5.0/go.mod h1:IJHfcCEKxYu1Os13ZdwCwIUTUVGYTSAM3YSwc9/Ac1g=
@@ -871,8 +872,8 @@ k8s.io/utils v0.0.0-20201110183641-67b214c5f920/go.mod h1:jPW/WVKK9YHAvNhRxK0md/
 k8s.io/utils v0.0.0-20210707171843-4b05e18ac7d9 h1:imL9YgXQ9p7xmPzHFm/vVd/cF78jad+n4wK1ABwYtMM=
 k8s.io/utils v0.0.0-20210707171843-4b05e18ac7d9/go.mod h1:jPW/WVKK9YHAvNhRxK0md/EJ228hCsBRufyofKtW8HA=
 knative.dev/test-infra/rundk v0.0.0-20210712170122-a1e6473a5b7e/go.mod h1:zaso7IRXAk5grTHKR4k/T9CYCyY3hMgMOGO7N9wcX4I=
-knative.dev/test-infra/rundk v0.0.0-20210902040405-e5d384603f05 h1:iVTwM1WN6+mg43diXLQv/h+6+ppO9UrpVHW6Ic+hMxY=
-knative.dev/test-infra/rundk v0.0.0-20210902040405-e5d384603f05/go.mod h1:zaso7IRXAk5grTHKR4k/T9CYCyY3hMgMOGO7N9wcX4I=
+knative.dev/test-infra/rundk v0.0.0-20210907164518-001dd6fcbf2a h1:BysypFvKfTY19WAULwwM1U8OTyPGbN3wC2f4Y9aCt/c=
+knative.dev/test-infra/rundk v0.0.0-20210907164518-001dd6fcbf2a/go.mod h1:zaso7IRXAk5grTHKR4k/T9CYCyY3hMgMOGO7N9wcX4I=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

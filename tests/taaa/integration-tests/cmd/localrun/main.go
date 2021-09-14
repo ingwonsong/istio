@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/local"
-	asm "gke-internal.git.corp.google.com/taaa/protobufs.git/asm"
+	asm "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_integration"
 	"istio.io/istio/tests/taaa/test-artifact/internal"
 )
 

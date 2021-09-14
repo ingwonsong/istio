@@ -82,6 +82,14 @@ func (Build) ArtifactNoDeps() error {
 // This shouldn't be a serious problem.
 func (Build) Push(branchName string) error {
 	mg.Deps(Build.Artifact)
+	mg.Deps(mg.F(Build.PushNoDeps, branchName))
+	return nil
+}
+
+// Docker push the image to its destination.
+// Useful when iterating on image locally before pushing to remote to test on guitar.
+// Should not be used to push with `master-asm` tag, only for dev branch tags.
+func (Build) PushNoDeps(branchName string) error {
 	imgTag, err := git.DescribeCWD()
 	if err != nil {
 		return err
