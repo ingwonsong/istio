@@ -19,5 +19,6 @@ spec:
           provider: aws
           distribution: eks
           provisionerArgs:
+            kubernetesVersion: "1.21"
             username: asm-svc-acct
             compressArtifacts: "true"

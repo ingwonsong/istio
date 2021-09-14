@@ -28,6 +28,7 @@ const (
 	OnPrem   ClusterType = "gke-on-prem"
 	// TODO: update to "gke-on-aws"
 	GKEOnAWS  ClusterType = "aws"
+	EKS       ClusterType = "eks"
 	BareMetal ClusterType = "bare-metal"
 	APM       ClusterType = "apm"
 )
@@ -140,13 +141,13 @@ func (wip *WIPType) Type() string { return "wip" }
 type Feature string
 
 const (
-	UserAuth                  Feature = "USER_AUTH"
-	VPCSC                     Feature = "VPC_SC"
-	Addon                     Feature = "ADDON"
-	PrivateClusterUnrestrictedAccess            Feature = "PRIVATE_CLUSTER_UNRESTRICTED_ACCESS"
-	PrivateClusterLimitedAccess     Feature = "PRIVATE_CLUSTER_LIMITED_ACCESS"
-	PrivateClusterNoAccess Feature = "PRIVATE_CLUSTER_NO_ACCESS"
-	CNI                       Feature = "CNI"
+	UserAuth                         Feature = "USER_AUTH"
+	VPCSC                            Feature = "VPC_SC"
+	Addon                            Feature = "ADDON"
+	PrivateClusterUnrestrictedAccess Feature = "PRIVATE_CLUSTER_UNRESTRICTED_ACCESS"
+	PrivateClusterLimitedAccess      Feature = "PRIVATE_CLUSTER_LIMITED_ACCESS"
+	PrivateClusterNoAccess           Feature = "PRIVATE_CLUSTER_NO_ACCESS"
+	CNI                              Feature = "CNI"
 )
 
 var validFeatureTypes = sets.NewString(

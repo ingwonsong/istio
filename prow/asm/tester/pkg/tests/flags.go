@@ -30,15 +30,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	testFlags := []string{"--istio.test.kube.deploy=false"}
 	if settings.ControlPlane == resource.Unmanaged {
 		if settings.ClusterType != resource.GKEOnGCP {
-			// TODO(@tairan) remove the condition check after Onprem and AWS have been integrated with asmcli
-			if settings.UseASMCLI {
-				testFlags = append(testFlags,
-					fmt.Sprintf("--istio.test.revision=%s", "default"))
-			} else {
+			if !settings.UseASMCLI {
 				testFlags = append(testFlags,
 					fmt.Sprintf("--istio.test.revision=%s", revision.RevisionLabel()))
 			}
-
 
 			// going from 20s to 30s for the total retry timeout (all attempts)
 			testFlags = append(testFlags, "--istio.test.echo.callTimeout=30s")

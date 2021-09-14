@@ -183,7 +183,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		err := exec.Run(
 			fmt.Sprintf("kubectl create ns istio-system --kubeconfig=%s", config),
 		)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
 			return fmt.Errorf("Error at 'kubectl create ns ...': %w", err)
 		}
 
@@ -201,7 +201,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 				config,
 			),
 		)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
 			return fmt.Errorf("Error at 'kubectl create secret ...': %w", err)
 		}
 
@@ -226,12 +226,16 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		var istiodSvcAccount string
 		if rev.Name != "" {
 			istiodSvcAccount = fmt.Sprintf("istiod-%s", rev.Name)
+		} else if settings.UseASMCLI {
+			// asmcli install uses _CI_NO_REVISION or the "default" revision so no need for suffix
+			istiodSvcAccount = "istiod"
 		} else {
+			// only the bash based install will use the auto-generated revision
 			istiodSvcAccount = fmt.Sprintf("istiod-%s", revision.RevisionLabel())
 		}
 		serviceAccts := []string{
 			"default",
-			"istio-ingressgateway-service-account",
+			ingressGatewayServiceAccount,
 			"istio-eastwestgateway-service-account",
 			"istio-reader-service-account",
 			istiodSvcAccount,

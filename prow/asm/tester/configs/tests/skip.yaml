@@ -236,6 +236,10 @@ tests:
       - names:
           - TestAuthorization_Custom
         reason: requires mesh config
+      - names:
+          - TestTlsGatewaysWithQUIC/quic*
+          - TestMtlsGatewaysWithQUIC/quic*
+        reason: Experemental code.
       # telemetry/ tests
       - names:
           - TestStackdriver

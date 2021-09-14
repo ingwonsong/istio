@@ -43,7 +43,7 @@ func (c *installer) install(r *revision.Config) error {
 		case resource.GKEOnGCP:
 			log.Println("🏄 performing ASM installation")
 			return c.installASM(r)
-		case resource.BareMetal, resource.GKEOnAWS, resource.APM:
+		case resource.BareMetal, resource.GKEOnAWS, resource.APM, resource.EKS:
 			log.Println("🏄 performing ASM installation on proxied clusters")
 			return c.installASMOnProxiedClusters(r)
 		default:

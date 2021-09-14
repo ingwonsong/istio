@@ -122,7 +122,8 @@ func gcrProjectIDs(settings *resource.Settings) (gcrProjectID1, gcrProjectID2 st
 // Outputs YAML to the topology file, in the structure of []cluster.Config to inform the test framework of details about
 // each cluster under test. cluster.Config is defined in pkg/test/framework/components/cluster/factory.go.
 func genTopologyFile(settings *resource.Settings) error {
-	for i, kubeconfig := range strings.Split(settings.Kubeconfig, string(os.PathListSeparator)) {
+	configs := strings.Split(settings.Kubeconfig, string(os.PathListSeparator))
+	for i, kubeconfig := range configs {
 		var clusterName string
 		if settings.ClusterType == resource.GKEOnGCP {
 			cs := kube.GKEClusterSpecFromContext(settings.KubeContexts[i])
@@ -154,8 +155,11 @@ func genTopologyFile(settings *resource.Settings) error {
 			cc += "\n    fakeVM: false"
 		}
 		// Add network name for multicloud cluster config.
-		// TODO: confirm if it's needed or not.
-		if settings.ClusterType != resource.GKEOnGCP {
+		// TODO(landow): only set this if we actually installed using it
+		// TODO (cont): consider storing the cluster.Topology (the model we're generating here) in the resource.Settings
+		// TODO(cont): rather than array of kubeconfig/context names.
+
+		if settings.ClusterType != resource.GKEOnGCP && len(configs) > 1 {
 			cc += fmt.Sprintf("\n  network: network%d", i)
 		}
 

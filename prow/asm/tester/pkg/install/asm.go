@@ -27,6 +27,10 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
+func ASMOutputDir() string {
+	return filepath.Join(os.Getenv("ARTIFACTS"), "asmcli_out")
+}
+
 func (c *installer) installASM(rev *revision.Config) error {
 	pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
 	kptSetPrefix := fmt.Sprintf("kpt cfg set %s", pkgPath)
@@ -110,19 +114,8 @@ func (c *installer) installASM(rev *revision.Config) error {
 		// If this is Cloud ESF based, don't install gateway here. The customized
 		// Cloud ESF gateway will be installed in each test.
 		if c.settings.UseASMCLI && !c.settings.InstallCloudESF{
-			revision, err := exec.RunWithOutput(fmt.Sprintf("kubectl get deploy -n istio-system -l app=istiod -o jsonpath='{.items[*].metadata.labels.istio\\.io\\/rev}' --context=%s", context))
-			if err != nil {
-				return fmt.Errorf("error getting istiod revision: %w", err)
-			}
-
-			gatewayNamespace := "istio-system"
-			if err := exec.Run(fmt.Sprintf("kubectl label namespace %s istio-injection- istio.io/rev=%s --overwrite --context=%s", gatewayNamespace, revision, context)); err != nil {
-				return fmt.Errorf("error labeling gateway namespace: %w", err)
-			}
-
-			ingressGateway := fmt.Sprintf("https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-service-mesh-packages/%s/samples/gateways/istio-ingressgateway.yaml", c.settings.NewtaroCommit)
-			if err := exec.Run(fmt.Sprintf("kubectl apply -n %s -f %s --context=%s", gatewayNamespace, ingressGateway, context)); err != nil {
-				return fmt.Errorf("error installing ingress gateway: %w", err)
+			if err := c.installIngressGateway(context, ""); err != nil {
+				return err
 			}
 		}
 	}
@@ -185,12 +178,20 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 	return envvars
 }
 
+// commonASMCLIInstallFlags should be appended to any asmcli invocation's flags
+func commonASMCLIInstallFlags() []string {
+	return []string{
+		"--output_dir", ASMOutputDir(),
+	}
+}
+
 // generateASMInstallFlags returns the flags required when running the install
 // script to install ASM.
 func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, pkgPath string, cluster *kube.GKEClusterSpec) []string {
 	var installFlags []string
 	if settings.UseASMCLI {
 		installFlags = append(installFlags, "install")
+		installFlags = append(installFlags, commonASMCLIInstallFlags()...)
 	} else {
 		installFlags = append(installFlags, "--mode", "install")
 	}
@@ -317,6 +318,10 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, kubeconfig s
 			"--ca", "citadel",
 		)
 	}
+	if settings.UseASMCLI {
+		installFlags = append(installFlags, commonASMCLIInstallFlags()...)
+	}
+
 	return installFlags
 }
 
@@ -353,7 +358,11 @@ func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
 				exec.WithAdditionalArgs(generateASMMultiCloudInstallFlags(c.settings, kubeconfig))); err != nil {
 				return fmt.Errorf("ASM installation using script failed: %w", err)
 			}
+			if err := c.installIngressGateway("", kubeconfig); err != nil {
+				return err
+			}
 		}
+
 		return nil
 	} else {
 		return exec.Dispatch(
