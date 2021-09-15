@@ -437,6 +437,7 @@ tests:
       # cloudesf/tests
       - names:
           - TestCloudESFApiKeyGrpc
+          - TestCloudESFGrpcEcho
         reason: it requires installing istiod first
   - selectors:
       gce_vms: true

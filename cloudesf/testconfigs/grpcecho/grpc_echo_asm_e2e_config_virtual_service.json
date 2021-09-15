@@ -1,0 +1,545 @@
+{
+  "apiVersion": "networking.istio.io/v1alpha3",
+  "kind": "VirtualService",
+  "metadata": {
+    "creationTimestamp": null,
+    "name": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com-vs",
+    "namespace": "default"
+  },
+  "spec": {
+    "gateways": [
+      "default/cloudesf-grpc-echo-codelabapikeys-sandbox-googleapis-com-asm-gw"
+    ],
+    "hosts": [
+      "*"
+    ],
+    "http": [
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "regex": "^/$discovery/[^\\/]+\\/?$"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echo"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echo/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echoreport"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoReport",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echoreport/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoReport",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echostream"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echostream/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/Cork"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Cork",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/Cork/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Cork",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/Echo"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/Echo/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/EchoReport"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoReport",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/EchoReport/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoReport",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/EchoStream"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/EchoStream/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "status": {}
+}

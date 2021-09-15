@@ -1,0 +1,24 @@
+{
+  "apiVersion": "networking.istio.io/v1alpha3",
+  "kind": "Gateway",
+  "metadata": {
+    "creationTimestamp": null,
+    "name": "cloudesf-grpc-echo-codelabapikeys-sandbox-googleapis-com-asm-gw",
+    "namespace": "default"
+  },
+  "spec": {
+    "servers": [
+      {
+        "hosts": [
+          "*"
+        ],
+        "port": {
+          "name": "http",
+          "number": 8080,
+          "protocol": "HTTP"
+        }
+      }
+    ]
+  },
+  "status": {}
+}

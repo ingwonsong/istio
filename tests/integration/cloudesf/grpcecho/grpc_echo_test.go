@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apikeygrpc
+package grpcecho
 
 import (
 	"path/filepath"
@@ -27,12 +27,8 @@ import (
 )
 
 var (
-	i                          istio.Instance
-	apiKeyGrpcTestConfigFolder = filepath.Join(env.IstioSrc, "cloudesf/testconfigs/apikeygrpc")
-
-	// This image wraps CloudESF test logic and its source is located at
-	// https://source.corp.google.com/piper///depot/google3/apiserving/cloudesf/tests/e2e/cep/clients/BUILD;rcl=392444512;l=39
-	cloudESFTestClientImage = "us.gcr.io/cloudesf-testing/e2e_apikey_grpc_test_client"
+	i                        istio.Instance
+	grpcEchoTestConfigFolder = filepath.Join(env.IstioSrc, "cloudesf/testconfigs/grpcecho")
 )
 
 func TestMain(m *testing.M) {
@@ -45,22 +41,22 @@ func TestMain(m *testing.M) {
 		Run()
 }
 
-func TestCloudESFApiKeyGrpc(t *testing.T) {
+func TestCloudESFGrpcEcho(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("cloudesf.apikeygrpc").
+		Features("cloudesf.grpcecho").
 		Run(
 			testflow.GenTestFlow(
 				i,
 				[]string{
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_envoyfilter.json",
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_gateway.json",
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_virtual_service.json",
-					apiKeyGrpcTestConfigFolder + "/asm_backend.yaml",
+					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_envoyfilter.json",
+					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_gateway.json",
+					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_virtual_service.json",
+					grpcEchoTestConfigFolder + "/asm_backend.yaml",
 				},
-				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image",
-				"http://%s:80/v1/projects/random-project/apiKeys",
-				cloudESFTestClientImage,
-				`"--only_validate_resp_error_code"`,
+				"gcr.io/cloudesf-testing/grpc_echo_asm_e2e_config_ic_image",
+				"",
+				"us.gcr.io/cloudesf-testing/e2e_grpc_echo_test_client",
+				"",
 			))
 }

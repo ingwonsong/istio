@@ -183,3 +183,4 @@ features:
     upgrade:
   cloudesf:
     apikeygrpc:
+    grpcecho:
