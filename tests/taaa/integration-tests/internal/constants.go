@@ -13,23 +13,24 @@ const (
 )
 
 var (
-	Tests           = []string{"pilot"}
-	TestSupplements = []string{
-		"/pkg/test/framework/features/allowlist.txt",
-		"/pkg/test/framework/features/features.yaml",
-		"/tests/integration/iop-externalistiod-config-integration-test-defaults.yaml",
-		"/tests/integration/iop-externalistiod-primary-integration-test-defaults.yaml",
-		"/tests/integration/iop-externalistiod-remote-integration-test-defaults.yaml",
-		"/tests/integration/iop-externalistiod-remote-integration-test-gateways.yaml",
-		"/tests/integration/iop-integration-test-defaults.yaml",
-		"/tests/integration/iop-istiodless-remote-integration-test-defaults.yaml",
-		"/tests/integration/iop-remote-integration-test-defaults.yaml",
+	// The tests in tests/integration/ to compile and package into the TaaA image.
+	Tests = []string{
+		"pilot",
 	}
-	TesterDirs = []string{
-		"/prow/asm/tester/configs",
-		"/prow/asm/tester/scripts",
-		"/manifests/addons",
-		"/manifests/charts",
-		"/manifests/profiles",
+	// Whole directories to copy minus those matched by in the filters in SupplementFilters.
+	TestSupplementDirs = []string{
+		"/pkg/test/framework/features/",
+		"/tests/integration/",
+		"/prow/asm/tester/",
+	}
+	// The glob patterns used to match code files that we do not want to copy
+	// into the TaaA image. We cannot have source code in images as a policy.
+	SupplementFilters = []string{
+		"*.go",
+		"*.sh",
+		"go.mod",
+		"go.sum",
+		"*.mk",
+		"Makefile",
 	}
 )

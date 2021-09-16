@@ -21,7 +21,9 @@ import (
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/magetools"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_integration"
+	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+	"istio.io/istio/prow/asm/tester/pkg/tests"
 	"istio.io/istio/tests/taaa/test-artifact/internal"
 )
 
@@ -84,6 +86,9 @@ var testerSetting = &resource.Settings{
 	UseASMCLI:    true,
 	ClusterType:  resource.GKEOnGCP,
 	ControlPlane: resource.Unmanaged,
+	CA:           resource.MeshCA,
+	WIP:          resource.GKEWorkloadIdentityPool,
+	TestTarget:   "test.integration.asm.networking",
 }
 
 func main() {
@@ -108,11 +113,11 @@ func main() {
 			return errors.New("at least one cluster must be specified")
 		}
 
-		kubeconfigs, mergedKubeconfig, err := createKubeConfigs(m)
+		kubeConfigs, mergedKubeconfig, err := createKubeConfigs(m)
 		if err != nil {
 			return fmt.Errorf("failed creating kubeconfig files with error: %s", err)
 		}
-		testerSetting.Kubeconfig = strings.Join(kubeconfigs, ",")
+		testerSetting.Kubeconfig = mergedKubeconfig
 		ci := clusters[0].GetClusterInformation()
 		project := ci.GetProject()
 		if project == "" {
@@ -150,6 +155,7 @@ func main() {
 		envVars := map[string]string{
 			"REPO_ROOT":  internal.RepoCopyRoot,
 			"KUBECONFIG": mergedKubeconfig,
+			"ARTIFACTS":  entrypoint.OutputDirectory,
 		}
 		if ci.EndpointOverride != "" {
 			envVars["CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"] = ci.GetEndpointOverride()
@@ -175,7 +181,6 @@ func main() {
 			log.Println("Skipping ASM test execution and exiting.")
 			return nil
 		}
-
 		// We expect ASM to be installed via the `Tester` application.
 		// This disables any revision tagging done on the ASM version installed, so
 		// we do not pass any revision information to the tests.
@@ -183,6 +188,35 @@ func main() {
 		var overall_err error
 		// Execute networking tests.
 		if m.GetTestSuite() == asmpb.ASM_ALL || m.GetTestSuite() == asmpb.ASM_NETWORKING {
+			// The Setup function does more than we need to, but it's the most effective way to get
+			// the information set in some key environment variables:
+			// TEST_SELECT, and INTEGRATION_TEST_FLAGS
+			if err := env.Setup(testerSetting); err != nil {
+				return fmt.Errorf("error during env set up: %s", err)
+			}
+			if err := tests.Setup(testerSetting); err != nil {
+				return fmt.Errorf("error during test argument set up: %s", err)
+			}
+			testSelect := os.Getenv("TEST_SELECT")
+			// This set of arguments was obtained by extracting the test
+			// command from a log and making substitutions as necessary.
+			// There is currently no forcing function for keeping these in sync.
+			testFlags := []string{
+				// -p doesn't apply to single test binaries
+				//"--test.p=1",
+				"--test.timeout=30m",
+				"--istio.test.ci",
+				"--istio.test.pullpolicy=IfNotPresent",
+				"--istio.test.hub", istioTestHub,
+				"--istio.test.tag", istioTestTag,
+				"--istio.test.kube.config", strings.Join(kubeConfigs, ","),
+				"--istio.test.select", testSelect,
+				"--log_output_level=tf:debug,mcp:debug",
+				// Disabling this test since it creates a service account.
+				// TODO(efiturri): Fix enable this.
+				"--istio.test.skip=TestBadRemoteSecret",
+			}
+			testFlags = append(testFlags, strings.Split(os.Getenv("INTEGRATION_TEST_FLAGS"), " ")...)
 			// TODO(coryrc): the rest of the tests
 			/*
 				ok      istio.io/istio/tests/integration/pilot  0.002s
@@ -195,25 +229,11 @@ func main() {
 				ok      istio.io/istio/tests/integration/pilot/revisions        0.003s
 			*/
 			for _, bin := range internal.Tests {
-				// This set of arguments was obtained by extracting the test
-				// command from a log and making substitutions as necessary.
-				// There is currently no forcing function for keeping these in sync.
+				passedFlags := append(testFlags, fmt.Sprintf("--istio.test.work_dir=%s/%s", entrypoint.OutputDirectory, bin))
 				err := entrypoint.GoTest(
 					fmt.Sprintf("/usr/bin/%s.test", bin),
 					"istio.io/istio/tests/integration/"+bin,
-					// -p doesn't apply to single test binaries
-					//"--test.p=1",
-					"--test.timeout=30m",
-					"--istio.test.kube.deploy=false",
-					"--istio.test.skipVM",
-					"--istio.test.ci",
-					"--istio.test.pullpolicy=IfNotPresent",
-					fmt.Sprintf("--istio.test.work_dir=%s/%s", entrypoint.OutputDirectory, bin),
-					"--istio.test.hub="+istioTestHub,
-					"--istio.test.tag="+istioTestTag,
-					"--istio.test.kube.config="+testerSetting.Kubeconfig,
-					"--istio.test.select=-postsubmit,-flaky",
-					"--log_output_level=tf:debug,mcp:debug",
+					passedFlags...,
 				)
 				if err != nil {
 					overall_err = err
@@ -301,12 +321,12 @@ func runInstall(env map[string]string) error {
 		"--use-asmcli",
 		"--repo-root-dir", internal.RepoCopyRoot,
 		"--install-from", testerSetting.InstallOverride,
-		"--wip", "GKE",
+		"--wip", testerSetting.WIP.String(),
 		"--gcp-projects", strings.Join(testerSetting.GCPProjects, ","),
-		"--ca", "MESHCA",
-		"--cluster-type", "gke",
+		"--ca", testerSetting.CA.String(),
+		"--cluster-type", testerSetting.ClusterType.String(),
 		"--cluster-topology", testerSetting.ClusterTopology.String(),
-		"--test", "test.integration.asm.networking")
+		"--test", testerSetting.TestTarget)
 	createCmdJUnit(errorOutput, cmdRunErr)
 	return cmdRunErr
 }

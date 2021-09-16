@@ -135,16 +135,7 @@ func (Build) Entrypoint() error {
 
 // Tester compiler the "Tester" application in the istio repo used to install and run tests.
 func (Build) Tester() error {
-	mg.Deps(Build.compilerImage)
-	log.Println("Copying Tester configs and scripts")
-	for _, dir := range internal.TesterDirs {
-		if err := os.MkdirAll(repoRootOutPath+dir, 0755); err != nil {
-			return err
-		}
-		if err := sh.RunV("rsync", "-r", "--delete", repoRoot+dir+"/", repoRootOutPath+dir); err != nil {
-			return err
-		}
-	}
+	mg.Deps(Build.compilerImage, Build.TestSupplements)
 	log.Println("Compiling ASM tester binary.")
 	return compileGo(false, "asm_tester", "prow/asm/tester")
 }
@@ -173,14 +164,25 @@ func (Build) Tests() error {
 	return anyErr
 }
 
+// TestSupplements copies over the non binary files buried in the source code
+// that are needed at run time.
 func (Build) TestSupplements() error {
-	log.Println("Copying supplementary test compilation files.")
+	log.Println("Copying supplementary test files.")
 	if err := os.MkdirAll(repoRootOutPath, os.ModePerm); err != nil {
 		return err
 	}
-	for _, supplement := range internal.TestSupplements {
+	rsyncFlags := []string{
+		"-avr",
+		"--delete",
+	}
+	rsyncExcludes := make([]string, len(internal.SupplementFilters))
+	for i, filter := range internal.SupplementFilters {
+		rsyncExcludes[i] = "--exclude=" + filter
+	}
+	rsyncArgs := append(rsyncFlags, rsyncExcludes...)
+	for _, supplement := range internal.TestSupplementDirs {
 		os.MkdirAll(filepath.Dir(repoRootOutPath+supplement), os.ModePerm)
-		if err := magetools.CopyFile(repoRoot+supplement, repoRootOutPath+supplement); err != nil {
+		if err := sh.Run("rsync", append(rsyncArgs, repoRoot+supplement, repoRootOutPath+supplement)...); err != nil {
 			return err
 		}
 	}
@@ -251,11 +253,11 @@ func (Build) TestImages() error {
 	}
 	outRegistryDir := "out" + internal.RegistryDestinationDirectory
 	configYml := outRegistryDir + "/config.yml"
-	err = sh.RunV("rsync", outputDir+"/config.yml", configYml)
+	err = sh.Run("rsync", outputDir+"/config.yml", configYml)
 	if err != nil {
 		return err
 	}
-	err = sh.RunV("rsync", outputDir+"/registry", outRegistryDir+"/registry")
+	err = sh.Run("rsync", outputDir+"/registry", outRegistryDir+"/registry")
 	if err != nil {
 		return err
 	}
@@ -263,7 +265,7 @@ func (Build) TestImages() error {
 	if err := os.MkdirAll(varLibRegistryDir, 0775); err != nil {
 		return err
 	}
-	err = sh.RunV("rsync", "--delete", "-r", outputDir+"/varlibregistry/", varLibRegistryDir) // Trailing / is significant.
+	err = sh.Run("rsync", "--delete", "-r", outputDir+"/varlibregistry/", varLibRegistryDir) // Trailing / is significant.
 	if err != nil {
 		return err
 	}
@@ -273,7 +275,7 @@ func (Build) TestImages() error {
 		return err
 	}
 	log.Println("Copying all other binaries to same position in the code repo copy.")
-	if err := sh.RunV("rsync", "-r", "--delete", repoRoot+"/out/", repoRootOutPath+"/out"); err != nil {
+	if err := sh.Run("rsync", "-r", "--delete", repoRoot+"/out/", repoRootOutPath+"/out"); err != nil {
 		return err
 	}
 
