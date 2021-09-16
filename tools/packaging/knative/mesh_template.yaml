@@ -13,6 +13,7 @@ defaultConfig:
     OUTPUT_CERTS: /etc/istio/proxy
     XDS_AUTH_PROVIDER: "{{.XDSAuthProvider}}"
     PROXY_CONFIG_XDS_AGENT: "true"
+    GCP_METADATA: "{{.Project}}|{{.ProjectNumber}}|{{.Cluster}}|{{.Zone}}"
 
   meshId: "proj-{{.ProjectNumber}}"
   discoveryAddress: "{{.XDSAddr}}"
