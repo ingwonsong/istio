@@ -6,7 +6,7 @@ spec:
       k8s:
         env:
         - name: GKE_CLUSTER_URL
-          value: "https://test-container.sandbox.googleapis.com/v1/projects/PROJECT_ID/locations/us-central1-c/clusters/asm-cluster" # {"$ref":"#/definitions/io.k8s.cli.substitutions.gke-cluster-url-staging"}
+          value: "https://test-container.sandbox.googleapis.com/v1/projects/PROJECT_ID/locations/us-central1-c/clusters/asm-cluster" # {"$ref":"#/definitions/io.k8s.cli.substitutions.gke-cluster-url-test"}
         - name: GCP_METADATA
           value: "PROJECT_ID|PROJECT_NUMBER|asm-cluster|us-central1-c" # {"$ref":"#/definitions/io.k8s.cli.substitutions.gke-metadata"}
         - name: SPIFFE_BUNDLE_ENDPOINTS
@@ -20,4 +20,4 @@ spec:
   meshConfig:
     defaultConfig:
       proxyMetadata:
-        GKE_CLUSTER_URL: "https://test-container.sandbox.googleapis.com/v1/projects/PROJECT_ID/locations/us-central1-c/clusters/asm-cluster" # {"$ref":"#/definitions/io.k8s.cli.substitutions.gke-cluster-url-staging"}
+        GKE_CLUSTER_URL: "https://test-container.sandbox.googleapis.com/v1/projects/PROJECT_ID/locations/us-central1-c/clusters/asm-cluster" # {"$ref":"#/definitions/io.k8s.cli.substitutions.gke-cluster-url-test"}
