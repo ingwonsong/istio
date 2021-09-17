@@ -38,6 +38,7 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.Var(&settings.ClusterType, "cluster-type", "type of the k8s cluster")
 	flags.Var(&settings.ClusterTopology, "cluster-topology", "topology of the k8s clusters")
 	flags.Var(&settings.FeatureToTest, "feature", "feature to test for this test flow")
+	flags.StringVar(&settings.GKENetworkName, "gke-network-name", DefaultGKENetworkName, "The name of the GKE Network to use.")
 
 	flags.Var(&settings.ControlPlane, "control-plane", "type of the control plane, can be one of UNMANAGED or MANAGED")
 	flags.BoolVar(&settings.UseProdMeshConfigAPI, "prod-meshconfig", false, "whether to use production MeshConfig API endpoint for Managed Control Plane (MCP)")

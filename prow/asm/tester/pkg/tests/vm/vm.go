@@ -40,7 +40,7 @@ func Setup(settings *resource.Settings, kubeContext string) error {
 		--source-ranges=%s \
 		--network=%s \
 		--target-tags=%s \
-		prow-to-static-vms`, cs.ProjectID, settings.TrustableSourceRanges, resource.GKENetworkName, firewallTag)); err != nil {
+		prow-to-static-vms`, cs.ProjectID, settings.TrustableSourceRanges, settings.GKENetworkName, firewallTag)); err != nil {
 		return err
 	}
 
@@ -68,7 +68,7 @@ func Setup(settings *resource.Settings, kubeContext string) error {
     - key: gce-service-proxy-installer-bucket
       value: %s`, primaryClusterName, projectNumber,
 		cs.ProjectID, cs.Location, cs.Name,
-		resource.GKENetworkName, firewallTag,
+		settings.GKENetworkName, firewallTag,
 		settings.VMServiceProxyAgentGCSPath, settings.VMServiceProxyAgentASMVersion, settings.VMServiceProxyAgentInstallerGCSPath)
 
 	if err := topology.AddClusterConfig(asmVMConfig); err != nil {

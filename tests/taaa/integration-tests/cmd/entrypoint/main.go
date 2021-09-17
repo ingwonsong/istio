@@ -27,6 +27,18 @@ import (
 	"istio.io/istio/tests/taaa/test-artifact/internal"
 )
 
+var (
+	testerSetting = &resource.Settings{
+		RepoRootDir:  internal.RepoCopyRoot,
+		UseASMCLI:    true,
+		ClusterType:  resource.GKEOnGCP,
+		ControlPlane: resource.Unmanaged,
+		CA:           resource.MeshCA,
+		WIP:          resource.GKEWorkloadIdentityPool,
+		TestTarget:   "test.integration.asm.networking",
+	}
+)
+
 // Creates the JUnit to store the result and error of installing ASM on each cluster.
 func createCmdJUnit(errorOutput string, cmdRunErr error) {
 	const successXML = `<testsuites>
@@ -81,14 +93,17 @@ func createCmdJUnit(errorOutput string, cmdRunErr error) {
 	}
 }
 
-var testerSetting = &resource.Settings{
-	RepoRootDir:  internal.RepoCopyRoot,
-	UseASMCLI:    true,
-	ClusterType:  resource.GKEOnGCP,
-	ControlPlane: resource.Unmanaged,
-	CA:           resource.MeshCA,
-	WIP:          resource.GKEWorkloadIdentityPool,
-	TestTarget:   "test.integration.asm.networking",
+func cleanFireWall(project string) {
+	// Remove any prexisting firewall rule.
+	// The tester application creates a firewall on the project with the name
+	// multicluster-firewall-rule. If it was not cleaned up for any reason before
+	// we run the tester, the application will fail since the firewall already exists.
+	sh.Output(
+		"gcloud", "compute",
+		"firewall-rules", "delete",
+		"multicluster-firewall-rule",
+		"--project", project,
+		"--quiet")
 }
 
 func main() {
@@ -112,6 +127,8 @@ func main() {
 		if len(clusters) == 0 {
 			return errors.New("at least one cluster must be specified")
 		}
+		// Only support for clusters in single network right now.
+		testerSetting.GKENetworkName = clusters[0].GetGkeNetwork()
 
 		kubeConfigs, mergedKubeconfig, err := createKubeConfigs(m)
 		if err != nil {
@@ -157,8 +174,11 @@ func main() {
 			"KUBECONFIG": mergedKubeconfig,
 			"ARTIFACTS":  entrypoint.OutputDirectory,
 		}
-		if ci.EndpointOverride != "" {
+		if ci.GetEndpointOverride() != "" {
 			envVars["CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"] = ci.GetEndpointOverride()
+			if strings.Contains(ci.GetEndpointOverride(), "test") {
+				envVars["CLOUDSDK_API_ENDPOINT_OVERRIDES_GKEHUB"] = "https://autopush-gkehub.sandbox.googleapis.com/"
+			}
 		}
 		for name, val := range envVars {
 			log.Printf("Set env var: %s=%s", name, val)
@@ -191,9 +211,11 @@ func main() {
 			// The Setup function does more than we need to, but it's the most effective way to get
 			// the information set in some key environment variables:
 			// TEST_SELECT, and INTEGRATION_TEST_FLAGS
+			cleanFireWall(project) // Hacky, but the setup creates the firewall, and fails if exists.
 			if err := env.Setup(testerSetting); err != nil {
 				return fmt.Errorf("error during env set up: %s", err)
 			}
+			defer cleanFireWall(project)
 			if err := tests.Setup(testerSetting); err != nil {
 				return fmt.Errorf("error during test argument set up: %s", err)
 			}
@@ -300,16 +322,7 @@ func doSetup(pb *asmpb.ASM) error {
 	if pb.GetTestSuite() == asmpb.ASM_NETWORKING || pb.GetTestSuite() == asmpb.ASM_ALL {
 		testerSetting.TestTarget = "test.integration.asm.networking"
 	}
-	// Remove any prexisting firewall rule.
-	// The tester application creates a firewall on the project with the name
-	// multicluster-firewall-rule. If it was not cleaned up for any reason before
-	// we run the tester, the application will fail since the firewall already exists.
-	sh.RunV(
-		"gcloud", "compute",
-		"firewall-rules", "delete",
-		"multicluster-firewall-rule",
-		"--project", project,
-		"--quiet")
+	cleanFireWall(project)
 	return nil
 }
 
@@ -326,6 +339,7 @@ func runInstall(env map[string]string) error {
 		"--ca", testerSetting.CA.String(),
 		"--cluster-type", testerSetting.ClusterType.String(),
 		"--cluster-topology", testerSetting.ClusterTopology.String(),
+		"--gke-network-name", testerSetting.GKENetworkName,
 		"--test", testerSetting.TestTarget)
 	createCmdJUnit(errorOutput, cmdRunErr)
 	return cmdRunErr

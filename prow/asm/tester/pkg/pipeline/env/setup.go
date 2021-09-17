@@ -251,7 +251,7 @@ func fixGKE(settings *resource.Settings) error {
 	}
 
 	if settings.FeatureToTest == resource.VPCSC {
-		networkName := resource.GKENetworkName
+		networkName := settings.GKENetworkName
 
 		// Create router and NAT
 		if err := exec.Run(fmt.Sprintf(
@@ -333,7 +333,7 @@ func addFirewallRules(settings *resource.Settings) error {
 	--direction=INGRESS \
 	--priority=900 \
 	--source-ranges=%s \
-	--target-tags=%s --quiet`, resource.GKENetworkName, networkProject, settings.TrustableSourceRanges, strings.Join(targetTags, ","))); err != nil {
+	--target-tags=%s --quiet`, settings.GKENetworkName, networkProject, settings.TrustableSourceRanges, strings.Join(targetTags, ","))); err != nil {
 		return fmt.Errorf("error creating the firewall rule to allow multi-cluster communication")
 	}
 

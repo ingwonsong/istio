@@ -15,6 +15,6 @@
 package resource
 
 const (
-	GKENetworkName = "prow-test-network"
-	ConfigDirPath  = "prow/asm/tester/configs"
+	DefaultGKENetworkName = "prow-test-network"
+	ConfigDirPath         = "prow/asm/tester/configs"
 )

@@ -27,7 +27,6 @@ var (
 	// into the TaaA image. We cannot have source code in images as a policy.
 	SupplementFilters = []string{
 		"*.go",
-		"*.sh",
 		"go.mod",
 		"go.sum",
 		"*.mk",

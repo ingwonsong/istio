@@ -15,6 +15,8 @@ clusters: [
 		# replicate the environment guitar will run the container under.
 		endpoint_override: "https://test-container.sandbox.googleapis.com/"
 	}
+	# Optional if your clusters were created with "prow-test-network".
+	gke_network: "your-network-name"
 },
 {
 	cluster_information:  {
@@ -23,6 +25,7 @@ clusters: [
 		region:  "your-cluster-region"
 		endpoint_override: "https://test-container.sandbox.googleapis.com/"
 	}
+	gke_network: "your-network-name"
 }
 ]
 # 0 = Run all tests.

@@ -428,8 +428,8 @@ github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210805225820-a46291bf7c71 h1:ZC7HzR7x9r/og+LhRgKQJGHUy6S3ba4+tssL4Va3srE=
 gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210805225820-a46291bf7c71/go.mod h1:aDCRO3ao7FB4J8HjCyqu+UgkLSwLu9pQdAaKaFPSRso=
 gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210618173102-cf79218d2fc2/go.mod h1:WxuwRzKGktBEJU2/f3A74+pTlS4vkkIMD/FHmNaVu8w=
-gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210909220842-1af680420a1c h1:43JV4zX2D0lurNMfD0Lqm1cOoZhAVZPT0iS1WJnJR8s=
-gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210909220842-1af680420a1c/go.mod h1:Hlu23BKzxNtbUbkzxb12E9F3/eT/eny8TAl17nE1QSI=
+gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210916010012-fee1252fa42e h1:RAHq+8GkilJjzXWaEXMXQfy6jghE5ORRiPjT+jDp7ok=
+gke-internal.git.corp.google.com/taaa/protobufs.git v0.0.0-20210916010012-fee1252fa42e/go.mod h1:Hlu23BKzxNtbUbkzxb12E9F3/eT/eny8TAl17nE1QSI=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/etcd/api/v3 v3.5.0/go.mod h1:cbVKeC6lCfl7j/8jBhAK6aIYO9XOjdptoxU/nLQcPvs=
 go.etcd.io/etcd/client/pkg/v3 v3.5.0/go.mod h1:IJHfcCEKxYu1Os13ZdwCwIUTUVGYTSAM3YSwc9/Ac1g=
