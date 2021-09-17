@@ -32,6 +32,9 @@ var _ types.LifecycleEnv = (*ASMPipelineTester)(nil)
 var _ types.LifecycleTests = (*ASMPipelineTester)(nil)
 
 func (apt *ASMPipelineTester) SetupEnv() error {
+	if apt.InstallCloudESF {
+		apt.UseASMCLI = true
+	}
 	return env.Setup(&apt.Settings)
 }
 

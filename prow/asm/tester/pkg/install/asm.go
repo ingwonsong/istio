@@ -107,7 +107,9 @@ func (c *installer) installASM(rev *revision.Config) error {
 		}
 
 		// Install Gateway
-		if c.settings.UseASMCLI {
+		// If this is Cloud ESF based, don't install gateway here. The customized
+		// Cloud ESF gateway will be installed in each test.
+		if c.settings.UseASMCLI && !c.settings.InstallCloudESF{
 			revision, err := exec.RunWithOutput(fmt.Sprintf("kubectl get deploy -n istio-system -l app=istiod -o jsonpath='{.items[*].metadata.labels.istio\\.io\\/rev}' --context=%s", context))
 			if err != nil {
 				return fmt.Errorf("error getting istiod revision: %w", err)

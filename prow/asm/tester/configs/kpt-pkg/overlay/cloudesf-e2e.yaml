@@ -8,11 +8,15 @@ spec:
   values:
     gateways:
       istio-ingressgateway:
-        env:
-          ENABLE_CLOUD_ESF: "true"
+        # Cloud ESF based gateway is installed after the istio base and the
+        # Cloud ESF configurations are installed.
+        enabled: false
     telemetry:
       v2:
         enabled: false
+    global:
+      proxy:
+        tracer: none
     pilot:
       env:
         ENABLE_CLOUD_ESF: "true"

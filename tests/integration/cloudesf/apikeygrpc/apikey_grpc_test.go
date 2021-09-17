@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 		NewSuite(m).
 		Setup(istio.Setup(&i, func(r resource.Context, cfg *istio.Config) {
 			cfg.PrimaryClusterIOPFile = "prow/asm/tester/configs/kpt-pkg/overlay/cloudesf-e2e.yaml"
+			cfg.DeployEastWestGW = false
 			cfg.Values["global.proxy.tracer"] = "none"
 		})).
 		Run()

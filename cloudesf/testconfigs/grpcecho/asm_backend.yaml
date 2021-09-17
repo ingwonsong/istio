@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: cloud-esf-asm-e2e
 spec:
-  type: LoadBalancer # Internal IP of the service
+  type: ClusterIP
   selector:
     app: cloud-esf-asm-e2e
   ports:

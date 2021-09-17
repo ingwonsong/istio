@@ -19,24 +19,21 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	kubeApiCore "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/cloudesf"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/image"
 	"istio.io/istio/pkg/test/shell"
 	"istio.io/istio/pkg/test/util/retry"
+	"istio.io/istio/pkg/test/util/tmpl"
 )
 
 var (
-	cloudESFASMPatchConfigFolder = filepath.Join(env.IstioSrc, "tests/integration/cloudesf/patches")
-
 	// The test client image has to run with certain IAM roles, in order to generate
 	// access token by impersonating other identities.
 	//
@@ -48,35 +45,249 @@ var (
 	//  cloudesf-asm-e2e-sa@cloudesf-testing.iam.gserviceaccount.com
 	clientNamespace = "cloudesf-test-client-ns"
 	clientKSA       = "cloudesf-test-client-ksa"
-	clientGSA       = " iam.gke.io/gcp-service-account=cloudesf-asm-e2e-sa@cloudesf-testing.iam.gserviceaccount.com"
+	clientGSA       = "iam.gke.io/gcp-service-account=cloudesf-asm-e2e-sa@cloudesf-testing.iam.gserviceaccount.com"
 	clientPod       = "cloudesf-test-client-pod"
 	clientContainer = "cloudesf-test-client-container"
 
-	defaultHub = "gcr.io/cloudesf-testing/asm"
-	defaultTag = "dev-stable"
+	// The gateway config is based on the sample template from
+	// https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages/tree/main/samples/gateways/istio-ingressgateway
+	// plus Cloud ESF customization.
+	// See https://cloud.google.com/service-mesh/docs/unified-install/install#install_gateways
+	// for general documents for installing ASM gateways.
+	gatewayTemplate = `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: istio-ingressgateway-service-account
+  namespace: istio-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  generation: 2
+  labels:
+    app: istio-ingressgateway
+    istio: ingressgateway
+    istio.io/rev: default
+    release: istio
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+      istio: ingressgateway
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      annotations:
+        inject.istio.io/templates: gateway
+      labels:
+        app: istio-ingressgateway
+        istio: ingressgateway
+        istio.io/rev: default
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+            weight: 2
+          - preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - ppc64le
+            weight: 2
+          - preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - s390x
+            weight: 2
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - ppc64le
+                - s390x
+      initContainers:
+      - name: init-container
+        image: {{ .initContainerImage }}
+        volumeMounts:
+        - mountPath: /etc/istio/proxy
+          name: istio-envoy
+      containers:
+      - env:
+        - name: ISTIO_META_UNPRIVILEGED_POD
+          value: "true"
+        - name: ISTIO_META_ROUTER_MODE
+          value: standard
+        - name: ENABLE_CLOUD_ESF
+          value: "true"
+        image: {{ .gatewayImage }}
+        imagePullPolicy: Always
+        name: istio-proxy
+        ports:
+        - containerPort: 15021
+          protocol: TCP
+        - containerPort: 8080
+          protocol: TCP
+        - containerPort: 8443
+          protocol: TCP
+        - containerPort: 15012
+          protocol: TCP
+        - containerPort: 15443
+          protocol: TCP
+        - containerPort: 15090
+          name: http-envoy-prom
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "2"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          # TODO(b/199536494): verify this is not needed after logtostderr is true.
+          readOnlyRootFilesystem: false
+        volumeMounts:
+        - mountPath: /etc/istio/ingressgateway-certs
+          name: ingressgateway-certs
+          readOnly: true
+        - mountPath: /etc/istio/ingressgateway-ca-certs
+          name: ingressgateway-ca-certs
+          readOnly: true
+        - mountPath: /etc/istio/proxy
+          name: istio-envoy
+      securityContext:
+        fsGroup: 1337
+        runAsGroup: 1337
+        runAsNonRoot: true
+        runAsUser: 1337
+      serviceAccount: istio-ingressgateway-service-account
+      serviceAccountName: istio-ingressgateway-service-account
+      volumes:
+      - name: ingressgateway-certs
+        secret:
+          optional: true
+          secretName: istio-ingressgateway-certs
+      - name: ingressgateway-ca-certs
+        secret:
+          optional: true
+          secretName: istio-ingressgateway-ca-certs
+      - name: istio-envoy
+        emptyDir: {}
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      istio: ingressgateway
+      app: istio-ingressgateway
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: istio-ingressgateway-sds
+  namespace: istio-system
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: istio-ingressgateway-sds
+  namespace: istio-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: istio-ingressgateway-sds
+subjects:
+- kind: ServiceAccount
+  name: istio-ingressgateway-service-account
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  maxReplicas: 1
+  metrics:
+  - resource:
+      name: cpu
+      targetAverageUtilization: 80
+    type: Resource
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: istio-ingressgateway
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  ports:
+  - name: status-port
+    port: 15021
+    protocol: TCP
+    targetPort: 15021
+  - name: http2
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  - name: tcp-istiod
+    port: 15012
+    protocol: TCP
+    targetPort: 15012
+  - name: tls
+    port: 15443
+    protocol: TCP
+    targetPort: 15443
+  selector:
+    istio: ingressgateway
+    app: istio-ingressgateway
+  type: LoadBalancer`
 )
 
 func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageAddr,
 	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs string) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
-		// Patch Istio and set CloudESF as ingress gateway.
-		// TODO(b/195717464): remove those kubectl patch after installing CloudESF as ingress gateway is compatible with ASM.
-		//
-		// This disabling tracer can be done with the latest istio using overlay but
-		// the install_asm is not synced with that version yet, so for now, use kubectl
-		// patch to workaround.
-		executeShell(t, "disabling tracing zipkin",
-			fmt.Sprintf(`kubectl patch configmap/istio -n istio-system --type merge --patch-file %s`, cloudESFASMPatchConfigFolder+"/zipkin.yaml"))
-		executeShell(t, "setting `readOnlyRootFilesystem: false`",
-			fmt.Sprintf(`kubectl  patch deployment istio-ingressgateway -n istio-system --type strategic --patch-file %s`,
-				cloudESFASMPatchConfigFolder+"/read_only_root.yaml"))
-		executeShell(t, "swapping ingress gateway",
-			fmt.Sprintf("kubectl patch deployment istio-ingressgateway -n istio-system --type strategic --patch \"%s\"",
-				proxyPatchConfig()))
-		executeShell(t, "adding initContainer",
-			fmt.Sprintf("kubectl  patch deployment istio-ingressgateway -n istio-system --type merge --patch \"%s\"",
-				initImagePatch(initContainerImageAddr)))
-
 		// Deploy CloudESF config.
 		for _, configPath := range cloudESFConfigs {
 			retry.UntilSuccessOrFail(t, func() error {
@@ -88,8 +299,18 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 			}, retry.Delay(5*time.Second), retry.Timeout(60*time.Second))
 		}
 
+		templateParams := map[string]string{
+			"initContainerImage": initContainerImageAddr,
+			"gatewayImage":       cloudEsfImage(),
+		}
+
+		t.Logf("Deploying Cloud ESF based ingress gateway.")
+		if err := t.Config().ApplyYAML("istio-system", tmpl.MustEvaluate(gatewayTemplate, templateParams)); err != nil {
+			t.Fatalf("fail to install the Cloud ESF based ingress gateway  , err: %v", err)
+		}
+
 		// Get the ingress address.
-		address, _ := i.IngressFor(t.Clusters().Default()).HTTPAddress()
+		address, _ := i.CustomIngressFor(t.Clusters().Default(), "istio-ingressgateway", "ingressgateway").HTTPAddress()
 		t.Logf("The ingress address is: %v", address)
 
 		// Wait for CloudESF to be healthy.
@@ -169,39 +390,19 @@ spec:
 	}
 }
 
-func proxyPatchConfig() string {
-	config := `
-spec:
- template:
-   spec:
-     containers:
-     - name: istio-proxy
-       image: %s/cloudesf:%s`
+func cloudEsfImage() string {
 	s, _ := image.SettingsFromCommandLine()
-	hub := defaultHub
+	hub := "gcr.io/cloudesf-testing/asm"
 	if s.Hub != image.DefaultHub {
 		hub = s.Hub
 	}
 
-	tag := defaultTag
+	tag := "dev-stable"
 	if s.Tag != image.DefaultTag {
 		tag = s.Tag
 	}
 
-	return fmt.Sprintf(config, hub, tag)
-}
-
-func initImagePatch(initContainerImageAddr string) string {
-	return fmt.Sprintf(`
-spec:
- template:
-  spec:
-   initContainers:
-   - name: init-container
-     image: %s:%s
-     volumeMounts:
-     - mountPath: /etc/istio/proxy
-       name: istio-envoy`, initContainerImageAddr, cloudesf.Version())
+	return fmt.Sprintf("%s/cloudesf:%s", hub, tag)
 }
 
 func healthCheck(t framework.TestContext, i istio.Instance, address string, expectedStatusCode int) {
