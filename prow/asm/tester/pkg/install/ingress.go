@@ -21,12 +21,13 @@ import (
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 const (
-	gatewayNamespace = "istio-system"
+	gatewayNamespace             = "istio-system"
 	ingressGatewayServiceAccount = "istio-ingressgateway-service-account"
-	ingressSamples   = "/samples/gateways/istio-ingressgateway"
+	ingressSamples               = "/samples/gateways/istio-ingressgateway"
 )
 
 // TODO we don't want the command to memorize the entire list of files
@@ -35,6 +36,13 @@ func gatewayDir() string {
 }
 
 func (c *installer) installIngressGateway(context, kubeconfig string) error {
+	if c.settings.ClusterType == resource.BareMetal || c.settings.ClusterType == resource.GKEOnAWS || c.settings.ClusterType == resource.APM {
+		os.Setenv("HTTPS_PROXY", os.Getenv("MC_HTTP_PROXY"))
+		os.Setenv("http_proxy", os.Getenv("MC_HTTP_PROXY"))
+		defer os.Unsetenv("HTTPS_PROXY")
+		defer os.Unsetenv("http_proxy")
+	}
+
 	// TODO resource.Settings should have an easy way to fetch this for a given cluster
 	var ctxFlags []string
 	if context != "" {

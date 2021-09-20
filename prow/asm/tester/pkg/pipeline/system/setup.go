@@ -37,6 +37,20 @@ func Setup(settings *resource.Settings) error {
 	if err != nil {
 		// Export the Pod logs if the tests are run on CI.
 		if os.Getenv("CI") == "true" {
+			if settings.ClusterType == resource.BareMetal ||
+				settings.ClusterType == resource.GKEOnAWS ||
+				settings.ClusterType == resource.APM {
+				os.Setenv("HTTPS_PROXY", os.Getenv("MC_HTTP_PROXY"))
+				os.Setenv("http_proxy", os.Getenv("MC_HTTP_PROXY"))
+				defer os.Unsetenv("HTTPS_PROXY")
+				defer os.Unsetenv("http_proxy")
+			}
+
+			log.Printf("######### Print all env vars #########")
+			for _, e := range os.Environ() {
+				log.Println(e)
+			}
+			log.Printf("######### Done printing #########")
 			for _, kubeconfig := range filepath.SplitList(settings.Kubeconfig) {
 				for _, ns := range systemNamespaces {
 					exportLogErr := kube.ExportLogs(kubeconfig, ns, systemLogDir)

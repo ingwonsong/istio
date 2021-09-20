@@ -206,6 +206,8 @@ tests:
           - TestSingleMTLSGateway*
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
+          - TestTlsGateways
+          - TestMtlsGateways
         buganizerID: 200846058
       # telemetry/ tests
       - names:
