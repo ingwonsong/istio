@@ -103,10 +103,12 @@ func AuthenticateClient(gcpMetadata map[string]string) []option.ClientOption {
 	// It's fine to fail for reading from the token because we will use the trust domain as a fallback.
 	subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName)
 	var audience string
-	if err == nil {
-		if audiences, _ := util.GetAud(string(subjectToken)); len(audiences) == 1 {
-			audience = audiences[0]
-		}
+	if err != nil {
+		log.Errorf("Cannot read third party jwt token file: %v", err)
+		return clientOptions
+	}
+	if audiences, _ := util.GetAud(string(subjectToken)); len(audiences) == 1 {
+		audience = audiences[0]
 	}
 
 	// Do the token exchange if either the trust domain or the audience of the token has the workload identity suffix.
@@ -115,23 +117,24 @@ func AuthenticateClient(gcpMetadata map[string]string) []option.ClientOption {
 	// wrong in the installation.
 	if strings.HasSuffix(trustDomain, workloadIdentitySuffix) || strings.HasSuffix(audience, workloadIdentitySuffix) ||
 		strings.HasSuffix(trustDomain, hubWorkloadIdentitySuffix) || strings.HasSuffix(audience, hubWorkloadIdentitySuffix) {
-		// Workload identity is enabled and P4SA access token is used.
-		if err == nil {
-			ts := tokenmanager.NewTokenSource(trustDomain, string(subjectToken), authScope)
-			clientOptions = append(clientOptions, option.WithTokenSource(ts), option.WithQuotaProject(gcpMetadata[platform.GCPProject]))
-			// Set up goroutine to read token file periodically and refresh subject token with new expiry.
-			go func() {
-				for range time.Tick(5 * time.Minute) {
-					if subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName); err == nil {
-						ts.RefreshSubjectToken(string(subjectToken))
-					} else {
-						log.Debugf("Cannot refresh subject token for sts token source: %v", err)
-					}
-				}
-			}()
-		} else {
-			log.Errorf("Cannot read third party jwt token file: %v", err)
+		tm, err := tokenmanager.CreateTokenManager(tokenmanager.GoogleTokenExchange, tokenmanager.Config{TrustDomain: trustDomain})
+		if err != nil {
+			log.Errorf("Cannot create token manager: %v", err)
+			return clientOptions
 		}
+		// Workload identity is enabled and P4SA access token is used.
+		ts := NewTokenSource(tm, string(subjectToken), authScope)
+		clientOptions = append(clientOptions, option.WithTokenSource(ts), option.WithQuotaProject(gcpMetadata[platform.GCPProject]))
+		// Set up goroutine to read token file periodically and refresh subject token with new expiry.
+		go func() {
+			for range time.Tick(5 * time.Minute) {
+				if subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName); err == nil {
+					ts.RefreshSubjectToken(string(subjectToken))
+				} else {
+					log.Debugf("Cannot refresh subject token for sts token source: %v", err)
+				}
+			}
+		}()
 	}
 	return clientOptions
 }
