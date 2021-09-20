@@ -185,10 +185,16 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 }
 
 // commonASMCLIInstallFlags should be appended to any asmcli invocation's flags
-func commonASMCLIInstallFlags() []string {
-	return []string{
-		"--output_dir", ASMOutputDir(),
+func commonASMCLIInstallFlags(settings *resource.Settings) []string {
+	var flags []string
+
+	// HubIDNS tests need to specify fleet ID to pass the fleet verification in ASMCLI
+	if settings.ClusterType == resource.GKEOnGCP {
+		flags = append(flags, "--fleet_id", kube.GKEClusterSpecFromContext(settings.KubeContexts[0]).ProjectID)
 	}
+
+	flags = append(flags, "--output_dir", ASMOutputDir())
+	return flags
 }
 
 // generateASMInstallFlags returns the flags required when running the install
@@ -197,7 +203,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	var installFlags []string
 	if settings.UseASMCLI {
 		installFlags = append(installFlags, "install")
-		installFlags = append(installFlags, commonASMCLIInstallFlags()...)
+		installFlags = append(installFlags, commonASMCLIInstallFlags(settings)...)
 	} else {
 		installFlags = append(installFlags, "--mode", "install")
 	}
@@ -326,7 +332,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, kubeconfig s
 		)
 	}
 	if settings.UseASMCLI {
-		installFlags = append(installFlags, commonASMCLIInstallFlags()...)
+		installFlags = append(installFlags, commonASMCLIInstallFlags(settings)...)
 	}
 
 	return installFlags
