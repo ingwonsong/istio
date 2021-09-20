@@ -27,7 +27,7 @@ import (
 
 const (
 	istioctlPath  = "out/linux_amd64/istioctl"
-	subCaIdPrefix = "asm-test-sub-ca"
+	subCaIdPrefix = "asm-sub-pool"
 
 	// Envvar consts
 	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"

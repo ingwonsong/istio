@@ -227,7 +227,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 		installFlags = append(installFlags, "--ca", "mesh_ca")
 	} else if ca == resource.PrivateCA {
 		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", subCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
-		caName := fmt.Sprintf("projects/%s/locations/%s/caPool/%s",
+		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
 			cluster.ProjectID, cluster.Location, issuingCaPoolId)
 		installFlags = append(installFlags, "--ca", "gcp_cas")
 		installFlags = append(installFlags, "--ca_pool", caName)
