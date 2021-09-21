@@ -8,6 +8,8 @@ configSources:
 
 defaultConfig:
   proxyMetadata:
+    CA_PROVIDER: "{{.CA}}"
+    CA_TRUSTANCHOR: "{{.CATrustAnchor}}"
     XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
     CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
     OUTPUT_CERTS: /etc/istio/proxy

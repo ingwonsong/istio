@@ -128,6 +128,27 @@ func newMCPCommand() *cobra.Command {
 	}
 }
 
+func generateTemplateParameters(p MCPParameters, options AsmOptions, client kubelib.Client) (TemplateParameters, error) {
+	cniEnabled, err := getCniEnabled(options, client)
+	if err != nil {
+		return TemplateParameters{}, err
+	}
+	templateParams := TemplateParameters{
+		MCPParameters: p,
+		CNIEnabled:    cniEnabled,
+	}
+	if options.CAOptions.CAType == PrivatecaOption {
+		templateParams.CA = string(PrivatecaOption)
+		templateParams.CATrustAnchor = options.CAOptions.TrustAnchorLoc
+		templateParams.CAAddress = options.CAOptions.CAAddr
+	} else {
+		templateParams.CA = string(MeshcaOption)
+		templateParams.CAAddress = "meshca.googleapis.com:443"
+		templateParams.CATrustAnchor = ""
+	}
+	return templateParams, nil
+}
+
 func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	t0 := time.Now()
 	defer func() {
@@ -200,13 +221,9 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	// Old script allowed detecting Mesh CA vs Citadel; since we don't plan to do that any longer we only do mesh ca
 	features.EnableCAServer = false
 
-	cniEnabled, err := getCniEnabled(asmOptions, client)
+	templateParams, err := generateTemplateParameters(p, asmOptions, client)
 	if err != nil {
 		return nil, err
-	}
-	templateParams := TemplateParameters{
-		MCPParameters: p,
-		CNIEnabled:    cniEnabled,
 	}
 	createConfig := time.Now()
 	if err := createSystemNamespace(client); err != nil {
@@ -583,18 +600,26 @@ func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
 	if !f {
 		return defaultOpts, nil
 	}
-	parse := func(k string) AsmOptionEnablement {
-		if strings.Contains(opts, k+"=check") {
-			return CheckOption
+	var option AsmOptions
+	for _, cmOption := range strings.Split(opts, ";") {
+		if strings.Contains(cmOption, "CNI=check") {
+			option.CNI = CheckOption
+		} else if strings.Contains(cmOption, "CNI=on") {
+			option.CNI = OnOption
 		}
-		if strings.Contains(opts, k+"=on") {
-			return OnOption
+		if strings.Contains(cmOption, "CA=PRIVATECA") {
+			option.CAOptions.CAType = PrivatecaOption
+		} else if strings.Contains(cmOption, "CA=MESHCA") {
+			option.CAOptions.CAType = MeshcaOption
 		}
-		return OffOption
+		if strings.Contains(cmOption, "CAAddr=") {
+			option.CAOptions.CAAddr = strings.Split(cmOption, "=")[1]
+		}
+		if strings.Contains(cmOption, "TrustAnchorLoc=") {
+			option.CAOptions.TrustAnchorLoc = strings.Split(cmOption, "=")[1]
+		}
 	}
-	return AsmOptions{
-		CNI: parse("CNI"),
-	}, nil
+	return option, nil
 }
 
 // pollIAMPropagation waits until the default service account token is available, to workaround
@@ -750,21 +775,36 @@ func configureMCPLogs(p MCPParameters, options *log.Options) error {
 
 type AsmOptionEnablement string
 
+type CAType string
+
 const (
 	CheckOption AsmOptionEnablement = "check"
 	OffOption   AsmOptionEnablement = "off"
 	OnOption    AsmOptionEnablement = "on"
+
+	MeshcaOption    CAType = "GoogleCA"
+	PrivatecaOption CAType = "GoogleCAS"
 )
 
+type ManagedCAOptions struct {
+	CAAddr         string
+	CAType         CAType
+	TrustAnchorLoc string
+}
+
 type AsmOptions struct {
-	CNI AsmOptionEnablement
+	CNI       AsmOptionEnablement
+	CAOptions ManagedCAOptions
 }
 
 // TemplateParameters represents the set of inputs to the various template files we execute (mesh config,
 // injection, etc)
 type TemplateParameters struct {
 	MCPParameters
-	CNIEnabled bool
+	CNIEnabled    bool
+	CAAddress     string
+	CA            string
+	CATrustAnchor string
 }
 
 // MCPParameters represents the set of inputs from the CloudRun service environment variables

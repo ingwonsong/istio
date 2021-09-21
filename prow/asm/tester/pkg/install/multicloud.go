@@ -36,7 +36,7 @@ const (
 
 // generateASMMultiCloudInstallFlags returns the flags required when running the install
 // script to install ASM on multi cloud.
-func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revision.Config, kubeconfig string) ([]string, error) {
+func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revision.Config, kubeconfig, kubeContext string) ([]string, error) {
 	var installFlags []string
 	installFlags = append(installFlags, "install",
 		"--kubeconfig", kubeconfig,
@@ -78,6 +78,13 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 		installFlags = append(installFlags,
 			"--ca", "citadel",
 		)
+	} else if ca == resource.PrivateCA {
+		clusterInfo := strings.Split(kubeContext, "_")
+		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", subCaIdPrefix, os.Getenv("BUILD_ID"), clusterInfo[3])
+		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
+			clusterInfo[1], clusterInfo[2], issuingCaPoolId)
+		installFlags = append(installFlags, "--ca", "gcp_cas")
+		installFlags = append(installFlags, "--ca_pool", caName)
 	} else {
 		return nil, fmt.Errorf("unsupported CA type for multicloud installation: %s", ca)
 	}
@@ -106,12 +113,13 @@ func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
 		}
 		os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
 
-		for _, kubeconfig := range kubeconfigs {
+		for index, kubeconfig := range kubeconfigs {
 			kubeconfigLogger := log.New(os.Stdout,
 				fmt.Sprintf("[kubeconfig: %s] ", kubeconfig), log.Ldate|log.Ltime)
 			kubeconfigLogger.Println("Performing ASM installation...")
 			kubeconfigLogger.Println("Running installation using install script...")
-			multicloudFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev, kubeconfig)
+			multicloudFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
+				kubeconfig, c.settings.KubeContexts[index])
 			if err != nil {
 				return fmt.Errorf("error generating multicloud install flags: %w", err)
 			}
@@ -170,7 +178,8 @@ func (c *installer) installASMOnMulticloud(rev *revision.Config) error {
 		if err := installCerts(c.settings, kubeconfig); err != nil {
 			return fmt.Errorf("failed to install certs: %w", err)
 		}
-		multicloudFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev, kubeconfig)
+		multicloudFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
+			kubeconfig, c.settings.KubeContexts[i])
 		if err != nil {
 			return fmt.Errorf("error generating multicloud install flags: %w", err)
 		}

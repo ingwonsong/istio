@@ -118,6 +118,18 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		installFlags = append(installFlags, "--mode", "install")
 	}
 
+	ca := settings.CA
+	caFlags := []string{}
+	if ca == resource.MeshCA {
+		caFlags = append(caFlags, "--ca", "mesh_ca")
+	} else if ca == resource.PrivateCA {
+		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", subCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
+		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
+			cluster.ProjectID, cluster.Location, issuingCaPoolId)
+		caFlags = append(caFlags, "--ca", "gcp_cas")
+		caFlags = append(caFlags, "--ca_pool", caName)
+	}
+
 	installFlags = append(installFlags,
 		"--project_id", cluster.ProjectID,
 		"--cluster_location", cluster.Location,
@@ -126,9 +138,8 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--enable_cluster_labels",
 		"--enable_namespace_creation",
 		"--enable_registration",
-		// Currently, MCP only uses mesh CA.
-		"--ca", "mesh_ca",
 		"--verbose")
+	installFlags = append(installFlags, caFlags...)
 
 	if settings.UseASMCLI {
 		installFlags = append(installFlags, "--fleet_id", settings.GCRProject)

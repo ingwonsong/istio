@@ -301,7 +301,7 @@ global:
 
   # The customized CA address to retrieve certificates for the pods in the cluster.
   # CSR clients such as the Istio Agent and ingress gateways can use this to specify the CA endpoint.
-  caAddress: "meshca.googleapis.com:443"
+  caAddress: "{{.CAAddress}}"
 
   # Configure the mesh networks to be used by the Split Horizon EDS.
   #
