@@ -382,6 +382,9 @@ tests:
       - names:
         - TestLocality/FailoverPriority/EDS
         buganizerID: 198848464
+      - names:
+        - TestTraffic/virtualservice/redirect_port_and_scheme
+        buganizerID: 200588569
 
       # telemetry/ tests
       - names:
