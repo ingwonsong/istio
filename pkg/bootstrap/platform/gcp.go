@@ -33,18 +33,23 @@ import (
 )
 
 const (
-	GCPProject           = "gcp_project"
-	GCPProjectNumber     = "gcp_project_number"
-	GCPCluster           = "gcp_gke_cluster_name"
-	GCPClusterURL        = "gcp_gke_cluster_url"
-	GCPLocation          = "gcp_location"
-	GCEInstance          = "gcp_gce_instance"
-	GCEInstanceID        = "gcp_gce_instance_id"
-	GCEInstanceTemplate  = "gcp_gce_instance_template"
-	GCEInstanceCreatedBy = "gcp_gce_instance_created_by"
+	GCPProject            = "gcp_project"
+	GCPProjectNumber      = "gcp_project_number"
+	GCPCluster            = "gcp_gke_cluster_name"
+	GCPClusterURL         = "gcp_gke_cluster_url"
+	GCPLocation           = "gcp_location"
+	GCPFleetProjectNumber = "fleet_project_number"
+	GCEInstance           = "gcp_gce_instance"
+	GCEInstanceID         = "gcp_gce_instance_id"
+	GCEInstanceTemplate   = "gcp_gce_instance_template"
+	GCEInstanceCreatedBy  = "gcp_gce_instance_created_by"
 )
 
-var GCPMetadata = env.RegisterStringVar("GCP_METADATA", "", "Pipe separted GCP metadata, schemed as PROJECT_ID|PROJECT_NUMBER|CLUSTER_NAME|CLUSTER_ZONE").Get()
+var (
+	GCPMetadata = env.RegisterStringVar("GCP_METADATA", "",
+		"Pipe separted GCP metadata, schemed as PROJECT_ID|PROJECT_NUMBER|CLUSTER_NAME|CLUSTER_ZONE").Get()
+	FleetProjectNumber = env.RegisterStringVar("FLEET_PROJECT_NUMBER", "", "Fleet Hosting Project Number").Get()
+)
 
 var (
 	shouldFillMetadata = metadata.OnGCE
@@ -162,6 +167,9 @@ func (e *gcpEnv) Metadata() map[string]string {
 		md[GCPCluster] = envCN
 	} else if cn, err := clusterNameFn(); err == nil {
 		md[GCPCluster] = cn
+	}
+	if FleetProjectNumber != "" {
+		md[GCPFleetProjectNumber] = FleetProjectNumber
 	}
 	// Exit early now if not on GCE. This allows setting env var when not on GCE.
 	if !shouldFillMetadata() {
