@@ -85,7 +85,7 @@ func removePermissions(settings *resource.Settings) error {
 
 func removeGcpPermissions(settings *resource.Settings) error {
 	// If installing from another source, no need to handle the GCP permissions.
-	if settings.InstallOverride != "" {
+	if settings.InstallOverride.IsSet() {
 		return nil
 	}
 	for _, projectId := range settings.ClusterGCPProjects {

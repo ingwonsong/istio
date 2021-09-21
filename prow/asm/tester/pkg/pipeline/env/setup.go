@@ -132,15 +132,6 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 }
 
 func injectEnvVars(settings *resource.Settings) error {
-	var hub, tag string
-	tag = "BUILD_ID_" + getBuildID()
-	if settings.ControlPlane == resource.Unmanaged {
-		hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, getBuildID())
-	} else {
-		// TODO(ruigu): Move this back to asm-staging-images after b/191049493.
-		hub = "gcr.io/wlhe-cr/asm-mcp-e2e-test"
-	}
-
 	var meshID string
 	if settings.ClusterType == resource.GKEOnGCP {
 		projectNum, err := gcp.GetProjectNumber(settings.ClusterGCPProjects[0])
@@ -178,11 +169,6 @@ func injectEnvVars(settings *resource.Settings) error {
 		"CLUSTER_TYPE":     settings.ClusterType.String(),
 		"CLUSTER_TOPOLOGY": settings.ClusterTopology.String(),
 
-		// exported TAG and HUB are used for ASM installation, and as the --istio.test.tag and
-		// --istio-test.hub flags of the testing framework
-		"TAG": tag,
-		"HUB": hub,
-
 		"MESH_ID": meshID,
 
 		"CONTROL_PLANE": settings.ControlPlane.String(),
@@ -191,6 +177,23 @@ func injectEnvVars(settings *resource.Settings) error {
 
 		"VM_DISTRO":     settings.VMImageFamily,
 		"IMAGE_PROJECT": settings.VMImageProject,
+	}
+	// exported TAG and HUB are used for ASM installation, and as the --istio.test.tag and
+	// --istio-test.hub flags of the testing framework
+	if settings.InstallOverride.IsSet() {
+		envVars["HUB"] = settings.InstallOverride.Hub
+		envVars["TAG"] = settings.InstallOverride.Tag
+	} else {
+		envVars["TAG"] = "BUILD_ID_" + getBuildID()
+		var hub string
+		if settings.ControlPlane == resource.Unmanaged {
+			hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, getBuildID())
+		} else {
+			// TODO(ruigu): Move this back to asm-staging-images after b/191049493.
+			hub = "gcr.io/wlhe-cr/asm-mcp-e2e-test"
+		}
+		envVars["HUB"] = hub
+
 	}
 	if settings.RevisionConfig != "" {
 		envVars["MULTI_VERSION"] = "1"

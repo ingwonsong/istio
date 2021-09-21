@@ -6,7 +6,8 @@
 FROM gcr.io/istio-testing/build-tools:master-latest AS tools
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 WORKDIR /toolsbin
-RUN cp /usr/bin/helm* \
+RUN cp \
+    /usr/bin/helm* \
     /usr/bin/kubectl \
     /usr/bin/kpt \
     /toolsbin

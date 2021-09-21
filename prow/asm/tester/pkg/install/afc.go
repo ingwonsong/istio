@@ -97,28 +97,36 @@ EOF'`, context)); err != nil {
 }
 
 func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
-	var installFlags []string
-	installFlags = append(installFlags, "x", "install")
-
-	installFlags = append(installFlags,
+	return []string{
+		"x",
+		"install",
 		"--project_id", cluster.ProjectID,
 		"--cluster_location", cluster.Location,
 		"--cluster_name", cluster.Name,
 		"--managed",
-		"--enable-all",
-		"--verbose")
-	return installFlags
+		"--enable-all", // We can't use getInstallEnableFlags() since it apparently doesn't match what AFC expects
+		"--verbose",
+	}
 }
 
 func generateAFCInstallEnvvars(settings *resource.Settings) []string {
 	// _CI_ASM_PKG_LOCATION _CI_ASM_IMAGE_LOCATION are required for unreleased
 	// ASM and its install script (master and staging branch).
 	envvars := []string{
-		"_CI_ASM_PKG_LOCATION=asm-staging-images",
-		"_CI_ASM_IMAGE_LOCATION=" + os.Getenv("HUB"),
-		"_CI_ASM_IMAGE_TAG=" + os.Getenv("TAG"),
+		"_CI_ASM_KPT_BRANCH=" + settings.NewtaroCommit,
 	}
-
-	envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.NewtaroCommit)
+	if settings.InstallOverride.IsSet() {
+		envvars = append(envvars,
+			"_CI_ASM_IMAGE_LOCATION="+settings.InstallOverride.Hub,
+			"_CI_ASM_IMAGE_TAG="+settings.InstallOverride.Tag,
+			"_CI_ASM_PKG_LOCATION="+settings.InstallOverride.ASMImageBucket,
+		)
+	} else {
+		envvars = append(envvars,
+			"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
+			"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),
+			"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
+		)
+	}
 	return envvars
 }

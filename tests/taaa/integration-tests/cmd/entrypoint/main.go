@@ -163,7 +163,9 @@ func main() {
 		}
 		istioTestTag := string(istioTestTagBytes)
 		log.Printf("Using image tag: [%s]", istioTestTag)
-		testerSetting.InstallOverride = istioTestHub + ":" + istioTestTag
+		if err := testerSetting.InstallOverride.Set(istioTestHub + ":" + istioTestTag + ":gke-release-staging"); err != nil {
+			log.Fatalf("Failed to create install override struct: %s", err)
+		}
 		// Run set up for clusters.
 		if err := doSetup(m); err != nil {
 			return err
@@ -237,8 +239,15 @@ func main() {
 				// Disabling this test since it creates a service account.
 				// TODO(efiturri): Fix enable this.
 				"--istio.test.skip=TestBadRemoteSecret",
+				// Broken due to using hardcoded relative paths when opening testdata/ files.
+				// TODO: Change these to not use relative paths.
+				"--istio.test.skip=TestMirroring",
+				"--istio.test.skip=TestMirroringExternalService",
 			}
-			testFlags = append(testFlags, strings.Split(os.Getenv("INTEGRATION_TEST_FLAGS"), " ")...)
+			for _, testArg := range strings.Split(os.Getenv("INTEGRATION_TEST_FLAGS"), " ") {
+				testFlags = append(testFlags, strings.ReplaceAll(testArg, "\"", ""))
+			}
+			log.Printf("Base test flags:\n%q", testFlags)
 			// TODO(coryrc): the rest of the tests
 			/*
 				ok      istio.io/istio/tests/integration/pilot  0.002s
@@ -331,9 +340,9 @@ func runInstall(env map[string]string) error {
 		"asm_tester",
 		"--setup-env",
 		"--setup-system",
-		"--use-asmcli",
+		"--use-asmcli=false", // newtaro appears to currently broken.
 		"--repo-root-dir", internal.RepoCopyRoot,
-		"--install-from", testerSetting.InstallOverride,
+		"--install-from", testerSetting.InstallOverride.String(),
 		"--wip", testerSetting.WIP.String(),
 		"--gcp-projects", strings.Join(testerSetting.GCPProjects, ","),
 		"--ca", testerSetting.CA.String(),

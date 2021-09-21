@@ -137,14 +137,24 @@ func generateMCPInstallEnvvars(settings *resource.Settings) []string {
 	// ASM and its install script (master and staging branch).
 	// For sidecar proxy and Istiod, _CI_CLOUDRUN_IMAGE_HUB and
 	// _CI_CLOUDRUN_IMAGE_TAG are used.
-	envvars := []string{
-		"_CI_ASM_PKG_LOCATION=asm-staging-images",
-		"_CI_ASM_IMAGE_LOCATION=" + os.Getenv("HUB"),
-		"_CI_ASM_IMAGE_TAG=" + os.Getenv("TAG"),
-		"_CI_CLOUDRUN_IMAGE_HUB=" + os.Getenv("HUB") + "/cloudrun",
-		"_CI_CLOUDRUN_IMAGE_TAG=" + os.Getenv("TAG"),
+	envvars := []string{}
+	if settings.InstallOverride.IsSet() {
+		envvars = append(envvars,
+			"_CI_ASM_IMAGE_LOCATION="+settings.InstallOverride.Hub,
+			"_CI_ASM_IMAGE_TAG="+settings.InstallOverride.Tag,
+			"_CI_ASM_PKG_LOCATION="+settings.InstallOverride.ASMImageBucket,
+			"_CI_CLOUDRUN_IMAGE_HUB="+settings.InstallOverride.Hub+"/cloudrun",
+			"_CI_CLOUDRUN_IMAGE_TAG="+settings.InstallOverride.Tag,
+		)
+	} else {
+		envvars = append(envvars,
+			"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
+			"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),
+			"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
+			"_CI_CLOUDRUN_IMAGE_HUB="+os.Getenv("HUB")+"/cloudrun",
+			"_CI_CLOUDRUN_IMAGE_TAG="+os.Getenv("TAG"),
+		)
 	}
-
 	if settings.UseASMCLI {
 		envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.NewtaroCommit)
 	} else {

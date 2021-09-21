@@ -19,9 +19,10 @@ var (
 	}
 	// Whole directories to copy minus those matched by in the filters in SupplementFilters.
 	TestSupplementDirs = []string{
+		"/manifests/",
 		"/pkg/test/framework/features/",
-		"/tests/integration/",
 		"/prow/asm/tester/",
+		"/tests/integration/",
 	}
 	// The glob patterns used to match code files that we do not want to copy
 	// into the TaaA image. We cannot have source code in images as a policy.

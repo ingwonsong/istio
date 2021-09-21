@@ -113,7 +113,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 		// Install Gateway
 		// If this is Cloud ESF based, don't install gateway here. The customized
 		// Cloud ESF gateway will be installed in each test.
-		if c.settings.UseASMCLI && !c.settings.InstallCloudESF{
+		if c.settings.UseASMCLI && !c.settings.InstallCloudESF {
 			if err := c.installIngressGateway(context, ""); err != nil {
 				return err
 			}
@@ -148,10 +148,16 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 	// these vars out.
 	if rev.Version == "" {
 		masterVars := map[string]string{
-			"_CI_ISTIOCTL_REL_PATH":  filepath.Join(settings.RepoRootDir, istioctlPath),
-			"_CI_ASM_IMAGE_LOCATION": os.Getenv("HUB"),
-			"_CI_ASM_IMAGE_TAG":      os.Getenv("TAG"),
-			"_CI_ASM_PKG_LOCATION":   "asm-staging-images",
+			"_CI_ISTIOCTL_REL_PATH": filepath.Join(settings.RepoRootDir, istioctlPath),
+		}
+		if settings.InstallOverride.IsSet() {
+			masterVars["_CI_ASM_IMAGE_LOCATION"] = settings.InstallOverride.Hub
+			masterVars["_CI_ASM_IMAGE_TAG"] = settings.InstallOverride.Tag
+			masterVars["_CI_ASM_PKG_LOCATION"] = settings.InstallOverride.ASMImageBucket
+		} else {
+			masterVars["_CI_ASM_IMAGE_LOCATION"] = os.Getenv("HUB")
+			masterVars["_CI_ASM_IMAGE_TAG"] = os.Getenv("TAG")
+			masterVars["_CI_ASM_PKG_LOCATION"] = resource.DefaultASMImageBucket
 		}
 		if settings.UseASMCLI {
 			masterVars["_CI_ASM_KPT_BRANCH"] = settings.NewtaroCommit
@@ -200,10 +206,11 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 		"--project_id", cluster.ProjectID,
 		"--cluster_name", cluster.Name,
 		"--cluster_location", cluster.Location,
-		"--enable-all",
 		"--verbose",
 		"--option", "audit-authorizationpolicy",
-		"--option", "cni-gcp")
+		"--option", "cni-gcp",
+	)
+	installFlags = append(installFlags, getInstallEnableFlags()...)
 
 	// Use the CA from revision config for the revision we're installing
 	ca := settings.CA
@@ -298,16 +305,16 @@ func generateASMCreateMeshFlags(settings *resource.Settings) []string {
 // generateASMMultiCloudInstallFlags returns the flags required when running the install
 // script to install ASM on multi cloud.
 func generateASMMultiCloudInstallFlags(settings *resource.Settings, kubeconfig string) []string {
-	var installFlags []string
-	installFlags = append(installFlags, "install",
+	installFlags := []string{
+		"install",
 		"--kubeconfig", kubeconfig,
 		"--fleet_id", "tailorbird",
 		"--platform", "multicloud",
 		"--service-account", "prow-gob-storage@istio-prow-build.iam.gserviceaccount.com",
 		"--key-file", "/etc/service-account/service-account.json",
-		"--enable-all",
 		"--verbose",
-	)
+	}
+	installFlags = append(installFlags, getInstallEnableFlags()...)
 	ca := settings.CA
 	if ca == resource.MeshCA {
 		installFlags = append(installFlags,

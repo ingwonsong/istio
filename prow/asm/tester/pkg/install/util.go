@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
@@ -31,6 +32,8 @@ import (
 )
 
 const scriptRepoBase = "https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-service-mesh-packages"
+
+var enableOptionsArgs = []string{}
 
 func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (string, error) {
 	var scriptBaseName string
@@ -78,7 +81,33 @@ func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (s
 		return "", err
 	}
 
+	allOptions, err := exec.RunWithOutput(path + " --help")
+	if err != nil {
+		return "", err
+	}
+	enableFinder := regexp.MustCompile(`--enable_[^\s]+`)
+	// The --enable_* options most installs should pass.
+	// They consist of everything except gcp iam role modifications.
+	disallowedEnableFlags := map[string]bool{
+		"--enable_all":           true,
+		"--enable_gcp_iam_roles": true,
+	}
+	foundOptionsSet := map[string]bool{} // avoids duplicates
+	enableOptionsArgs = []string{}
+	for _, foundFlag := range enableFinder.FindAll([]byte(allOptions), -1) {
+		foundFlagString := string(foundFlag)
+		if foundOptionsSet[foundFlagString] || disallowedEnableFlags[foundFlagString] {
+			continue
+		}
+		foundOptionsSet[foundFlagString] = true
+		enableOptionsArgs = append(enableOptionsArgs, foundFlagString)
+	}
+
 	return path, nil
+}
+
+func getInstallEnableFlags() []string {
+	return enableOptionsArgs
 }
 
 // createRemoteSecrets creates remote secrets for each cluster to each other cluster
@@ -143,7 +172,7 @@ func setupPermissions(settings *resource.Settings, rev *revision.Config) error {
 }
 
 func setGcpPermissions(settings *resource.Settings) error {
-	if settings.InstallOverride != "" {
+	if settings.InstallOverride.IsSet() {
 		log.Print("No need to set IAM permission if the images are from a specified registry.")
 		return nil
 	}

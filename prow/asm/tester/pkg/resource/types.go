@@ -16,6 +16,7 @@ package resource
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -172,3 +173,49 @@ func (f *Feature) Set(value string) error {
 func (f *Feature) String() string { return string(*f) }
 
 func (f *Feature) Type() string { return "feature" }
+
+// InstallOverride are details that can override default install details.
+type InstallOverride struct {
+	isSet          bool
+	Hub            string
+	Tag            string
+	ASMImageBucket string
+}
+
+// Determines if a user had supplied install override details or not.
+func (io *InstallOverride) IsSet() bool {
+	return io.isSet
+}
+
+// Set converts the value string to InstallOverride
+func (io *InstallOverride) Set(value string) error {
+	if value == "" {
+		io.isSet = false
+		io.Hub = ""
+		io.Tag = ""
+		io.ASMImageBucket = DefaultASMImageBucket
+		return nil
+	}
+	installDetails := strings.Split(value, ":")
+	if len(installDetails) < 2 || len(installDetails) > 3 {
+		return fmt.Errorf("Malformed install override supplied %q", value)
+	}
+	io.isSet = true
+	io.Hub = installDetails[0]
+	io.Tag = installDetails[1]
+	if len(installDetails) > 2 {
+		io.ASMImageBucket = installDetails[2]
+	} else {
+		io.ASMImageBucket = DefaultASMImageBucket
+	}
+	return nil
+}
+
+func (io *InstallOverride) String() string {
+	if !io.IsSet() {
+		return ""
+	}
+	return strings.Join([]string{io.Hub, io.Tag, io.ASMImageBucket}, ":")
+}
+
+func (io *InstallOverride) Type() string { return "install_override" }

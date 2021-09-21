@@ -71,7 +71,7 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	flags.StringVar(&settings.TestStartEventPort, "test-start-event-port", "", "port that clients should use to trigger events occuring in the infra code")
 	flags.BoolVar(&settings.InstallCloudESF, "install-cloudesf", false, "whether to install CloudESF as ingress gateway")
 
-	flags.StringVar(&settings.InstallOverride, "install-from", "", `Overrides installing from the source if supplied. If non empty will interpretted as "${HUB}:${TAG}", and no compilation will be done. Only supported for GKE on GCP installs.`)
+	flags.Var(&settings.InstallOverride, "install-from", `Overrides installing from the source if supplied. If non empty will interpretted as "${HUB}:${TAG}[:ASM_IMAGE_BUCKET]", and no compilation will be done. The optional ASM_IMAGE_BUCKET segment will override the default asm-staging-images bucket location to look at for downloading ASM during install. Only supported for GKE on GCP installs.`)
 
 	return flags
 }
