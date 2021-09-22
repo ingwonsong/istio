@@ -201,6 +201,12 @@ tests:
       - names:
           - TestAuthorization_Custom
         reason: requires mesh config
+      - names:
+          - TestSingleTlsGateway*
+          - TestSingleMTLSGateway*
+          - TestTlsGatewaysWithQUIC/quic*
+          - TestMtlsGatewaysWithQUIC/quic*
+        buganizerID: 200846058
       # telemetry/ tests
       - names:
           - TestStackdriver
