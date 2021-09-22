@@ -42,7 +42,7 @@ const (
 	configRelDir = "deployer/tailorbird/config"
 
 	// GCS path for downloading kubetest2-tailorbird binary
-	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2021-09-02-224811/kubetest2-tailorbird"
+	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2021-09-21-001841/kubetest2-tailorbird"
 
 	installawsIamAuthenticatorCmd = `curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/aws-iam-authenticator \
 			&& chmod +x ./aws-iam-authenticator \
@@ -337,7 +337,7 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 	for _, knest := range rook.Spec.Knests {
 		for _, cluster := range knest.Spec.Clusters {
 			log.Printf("cluster to upgrade: %s", cluster.Metadata.Name)
-			upgradeCmds = append(upgradeCmds, fmt.Sprintf(`kubetest2-tailorbird --up --upgrade-cluster --cluster-name %s --new-version %s`,
+			upgradeCmds = append(upgradeCmds, fmt.Sprintf(`kubetest2-tailorbird --up --upgrade-cluster --upgrade-cluster-name %s --upgrade-target-platform-version %s`,
 				cluster.Metadata.Name, d.cfg.UpgradeClusterVersion))
 		}
 	}
