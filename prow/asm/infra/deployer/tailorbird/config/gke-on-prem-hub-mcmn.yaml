@@ -71,6 +71,8 @@ spec:
                 {{- end }}
                 {{- if .VersionPrefix }}
                 gkectlVersionPrefix: "{{ .VersionPrefix }}"
+                releaseMode: "true"
+                useStagingBucket: "true"
                 {{- end }}
                 # workaround for b/181781346
                 gkectlConfigSeedVersion: "v1"
