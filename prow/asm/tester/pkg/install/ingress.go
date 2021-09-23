@@ -62,9 +62,8 @@ func (c *installer) installIngressGateway(context, kubeconfig string) error {
 
 	applyArgs := append(ctxFlags, "-n", gatewayNamespace)
 	applyArgs = append(applyArgs, strings.Split("-f "+strings.Join(gatewayManifests, " -f "), " ")...)
-	cmd := fmt.Sprintf("kubectl apply")
 	if err := exec.Run("kubectl apply", exec.WithAdditionalArgs(applyArgs)); err != nil {
-		return fmt.Errorf("error installing ingress gateway (%s): %w", cmd, err)
+		return fmt.Errorf("error installing ingress gateway: %w", err)
 	}
 
 	return nil

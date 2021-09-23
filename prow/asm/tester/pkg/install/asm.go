@@ -99,8 +99,10 @@ func (c *installer) installASM(rev *revision.Config) error {
 				}); err != nil {
 					return err
 				}
+				// Set the env var to allow talking to the HUB autopush API in
+				// the GKE test/staging/staging2 environment, according to go/gkehub/calling_api#set-endpoint-information
+				os.Setenv("CLOUDSDK_API_ENDPOINT_OVERRIDES_GKEHUB", "https://autopush-gkehub.sandbox.googleapis.com/")
 			}
-
 		}
 
 		contextLogger.Println("Running installation using install script...")
