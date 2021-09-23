@@ -191,7 +191,7 @@ func (n *kubeNamespace) removeNamespaceLabel(key string) error {
 func (n *kubeNamespace) setNamespaceAnnotation(key, value string) error {
 	// patch is not well-suited to annotating a ns with no existing annotations, use update instead.
 	for _, cluster := range n.ctx.Clusters().Kube() {
-		originalNS, err := cluster.CoreV1().Namespaces().Get(context.TODO(), n.name, kubeApiMeta.GetOptions{})
+		originalNS, err := cluster.CoreV1().Namespaces().Get(context.TODO(), n.name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -199,7 +199,7 @@ func (n *kubeNamespace) setNamespaceAnnotation(key, value string) error {
 			originalNS.Annotations = map[string]string{}
 		}
 		originalNS.Annotations[key] = value
-		_, err = cluster.CoreV1().Namespaces().Update(context.TODO(), originalNS, kubeApiMeta.UpdateOptions{})
+		_, err = cluster.CoreV1().Namespaces().Update(context.TODO(), originalNS, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ func (n *kubeNamespace) removeNamespaceAnnotation(key string) error {
 	jsonPatchEscapedKey := strings.ReplaceAll(key, "/", "~1")
 	for _, cluster := range n.ctx.Clusters().Kube() {
 		anLabelPatch := fmt.Sprintf(`[{"op":"remove","path":"/metadata/annotations/%s"}]`, jsonPatchEscapedKey)
-		if _, err := cluster.CoreV1().Namespaces().Patch(context.TODO(), n.name, types.JSONPatchType, []byte(anLabelPatch), kubeApiMeta.PatchOptions{}); err != nil {
+		if _, err := cluster.CoreV1().Namespaces().Patch(context.TODO(), n.name, types.JSONPatchType, []byte(anLabelPatch), metav1.PatchOptions{}); err != nil {
 			return err
 		}
 	}
