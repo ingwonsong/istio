@@ -503,7 +503,7 @@ efb2f225194335ceffb158f73bd14ac85c7bb473797d75914179660c9c2db967
 facc7fd2599994a7c92a4cc66bac9061b64d71be106e2bb639066969273d4fb8"
   )
   CUSTOM_MIXER="false"
-  for type in handler rule handler; do
+  for type in handler rule instance; do
     names=$(kube get "${type}" -oname -n istio-system)
     for rn in ${names}; do
       hd=$(kube get "${rn}" -n istio-system -o jsonpath='{.spec}')
