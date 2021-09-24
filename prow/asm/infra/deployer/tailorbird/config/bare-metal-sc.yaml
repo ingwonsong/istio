@@ -10,6 +10,7 @@ metadata:
   name: asm-baremetal-scsn-rookery-1
   namespace: tailorbird-users
 spec:
+  ttlSeconds: 7200 # 2 hours
   knests:
     - apiVersion: sut.tailorbird.io/v1alpha1
       kind: Knest
