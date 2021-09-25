@@ -8,9 +8,10 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -98,7 +99,7 @@ func cleanFireWall(project string) {
 	// The tester application creates a firewall on the project with the name
 	// multicluster-firewall-rule. If it was not cleaned up for any reason before
 	// we run the tester, the application will fail since the firewall already exists.
-	sh.Output(
+	sh.Exec(nil, io.Discard, io.Discard,
 		"gcloud", "compute",
 		"firewall-rules", "delete",
 		"multicluster-firewall-rule",
@@ -157,7 +158,7 @@ func main() {
 			log.Printf("Warning: registry cannot be killed, might want to figure out why, error %v", err)
 		}
 
-		istioTestTagBytes, err := ioutil.ReadFile(internal.ImageTagFile)
+		istioTestTagBytes, err := os.ReadFile(internal.ImageTagFile)
 		if err != nil {
 			return fmt.Errorf("/IMAGE_TAG file needed to know which image tag to use: %v", err)
 		}
@@ -166,6 +167,7 @@ func main() {
 		if err := testerSetting.InstallOverride.Set(istioTestHub + ":" + istioTestTag + ":gke-release-staging"); err != nil {
 			log.Fatalf("Failed to create install override struct: %s", err)
 		}
+		log.Printf("Install override structure: %+v", testerSetting.InstallOverride)
 		// Run set up for clusters.
 		if err := doSetup(m); err != nil {
 			return err
@@ -191,6 +193,7 @@ func main() {
 
 		// Run install
 		if m.Execution == asmpb.ASM_INSTALL || m.Execution == asmpb.ASM_BOTH {
+			log.Println("Performing ASM install via Tester.")
 			if err := runInstall(envVars); err != nil {
 				return err
 			}
@@ -239,15 +242,15 @@ func main() {
 				// Disabling this test since it creates a service account.
 				// TODO(efiturri): Fix enable this.
 				"--istio.test.skip=TestBadRemoteSecret",
-				// Broken due to using hardcoded relative paths when opening testdata/ files.
-				// TODO: Change these to not use relative paths.
-				"--istio.test.skip=TestMirroring",
-				"--istio.test.skip=TestMirroringExternalService",
 			}
 			for _, testArg := range strings.Split(os.Getenv("INTEGRATION_TEST_FLAGS"), " ") {
 				testFlags = append(testFlags, strings.ReplaceAll(testArg, "\"", ""))
 			}
 			log.Printf("Base test flags:\n%q", testFlags)
+			workDir, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("Failed to get working directory: %s", err)
+			}
 			// TODO(coryrc): the rest of the tests
 			/*
 				ok      istio.io/istio/tests/integration/pilot  0.002s
@@ -260,7 +263,14 @@ func main() {
 				ok      istio.io/istio/tests/integration/pilot/revisions        0.003s
 			*/
 			for _, bin := range internal.Tests {
-				passedFlags := append(testFlags, fmt.Sprintf("--istio.test.work_dir=%s/%s", entrypoint.OutputDirectory, bin))
+				newWorkDir := path.Join(internal.RepoCopyRoot, internal.IntegrationTestRoot, bin)
+				if err := os.Chdir(newWorkDir); err != nil {
+					return fmt.Errorf("Failed to change working directory: %s", err)
+				}
+				passedFlags := append(testFlags,
+					"--istio.test.work_dir="+path.Join(entrypoint.OutputDirectory, bin),
+				)
+				log.Printf("Running test binary: %s\n  Args: %q\n  Working Dir: %q", bin, passedFlags, newWorkDir)
 				err := entrypoint.GoTest(
 					fmt.Sprintf("/usr/bin/%s.test", bin),
 					"istio.io/istio/tests/integration/"+bin,
@@ -270,6 +280,7 @@ func main() {
 					overall_err = err
 				}
 			}
+			os.Chdir(workDir)
 
 		}
 		return overall_err
@@ -295,7 +306,7 @@ func createKubeConfigs(pb *asmpb.ASM) ([]string, string, error) {
 		}
 		kubeconfigs = append(kubeconfigs, k)
 	}
-	mergedKubeConfigFile, err := ioutil.TempFile("/tmp/", fmt.Sprintf("taaa.kubeconfigFile.merged.*.yaml"))
+	mergedKubeConfigFile, err := os.CreateTemp("/tmp/", fmt.Sprintf("taaa.kubeconfigFile.merged.*.yaml"))
 	if err != nil {
 		return nil, "", fmt.Errorf("Failed to create merged kubeconfig file got error %s", err)
 	}

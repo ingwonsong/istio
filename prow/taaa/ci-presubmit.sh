@@ -12,7 +12,3 @@ pushd tests/taaa/integration-tests
 mage build:artifact
 popd
 
-pushd tests/taaa/install
-mage build:artifact
-popd
-

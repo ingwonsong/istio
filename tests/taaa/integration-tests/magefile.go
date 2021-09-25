@@ -181,8 +181,10 @@ func (Build) TestSupplements() error {
 	}
 	rsyncArgs := append(rsyncFlags, rsyncExcludes...)
 	for _, supplement := range internal.TestSupplementDirs {
-		os.MkdirAll(filepath.Dir(repoRootOutPath+supplement), os.ModePerm)
-		if err := sh.Run("rsync", append(rsyncArgs, repoRoot+supplement, repoRootOutPath+supplement)...); err != nil {
+		source := repoRoot + "/" + supplement
+		destination := repoRootOutPath + "/" + supplement
+		os.MkdirAll(path.Dir(destination), 0755)
+		if err := sh.Run("rsync", append(rsyncArgs, source, destination)...); err != nil {
 			return err
 		}
 	}

@@ -11,7 +11,3 @@ SELFPATH="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
 pushd tests/taaa/integration-tests
 mage build:push master-asm
 popd
-
-pushd tests/taaa/install
-mage build:push master-asm
-popd
