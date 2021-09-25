@@ -19,4 +19,5 @@ const (
 	ConfigDirPath         = "prow/asm/tester/configs"
 	// The default value to look for the ASM image to install.
 	DefaultASMImageBucket = "asm-staging-images"
+	MCFireWallName        = "multicluster-firewall-rule"
 )

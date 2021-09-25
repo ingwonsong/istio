@@ -8,7 +8,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -92,19 +91,6 @@ func createCmdJUnit(errorOutput string, cmdRunErr error) {
 	if err != nil {
 		log.Fatalf("cannot write file %q, got error %v", xmlPath, err)
 	}
-}
-
-func cleanFireWall(project string) {
-	// Remove any prexisting firewall rule.
-	// The tester application creates a firewall on the project with the name
-	// multicluster-firewall-rule. If it was not cleaned up for any reason before
-	// we run the tester, the application will fail since the firewall already exists.
-	sh.Exec(nil, io.Discard, io.Discard,
-		"gcloud", "compute",
-		"firewall-rules", "delete",
-		"multicluster-firewall-rule",
-		"--project", project,
-		"--quiet")
 }
 
 func main() {
@@ -216,11 +202,9 @@ func main() {
 			// The Setup function does more than we need to, but it's the most effective way to get
 			// the information set in some key environment variables:
 			// TEST_SELECT, and INTEGRATION_TEST_FLAGS
-			cleanFireWall(project) // Hacky, but the setup creates the firewall, and fails if exists.
 			if err := env.Setup(testerSetting); err != nil {
 				return fmt.Errorf("error during env set up: %s", err)
 			}
-			defer cleanFireWall(project)
 			if err := tests.Setup(testerSetting); err != nil {
 				return fmt.Errorf("error during test argument set up: %s", err)
 			}
@@ -342,7 +326,6 @@ func doSetup(pb *asmpb.ASM) error {
 	if pb.GetTestSuite() == asmpb.ASM_NETWORKING || pb.GetTestSuite() == asmpb.ASM_ALL {
 		testerSetting.TestTarget = "test.integration.asm.networking"
 	}
-	cleanFireWall(project)
 	return nil
 }
 

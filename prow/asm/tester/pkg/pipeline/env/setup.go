@@ -329,14 +329,30 @@ func addFirewallRules(settings *resource.Settings) error {
 
 	settings.TrustableSourceRanges = strings.Join(append(sourceRanges, testRunnerCidr), ",")
 
-	if err := exec.Run(fmt.Sprintf(`gcloud compute firewall-rules create multicluster-firewall-rule \
+	// Check and delete if already exists
+	foundFirewall, err := exec.RunWithOutput(fmt.Sprintf(`gcloud compute firewall-rules list \
+	--project=%s \
+	--filter name=%s \
+	--format='get(name)'`, networkProject, resource.MCFireWallName))
+	if err != nil {
+		return fmt.Errorf("error checking for firwall rule")
+	}
+	if strings.TrimSpace(foundFirewall) != "" {
+		if err := exec.Run(fmt.Sprintf(`gcloud compute firewall-rules delete %s\
+		--project %s \
+		--quiet`, resource.MCFireWallName, networkProject)); err != nil {
+			return fmt.Errorf("error deleting existing multicluster firewall rule")
+		}
+	}
+	// Now actually make the firewall rule.
+	if err := exec.Run(fmt.Sprintf(`gcloud compute firewall-rules create %s \
 	--network=%s \
 	--project=%s \
 	--allow=tcp,udp,icmp,esp,ah,sctp \
 	--direction=INGRESS \
 	--priority=900 \
 	--source-ranges=%s \
-	--target-tags=%s --quiet`, settings.GKENetworkName, networkProject, settings.TrustableSourceRanges, strings.Join(targetTags, ","))); err != nil {
+	--target-tags=%s --quiet`, resource.MCFireWallName, settings.GKENetworkName, networkProject, settings.TrustableSourceRanges, strings.Join(targetTags, ","))); err != nil {
 		return fmt.Errorf("error creating the firewall rule to allow multi-cluster communication")
 	}
 
