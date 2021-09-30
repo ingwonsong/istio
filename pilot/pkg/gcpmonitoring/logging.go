@@ -76,9 +76,5 @@ func meshUIDFromPlatformMeta(meta map[string]string) string {
 	if pid, ok := meta[platform.GCPProjectNumber]; ok && pid != "" {
 		uid = "proj-" + pid
 	}
-	// When ASM is integrated with Fleet WIP, MeshID uses Fleet project number
-	if fpid, ok := meta[platform.GCPFleetProjectNumber]; ok && fpid != "" {
-		uid = "proj-" + fpid
-	}
 	return uid
 }

@@ -49,7 +49,6 @@ type Config struct {
 // project ID, cluster location, cluster name
 type GCPProjectInfo struct {
 	Number          string
-	FleetNumber     string
 	id              string
 	cluster         string
 	clusterLocation string
@@ -75,9 +74,6 @@ func GetGCPProjectInfo() GCPProjectInfo {
 		if clusterURL, found := md[platform.GCPClusterURL]; found {
 			info.clusterURL = clusterURL
 		}
-		if fleetProjectNum, found := md[platform.GCPFleetProjectNumber]; found {
-			info.FleetNumber = fleetProjectNum
-		}
 	}
 	return info
 }
@@ -91,12 +87,8 @@ func CreateTokenManager(tokenManagerType string, config Config) (security.TokenM
 	switch tokenManagerType {
 	case GoogleTokenExchange:
 		if projectInfo := GetGCPProjectInfo(); len(projectInfo.Number) > 0 {
-			tokenProjectNumber := projectInfo.Number
-			if len(projectInfo.FleetNumber) > 0 {
-				tokenProjectNumber = projectInfo.FleetNumber
-			}
 			if p, err := google.CreateTokenManagerPlugin(config.CredFetcher, config.TrustDomain,
-				tokenProjectNumber, projectInfo.clusterURL, true); err == nil {
+				projectInfo.Number, projectInfo.clusterURL, true); err == nil {
 				tm.plugin = p
 			} else {
 				return nil, err
