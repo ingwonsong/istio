@@ -90,9 +90,13 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	result := reconcile.Result{}
 	dpc := &v1alpha1.DataPlaneControl{}
 	resultMetricLabel := metrics.Unknown
+	var cpVersion string
 	// Record reconciliation loop count with result label at the end.
 	defer func() {
 		metrics.ReportReconcileLoopCount(resultMetricLabel, dpc.Spec.Revision)
+		if dpc.Spec.ProxyVersion != "" {
+			metrics.ReportProxyPercentageTarget(dpc.Spec.ProxyVersion, dpc.Spec.Revision, dpc.Spec.ProxyTargetBasisPoints)
+		}
 	}()
 	if err := n.Client.Get(ctx, request.NamespacedName, dpc); err != nil {
 		resultMetricLabel = metrics.ResourceError
@@ -119,7 +123,8 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		resultMetricLabel = metrics.ResourceError
 		return result, err
 	}
-	cpVersion, err := getControlPlaneExpectedVersion(ctx, n.Client, dpc.Spec.Revision)
+	var err error
+	cpVersion, err = getControlPlaneExpectedVersion(ctx, n.Client, dpc.Spec.Revision)
 	if err != nil {
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.ResourceError
@@ -170,7 +175,6 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	newVersion := dpc.Spec.ProxyVersion
 	log.Infof("target: %v, version: %s", targetPct, newVersion)
 
-	metrics.ReportProxyPercentageTarget(cpVersion, dpc.Spec.Revision, dpc.Spec.ProxyTargetBasisPoints)
 	bptsFraction := float32(dpc.Spec.ProxyTargetBasisPoints) / totalBasisPoints
 	desired := int(math.Ceil(float64(float32(total) * bptsFraction)))
 	if desired < 1 {

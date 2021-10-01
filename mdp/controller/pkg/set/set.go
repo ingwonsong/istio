@@ -36,3 +36,7 @@ func (s Set) Insert(items ...T) {
 func (s Set) Delete(item T) {
 	delete(s, item)
 }
+
+func (s Set) Length() int {
+	return len(s)
+}

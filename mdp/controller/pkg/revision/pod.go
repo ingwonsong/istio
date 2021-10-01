@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"istio.io/istio/mdp/controller/pkg/metrics"
 	"istio.io/istio/mdp/controller/pkg/name"
 	"istio.io/istio/mdp/controller/pkg/set"
 	"istio.io/istio/mdp/controller/pkg/util"
@@ -270,6 +271,7 @@ func (p *podCache) addPodUnsafe(object rtclient.Object) string {
 	} else {
 		pods.Insert(pod.Name)
 	}
+	metrics.ReportProxiesSingleVersion(proxyVersion, rev, pods.Length())
 	return rev
 }
 
@@ -349,6 +351,7 @@ func (p *podCache) RemovePodByName(rev, namespace, version, podname string) {
 			if len(*pods) < 1 {
 				delete(pvmap, version)
 			}
+			metrics.ReportProxiesSingleVersion(version, rev, pods.Length())
 		}
 	} else {
 		pods, ok := pvmap[version]
@@ -360,6 +363,7 @@ func (p *podCache) RemovePodByName(rev, namespace, version, podname string) {
 		if len(*pods) < 1 {
 			delete(pvmap, version)
 		}
+		metrics.ReportProxiesSingleVersion(version, rev, pods.Length())
 	}
 	if len(pvmap) < 1 {
 		delete(nsmap, namespace)

@@ -45,10 +45,15 @@ func ReportProxyPercentageTarget(proxyVersion, revision string, proxyPercentageT
 // TODO(iamwen): add the proxy state label
 func ReportProxies(versionCount map[string]int, revision string) {
 	for ver, count := range versionCount {
-		proxies.With(proxyVersionLabel.Value(ver),
-			ownerLabel.Value(name.MDPOwner),
-			revisionLabel.Value(revision)).RecordInt(int64(count))
+		ReportProxiesSingleVersion(ver, revision, count)
 	}
+}
+
+// ReportProxiesSingleVersion reports proxies of specific version observed by mdp
+func ReportProxiesSingleVersion(ver, revision string, count int) {
+	proxies.With(proxyVersionLabel.Value(ver),
+		ownerLabel.Value(name.MDPOwner),
+		revisionLabel.Value(revision)).RecordInt(int64(count))
 }
 
 // ReportUpgradedProxiesCount reports upgraded_proxy_count metric
