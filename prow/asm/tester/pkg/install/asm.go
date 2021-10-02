@@ -312,6 +312,7 @@ func generateASMCreateMeshFlags(settings *resource.Settings) []string {
 	}
 
 	createMeshFlags = append(createMeshFlags, "--verbose")
+	createMeshFlags = append(createMeshFlags, "--ignore_workload_identity_mismatch")
 
 	return createMeshFlags
 }
