@@ -101,6 +101,9 @@ tests:
       buganizerID: 201558623
     - names:
       - TestCustomGateway/helm
+      - TestBadWasmRemoteLoad
+      - TestStackdriver*
+      buganizerID: 202282289
     - names:
       - TestTraffic/dns/.*
       buganizerID: 191802552
