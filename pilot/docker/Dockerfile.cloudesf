@@ -1,5 +1,5 @@
 # BASE_DISTRIBUTION is used to switch between the old base distribution and distroless base images
-ARG BASE_DISTRIBUTION=default
+ARG BASE_DISTRIBUTION=debug
 
 # Version is the base image version from the TLD Makefile
 ARG BASE_VERSION=latest
@@ -14,12 +14,12 @@ FROM gcr.io/cloudesf-release/proxy:${CLOUDESF_VERSION} as cloudesf_gcr
 # Cloud ESF doesn't need distroless build.
 # FROM gcr.io/istio-release/iptables@sha256:e8f940d0d0163ec4563ee070188c1d97308ac08f4a711152ff55f3a81e525140 as distroless
 
-# The following section is used as base image if BASE_DISTRIBUTION=default
-FROM gcr.io/istio-release/base:${BASE_VERSION} as default
+# The following section is used as base image if BASE_DISTRIBUTION=debug
+FROM gcr.io/istio-release/base:${BASE_VERSION} as debug
 
 # This will build the final image based on either default or distroless from above
 # hadolint ignore=DL3006
-FROM default
+FROM debug
 
 WORKDIR /
 
