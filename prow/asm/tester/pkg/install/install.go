@@ -90,18 +90,16 @@ func (c *installer) preInstall(rev *revision.Config) error {
 		}
 	}
 
-	if c.settings.ControlPlane == resource.Unmanaged {
-		// gke-on-prem clusters are registered into Hub during cluster creations in the on-prem Hub CI jobs
-		if c.settings.ClusterTopology == resource.MultiProject && c.settings.ClusterType == resource.GKEOnGCP {
-			if err := exec.Dispatch(
-				c.settings.RepoRootDir,
-				"register_clusters_in_hub",
-				[]string{
-					c.settings.GCRProject,
-					strings.Join(c.settings.KubeContexts, " "),
-				}); err != nil {
-				return err
-			}
+	// gke-on-prem clusters are registered into Hub during cluster creations in the on-prem Hub CI jobs
+	if c.settings.ClusterTopology == resource.MultiProject && c.settings.ClusterType == resource.GKEOnGCP {
+		if err := exec.Dispatch(
+			c.settings.RepoRootDir,
+			"register_clusters_in_hub",
+			[]string{
+				c.settings.GCRProject,
+				strings.Join(c.settings.KubeContexts, " "),
+			}); err != nil {
+			return err
 		}
 	}
 	// Setup permissions to allow pulling images from GCR registries.

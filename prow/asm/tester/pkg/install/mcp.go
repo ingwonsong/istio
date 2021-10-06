@@ -121,6 +121,10 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--ca", "mesh_ca",
 		"--verbose")
 
+	if settings.UseASMCLI {
+		installFlags = append(installFlags, "--fleet_id", settings.GCRProject)
+	}
+
 	if settings.FeatureToTest == resource.CNI || settings.FeatureToTest == resource.Addon {
 		// Addon always will use CNI
 		installFlags = append(installFlags, "--option", "cni-managed")
