@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	compilerImgPath = internal.ImgPath + "-compiler"
+	compilerImgPath = "gcr.io/istio-testing/build-tools:master-latest"
 	repoRoot        = "../../.."
 	outPath         = "./out"
 	outBinPath      = outPath + "/usr/bin"
@@ -308,20 +308,7 @@ func (Build) compilerImage() error {
 	if err := os.MkdirAll(outBinPath, 0775); err != nil {
 		return err
 	}
-	// Build compiler image.
-	// Create an empty context directory to speed up build time.
-	emptyContextDir, err := os.MkdirTemp("/tmp/", "*")
-	if err != nil {
-		return err
-	}
-	if err := sh.RunV("docker", "build",
-		"--pull",
-		"-t", compilerImgPath,
-		"-f", "compiler.dockerfile",
-		emptyContextDir); err != nil {
-		return err
-	}
-	return os.RemoveAll(emptyContextDir)
+	return sh.RunV("docker", "pull", compilerImgPath)
 }
 
 // Compiles a test package using a container with the same base OS as the

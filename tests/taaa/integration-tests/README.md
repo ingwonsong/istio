@@ -10,8 +10,8 @@ clusters and handle the necessary environment det up.
 
 ## Compiler image
 
-The [`compiler.dockerfile`](compiler.dockerfile) specifies an image to
-used to compile the istio integration tests. Golang is usually statically
+The Prow image that runs the tests is used to compile the istio
+integration tests. Golang is usually statically
 compiled so needing to compile in the same environment as where it runs is
 usually not needed. However the tests have dependencies on code that use
 C/C++ networking DLLs. These libraries cause a panic during `init` if the
