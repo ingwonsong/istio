@@ -26,7 +26,7 @@ import (
 
 const (
 	gatewayNamespace             = "istio-system"
-	ingressGatewayServiceAccount = "istio-ingressgateway-service-account"
+	ingressGatewayServiceAccount = "istio-ingressgateway"
 	ingressSamples               = "/samples/gateways/istio-ingressgateway"
 )
 
