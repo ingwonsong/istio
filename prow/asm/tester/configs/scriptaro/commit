@@ -1,6 +1,7 @@
-f70c3883e8db7431ed0e9e7a123fc9da98631fb2
+3e769b54abb3e3abec93ab7cdedde126e2cf168d
 ========================================
-Clayton Pence
-Fri Oct 1 20:42:25 2021 +0000
+Sam Naser
+Thu Oct 7 14:27:01 2021 -0700
 
-Update rev
+Update resources to use v1 for k8s 1.22 (#1008)
+
