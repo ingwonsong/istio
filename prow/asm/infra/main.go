@@ -73,7 +73,7 @@ func main() {
 	if cfg.Feature == types.Addon {
 		// We only support clusters that have EnsureExists, currently available on rapid only
 		cfg.ReleaseChannel = types.Rapid
-		cfg.ClusterVersion = "1.21"
+		cfg.ClusterVersion = "1.22"
 	}
 
 	if cfg.IsCloudESFTest {
