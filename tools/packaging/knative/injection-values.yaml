@@ -57,11 +57,11 @@ global:
     # Resources for the sidecar.
     resources:
       requests:
-        cpu: 100m
-        memory: 128Mi
+        cpu: "{{.ProxyCPURequest}}"
+        memory: "{{.ProxyMemoryRequest}}"
       limits:
-        cpu: 2000m
-        memory: 1024Mi
+        cpu: "{{.ProxyCPULimit}}"
+        memory: "{{.ProxyMemoryLimit}}"
 
     # Log level for proxy, applies to gateways and sidecars.
     # Expected values are: trace|debug|info|warning|error|critical|off

@@ -134,8 +134,9 @@ func generateTemplateParameters(p MCPParameters, options AsmOptions, client kube
 		return TemplateParameters{}, err
 	}
 	templateParams := TemplateParameters{
-		MCPParameters: p,
-		CNIEnabled:    cniEnabled,
+		MCPParameters:           p,
+		CNIEnabled:              cniEnabled,
+		ProxyResourceParameters: createProxyParameters(client),
 	}
 	if options.CAOptions.CAType == PrivatecaOption {
 		templateParams.CA = string(PrivatecaOption)
@@ -805,6 +806,7 @@ type TemplateParameters struct {
 	CAAddress     string
 	CA            string
 	CATrustAnchor string
+	ProxyResourceParameters
 }
 
 // MCPParameters represents the set of inputs from the CloudRun service environment variables
@@ -825,6 +827,13 @@ type MCPParameters struct {
 	XDSAuthProvider    string
 	GKEClusterURL      string
 	FleetProjectNumber string
+}
+
+type ProxyResourceParameters struct {
+	ProxyMemoryRequest string
+	ProxyCPURequest    string
+	ProxyMemoryLimit   string
+	ProxyCPULimit      string
 }
 
 // nolint: golint
@@ -877,4 +886,39 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	p.TrustDomain = fmt.Sprintf("%s.svc.id.goog", tdProj)
 	p.PodName = fmt.Sprintf("%s-%d", p.KRevision, time.Now().Nanosecond())
 	return p, nil
+}
+
+func createProxyParameters(client kubelib.Client) ProxyResourceParameters {
+	isAutopilot := getIfAutopilot(client)
+
+	proxyCPURequest := "100m"
+	proxyMemoryRequest := "128Mi"
+	proxyCPULimit := "2000m"
+	proxyMemoryLimit := "1024Mi"
+	if isAutopilot {
+		// Since Autopilot always sets limit == request, we need larger requests
+		proxyCPURequest = "500m"
+		proxyMemoryRequest = "512Mi"
+		proxyCPULimit = proxyCPURequest
+		proxyMemoryLimit = proxyMemoryRequest
+	}
+
+	return ProxyResourceParameters{
+		ProxyCPURequest:    proxyCPURequest,
+		ProxyMemoryRequest: proxyMemoryRequest,
+		ProxyCPULimit:      proxyCPULimit,
+		ProxyMemoryLimit:   proxyMemoryLimit,
+	}
+}
+
+func getIfAutopilot(client kubelib.Client) bool {
+	// TODO: wait till https://pkg.go.dev/google.golang.org/genproto/googleapis/container/v1#Cluster
+	// publish the `Autopilot` field
+	// This is a temporary workaround to check if a cluster is Autopilot or GKE
+	// This CRD will be installed only if the cluster is Autopilot
+	autoPilotCRD := "allowlistedworkloads.auto.gke.io"
+	if _, err := client.Ext().ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), autoPilotCRD, metav1.GetOptions{}); err == nil {
+		return true
+	}
+	return false
 }
