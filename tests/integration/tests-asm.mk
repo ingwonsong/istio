@@ -84,7 +84,7 @@ test.integration.asm.addon-migration: | $(JUNIT_REPORT)
 # TODO: re-enable debug logs when scope doesn't cause error: --log_output_level=tf:debug,mdp:debug
 .PHONY: test.integration.asm.mdp
 test.integration.asm.mdp: | $(JUNIT_REPORT) check-go-tag
-	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/mdp/... | grep -v "cni19") -timeout 30m \
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/mdp/... | grep -v "cni19" | grep -v "installation") -timeout 30m \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
@@ -93,6 +93,12 @@ test.integration.asm.mdp: | $(JUNIT_REPORT) check-go-tag
 .PHONY: test.integration.asm.mdp-cni19
 test.integration.asm.mdp-cni19: | $(JUNIT_REPORT) check-go-tag
 	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/mdp/cni19/... -timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+
+.PHONY: test.integration.asm.mdp-installation
+test.integration.asm.mdp-installation: | $(JUNIT_REPORT) check-go-tag
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ ./tests/integration/mdp/installation/... -timeout 30m \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 

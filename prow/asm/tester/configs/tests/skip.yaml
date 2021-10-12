@@ -553,7 +553,10 @@ packages:
         buganizerID: 183429870
       - names:
           - /mdp/controller
-        reason: requires setup of CNI and mutliversion of CP
+        reason: requires setup of CNI and multiversion of CP
+      - names:
+          - /mdp/installation
+        reason: tests meant for asmcli install in VPC-SC environment
 
   # MCP multi-cluster tests skips the following packages.
   - selectors:
@@ -587,4 +590,7 @@ packages:
       buganizerID: 183429870
     - names:
       - /mdp/controller
-      reason: requires setup of CNI and mutliversion of CP
+      reason: requires setup of CNI and multiversion of CP
+    - names:
+      - /mdp/installation
+      reason: tests meant for asmcli install in VPC-SC environment

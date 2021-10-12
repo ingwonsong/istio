@@ -181,6 +181,7 @@ features:
   vm:
     autoregistration:
   mdp:
+    install:
     upgrade:
   cloudesf:
     apikeygrpc:
