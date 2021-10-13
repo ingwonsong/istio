@@ -39,7 +39,7 @@ const (
 	PodASvc          = "a"
 	PodBSvc          = "b"
 	runDuration      = 5 * time.Minute
-	successThreshold = 0.70
+	successThreshold = 0.60
 )
 
 var (
