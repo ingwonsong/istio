@@ -123,7 +123,7 @@ func listIngressFiles(kubectlFlags []string) ([]string, error) {
 // checkForIngressSA returns true if the istio-ingressgateway-service-account exists in the gatewayNamespace
 func checkForIngressSA(kubectlFlags []string) (bool, error) {
 	err := exec.Run(
-		fmt.Sprintf("kubectl -n %s get sa istio-ingressgateway-service-account", gatewayNamespace),
+		fmt.Sprintf("kubectl -n %s get sa %s", gatewayNamespace, ingressGatewayServiceAccount),
 		exec.WithAdditionalArgs(kubectlFlags),
 	)
 	if err == nil {
