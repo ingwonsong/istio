@@ -35,6 +35,12 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
 	}
 
+	// AFC uses staging GKE hub. Clean up staging GKE Hub membership from previous test runs.
+	// TODO(ruigu): Remove this when we're able to delete staging hub memberships in boskos. b/202133285
+	if err := exec.Run(`bash -c 'gcloud container hub memberships list --format="value(name)" | while read line ; do gcloud container hub memberships delete $line --location global --quiet ; done'`); err != nil {
+		return fmt.Errorf("error clean up gke hub endpoint in staging: %w", err)
+	}
+
 	// Use the first project as the environ name
 	// must do this here because each installation depends on the value
 	projectID := c.settings.GCPProjects[0]

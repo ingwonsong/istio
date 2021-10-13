@@ -32,11 +32,10 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/common"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/framework/util"
 	"istio.io/istio/pkg/test/scopes"
 	"istio.io/istio/pkg/test/util/retry"
 )
-
-const cloudSDKCIRepo = "https://storage.googleapis.com/cloud-sdk-testing/ci/staging/components-2.json"
 
 var _ echo.Instance = &instance{}
 
@@ -45,7 +44,7 @@ func init() {
 }
 
 func newInstances(ctx resource.Context, config []echo.Config) (echo.Instances, error) {
-	if err := updateCloudSDK(cloudSDKCIRepo); err != nil {
+	if err := util.UpdateCloudSDKToPiperHead(); err != nil {
 		return nil, err
 	}
 

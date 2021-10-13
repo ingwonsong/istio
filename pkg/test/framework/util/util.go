@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package asmvm
+package util
 
 import (
 	"fmt"
@@ -22,7 +22,17 @@ import (
 	"istio.io/istio/pkg/test/scopes"
 )
 
-const ServiceAccountCreadentialEnv = "E2E_GOOGLE_APPLICATION_CREDENTIALS"
+const (
+	ServiceAccountCreadentialEnv = "E2E_GOOGLE_APPLICATION_CREDENTIALS"
+	cloudSDKCIRepo               = "https://storage.googleapis.com/cloud-sdk-testing/ci/staging/components-2.json"
+)
+
+// UpdateCloudSDKToPiperHead updates gcloud SDK to piper head.
+// CloudSDK provides a continuous build of what is currently HEAD in piper. It is updated every hour.
+// go/cloud-sdk#continuous-builds
+func UpdateCloudSDKToPiperHead() error {
+	return updateCloudSDK(cloudSDKCIRepo)
+}
 
 // Update CloudSDK to use a trusted test repo. Should be the GCS path to the
 // repository's json file. e.g. <BUCKET_URL>/components-2.json

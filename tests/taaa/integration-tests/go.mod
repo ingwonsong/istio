@@ -4,6 +4,8 @@ go 1.16
 
 replace istio.io/istio/prow/asm/tester => ../../../prow/asm/tester
 
+replace istio.io/istio => ../../..
+
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/magefile/mage v1.11.0
