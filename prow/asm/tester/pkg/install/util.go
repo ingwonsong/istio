@@ -294,6 +294,9 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		serviceAccts := []string{
 			"default",
 			ingressGatewayServiceAccount,
+			// TODO: remove this service account once all test flows are
+			// switched to asmcli, see http://gkecl/344478
+			"istio-ingressgateway-service-account",
 			"istio-eastwestgateway-service-account",
 			"istio-reader-service-account",
 			istiodSvcAccount,
