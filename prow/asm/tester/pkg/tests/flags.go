@@ -28,26 +28,28 @@ import (
 // when running the test target.
 func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	testFlags := []string{"--istio.test.kube.deploy=false"}
-	if settings.ControlPlane == resource.Unmanaged {
-		if settings.ClusterType != resource.GKEOnGCP {
-			if !settings.UseASMCLI {
-				testFlags = append(testFlags,
-					fmt.Sprintf("--istio.test.revision=%s", revision.RevisionLabel()))
-			}
-
-			// going from 20s to 30s for the total retry timeout (all attempts)
-			testFlags = append(testFlags, "--istio.test.echo.callTimeout=30s")
-			// going from 5s to 30s for individual ForwardEchoRequests (bounds total all calls in req.Count)
-			testFlags = append(testFlags, "--istio.test.echo.requestTimeout=30s")
-
-			testFlags = append(testFlags,
-				fmt.Sprintf("--istio.test.imagePullSecret=%s/%s",
-					os.Getenv("ARTIFACTS"), imagePullSecretFile))
-		}
-	} else {
+	if settings.ControlPlane != resource.Unmanaged {
 		testFlags = append(testFlags,
 			"--istio.test.revision=asm-managed",
 			"--istio.test.skipDelta")
+	}
+
+	// multicloud settings
+	if settings.ClusterType != resource.GKEOnGCP {
+		if !settings.UseASMCLI {
+			testFlags = append(testFlags,
+				fmt.Sprintf("--istio.test.revision=%s", revision.RevisionLabel()))
+		}
+
+		// going from 20s to 100s for the total retry timeout (all attempts)
+		testFlags = append(testFlags, "--istio.test.echo.callTimeout=100s")
+		// going from 5s to 30s for individual ForwardEchoRequests (bounds total all calls in req.Count)
+		testFlags = append(testFlags, "--istio.test.echo.requestTimeout=30s")
+
+		// make echo deployments use an image pull secret
+		testFlags = append(testFlags,
+			fmt.Sprintf("--istio.test.imagePullSecret=%s/%s",
+				os.Getenv("ARTIFACTS"), imagePullSecretFile))
 	}
 
 	if !settings.UseVMs {
