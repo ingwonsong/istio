@@ -194,6 +194,38 @@ func TestBadRemoteSecret(t *testing.T) {
 
 				t.ConfigKube().ApplyYAMLOrFail(t, ns, secret)
 			}
+			// CreateRemoteSecret can never generate this, so create it manually
+			t.Config().ApplyYAMLOrFail(t, ns, `apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    networking.istio.io/cluster: bad
+  creationTimestamp: null
+  labels:
+    istio/multiCluster: "true"
+  name: istio-remote-secret-bad
+stringData:
+  bad: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+    - cluster:
+        server: https://127.0.0.1
+      name: bad
+    contexts:
+    - context:
+        cluster: bad
+        user: bad
+      name: bad
+    current-context: bad
+    users:
+    - name: bad
+      user:
+        exec:
+          command: /bin/sh
+          args: ["-c", "hello world!"]
+---
+`)
 
 			// create a new istiod pod using the template from the deployment, but not managed by the deployment
 			t.Logf("creating pod %s/%s", ns, pod)

@@ -536,6 +536,12 @@ var (
 		"If enabled, pilot will allow any upstream cluster to be used with AUTO_PASSTHROUGH. "+
 			"This option is intended for backwards compatibility only and is not secure with untrusted downstreams; it will be removed in the future.").Get()
 
+	EnableInsecureKubeConfig = env.RegisterBoolVar(
+		"PILOT_ENABLE_INSECURE_MULTICLUSTER_KUBECONFIG",
+		false,
+		"If enabled, multicluster kubeconfig files will not be validated. "+
+			"This is insecure in environments where untrusted users have the ability to create multicluster secrets.").Get()
+
 	SharedMeshConfig = env.RegisterStringVar("SHARED_MESH_CONFIG", "",
 		"Additional config map to load for shared MeshConfig settings. The standard mesh config will take precedence.").Get()
 
