@@ -117,17 +117,6 @@ tests:
       control_plane: unmanaged
       cluster_type: bare-metal
     targets:
-      - names:
-          - TestStrictMTLS
-        reason: MeshCA does not support ECDSA
-      - names:
-          - TestAuthorization_Custom
-        reason: requires mesh config
-      - names:
-          - TestStackdriver
-          - TestStackdriverAudit
-          - TestVMTelemetry
-        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
       # pilot/ tests
       - names:
           - TestTraffic/serverfirst/auto-tcp-server.*
@@ -146,11 +135,28 @@ tests:
           - TestIngress/update-class-not-istio
           - TestTraffic/consistent-hash/query_param
         buganizerID: 187725074
+
       # security/ tests
       - names:
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
         buganizerID: 199551889
+      - names:
+          - TestStrictMTLS
+        reason: MeshCA does not support ECDSA
+      - names:
+          - TestAuthorization_Custom
+        reason: requires mesh config
+      - names:
+          - TestStackdriver
+          - TestStackdriverAudit
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
+
+      # telemetry/ tests
+      - names:
+          - TestCanonicalServices
+        buganizerID: 203557135
 
   # Unmanaged CP + apm
   - selectors:
@@ -198,12 +204,17 @@ tests:
           - TestTlsGateways
           - TestMtlsGateways
         buganizerID: 200846058
+
       # telemetry/ tests
+      - names:
+          - TestCanonicalServices
+        buganizerID: 203557135
       - names:
           - TestStackdriver
           - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
+
       # networking/ tests
       - names:
         - TestCustomGateway/helm
