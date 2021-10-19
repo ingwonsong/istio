@@ -38,8 +38,7 @@ func TestInstallSuccess(t *testing.T) {
 
 			ns := namespace.NewOrFail(t, tc, namespace.Config{
 				Prefix: "mdp-workload",
-				Inject: false,
-				Labels: map[string]string{"istio.io/rev": "asm-master"}, // TODO (dougreid): should we use a different rev?
+				Inject: true,
 			})
 			if err := ns.SetAnnotation("mesh.cloud.google.com/proxy", `{"managed":"true"}`); err != nil {
 				t.Fatalf("could not set managed annotation: %v", err)
@@ -61,7 +60,7 @@ func TestInstallSuccess(t *testing.T) {
 				t.Fatal("MDP Controller failed to start")
 			}
 
-			builder := echoboot.NewBuilder(tc).WithClusters(cs)
+			builder := echoboot.NewBuilder(tc, cs)
 			builder = builder.WithConfig(echo.Config{
 				Namespace: ns,
 				Service:   "example-workload",
