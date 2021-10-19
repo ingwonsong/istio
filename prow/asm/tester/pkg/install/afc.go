@@ -20,6 +20,8 @@ import (
 	"os"
 	"strings"
 
+	"istio.io/istio/pkg/test/framework/util"
+
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -29,10 +31,18 @@ import (
 func (c *installer) installASMManagedControlPlaneAFC() error {
 	contexts := c.settings.KubeContexts
 
-	// ASM MCP Prow job should use staging AFC since we should alert before
-	// issues reach production.
-	if err := exec.Run("gcloud config set api_endpoint_overrides/gkehub https://staging-gkehub.sandbox.googleapis.com/"); err != nil {
-		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
+	// ASM MCP VPCSC with AFC test requires the latest, as of 10/13/2021, unreleased gcloud binary .
+	// TODO(ruigu): Remove this part after the http://b/204468175.
+	if c.settings.FeatureToTest == resource.VPCSC {
+		if err := util.UpdateCloudSDKToPiperHead(); err != nil {
+			return err
+		}
+	} else {
+		// ASM MCP Prow job (except VPCSC) should use staging AFC since we should alert before
+		// issues reach production.
+		if err := exec.Run("gcloud config set api_endpoint_overrides/gkehub https://staging-gkehub.sandbox.googleapis.com/"); err != nil {
+			return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
+		}
 	}
 
 	// AFC uses staging GKE hub. Clean up staging GKE Hub membership from previous test runs.
@@ -102,16 +112,25 @@ EOF'`, context)); err != nil {
 }
 
 func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
-	return []string{
+	installFlags := []string{
 		"x",
 		"install",
 		"--project_id", cluster.ProjectID,
 		"--cluster_location", cluster.Location,
 		"--cluster_name", cluster.Name,
 		"--managed",
+		// Fix the channel to regular since the go test needs to know injection label beforehand.
+		// Without this, AFC will use GKE channel which can change when we bump the cluster version.
+		// The channel doesn't matter here because we'll overwrite the istiod/proxyv2 image with test
+		// image built on-the-fly.
+		"--channel", "regular",
 		"--enable-all", // We can't use getInstallEnableFlags() since it apparently doesn't match what AFC expects
 		"--verbose",
 	}
+	if settings.FeatureToTest == resource.VPCSC {
+		installFlags = append(installFlags, "--use_vpcsc")
+	}
+	return installFlags
 }
 
 func generateAFCInstallEnvvars(settings *resource.Settings) []string {

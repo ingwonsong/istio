@@ -20,7 +20,6 @@ import (
 	"os"
 	"strings"
 
-	"istio.io/istio/pkg/test/framework/util"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -51,14 +50,6 @@ func (c *installer) installASMManagedControlPlane() error {
 		return fmt.Errorf("failed to read environ number: %w", err)
 	}
 	os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
-
-	// ASM MCP VPCSC test requires the latest, as of 10/13/2021, unreleased gcloud binary .
-	// TODO(ruigu): Remove this part later.
-	if c.settings.FeatureToTest == resource.VPCSC {
-		if err := util.UpdateCloudSDKToPiperHead(); err != nil {
-			return err
-		}
-	}
 
 	for _, context := range contexts {
 		contextLogger := log.New(os.Stdout,

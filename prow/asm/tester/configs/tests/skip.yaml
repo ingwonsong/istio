@@ -511,6 +511,12 @@ tests:
       - TestTraffic/virtualservice/set_authority_header*
       reason: Unkown
       buganizerID: 195128010
+    - names:
+      - TestTraffic/host/ip/auto-http
+      - TestTraffic/host/ip:18081/auto-http
+      - TestTraffic/virtualservice/rewrite_uri
+      reason: Unkown
+      buganizerID: 195128010
 
 packages:
 
