@@ -119,6 +119,23 @@ func (c *installer) installASM(rev *revision.Config) error {
 				return err
 			}
 		}
+
+		if c.settings.FeatureToTest == resource.Autopilot {
+			// b/203609464
+			// Autopilot does not provide control on node, and new cluster only provides a very small node pool,
+			// which will take time to scale up during test runs and lead to test timeout.
+			// As a short term workaround, we warm up the cluster by deploying bunch of dummy workloads before running the test.
+			contextLogger.Println("Warm up Autopilot cluster by deploying dummy workloads")
+			if err := exec.Run(fmt.Sprintf("bash -c "+
+				"\"kubectl --context=%s create deployment warmup --image=nginx --replicas=20 & sleep 10s\"", context)); err != nil {
+				return fmt.Errorf("failed to deploy warm up workloads: %w", err)
+			}
+			// wait for all workloads at default namespace to be ready.
+			if err := exec.Run(fmt.Sprintf("bash -c "+
+				"\"kubectl --context=%s wait --for=condition=Ready pods --all --timeout=10m\"", context)); err != nil {
+				return fmt.Errorf("failed to wait for dummy workload to be ready: %w", err)
+			}
+		}
 	}
 
 	if c.settings.UseASMCLI {
