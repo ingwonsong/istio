@@ -41,6 +41,9 @@ tests:
     - names:
         - TestRemoteClusters
       buganizerID: 194713967
+    - names:
+        - TestTelemetryAPIStats
+      buganizerID: 203820028
 
 
   # Multiversion test skips.
