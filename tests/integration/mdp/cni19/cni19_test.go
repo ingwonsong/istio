@@ -64,7 +64,7 @@ func TestCNI19Upgrade(t *testing.T) {
 				Target:   apps[1],
 				PortName: "http",
 				Headers: map[string][]string{
-					"Host": {apps[1].Config().FQDN()},
+					"Host": {apps[1].Config().ClusterLocalFQDN()},
 				},
 				Message: t.Name(),
 			})

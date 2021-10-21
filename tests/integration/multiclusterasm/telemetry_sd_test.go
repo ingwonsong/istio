@@ -208,7 +208,7 @@ func sendTraffic(t framework.TestContext, src, dest echo.Instance, portName stri
 		Target:   dest,
 		PortName: portName,
 		Headers: map[string][]string{
-			"Host": {dest.Config().FQDN()},
+			"Host": {dest.Config().ClusterLocalFQDN()},
 		},
 		Message: t.Name(),
 	})
