@@ -189,8 +189,9 @@ func injectEnvVars(settings *resource.Settings) error {
 		if settings.ControlPlane == resource.Unmanaged {
 			hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, getBuildID())
 		} else {
-			// TODO(ruigu): Move this back to asm-staging-images after b/191049493.
-			hub = "gcr.io/wlhe-cr/asm-mcp-e2e-test"
+			// Don't change this to a publicly-accessible repo, otherwise we could
+			// be exposing builds with CVE fixes.
+			hub = "gcr.io/asm-staging-images/asm-mcp-e2e-test"
 		}
 		envVars["HUB"] = hub
 
