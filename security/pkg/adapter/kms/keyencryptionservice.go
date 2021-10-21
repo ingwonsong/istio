@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/thalescpl-io/k8s-kms-plugin/apis/istio/v1"
+	"google.golang.org/grpc"
 
 	"istio.io/pkg/log"
 )
@@ -50,10 +51,25 @@ type KeyEncryptionService struct {
 	c      istio.KeyManagementServiceClient
 }
 
+// GetClientSocket is copy of istio.GetClientSocket with https://github.com/thalescpl-io/k8s-kms-plugin/pull/36 copied in
+// TODO: go back to istio.GetClientSocket once merged
+func GetClientSocket(socket string, timeout time.Duration) (ctx context.Context, cancel context.CancelFunc, c istio.KeyManagementServiceClient, err error) {
+	// Get Client
+	options := []grpc.DialOption{grpc.WithInsecure()}
+	var conn *grpc.ClientConn
+	if conn, err = grpc.Dial("unix:"+socket, options...); err != nil {
+		return
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	c = istio.NewKeyManagementServiceClient(conn)
+	return
+}
+
 func (kes *KeyEncryptionService) Connect(timeout time.Duration) error {
 	var err error
 
-	kes.ctx, kes.Cancel, kes.c, err = istio.GetClientSocket(kes.Endpoint, timeout)
+	kes.ctx, kes.Cancel, kes.c, err = GetClientSocket(kes.Endpoint, timeout)
 	if err != nil {
 		kmsLog.Errorf("Client socket failed: %v", err)
 	}

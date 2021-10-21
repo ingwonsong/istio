@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,9 +30,8 @@ import (
 )
 
 const (
-	mockServerSocket = ".sock"
-	defaultKek       = "a37807cd-6d1a-4d75-813a-e120f30176f7"
-	timeout          = time.Second
+	defaultKek = "a37807cd-6d1a-4d75-813a-e120f30176f7"
+	timeout    = time.Second
 )
 
 // mockKmsService is a simple mocked Google KMS Service.
@@ -132,33 +132,27 @@ func (m *mockKmsService) VerifyCertChain(ctx context.Context, request *istio.Ver
 }
 
 // CreateServer creates a mocked local Google CA server and runs it in a separate thread.
-func newMockKmsServer(service *mockKmsService) (*mockKmsServer, error) {
+func newMockKmsServer(t *testing.T, service *mockKmsService) *mockKmsServer {
 	// create a local grpc server
 	s := &mockKmsServer{
 		Server: grpc.NewServer(),
 	}
+	t.Cleanup(s.Stop)
+	d := t.TempDir()
+	socket := filepath.Join(d, "test.sock")
 
-	lis, err := net.Listen("unix", mockServerSocket)
+	lis, err := net.Listen("unix", socket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to listen on the TCP address: %v", err)
+		t.Fatalf("failed to create server: %v", err)
 	}
 	s.Address = lis.Addr().String()
 
-	var serveErr error
 	go func() {
 		istio.RegisterKeyManagementServiceServer(s.Server, service)
-		if err := s.Server.Serve(lis); err != nil {
-			serveErr = err
-		}
+		_ = s.Server.Serve(lis)
 	}()
 
-	// The goroutine starting the server may not be ready, results in flakiness.
-	time.Sleep(1 * time.Second)
-	if serveErr != nil {
-		return nil, err
-	}
-
-	return s, nil
+	return s
 }
 
 // Stop stops the Mock Mesh CA server.
@@ -191,37 +185,32 @@ func TestGenerateDEK(t *testing.T) {
 		},
 	}
 
-	defer os.Remove(mockServerSocket)
 	for id, tc := range testCases {
-		// create a local grpc server
-		os.Remove(mockServerSocket)
-		s, err := newMockKmsServer(&tc.service)
-		if err != nil {
-			t.Fatalf("Test case [%s]: failed to create server: %v", id, err)
-		}
-		defer s.Stop()
+		t.Run(id, func(t *testing.T) {
+			// create a local grpc server
+			s := newMockKmsServer(t, &tc.service)
 
-		var kesClient KeyEncryptionService
-		kesClient.Endpoint = s.Address
-		err = kesClient.Connect(timeout)
-		if err != nil {
-			t.Errorf("Test case [%s]: failed to create client: %v", id, err)
-		}
+			var kesClient KeyEncryptionService
+			kesClient.Endpoint = s.Address
 
-		kesClient.ctx = context.Background()
-		resp, err := kesClient.GenerateDEK(tc.service.kekKid)
-		if err != nil {
-			if err.Error() != tc.expectedErr {
-				t.Errorf("Test case [%s]: \n error (%s) does not match \n expected error (%s)", id, err.Error(), tc.expectedErr)
+			if err := kesClient.Connect(timeout); err != nil {
+				t.Errorf("failed to create client: %v", err)
 			}
-		} else {
-			if tc.expectedErr != "" {
-				t.Errorf("Test case [%s]: \n expect error: %s \n but got no error", id, tc.expectedErr)
-			} else if !reflect.DeepEqual(resp, tc.expectedDek) {
-				t.Errorf("Test case [%s]: \n resp: got %+v, \n expected %v", id, resp, tc.expectedDek)
+
+			kesClient.ctx = context.Background()
+			resp, err := kesClient.GenerateDEK(tc.service.kekKid)
+			if err != nil {
+				if err.Error() != tc.expectedErr {
+					t.Errorf("error (%s) does not match \n expected error (%s)", err.Error(), tc.expectedErr)
+				}
+			} else {
+				if tc.expectedErr != "" {
+					t.Errorf("expect error: %s \n but got no error", tc.expectedErr)
+				} else if !reflect.DeepEqual(resp, tc.expectedDek) {
+					t.Errorf("resp: got %+v, \n expected %v", resp, tc.expectedDek)
+				}
 			}
-		}
-		os.Remove(mockServerSocket)
+		})
 	}
 }
 
@@ -280,37 +269,32 @@ func TestGenerateGenerateSKey(t *testing.T) {
 		},
 	}
 
-	defer os.Remove(mockServerSocket)
 	for id, tc := range testCases {
-		// create a local grpc server
-		os.Remove(mockServerSocket)
-		s, err := newMockKmsServer(&tc.service)
-		if err != nil {
-			t.Fatalf("Test case [%s]: failed to create server: %v", id, err)
-		}
-		defer s.Stop()
+		t.Run(id, func(t *testing.T) {
+			// create a local grpc server
+			s := newMockKmsServer(t, &tc.service)
 
-		var kesClient KeyEncryptionService
-		kesClient.Endpoint = s.Address
-		err = kesClient.Connect(timeout)
-		if err != nil {
-			t.Errorf("Test case [%s]: failed to create client: %v", id, err)
-		}
+			var kesClient KeyEncryptionService
+			kesClient.Endpoint = s.Address
 
-		kesClient.ctx = context.Background()
-		resp, err := kesClient.GenerateSKey(tc.service.kekKid, tc.service.encryptedDekBlob, tc.keySize, tc.keyType)
-		if err != nil {
-			if err.Error() != tc.expectedErr {
-				t.Errorf("Test case [%s]: \n error (%s) does not match \n expected error (%s)", id, err.Error(), tc.expectedErr)
+			if err := kesClient.Connect(timeout); err != nil {
+				t.Errorf("failed to create client: %v", err)
 			}
-		} else {
-			if tc.expectedErr != "" {
-				t.Errorf("Test case [%s]: \n expect error: %s \n but got no error", id, tc.expectedErr)
-			} else if !reflect.DeepEqual(resp, tc.expectedSkey) {
-				t.Errorf("Test case [%s]: \n resp: got %+v, \n expected %v", id, resp, tc.expectedSkey)
+
+			kesClient.ctx = context.Background()
+			resp, err := kesClient.GenerateSKey(tc.service.kekKid, tc.service.encryptedDekBlob, tc.keySize, tc.keyType)
+			if err != nil {
+				if err.Error() != tc.expectedErr {
+					t.Errorf("error (%s) does not match \n expected error (%s)", err.Error(), tc.expectedErr)
+				}
+			} else {
+				if tc.expectedErr != "" {
+					t.Errorf("expect error: %s \n but got no error", tc.expectedErr)
+				} else if !reflect.DeepEqual(resp, tc.expectedSkey) {
+					t.Errorf("resp: got %+v, \n expected %v", resp, tc.expectedSkey)
+				}
 			}
-		}
-		os.Remove(mockServerSocket)
+		})
 	}
 }
 
@@ -340,37 +324,32 @@ func TestGenerateAuthenticatedEncrypt(t *testing.T) {
 		},
 	}
 
-	defer os.Remove(mockServerSocket)
 	for id, tc := range testCases {
-		// create a local grpc server
-		os.Remove(mockServerSocket)
-		s, err := newMockKmsServer(&tc.service)
-		if err != nil {
-			t.Fatalf("Test case [%s]: failed to create server: %v", id, err)
-		}
-		defer s.Stop()
+		t.Run(id, func(t *testing.T) {
+			// create a local grpc server
+			s := newMockKmsServer(t, &tc.service)
 
-		var kesClient KeyEncryptionService
-		kesClient.Endpoint = s.Address
-		err = kesClient.Connect(timeout)
-		if err != nil {
-			t.Errorf("Test case [%s]: failed to create client: %v", id, err)
-		}
+			var kesClient KeyEncryptionService
+			kesClient.Endpoint = s.Address
 
-		kesClient.ctx = context.Background()
-		resp, err := kesClient.AuthenticatedEncrypt(tc.service.kekKid, tc.service.encryptedDekBlob, tc.aad, tc.service.plaintext)
-		if err != nil {
-			if err.Error() != tc.expectedErr {
-				t.Errorf("Test case [%s]: \n error (%s) does not match \n expected error (%s)", id, err.Error(), tc.expectedErr)
+			if err := kesClient.Connect(timeout); err != nil {
+				t.Errorf("failed to create client: %v", err)
 			}
-		} else {
-			if tc.expectedErr != "" {
-				t.Errorf("Test case [%s]: \n expect error: %s \n but got no error", id, tc.expectedErr)
-			} else if !reflect.DeepEqual(resp, tc.expectedkey) {
-				t.Errorf("Test case [%s]: \n resp: got %+v, \n expected %v", id, resp, tc.expectedkey)
+
+			kesClient.ctx = context.Background()
+			resp, err := kesClient.AuthenticatedEncrypt(tc.service.kekKid, tc.service.encryptedDekBlob, tc.aad, tc.service.plaintext)
+			if err != nil {
+				if err.Error() != tc.expectedErr {
+					t.Errorf("error (%s) does not match \n expected error (%s)", err.Error(), tc.expectedErr)
+				}
+			} else {
+				if tc.expectedErr != "" {
+					t.Errorf("expect error: %s \n but got no error", tc.expectedErr)
+				} else if !reflect.DeepEqual(resp, tc.expectedkey) {
+					t.Errorf("resp: got %+v, \n expected %v", resp, tc.expectedkey)
+				}
 			}
-		}
-		os.Remove(mockServerSocket)
+		})
 	}
 }
 
@@ -401,35 +380,31 @@ func TestGenerateAuthenticatedDecrypt(t *testing.T) {
 	}
 
 	for id, tc := range testCases {
-		// create a local grpc server
-		os.Remove(mockServerSocket)
-		s, err := newMockKmsServer(&tc.service)
-		if err != nil {
-			t.Fatalf("Test case [%s]: failed to create server: %v", id, err)
-		}
-		defer s.Stop()
+		t.Run(id, func(t *testing.T) {
+			// create a local grpc server
+			s := newMockKmsServer(t, &tc.service)
 
-		var kesClient KeyEncryptionService
-		kesClient.Endpoint = s.Address
-		err = kesClient.Connect(timeout)
-		if err != nil {
-			t.Errorf("Test case [%s]: failed to create client: %v", id, err)
-		}
+			var kesClient KeyEncryptionService
+			kesClient.Endpoint = s.Address
 
-		kesClient.ctx = context.Background()
-		resp, err := kesClient.AuthenticatedDecrypt(tc.service.kekKid, tc.service.encryptedDekBlob, tc.aad, tc.service.ciphertext)
-		if err != nil {
-			if err.Error() != tc.expectedErr {
-				t.Errorf("Test case [%s]: \n error (%s) does not match \n expected error (%s)", id, err.Error(), tc.expectedErr)
+			if err := kesClient.Connect(timeout); err != nil {
+				t.Errorf("failed to create client: %v", err)
 			}
-		} else {
-			if tc.expectedErr != "" {
-				t.Errorf("Test case [%s]: \n expect error: %s \n but got no error", id, tc.expectedErr)
-			} else if !reflect.DeepEqual(resp, tc.expectedkey) {
-				t.Errorf("Test case [%s]: \n resp: got %+v, \n expected %v", id, resp, tc.expectedkey)
+
+			kesClient.ctx = context.Background()
+			resp, err := kesClient.AuthenticatedDecrypt(tc.service.kekKid, tc.service.encryptedDekBlob, tc.aad, tc.service.ciphertext)
+			if err != nil {
+				if err.Error() != tc.expectedErr {
+					t.Errorf("error (%s) does not match \n expected error (%s)", err.Error(), tc.expectedErr)
+				}
+			} else {
+				if tc.expectedErr != "" {
+					t.Errorf("expect error: %s \n but got no error", tc.expectedErr)
+				} else if !reflect.DeepEqual(resp, tc.expectedkey) {
+					t.Errorf("resp: got %+v, \n expected %v", resp, tc.expectedkey)
+				}
 			}
-		}
-		os.Remove(mockServerSocket)
+		})
 	}
 }
 
@@ -441,52 +416,49 @@ func TestConnection(t *testing.T) {
 	}{
 		"Non-socket": {
 			createFile:  true,
-			addr:        mockServerSocket,
 			expectedErr: []string{"socket operation on non-socket", "connection refused"},
 		},
 		"Server not started": {
 			createFile:  false,
-			addr:        mockServerSocket,
 			expectedErr: []string{"no such file or directory"},
 		},
 		"Fake endpoint address": {
 			createFile:  false,
-			addr:        ".invalid",
 			expectedErr: []string{"no such file or directory"},
 		},
 	}
 
-	defer os.Remove(".sock")
 	for id, tc := range testCases {
-		os.Remove(tc.addr)
-		if tc.createFile {
-			os.Create(tc.addr)
-		}
+		t.Run(id, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "test.sock")
+			if tc.createFile {
+				os.Create(path)
+			}
 
-		var kesClient KeyEncryptionService
-		kesClient.Endpoint = tc.addr
-		err := kesClient.Connect(timeout)
-		if err != nil {
-			t.Errorf("Test case [%s]: Problem calling Connect", id)
-		}
+			var kesClient KeyEncryptionService
+			kesClient.Endpoint = path
+			err := kesClient.Connect(timeout)
+			if err != nil {
+				t.Error("Problem calling Connect")
+			}
 
-		// Connect() is asynchronous, so we need to make a call to actually check the connection.
-		_, err = kesClient.GenerateDEK([]byte(defaultKek))
+			// Connect() is asynchronous, so we need to make a call to actually check the connection.
+			_, err = kesClient.GenerateDEK([]byte(defaultKek))
 
-		var matchedErr bool
-		if err != nil {
-			for _, tcExpectedErr := range tc.expectedErr {
-				if strings.Contains(err.Error(), tcExpectedErr) {
-					matchedErr = true
-					break
+			var matchedErr bool
+			if err != nil {
+				for _, tcExpectedErr := range tc.expectedErr {
+					if strings.Contains(err.Error(), tcExpectedErr) {
+						matchedErr = true
+						break
+					}
 				}
+				if !matchedErr {
+					t.Errorf("error (%s) does not match \n expected error (%s)", err.Error(), tc.expectedErr)
+				}
+			} else {
+				t.Errorf("got no error, \n but expected %v", tc.expectedErr)
 			}
-			if !matchedErr {
-				t.Errorf("Test case [%s]: \n error (%s) does not match \n expected error (%s)", id, err.Error(), tc.expectedErr)
-			}
-		} else {
-			t.Errorf("Test case [%s]: \n got no error, \n but expected %v", id, tc.expectedErr)
-		}
-		os.Remove(tc.addr)
+		})
 	}
 }
