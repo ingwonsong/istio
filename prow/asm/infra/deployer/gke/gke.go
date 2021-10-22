@@ -298,7 +298,7 @@ func featureVPCSCPresetup(gcpProjects []string, topology types.Topology) ([]stri
 	// Best effort cleanups for the previously created Cloud DNS managed-zone.
 	// TODO(chizhg): in the future these cleanups should be handled by Boskos
 	// 				 Janitor - https://github.com/kubernetes-sigs/boskos/issues/88
-	exec.RunMultiple([]string{
+	exec.RunMultipleNoStop([]string{
 		"gcloud dns record-sets transaction start --zone=googleapis-zone",
 		`gcloud dns record-sets transaction remove --name=*.googleapis.com. \
 			--type=CNAME restricted.googleapis.com. \
@@ -311,7 +311,7 @@ func featureVPCSCPresetup(gcpProjects []string, topology types.Topology) ([]stri
 		"gcloud dns record-sets transaction execute --zone=googleapis-zone",
 		"gcloud beta dns managed-zones delete googleapis-zone",
 	})
-	exec.RunMultiple([]string{
+	exec.RunMultipleNoStop([]string{
 		"gcloud dns record-sets transaction start --zone=gcr-zone",
 		`gcloud dns record-sets transaction remove \
 			--name=*.gcr.io. \

@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/hashicorp/go-multierror"
 	shell "github.com/kballard/go-shellquote"
 )
 
@@ -83,6 +84,19 @@ func RunMultiple(rawCommands []string, options ...Option) error {
 		}
 	}
 	return nil
+}
+
+// RunMultipleNoStop will run the commands with the given options and does *not* stop if there is an error in the middle.
+// It will wait until all the commands are finished. The returned error will be a list of errors.
+func RunMultipleNoStop(rawCommands []string, options ...Option) error {
+	var errList error
+	for _, cmd := range rawCommands {
+		err := Run(cmd, options...)
+		if err != nil {
+			errList = multierror.Append(errList, fmt.Errorf("command %q failed with error: %w", cmd, err))
+		}
+	}
+	return errList
 }
 
 // Output will run the command with the given args and options, and
