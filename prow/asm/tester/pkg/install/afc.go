@@ -130,6 +130,13 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 	if settings.FeatureToTest == resource.VPCSC {
 		installFlags = append(installFlags, "--use_vpcsc")
 	}
+
+	// To test Managed CNI, we need to pass an extra flag to ASMCLI so that we don't
+	// manually apply static manifests
+	if settings.FeatureToTest == resource.CNI {
+		installFlags = append(installFlags, "--use_managed_cni")
+	}
+
 	return installFlags
 }
 
