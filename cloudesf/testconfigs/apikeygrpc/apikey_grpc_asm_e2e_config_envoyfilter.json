@@ -280,6 +280,7 @@
                       },
                       "authentication": {
                         "environment": "ubermint.googleprod.com",
+                        "gaiaService": "ahadmin",
                         "rules": [
                           {
                             "browserFirstPartyAuth": {
@@ -292,7 +293,7 @@
                             "uberMint": {
                               "mode": "ENABLED"
                             },
-                            "useRpcSecurityPolicy": "CLOUD_POLICY_ENFORCEMENT"
+                            "useRpcSecurityPolicy": "DELEGATED"
                           },
                           {
                             "browserFirstPartyAuth": {
@@ -305,7 +306,7 @@
                             "uberMint": {
                               "mode": "ENABLED"
                             },
-                            "useRpcSecurityPolicy": "CLOUD_POLICY_ENFORCEMENT"
+                            "useRpcSecurityPolicy": "DELEGATED"
                           },
                           {
                             "browserFirstPartyAuth": {
@@ -318,7 +319,7 @@
                             "uberMint": {
                               "mode": "ENABLED"
                             },
-                            "useRpcSecurityPolicy": "CLOUD_POLICY_ENFORCEMENT"
+                            "useRpcSecurityPolicy": "DELEGATED"
                           },
                           {
                             "browserFirstPartyAuth": {
@@ -331,7 +332,7 @@
                             "uberMint": {
                               "mode": "ENABLED"
                             },
-                            "useRpcSecurityPolicy": "CLOUD_POLICY_ENFORCEMENT"
+                            "useRpcSecurityPolicy": "DELEGATED"
                           },
                           {
                             "browserFirstPartyAuth": {
@@ -344,7 +345,7 @@
                             "uberMint": {
                               "mode": "ENABLED"
                             },
-                            "useRpcSecurityPolicy": "CLOUD_POLICY_ENFORCEMENT"
+                            "useRpcSecurityPolicy": "DELEGATED"
                           }
                         ]
                       },
@@ -751,7 +752,10 @@
                                 },
                                 "userRequirements": {
                                   "serviceFlagConstraint": [
-                                    {}
+                                    {
+                                      "notDasherAdminDisabled": false,
+                                      "serviceId": 174
+                                    }
                                   ]
                                 }
                               }
@@ -780,7 +784,10 @@
                                 },
                                 "userRequirements": {
                                   "serviceFlagConstraint": [
-                                    {}
+                                    {
+                                      "notDasherAdminDisabled": false,
+                                      "serviceId": 174
+                                    }
                                   ]
                                 }
                               }
@@ -809,7 +816,10 @@
                                 },
                                 "userRequirements": {
                                   "serviceFlagConstraint": [
-                                    {}
+                                    {
+                                      "notDasherAdminDisabled": false,
+                                      "serviceId": 174
+                                    }
                                   ]
                                 }
                               }
@@ -838,7 +848,10 @@
                                 },
                                 "userRequirements": {
                                   "serviceFlagConstraint": [
-                                    {}
+                                    {
+                                      "notDasherAdminDisabled": false,
+                                      "serviceId": 174
+                                    }
                                   ]
                                 }
                               }
@@ -867,7 +880,10 @@
                                 },
                                 "userRequirements": {
                                   "serviceFlagConstraint": [
-                                    {}
+                                    {
+                                      "notDasherAdminDisabled": false,
+                                      "serviceId": 174
+                                    }
                                   ]
                                 }
                               }
@@ -875,70 +891,6 @@
                             "method": "google.example.apikeys.v1.ApiKeys.DeleteApiKey"
                           }
                         ],
-                        "cpeInfo": {
-                          "rpcSecurityPolicy": {
-                            "mapping": [
-                              {
-                                "action": [
-                                  "google.example.apikeys.v1.ApiKeys.CreateApiKey",
-                                  "google.example.apikeys.v1.ApiKeys.DeleteApiKey",
-                                  "google.example.apikeys.v1.ApiKeys.GetApiKey",
-                                  "google.example.apikeys.v1.ApiKeys.ListApiKeys",
-                                  "google.example.apikeys.v1.ApiKeys.UpdateApiKey"
-                                ],
-                                "authenticationPolicy": {
-                                  "authenticationMethods": {
-                                    "cloudUbermint": {
-                                      "mode": "ENABLED"
-                                    },
-                                    "useDefaultMethods": true
-                                  },
-                                  "credsPolicy": {
-                                    "rules": [
-                                      {
-                                        "action": "ALLOW",
-                                        "description": "Autogenerated by OnePlatform Tools: LOAS, normal user EUC access and prod user EUC access for self",
-                                        "in": [
-                                          "self"
-                                        ],
-                                        "permissions": [
-                                          "auth.creds.useLOAS",
-                                          "auth.creds.useNormalUserEUC",
-                                          "auth.creds.useProdUserEUC"
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  "impersonationPolicy": {
-                                    "rules": [
-                                      {
-                                        "action": "ALLOW",
-                                        "description": "Autogenerated by OnePlatform Tools: Normal user and prod user impersonation for all users",
-                                        "in": [
-                                          "allUsers"
-                                        ],
-                                        "permissions": [
-                                          "auth.impersonation.impersonateNormalUser",
-                                          "auth.impersonation.impersonateProdUser"
-                                        ]
-                                      }
-                                    ]
-                                  }
-                                },
-                                "authorizationMode": "CLOUD_POLICY_ENFORCEMENT",
-                                "esfConfig": {
-                                  "allowUntrustedRequests": true,
-                                  "trustedEsfRoles": [
-                                    "self"
-                                  ]
-                                }
-                              }
-                            ],
-                            "policyRequirement": {
-                              "axtLevel": "AXT_L3"
-                            }
-                          }
-                        },
                         "discovery": [
                           {
                             "apiVersion": "v1",
@@ -1206,7 +1158,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210910",
+                              "revision": "20211025",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -1542,7 +1494,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210910",
+                              "revision": "20211025",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -1880,7 +1832,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210910",
+                              "revision": "20211025",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -2218,7 +2170,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210910",
+                              "revision": "20211025",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -2556,7 +2508,7 @@
                                   }
                                 }
                               },
-                              "revision": "20210910",
+                              "revision": "20211025",
                               "rootUrl": "https://cap-e2e-codelabapikeys.sandbox.googleapis.com/",
                               "schemas": {
                                 "ApiKey": {
@@ -3088,7 +3040,7 @@
                       "documentation": {
                         "rules": [
                           {
-                            "description": "A Duration represents a signed, fixed-length span of time represented\nas a count of seconds and fractions of seconds at nanosecond\nresolution. It is independent of any calendar and concepts like \"day\"\nor \"month\". It is related to Timestamp in that the difference between\ntwo Timestamp values is a Duration and it can be added or subtracted\nfrom a Timestamp. Range is approximately +-10,000 years.\n\n# Examples\n\nExample 1: Compute Duration from two Timestamps in pseudo code.\n\n    Timestamp start = ...;\n    Timestamp end = ...;\n    Duration duration = ...;\n\n    duration.seconds = end.seconds - start.seconds;\n    duration.nanos = end.nanos - start.nanos;\n\n    if (duration.seconds < 0 && duration.nanos > 0) {\n      duration.seconds += 1;\n      duration.nanos -= 1000000000;\n    } else if (duration.seconds > 0 && duration.nanos < 0) {\n      duration.seconds -= 1;\n      duration.nanos += 1000000000;\n    }\n\nExample 2: Compute Timestamp from Timestamp + Duration in pseudo code.\n\n    Timestamp start = ...;\n    Duration duration = ...;\n    Timestamp end = ...;\n\n    end.seconds = start.seconds + duration.seconds;\n    end.nanos = start.nanos + duration.nanos;\n\n    if (end.nanos < 0) {\n      end.seconds -= 1;\n      end.nanos += 1000000000;\n    } else if (end.nanos >= 1000000000) {\n      end.seconds += 1;\n      end.nanos -= 1000000000;\n    }\n\nExample 3: Compute Duration from datetime.timedelta in Python.\n\n    td = datetime.timedelta(days=3, minutes=10)\n    duration = Duration()\n    duration.FromTimedelta(td)\n\n# JSON Mapping\n\nIn JSON format, the Duration type is encoded as a string rather than an\nobject, where the string ends in the suffix \"s\" (indicating seconds) and\nis preceded by the number of seconds, with nanoseconds expressed as\nfractional seconds. For example, 3 seconds with 0 nanoseconds should be\nencoded in JSON format as \"3s\", while 3 seconds and 1 nanosecond should\nbe expressed in JSON format as \"3.000000001s\", and 3 seconds and 1\nmicrosecond should be expressed in JSON format as \"3.000001s\".\n\n(--GOOGLE_INTERNAL:\n# Native language libraries:\n\n* C++:  //util/time:protoutil\n* Java: //java/com/google/protobuf/util:time\n* Go:   //google/protobuf:duration_go_proto\n\n--)",
+                            "description": "A Duration represents a signed, fixed-length span of time represented\nas a count of seconds and fractions of seconds at nanosecond\nresolution. It is independent of any calendar and concepts like \"day\"\nor \"month\". It is related to Timestamp in that the difference between\ntwo Timestamp values is a Duration and it can be added or subtracted\nfrom a Timestamp. Range is approximately +-10,000 years.\n\n# Examples\n\nExample 1: Compute Duration from two Timestamps in pseudo code.\n\n    Timestamp start = ...;\n    Timestamp end = ...;\n    Duration duration = ...;\n\n    duration.seconds = end.seconds - start.seconds;\n    duration.nanos = end.nanos - start.nanos;\n\n    if (duration.seconds \u003c 0 \u0026\u0026 duration.nanos \u003e 0) {\n      duration.seconds += 1;\n      duration.nanos -= 1000000000;\n    } else if (duration.seconds \u003e 0 \u0026\u0026 duration.nanos \u003c 0) {\n      duration.seconds -= 1;\n      duration.nanos += 1000000000;\n    }\n\nExample 2: Compute Timestamp from Timestamp + Duration in pseudo code.\n\n    Timestamp start = ...;\n    Duration duration = ...;\n    Timestamp end = ...;\n\n    end.seconds = start.seconds + duration.seconds;\n    end.nanos = start.nanos + duration.nanos;\n\n    if (end.nanos \u003c 0) {\n      end.seconds -= 1;\n      end.nanos += 1000000000;\n    } else if (end.nanos \u003e= 1000000000) {\n      end.seconds += 1;\n      end.nanos -= 1000000000;\n    }\n\nExample 3: Compute Duration from datetime.timedelta in Python.\n\n    td = datetime.timedelta(days=3, minutes=10)\n    duration = Duration()\n    duration.FromTimedelta(td)\n\n# JSON Mapping\n\nIn JSON format, the Duration type is encoded as a string rather than an\nobject, where the string ends in the suffix \"s\" (indicating seconds) and\nis preceded by the number of seconds, with nanoseconds expressed as\nfractional seconds. For example, 3 seconds with 0 nanoseconds should be\nencoded in JSON format as \"3s\", while 3 seconds and 1 nanosecond should\nbe expressed in JSON format as \"3.000000001s\", and 3 seconds and 1\nmicrosecond should be expressed in JSON format as \"3.000001s\".\n\n(--GOOGLE_INTERNAL:\n# Native language libraries:\n\n* C++:  //util/time:protoutil\n* Java: //java/com/google/protobuf/util:time\n* Go:   //google/protobuf:duration_go_proto\n\n--)",
                             "selector": "google.protobuf.Duration"
                           },
                           {
@@ -3112,7 +3064,7 @@
                             "selector": "google.protobuf.FieldMask.paths"
                           },
                           {
-                            "description": "A Timestamp represents a point in time independent of any time zone or local\ncalendar, encoded as a count of seconds and fractions of seconds at\nnanosecond resolution. The count is relative to an epoch at UTC midnight on\nJanuary 1, 1970, in the proleptic Gregorian calendar which extends the\nGregorian calendar backwards to year one.\n\nAll minutes are 60 seconds long. Leap seconds are \"smeared\" so that no leap\nsecond table is needed for interpretation, using a [24-hour linear\nsmear](https://developers.google.com/time/smear).\n\nThe range is from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59.999999999Z. By\nrestricting to that range, we ensure that we can convert to and from [RFC\n3339](https://www.ietf.org/rfc/rfc3339.txt) date strings.\n\n# Examples\n\nExample 1: Compute Timestamp from POSIX `time()`.\n\n    Timestamp timestamp;\n    timestamp.set_seconds(time(NULL));\n    timestamp.set_nanos(0);\n\n    (--GOOGLE_INTERNAL:\n    #include \"util/time/protoutil.h\"\n    ...\n    Timestamp timestamp;\n    util_time::EncodeGoogleApiProto(absl::Now(), &timestamp);\n    --)\nExample 2: Compute Timestamp from POSIX `gettimeofday()`.\n\n    struct timeval tv;\n    gettimeofday(&tv, NULL);\n\n    Timestamp timestamp;\n    timestamp.set_seconds(tv.tv_sec);\n    timestamp.set_nanos(tv.tv_usec * 1000);\n\nExample 3: Compute Timestamp from Win32 `GetSystemTimeAsFileTime()`.\n\n    FILETIME ft;\n    GetSystemTimeAsFileTime(&ft);\n    UINT64 ticks = (((UINT64)ft.dwHighDateTime) << 32) | ft.dwLowDateTime;\n\n    // A Windows tick is 100 nanoseconds. Windows epoch 1601-01-01T00:00:00Z\n    // is 11644473600 seconds before Unix epoch 1970-01-01T00:00:00Z.\n    Timestamp timestamp;\n    timestamp.set_seconds((INT64) ((ticks / 10000000) - 11644473600LL));\n    timestamp.set_nanos((INT32) ((ticks % 10000000) * 100));\n\nExample 4: Compute Timestamp from Java `System.currentTimeMillis()`.\n\n    long millis = System.currentTimeMillis();\n\n    Timestamp timestamp = Timestamp.newBuilder().setSeconds(millis / 1000)\n        .setNanos((int) ((millis % 1000) * 1000000)).build();\n\n    (--GOOGLE_INTERNAL:\n    import com.google.protobuf.util.Timestamps;\n    ...\n    long millis = System.currentTimeMillis();\n    Timestamp timestamp = Timestamps.fromMillis(millis);\n    --)\n\nExample 5: Compute Timestamp from Java `Instant.now()`.\n\n    Instant now = Instant.now();\n\n    Timestamp timestamp =\n        Timestamp.newBuilder().setSeconds(now.getEpochSecond())\n            .setNanos(now.getNano()).build();\n\n    (--GOOGLE_INTERNAL:\n    import com.google.protobuf.util.JavaTimeConversions;\n    ...\n    Instant now = Instant.now();\n    Timestamp timestamp = JavaTimeConversions.toProtoTimestamp(now);\n    --)\n\nExample 6: Compute Timestamp from current time in Python.\n\n    timestamp = Timestamp()\n    timestamp.GetCurrentTime()\n\n# JSON Mapping\n\nIn JSON format, the Timestamp type is encoded as a string in the\n[RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format. That is, the\nformat is \"{year}-{month}-{day}T{hour}:{min}:{sec}[.{frac_sec}]Z\"\nwhere {year} is always expressed using four digits while {month}, {day},\n{hour}, {min}, and {sec} are zero-padded to two digits each. The fractional\nseconds, which can go up to 9 digits (i.e. up to 1 nanosecond resolution),\nare optional. The \"Z\" suffix indicates the timezone (\"UTC\"); the timezone\nis required. A proto3 JSON serializer should always use UTC (as indicated by\n\"Z\") when printing the Timestamp type and a proto3 JSON parser should be\nable to accept both UTC and other timezones (as indicated by an offset).\n\nFor example, \"2017-01-15T01:30:15.01Z\" encodes 15.01 seconds past\n01:30 UTC on January 15, 2017.\n\nIn JavaScript, one can convert a Date object to this format using the\nstandard\n[toISOString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString)\nmethod. In Python, a standard `datetime.datetime` object can be converted\nto this format using\n[`strftime`](https://docs.python.org/2/library/time.html#time.strftime) with\nthe time format spec '%Y-%m-%dT%H:%M:%S.%fZ'. Likewise, in Java, one can use\nthe Joda Time's [`ISODateTimeFormat.dateTime()`](\nhttp://www.joda.org/joda-time/apidocs/org/joda/time/format/ISODateTimeFormat.html#dateTime%2D%2D\n) to obtain a formatter capable of generating timestamps in this format.\n\n(--GOOGLE_INTERNAL:\n# Native language libraries (see go/prototime for an overview):\n\n* C++:        //util/time:protoutil (go/prototime#c-utilities)\n* Java:       //java/com/google/protobuf/util:time\n              (go/prototime#java-utilities)\n* Go:         An `.AsTime()` getter is added to the generated code.\n              Use `timestamppb.New(t)` to create a new instance.\n              (go/prototime#go-utilities)\n* Python:     Various getter and setter methods are generated, see\n              net.proto2.python.internal.well_known_types.Timestamp and\n              go/prototime#python-utilities.\n* JavaScript: toDate() and fromDate() methods are added to the generated code\n              by the proto compiler. See\n              http://google3/blaze-out/bin/google/protobuf/timestamp_jspb/timestamp.jspb.js?l=234-269\n              and go/prototime#javascript-utilities.\n\n--)",
+                            "description": "A Timestamp represents a point in time independent of any time zone or local\ncalendar, encoded as a count of seconds and fractions of seconds at\nnanosecond resolution. The count is relative to an epoch at UTC midnight on\nJanuary 1, 1970, in the proleptic Gregorian calendar which extends the\nGregorian calendar backwards to year one.\n\nAll minutes are 60 seconds long. Leap seconds are \"smeared\" so that no leap\nsecond table is needed for interpretation, using a [24-hour linear\nsmear](https://developers.google.com/time/smear).\n\nThe range is from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59.999999999Z. By\nrestricting to that range, we ensure that we can convert to and from [RFC\n3339](https://www.ietf.org/rfc/rfc3339.txt) date strings.\n\n# Examples\n\nExample 1: Compute Timestamp from POSIX `time()`.\n\n    Timestamp timestamp;\n    timestamp.set_seconds(time(NULL));\n    timestamp.set_nanos(0);\n\n    (--GOOGLE_INTERNAL:\n    #include \"util/time/protoutil.h\"\n    ...\n    Timestamp timestamp;\n    util_time::EncodeGoogleApiProto(absl::Now(), \u0026timestamp);\n    --)\nExample 2: Compute Timestamp from POSIX `gettimeofday()`.\n\n    struct timeval tv;\n    gettimeofday(\u0026tv, NULL);\n\n    Timestamp timestamp;\n    timestamp.set_seconds(tv.tv_sec);\n    timestamp.set_nanos(tv.tv_usec * 1000);\n\nExample 3: Compute Timestamp from Win32 `GetSystemTimeAsFileTime()`.\n\n    FILETIME ft;\n    GetSystemTimeAsFileTime(\u0026ft);\n    UINT64 ticks = (((UINT64)ft.dwHighDateTime) \u003c\u003c 32) | ft.dwLowDateTime;\n\n    // A Windows tick is 100 nanoseconds. Windows epoch 1601-01-01T00:00:00Z\n    // is 11644473600 seconds before Unix epoch 1970-01-01T00:00:00Z.\n    Timestamp timestamp;\n    timestamp.set_seconds((INT64) ((ticks / 10000000) - 11644473600LL));\n    timestamp.set_nanos((INT32) ((ticks % 10000000) * 100));\n\nExample 4: Compute Timestamp from Java `System.currentTimeMillis()`.\n\n    long millis = System.currentTimeMillis();\n\n    Timestamp timestamp = Timestamp.newBuilder().setSeconds(millis / 1000)\n        .setNanos((int) ((millis % 1000) * 1000000)).build();\n\n    (--GOOGLE_INTERNAL:\n    import com.google.protobuf.util.Timestamps;\n    ...\n    long millis = System.currentTimeMillis();\n    Timestamp timestamp = Timestamps.fromMillis(millis);\n    --)\n\nExample 5: Compute Timestamp from Java `Instant.now()`.\n\n    Instant now = Instant.now();\n\n    Timestamp timestamp =\n        Timestamp.newBuilder().setSeconds(now.getEpochSecond())\n            .setNanos(now.getNano()).build();\n\n    (--GOOGLE_INTERNAL:\n    import com.google.protobuf.util.JavaTimeConversions;\n    ...\n    Instant now = Instant.now();\n    Timestamp timestamp = JavaTimeConversions.toProtoTimestamp(now);\n    --)\n\nExample 6: Compute Timestamp from current time in Python.\n\n    timestamp = Timestamp()\n    timestamp.GetCurrentTime()\n\n# JSON Mapping\n\nIn JSON format, the Timestamp type is encoded as a string in the\n[RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format. That is, the\nformat is \"{year}-{month}-{day}T{hour}:{min}:{sec}[.{frac_sec}]Z\"\nwhere {year} is always expressed using four digits while {month}, {day},\n{hour}, {min}, and {sec} are zero-padded to two digits each. The fractional\nseconds, which can go up to 9 digits (i.e. up to 1 nanosecond resolution),\nare optional. The \"Z\" suffix indicates the timezone (\"UTC\"); the timezone\nis required. A proto3 JSON serializer should always use UTC (as indicated by\n\"Z\") when printing the Timestamp type and a proto3 JSON parser should be\nable to accept both UTC and other timezones (as indicated by an offset).\n\nFor example, \"2017-01-15T01:30:15.01Z\" encodes 15.01 seconds past\n01:30 UTC on January 15, 2017.\n\nIn JavaScript, one can convert a Date object to this format using the\nstandard\n[toISOString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString)\nmethod. In Python, a standard `datetime.datetime` object can be converted\nto this format using\n[`strftime`](https://docs.python.org/2/library/time.html#time.strftime) with\nthe time format spec '%Y-%m-%dT%H:%M:%S.%fZ'. Likewise, in Java, one can use\nthe Joda Time's [`ISODateTimeFormat.dateTime()`](\nhttp://www.joda.org/joda-time/apidocs/org/joda/time/format/ISODateTimeFormat.html#dateTime%2D%2D\n) to obtain a formatter capable of generating timestamps in this format.\n\n(--GOOGLE_INTERNAL:\n# Native language libraries (see go/prototime for an overview):\n\n* C++:        //util/time:protoutil (go/prototime#c-utilities)\n* Java:       //java/com/google/protobuf/util:time\n              (go/prototime#java-utilities)\n* Go:         An `.AsTime()` getter is added to the generated code.\n              Use `timestamppb.New(t)` to create a new instance.\n              (go/prototime#go-utilities)\n* Python:     Various getter and setter methods are generated, see\n              net.proto2.python.internal.well_known_types.Timestamp and\n              go/prototime#python-utilities.\n* JavaScript: See go/prototime#javascript-utilities.\n\n--)",
                             "selector": "google.protobuf.Timestamp"
                           },
                           {
@@ -3244,7 +3196,7 @@
                             "selector": "google.example.apikeys.v1.ApiKeys.DeleteApiKey"
                           },
                           {
-                            "description": "`Any` contains an arbitrary serialized protocol buffer message along with a\nURL that describes the type of the serialized message.\n\nProtobuf library provides support to pack/unpack Any values in the form\nof utility functions or additional generated methods of the Any type.\n\nExample 1: Pack and unpack a message in C++.\n\n    Foo foo = ...;\n    Any any;\n    any.PackFrom(foo);\n    ...\n    if (any.UnpackTo(&foo)) {\n      ...\n    }\n\nExample 2: Pack and unpack a message in Java.\n\n    Foo foo = ...;\n    Any any = Any.pack(foo);\n    ...\n    if (any.is(Foo.class)) {\n      foo = any.unpack(Foo.class);\n    }\n\n Example 3: Pack and unpack a message in Python.\n\n    foo = Foo(...)\n    any = Any()\n    any.Pack(foo)\n    ...\n    if any.Is(Foo.DESCRIPTOR):\n      any.Unpack(foo)\n      ...\n\n Example 4: Pack and unpack a message in Go\n\n     foo := &pb.Foo{...}\n     any, err := anypb.New(foo)\n     if err != nil {\n       ...\n     }\n     ...\n     foo := &pb.Foo{}\n     if err := any.UnmarshalTo(foo); err != nil {\n       ...\n     }\n\nThe pack methods provided by protobuf library will by default use\n'type.googleapis.com/full.type.name' as the type URL and the unpack\nmethods only use the fully qualified type name after the last '/'\nin the type URL, for example \"foo.bar.com/x/y.z\" will yield type\nname \"y.z\".\n\n(--GOOGLE_INTERNAL: The pack/unpack utility functions are not implemented\nin all languages. See http://goto/proto3-impl-status for each language's\nstatus. --)\n\n# JSON\n\nThe JSON representation of an `Any` value uses the regular\nrepresentation of the deserialized, embedded message, with an\nadditional field `@type` which contains the type URL. Example:\n\n    package google.profile;\n    message Person {\n      string first_name = 1;\n      string last_name = 2;\n    }\n\n    {\n      \"@type\": \"type.googleapis.com/google.profile.Person\",\n      \"firstName\": <string>,\n      \"lastName\": <string>\n    }\n\nIf the embedded message type is well-known and has a custom JSON\nrepresentation, that representation will be embedded adding a field\n`value` which holds the custom JSON in addition to the `@type`\nfield. Example (for message [google.protobuf.Duration][google.protobuf.Duration]):\n\n    {\n      \"@type\": \"type.googleapis.com/google.protobuf.Duration\",\n      \"value\": \"1.212s\"\n    }",
+                            "description": "`Any` contains an arbitrary serialized protocol buffer message along with a\nURL that describes the type of the serialized message.\n\nProtobuf library provides support to pack/unpack Any values in the form\nof utility functions or additional generated methods of the Any type.\n\nExample 1: Pack and unpack a message in C++.\n\n    Foo foo = ...;\n    Any any;\n    any.PackFrom(foo);\n    ...\n    if (any.UnpackTo(\u0026foo)) {\n      ...\n    }\n\nExample 2: Pack and unpack a message in Java.\n\n    Foo foo = ...;\n    Any any = Any.pack(foo);\n    ...\n    if (any.is(Foo.class)) {\n      foo = any.unpack(Foo.class);\n    }\n\n Example 3: Pack and unpack a message in Python.\n\n    foo = Foo(...)\n    any = Any()\n    any.Pack(foo)\n    ...\n    if any.Is(Foo.DESCRIPTOR):\n      any.Unpack(foo)\n      ...\n\n Example 4: Pack and unpack a message in Go\n\n     foo := \u0026pb.Foo{...}\n     any, err := anypb.New(foo)\n     if err != nil {\n       ...\n     }\n     ...\n     foo := \u0026pb.Foo{}\n     if err := any.UnmarshalTo(foo); err != nil {\n       ...\n     }\n\nThe pack methods provided by protobuf library will by default use\n'type.googleapis.com/full.type.name' as the type URL and the unpack\nmethods only use the fully qualified type name after the last '/'\nin the type URL, for example \"foo.bar.com/x/y.z\" will yield type\nname \"y.z\".\n\n(--GOOGLE_INTERNAL: The pack/unpack utility functions are not implemented\nin all languages. See http://goto/proto3-impl-status for each language's\nstatus. --)\n\n# JSON\n\nThe JSON representation of an `Any` value uses the regular\nrepresentation of the deserialized, embedded message, with an\nadditional field `@type` which contains the type URL. Example:\n\n    package google.profile;\n    message Person {\n      string first_name = 1;\n      string last_name = 2;\n    }\n\n    {\n      \"@type\": \"type.googleapis.com/google.profile.Person\",\n      \"firstName\": \u003cstring\u003e,\n      \"lastName\": \u003cstring\u003e\n    }\n\nIf the embedded message type is well-known and has a custom JSON\nrepresentation, that representation will be embedded adding a field\n`value` which holds the custom JSON in addition to the `@type`\nfield. Example (for message [google.protobuf.Duration][google.protobuf.Duration]):\n\n    {\n      \"@type\": \"type.googleapis.com/google.protobuf.Duration\",\n      \"value\": \"1.212s\"\n    }",
                             "selector": "google.protobuf.Any"
                           },
                           {
@@ -3264,7 +3216,7 @@
                             "selector": "google.protobuf.Struct.fields"
                           },
                           {
-                            "description": "`Value` represents a dynamically typed value which can be either\nnull, a number, a string, a boolean, a recursive struct value, or a\nlist of values. A producer of value is expected to set one of that\nvariants, absence of any variant indicates an error.\n\nThe JSON representation for `Value` is JSON value.",
+                            "description": "`Value` represents a dynamically typed value which can be either\nnull, a number, a string, a boolean, a recursive struct value, or a\nlist of values. A producer of value is expected to set one of these\nvariants. Absence of any variant indicates an error.\n\nThe JSON representation for `Value` is JSON value.",
                             "selector": "google.protobuf.Value"
                           },
                           {
@@ -3633,6 +3585,17 @@
                         {
                           "allowCors": true,
                           "name": "content-cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                        },
+                        {
+                          "name": "cap-e2e-codelabapikeys.mtls.sandbox.googleapis.com"
+                        },
+                        {
+                          "allowCors": true,
+                          "name": "cap-e2e-codelabapikeys-googleapis.mtls.sandbox.google.com"
+                        },
+                        {
+                          "allowCors": true,
+                          "name": "content-cap-e2e-codelabapikeys.mtls.sandbox.googleapis.com"
                         }
                       ],
                       "enums": [
@@ -4195,10 +4158,13 @@
                           },
                           {
                             "metric": "codelabapikeys.googleapis.com/update_requests",
-                            "name": "UpdateRequestsPerMinutePerProject",
-                            "unit": "1/min/{project}",
+                            "name": "UpdateRequestsPerMinutePerProjectPerRegion",
+                            "unit": "1/min/{project}/{region}",
                             "values": {
-                              "STANDARD": "20"
+                              "STANDARD": "100",
+                              "STANDARD/us-central1": "20",
+                              "STANDARD/us-east1": "20",
+                              "STANDARD/us-west1": "20"
                             }
                           }
                         ],
@@ -4639,7 +4605,7 @@
                           }
                         ],
                         "policyRequirement": {
-                          "axtLevel": "AXT_L3"
+                          "axtLevel": "AXT_LEVEL_UNSPECIFIED"
                         }
                       },
                       "slo": {
