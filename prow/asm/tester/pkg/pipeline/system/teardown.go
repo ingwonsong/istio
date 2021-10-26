@@ -28,7 +28,7 @@ import (
 func Teardown(settings *resource.Settings) error {
 	log.Println("🎬 start cleaning up ASM control plane installation...")
 
-	if settings.CA == resource.PrivateCA {
+	if settings.ClusterType == resource.GKEOnGCP && settings.CA == resource.PrivateCA {
 		if err := exec.Dispatch(
 			settings.RepoRootDir,
 			"cleanup_private_ca",
