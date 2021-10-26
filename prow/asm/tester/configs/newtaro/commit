@@ -1,7 +1,7 @@
-f5bcb28a99f1bc97bc0077225c74897f659fd5ad
+01824c1064036ffd3a5e212e570ea29601689209
 ========================================
-Rui Gu
-Wed Oct 20 18:08:06 2021 -0700
+Sam Naser
+Mon Oct 25 16:57:56 2021 -0700
 
-Add KPT setter for ASM MCP VPCSC annotation (#1022)
+Fix null gcloud.compute.network for multicloud installations (#1023)
 
