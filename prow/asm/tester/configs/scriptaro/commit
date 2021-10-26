@@ -1,7 +1,6 @@
-3e769b54abb3e3abec93ab7cdedde126e2cf168d
+f5390341418f6ee2b22d52da32087b3f149b8800
 ========================================
-Sam Naser
-Thu Oct 7 14:27:01 2021 -0700
+Clayton Pence
+Thu Oct 21 17:02:47 2021 +0000
 
-Update resources to use v1 for k8s 1.22 (#1008)
-
+Update version
