@@ -22,8 +22,6 @@ COPY injection-values.yaml /var/lib/istio/inject/values_template.yaml
 COPY mutatingwebhook.yaml /var/lib/istio/inject/mutatingwebhook.yaml
 
 COPY gen-istio-cluster.yaml /var/lib/istio/config/gen-istio-cluster.yaml
-COPY telemetry.yaml /var/lib/istio/config/telemetry.yaml
-COPY telemetry-sd.yaml /var/lib/istio/config/telemetry-sd.yaml
 
 # NOTE: There is a Cloud Run bug (b/157998304) that prevents us from
 # just overriding the args set by "CMD". As a workaround, we need to

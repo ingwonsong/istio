@@ -37,5 +37,10 @@ func MCPDefaultMeshConfig(mc meshconfig.MeshConfig) meshconfig.MeshConfig {
 		Enabled: &types.BoolValue{Value: true},
 	}
 	mc.EnablePrometheusMerge = &types.BoolValue{Value: true}
+	mc.DefaultProviders = &meshconfig.MeshConfig_DefaultProviders{
+		// By default, we enable metrics and access logging for MCP
+		Metrics:       []string{"prometheus", "stackdriver"},
+		AccessLogging: []string{"stackdriver"},
+	}
 	return mc
 }

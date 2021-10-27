@@ -256,10 +256,6 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 		return nil, fmt.Errorf("create env configmap: %v", err)
 	}
 
-	if err := executeTemplateTo(getMCPFile(telemetrySDFile), filepath.Join(configDir, "data", "telemetry.yaml"), templateParams); err != nil {
-		return nil, fmt.Errorf("telemetry template: %v", err)
-	}
-
 	mwh, err := executeTemplate(getMCPFile(mutatingWebhookFile), templateParams)
 	if err != nil {
 		return nil, fmt.Errorf("mutating webhook template: %v", err)
