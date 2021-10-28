@@ -45,14 +45,16 @@ import (
 
 var inst istio.Instance
 
-func checkConnectivity(t framework.TestContext, a echo.Instances, b echo.Instances, testPrefix string) {
+func checkConnectivity(t framework.TestContext, a echo.Instances, b echo.Instances) {
 	t.Helper()
 	srcList := []echo.Instance{a[0], b[0]}
 	dstList := []echo.Instance{b[0], a[0]}
 	for index := range srcList {
 		src := srcList[index]
 		dst := dstList[index]
-		t.NewSubTest(fmt.Sprintf("%s/%s->%s", testPrefix, src.Config().Service, dst.Config().Service)).
+		t.NewSubTest(fmt.Sprintf("post-migration/%s.%s->%s.%s",
+			src.Config().Service, src.Config().Namespace.Prefix(),
+			dst.Config().Service, dst.Config().Namespace.Prefix())).
 			Run(func(ctx framework.TestContext) {
 				callOptions := echo.CallOptions{
 					Target:   dst,
@@ -101,28 +103,42 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 		RequiresSingleCluster().
 		Features("security.migrationca.citadel-meshca").
 		Run(func(t framework.TestContext) {
-			// This test will have two namespaces. The will both start out using the addon. We will
+			// This test will have two namespaces per addon version. The will both start out using the addon. We will
 			// continuously send traffic:
-			// * Within the "addon" namespace, to ensure the migration doesn't impact existing pods
-			// * Between the "addon" namespace and the "migration" namespace, to ensure old pods can connect to new pods
-			// * From ingress to the "migration" namespace, to ensure ingress is zero downtime
+			// * Within the "stable-x" namespace, to ensure the migration doesn't impact existing pods
+			// * Between the "stable-x" namespace and the "migration-x" namespace, to ensure old pods can connect to new pods
+			// * From ingress to the "migration-x" namespace, to ensure ingress is zero downtime
+			// * From "stable-14" -> "migration-16" and "stable-16" -> "migration-14" to ensure the cross version communication works
 			// Because the pods restart, we do not send continuous traffic from migration -> addon, but we do send traffic once the migration is complete.
 			ingress := inst.IngressFor(t.Clusters().Default())
-			addonNamespace := namespace.NewOrFail(t, t, namespace.Config{
-				Prefix:   "addon",
+			stable14Namespace := namespace.NewOrFail(t, t, namespace.Config{
+				Prefix:   "stable-14",
 				Inject:   true,
 				Revision: "default",
 			})
-			t.Config().ApplyYAMLOrFail(t, addonNamespace.Name(), fmt.Sprintf(mtlsDr, addonNamespace.Name()))
+			t.Config().ApplyYAMLOrFail(t, stable14Namespace.Name(), fmt.Sprintf(mtlsDr, stable14Namespace.Name()))
+			stable16Namespace := namespace.NewOrFail(t, t, namespace.Config{
+				Prefix:   "stable-16",
+				Inject:   true,
+				Revision: "istio-1611",
+			})
+			t.Config().ApplyYAMLOrFail(t, stable16Namespace.Name(), fmt.Sprintf(mtlsDr, stable16Namespace.Name()))
 
-			migrationNamespace := namespace.NewOrFail(t, t, namespace.Config{
-				Prefix:   "migration",
+			migration14Namespace := namespace.NewOrFail(t, t, namespace.Config{
+				Prefix:   "migration-14",
 				Inject:   true,
 				Revision: "default", // Start with default revision, then we swap it later
 			})
+
+			migration16Namespace := namespace.NewOrFail(t, t, namespace.Config{
+				Prefix:   "migration-16",
+				Inject:   true,
+				Revision: "istio-1611", // Start with default revision, then we swap it later
+			})
 			// Setup DR to test mtls; the addon didn't have auto mtls enabled
-			t.Config().ApplyYAMLOrFail(t, migrationNamespace.Name(), fmt.Sprintf(mtlsDr, migrationNamespace.Name()))
-			t.Config().ApplyYAMLOrFail(t, migrationNamespace.Name(), `apiVersion: networking.istio.io/v1alpha3
+			for _, ns := range []namespace.Instance{migration14Namespace, migration16Namespace} {
+				t.Config().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(mtlsDr, ns.Name()))
+				t.Config().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(`apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
   name: app
@@ -135,7 +151,7 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - "example.com"
+    - "%s.example.com"
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -143,7 +159,7 @@ metadata:
   name: app
 spec:
   hosts:
-  - "example.com"
+  - "%s.example.com"
   gateways:
   - app
   http:
@@ -151,42 +167,64 @@ spec:
     - destination:
         host: migration
         port:
-          number: 80`)
+          number: 80`, ns.Name(), ns.Name()))
+			}
 
 			builder := echoboot.NewBuilder(t)
 
 			// Create workloads in namespaces served by both CA's
 			echos := builder.
 				WithClusters(t.Clusters()...).
-				WithConfig(util.EchoConfig("addon", addonNamespace, false, nil)).
-				WithConfig(util.EchoConfig("addon-client", addonNamespace, false, nil)).
-				WithConfig(util.EchoConfig("migration", migrationNamespace, false, nil)).
+				WithConfig(util.EchoConfig("addon", stable14Namespace, false, nil)).
+				WithConfig(util.EchoConfig("addon", stable16Namespace, false, nil)).
+				WithConfig(util.EchoConfig("migration", migration14Namespace, false, nil)).
+				WithConfig(util.EchoConfig("migration", migration16Namespace, false, nil)).
 				BuildOrFail(t)
 
-			addonClientInstances := echos.Match(echo.Service("addon-client"))
-			addonInstances := echos.Match(echo.Service("addon"))
-			migrationInstances := echos.Match(echo.Service("migration"))
+			stable14 := echos.Match(echo.Service("addon").And(echo.Namespace(stable14Namespace.Name())))
+			migration14 := echos.Match(echo.Service("migration").And(echo.Namespace(migration14Namespace.Name())))
+			stable16 := echos.Match(echo.Service("addon").And(echo.Namespace(stable16Namespace.Name())))
+			migration16 := echos.Match(echo.Service("migration").And(echo.Namespace(migration16Namespace.Name())))
 
-			addonChecker := traffic.NewGenerator(t, traffic.Config{
-				Source: addonClientInstances[0],
+			t.Log("starting traffic...")
+			selfCheck14 := traffic.NewGenerator(t, traffic.Config{
+				Source: stable14[0],
 				Options: echo.CallOptions{
-					Target:   addonInstances[0],
+					Target:   stable14[0],
 					PortName: "http",
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
 
-			crossChecker := traffic.NewGenerator(t, traffic.Config{
-				Source: addonClientInstances[0],
+			crossCheck14 := traffic.NewGenerator(t, traffic.Config{
+				Source: stable14[0],
 				Options: echo.CallOptions{
-					Target:   migrationInstances[0],
+					Target:   migration14[0],
+					PortName: "http",
+				},
+				Interval: 200 * time.Millisecond,
+			}).Start()
+
+			selfCheck16 := traffic.NewGenerator(t, traffic.Config{
+				Source: stable16[0],
+				Options: echo.CallOptions{
+					Target:   stable16[0],
+					PortName: "http",
+				},
+				Interval: 200 * time.Millisecond,
+			}).Start()
+
+			crossCheck16 := traffic.NewGenerator(t, traffic.Config{
+				Source: stable16[0],
+				Options: echo.CallOptions{
+					Target:   migration16[0],
 					PortName: "http",
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
 
 			// Traffic here is from the go client to the migration namespace, via ingress
-			ingressChecker := traffic.NewGenerator(t, traffic.Config{
+			ingressCheck14 := traffic.NewGenerator(t, traffic.Config{
 				Source: ingress,
 				Options: echo.CallOptions{
 					Port: &echo.Port{
@@ -194,8 +232,38 @@ spec:
 					},
 					Path: "/",
 					Headers: map[string][]string{
-						"Host": {"example.com"},
+						"Host": {fmt.Sprintf("%s.example.com", migration14Namespace.Name())},
 					},
+				},
+			}).Start()
+			ingressCheck16 := traffic.NewGenerator(t, traffic.Config{
+				Source: ingress,
+				Options: echo.CallOptions{
+					Port: &echo.Port{
+						Protocol: protocol.HTTP,
+					},
+					Path: "/",
+					Headers: map[string][]string{
+						"Host": {fmt.Sprintf("%s.example.com", migration16Namespace.Name())},
+					},
+				},
+				Interval: 200 * time.Millisecond,
+			}).Start()
+
+			crossCheck14to16 := traffic.NewGenerator(t, traffic.Config{
+				Source: stable14[0],
+				Options: echo.CallOptions{
+					Target:   migration16[0],
+					PortName: "http",
+				},
+				Interval: 200 * time.Millisecond,
+			}).Start()
+
+			crossCheck16to14 := traffic.NewGenerator(t, traffic.Config{
+				Source: stable16[0],
+				Options: echo.CallOptions{
+					Target:   migration14[0],
+					PortName: "http",
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
@@ -212,35 +280,67 @@ spec:
 			t.Logf("migrating namespace to MCP")
 			if err := multierror.Append(istiomultierror.New(),
 				// nolint: staticcheck
-				migrationNamespace.SetLabel("istio.io/rev", t.Settings().Revision),
-				migrationNamespace.RemoveLabel("istio-injection")).ErrorOrNil(); err != nil {
+				migration14Namespace.SetLabel("istio.io/rev", t.Settings().Revision),
+				migration14Namespace.RemoveLabel("istio-injection")).ErrorOrNil(); err != nil {
 				t.Fatal(err)
 			}
-			for _, i := range migrationInstances {
+			// nolint: staticcheck
+			if err := migration16Namespace.SetLabel("istio.io/rev", t.Settings().Revision); err != nil {
+				t.Fatal(err)
+			}
+			for _, i := range migration14 {
+				if err := i.Restart(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, i := range migration16 {
 				if err := i.Restart(); err != nil {
 					t.Fatal(err)
 				}
 			}
 
 			// Check mTLS connectivity works after workload A is signed by meshca
-			checkConnectivity(t, addonInstances, migrationInstances, "post-migration")
+			checkConnectivity(t, stable14, migration14)
+			checkConnectivity(t, stable16, migration16)
+			checkConnectivity(t, stable16, migration14)
+			checkConnectivity(t, stable14, migration16)
 
 			// Check both our continuous traffic to ensure we have zero downtime
-			t.NewSubTest("continuous-traffic-addon").Run(func(t framework.TestContext) {
+			t.NewSubTest("continuous-traffic-addon-14").Run(func(t framework.TestContext) {
 				// Addon traffic should always succeed
-				addonChecker.Stop().CheckSuccessRate(t, 1)
+				selfCheck14.Stop().CheckSuccessRate(t, 1)
 			})
-			t.NewSubTest("continuous-traffic-cross").Run(func(t framework.TestContext) {
-				// We allow a small buffer here as the addon did not have graceful shutdown
-				crossChecker.Stop().CheckSuccessRate(t, 0.95)
+			t.NewSubTest("continuous-traffic-addon-16").Run(func(t framework.TestContext) {
+				// Addon traffic should always succeed
+				selfCheck16.Stop().CheckSuccessRate(t, 1)
 			})
-			t.NewSubTest("continuous-traffic-ingress").Run(func(t framework.TestContext) {
+			t.NewSubTest("continuous-traffic-cross-14").Run(func(t framework.TestContext) {
 				// We allow a small buffer here as the addon did not have graceful shutdown
-				ingressChecker.Stop().CheckSuccessRate(t, 0.95)
+				crossCheck14.Stop().CheckSuccessRate(t, 0.95)
+			})
+			t.NewSubTest("continuous-traffic-cross-16").Run(func(t framework.TestContext) {
+				// We allow a small buffer here as the addon did not have graceful shutdown
+				crossCheck16.Stop().CheckSuccessRate(t, 0.95)
+			})
+			t.NewSubTest("continuous-traffic-cross-14-16").Run(func(t framework.TestContext) {
+				// We allow a small buffer here as the addon did not have graceful shutdown
+				crossCheck14to16.Stop().CheckSuccessRate(t, 0.95)
+			})
+			t.NewSubTest("continuous-traffic-cross-16-14").Run(func(t framework.TestContext) {
+				// We allow a small buffer here as the addon did not have graceful shutdown
+				crossCheck16to14.Stop().CheckSuccessRate(t, 0.95)
+			})
+			t.NewSubTest("continuous-traffic-ingress-14").Run(func(t framework.TestContext) {
+				// We allow a small buffer here as the addon did not have graceful shutdown
+				ingressCheck14.Stop().CheckSuccessRate(t, 0.95)
+			})
+			t.NewSubTest("continuous-traffic-ingress-16").Run(func(t framework.TestContext) {
+				// We allow a small buffer here as the addon did not have graceful shutdown
+				ingressCheck16.Stop().CheckSuccessRate(t, 0.95)
 			})
 
 			t.Logf("starting cleanup")
-			cleanupCheck := traffic.NewGenerator(t, traffic.Config{
+			cleanupCheck14 := traffic.NewGenerator(t, traffic.Config{
 				Source: ingress,
 				Options: echo.CallOptions{
 					Port: &echo.Port{
@@ -248,7 +348,20 @@ spec:
 					},
 					Path: "/",
 					Headers: map[string][]string{
-						"Host": {"example.com"},
+						"Host": {fmt.Sprintf("%s.example.com", migration14Namespace.Name())},
+					},
+				},
+				Interval: 200 * time.Millisecond,
+			}).Start()
+			cleanupCheck16 := traffic.NewGenerator(t, traffic.Config{
+				Source: ingress,
+				Options: echo.CallOptions{
+					Port: &echo.Port{
+						Protocol: protocol.HTTP,
+					},
+					Path: "/",
+					Headers: map[string][]string{
+						"Host": {fmt.Sprintf("%s.example.com", migration16Namespace.Name())},
 					},
 				},
 				Interval: 200 * time.Millisecond,
@@ -260,9 +373,13 @@ spec:
 			if err := c.Run(); err != nil {
 				t.Fatal(err)
 			}
-			t.NewSubTest("continuous-traffic-ingress-cleanup").Run(func(t framework.TestContext) {
+			t.NewSubTest("continuous-traffic-ingress-cleanup-14").Run(func(t framework.TestContext) {
 				// We allow a small buffer here as the addon did not have graceful shutdown
-				cleanupCheck.Stop().CheckSuccessRate(t, 0.95)
+				cleanupCheck14.Stop().CheckSuccessRate(t, 0.95)
+			})
+			t.NewSubTest("continuous-traffic-ingress-cleanup-16").Run(func(t framework.TestContext) {
+				// We allow a small buffer here as the addon did not have graceful shutdown
+				cleanupCheck16.Stop().CheckSuccessRate(t, 0.95)
 			})
 			// TODO: delete ca-secrets/amend meshConfig to remove trustanchors and ensure that traffic from the 1.4 workloads stops
 		})
