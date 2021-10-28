@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	sharedGCPProject      = "istio-prow-build"
+	SharedGCPProject      = "istio-prow-build"
 	configDir             = "prow/asm/tester/configs"
 	scriptaroCommitConfig = "scriptaro/commit"
 	newtaroCommitConfig   = "newtaro/commit"
@@ -110,7 +110,7 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 		gcrProjectID = settings.ClusterGCPProjects[0]
 	} else {
 		// Otherwise use the shared GCP project to hold these images.
-		gcrProjectID = sharedGCPProject
+		gcrProjectID = SharedGCPProject
 	}
 	settings.GCRProject = gcrProjectID
 
@@ -162,7 +162,7 @@ func injectEnvVars(settings *resource.Settings) error {
 		"BUILD_WITH_CONTAINER": "0",
 		// The GCP project we use when testing with multicloud clusters, or when we need to
 		// hold some GCP resources that are shared across multiple jobs that are run in parallel.
-		"SHARED_GCP_PROJECT": sharedGCPProject,
+		"SHARED_GCP_PROJECT": SharedGCPProject,
 
 		"GCR_PROJECT_ID":   settings.GCRProject,
 		"CONFIG_DIR":       settings.ConfigDir,

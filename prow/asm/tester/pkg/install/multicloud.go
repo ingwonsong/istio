@@ -25,6 +25,7 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
+	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -184,6 +185,12 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 				"--root_cert", "samples/certs/root-cert.pem",
 				"--cert_chain", "samples/certs/cert-chain.pem")
 		}
+	} else if ca == resource.PrivateCA {
+		issuingCaPoolId := fmt.Sprintf("%s-%s-cluster", gcp.CasSubCaIdPrefix, os.Getenv("BUILD_ID"))
+		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
+			env.SharedGCPProject, gcp.CasRootCaLoc, issuingCaPoolId)
+		installFlags = append(installFlags, "--ca", "gcp_cas")
+		installFlags = append(installFlags, "--ca_pool", caName)
 	} else {
 		return nil, fmt.Errorf("unsupported CA type for multicloud installation: %s", ca)
 	}
@@ -221,7 +228,7 @@ func installExpansionGateway(settings *resource.Settings, rev *revision.Config, 
 
 	// TODO(Monkeyanator) use the correct istioctl version to do this for multiversion testing. Can be found in respective artifacts.
 	var gwInstallCmd string
-	if settings.CA == resource.MeshCA {
+	if settings.CA == resource.MeshCA || settings.CA == resource.PrivateCA {
 		gwInstallCmd = fmt.Sprintf("istioctl install -y -f %s --set spec.values.global.pilotCertProvider=kubernetes --set hub=%q --set tag=%q --kubeconfig %s",
 			gwIopFileName, os.Getenv("HUB"), os.Getenv("TAG"), kubeconfig)
 	} else {

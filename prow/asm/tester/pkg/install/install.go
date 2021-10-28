@@ -22,14 +22,15 @@ import (
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/multiversion"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
+	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 const (
-	istioctlPath  = "out/linux_amd64/istioctl"
-	subCaIdPrefix = "asm-sub-pool"
+	istioctlPath = "out/linux_amd64/istioctl"
 
 	// Envvar consts
 	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"
@@ -83,13 +84,25 @@ func (c *installer) preInstall(rev *revision.Config) error {
 	}
 
 	if c.settings.CA == resource.PrivateCA {
-		if err := exec.Dispatch(
-			c.settings.RepoRootDir,
-			"setup_private_ca",
-			[]string{
-				strings.Join(c.settings.KubeContexts, ","),
-			}); err != nil {
-			return err
+		if c.settings.ClusterType == resource.GKEOnGCP {
+			if err := exec.Dispatch(
+				c.settings.RepoRootDir,
+				"setup_private_ca",
+				[]string{
+					strings.Join(c.settings.KubeContexts, ","),
+				}); err != nil {
+				return err
+			}
+		} else if c.settings.ClusterType == resource.OnPrem || c.settings.ClusterType == resource.BareMetal {
+			if err := exec.Dispatch(
+				c.settings.RepoRootDir,
+				"setup_private_ca",
+				[]string{
+					// For Tailorbird projects, create subordinate CAS pools in the tester project
+					fmt.Sprintf("context_%s_%s_cluster", env.SharedGCPProject, gcp.CasRootCaLoc),
+				}); err != nil {
+				return err
+			}
 		}
 	}
 

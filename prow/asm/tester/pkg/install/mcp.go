@@ -115,7 +115,7 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 	if ca == resource.MeshCA {
 		caFlags = append(caFlags, "--ca", "mesh_ca")
 	} else if ca == resource.PrivateCA {
-		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", subCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
+		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", gcp.CasSubCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
 		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
 			cluster.ProjectID, cluster.Location, issuingCaPoolId)
 		caFlags = append(caFlags, "--ca", "gcp_cas")

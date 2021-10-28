@@ -21,6 +21,11 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 )
 
+const (
+	CasSubCaIdPrefix = "asm-sub-pool"
+	CasRootCaLoc     = "us-central1"
+)
+
 func GetProjectNumber(projectId string) (string, error) {
 	projectNum, err := exec.RunWithOutput(
 		fmt.Sprintf("gcloud projects describe %s --format=value(projectNumber)", projectId))
