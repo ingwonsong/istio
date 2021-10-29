@@ -1,7 +1,15 @@
-01824c1064036ffd3a5e212e570ea29601689209
+1b20ed486a3fc8c64663a947a9cad3f3c6d8379f
 ========================================
-Sam Naser
-Mon Oct 25 16:57:56 2021 -0700
+Clay
+Thu Oct 28 16:17:25 2021 -0700
 
-Fix null gcloud.compute.network for multicloud installations (#1023)
+Handle kubeconfig via Connect gateway (#1031)
 
+Customers can also generate kubeconfig files by using the Connect
+gateway instead of the usual gcloud container command. In this case, we
+can't parse any information out of it nor can we validate the GCP
+settings (or even tell if it's GKE or not really).
+
+If we see that the kubeconfig context name starts with "connectgateway",
+we now assume that it's actually connecting via Connect gateway and
+don't attempt to parse any info or validate GCP resources.
