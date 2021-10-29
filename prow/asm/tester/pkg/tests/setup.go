@@ -91,8 +91,8 @@ func configureEnvvars(settings *resource.Settings,
 	}
 	// required for bare metal and multicloud environments single cluster jobs
 	if len(settings.ClusterProxy) == 1 {
-		envVars["HTTP_PROXY"] = os.Getenv("MC_HTTP_PROXY")
-		envVars["HTTPS_PROXY"] = os.Getenv("MC_HTTP_PROXY")
+		envVars["HTTP_PROXY"] = settings.ClusterProxy[0]
+		envVars["HTTPS_PROXY"] = settings.ClusterProxy[0]
 	}
 	// MCP VPCSC tests relies on AFC which doesn't allow image overwrite in prod.
 	// So we'll only run this periodically with fix images that is consistent with regular channel.

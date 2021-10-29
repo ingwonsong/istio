@@ -297,8 +297,8 @@ func (b builder) deployServices() error {
 		}
 	}
 
-	// There is limiting on number of connections in Baremetal and AWS env
-	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" {
+	// There is limiting on number of connections in Baremetal, AWS and APM env
+	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" || os.Getenv("CLUSTER_TYPE") == "apm" {
 		for svcNs, svcYaml := range services {
 			svcYaml := svcYaml
 
@@ -324,8 +324,8 @@ func (b builder) deployServices() error {
 
 func (b builder) deployInstances() (echo.Instances, error) {
 	out := echo.Instances{}
-	// There is limiting on number of connections in Baremetal and AWS env
-	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" {
+	// There is limiting on number of connections in Baremetal, AWS and APM env
+	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" || os.Getenv("CLUSTER_TYPE") == "apm" {
 		for kind, configs := range b.configs {
 			kind := kind
 			configs := configs

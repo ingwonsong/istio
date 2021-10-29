@@ -125,13 +125,13 @@ func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
 			if err := exec.Run(scriptPath,
 				exec.WithAdditionalEnvs(generateASMInstallEnvvars(c.settings, rev, "")),
 				exec.WithAdditionalEnvs([]string{
-					fmt.Sprintf("HTTPS_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
+					fmt.Sprintf("HTTPS_PROXY=%s", c.settings.ClusterProxy[i]),
 				}),
 				exec.WithAdditionalArgs(multicloudFlags)); err != nil {
 				return fmt.Errorf("ASM installation using script failed: %w", err)
 			}
 			if c.settings.UseASMCLI && !c.settings.InstallCloudESF {
-				if err := c.installIngressGateway("", kubeconfig, i); err != nil {
+				if err := c.installIngressGateway("", kubeconfig, c.settings.ClusterProxy[i]); err != nil {
 					return err
 				}
 			}
@@ -143,8 +143,8 @@ func (c *installer) installASMOnProxiedClusters(rev *revision.Config) error {
 			"install_asm_on_proxied_clusters",
 			nil,
 			exec.WithAdditionalEnvs([]string{
-				fmt.Sprintf("HTTP_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
-				fmt.Sprintf("HTTPS_PROXY=%s", os.Getenv("MC_HTTP_PROXY")),
+				fmt.Sprintf("HTTP_PROXY=%s", c.settings.ClusterProxy[0]),
+				fmt.Sprintf("HTTPS_PROXY=%s", c.settings.ClusterProxy[0]),
 			}),
 		)
 	}
@@ -188,7 +188,7 @@ func (c *installer) installASMOnProxyInjectedClusters(rev *revision.Config) erro
 			exec.WithAdditionalArgs([]string{"--network_id", networkID})); err != nil {
 			return fmt.Errorf("ASM installation using script failed: %w", err)
 		}
-		if err := c.installIngressGateway("", kubeconfig, i); err != nil {
+		if err := c.installIngressGateway("", kubeconfig, c.settings.ClusterProxy[i]); err != nil {
 			return fmt.Errorf("failed to install ingress gateway for the cluster: %w", err)
 		}
 		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
@@ -247,7 +247,7 @@ func (c *installer) installASMOnMulticloud(rev *revision.Config) error {
 			exec.WithAdditionalArgs([]string{"--network_id", networkID})); err != nil {
 			return fmt.Errorf("ASM installation using script failed: %w", err)
 		}
-		if err := c.installIngressGateway("", kubeconfig, i); err != nil {
+		if err := c.installIngressGateway("", kubeconfig, ""); err != nil {
 			return fmt.Errorf("failed to install ingress gateway for on-prem cluster: %w", err)
 		}
 		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {

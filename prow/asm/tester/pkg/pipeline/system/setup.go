@@ -40,8 +40,8 @@ func Setup(settings *resource.Settings) error {
 			if settings.ClusterType == resource.BareMetal ||
 				settings.ClusterType == resource.GKEOnAWS ||
 				settings.ClusterType == resource.APM {
-				os.Setenv("HTTPS_PROXY", os.Getenv("MC_HTTP_PROXY"))
-				os.Setenv("http_proxy", os.Getenv("MC_HTTP_PROXY"))
+				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[0])
+				os.Setenv("http_proxy", settings.ClusterProxy[0])
 				defer os.Unsetenv("HTTPS_PROXY")
 				defer os.Unsetenv("http_proxy")
 			}

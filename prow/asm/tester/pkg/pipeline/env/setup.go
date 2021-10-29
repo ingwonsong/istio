@@ -611,7 +611,7 @@ func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloud
 	httpProxy := "http://localhost:" + portNum
 	bootstrapHostSSHKey := filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath)
 	log.Printf("----------%s Cluster env----------", settings.ClusterType)
-	log.Print("MC_HTTP_PROXY: ", httpProxy)
+	log.Print("HTTP_PROXY: ", httpProxy)
 	settings.ClusterProxy = append(settings.ClusterProxy, httpProxy)
 	settings.ClusterSSHUser = append(settings.ClusterSSHUser, bootstrapHostSSHUser)
 	settings.ClusterSSHKey = append(settings.ClusterSSHKey, bootstrapHostSSHKey)
@@ -621,8 +621,6 @@ func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloud
 		// Used by ingress related tests
 		"BOOTSTRAP_HOST_SSH_USER": bootstrapHostSSHUser,
 		"BOOTSTRAP_HOST_SSH_KEY":  bootstrapHostSSHKey,
-
-		"MC_HTTP_PROXY": httpProxy,
 	} {
 		log.Printf("Set env var: %s=%s", name, val)
 		if err := os.Setenv(name, val); err != nil {
