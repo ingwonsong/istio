@@ -15,6 +15,7 @@
 package install
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -42,7 +43,7 @@ func (c *installer) install(r *revision.Config) error {
 		case resource.GKEOnGCP:
 			log.Println("🏄 performing ASM installation")
 			return c.installASM(r)
-		case resource.GKEOnAWS, resource.APM, resource.EKS:
+		case resource.GKEOnAWS, resource.APM:
 			log.Println("🏄 performing ASM installation on proxied clusters")
 			return c.installASMOnProxiedClusters(r)
 		case resource.BareMetal:
@@ -53,17 +54,21 @@ func (c *installer) install(r *revision.Config) error {
 				log.Println("🏄 performing ASM installation on proxy injected clusters")
 				return c.installASMOnProxyInjectedClusters(r)
 			}
-		default:
+		case resource.EKS, resource.OnPrem:
 			log.Println("🏄 performing ASM multi cloud installation")
 			return c.installASMOnMulticloud(r)
 		}
-	} else if c.settings.ControlPlane == resource.Managed && !c.settings.UseAFC {
-		log.Println("🏄 performing ASM MCP installation")
-		return c.installASMManagedControlPlane()
-	} else {
-		log.Println("🏄 performing ASM MCP installation via AFC")
-		return c.installASMManagedControlPlaneAFC()
+	} else if c.settings.ControlPlane == resource.Managed {
+		if c.settings.UseAFC {
+			log.Println("🏄 performing ASM MCP installation via AFC")
+			return c.installASMManagedControlPlaneAFC()
+		} else {
+			log.Println("🏄 performing ASM MCP installation")
+			return c.installASMManagedControlPlane()
+		}
 	}
+
+	return fmt.Errorf("Unsupported installation for ASM %q on Platform %q", c.settings.ControlPlane, c.settings.ClusterType)
 }
 
 // preInstall contains all steps required before performing the direct install

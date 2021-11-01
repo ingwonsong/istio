@@ -315,8 +315,7 @@ func installExpansionGateway(settings *resource.Settings, rev *revision.Config, 
 }
 
 func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int) error {
-	// Patch BM
-	if settings.ClusterType == resource.BareMetal {
+	if settings.ClusterType == resource.BareMetal { // Patch BM
 		if err := exec.Dispatch(settings.RepoRootDir, "baremetal::configure_external_ip",
 			[]string{kubeconfig},
 			exec.WithAdditionalEnvs(
@@ -324,7 +323,7 @@ func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int
 			return err
 		}
 		return nil
-	} else {
+	} else if settings.ClusterType == resource.OnPrem { // Patch onprem
 		const herculesLab = "atl_shared"
 		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_external_ip",
 			[]string{kubeconfig},
@@ -334,4 +333,5 @@ func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int
 		}
 		return nil
 	}
+	return nil
 }
