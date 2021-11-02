@@ -30,7 +30,11 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	testFlags := []string{"--istio.test.kube.deploy=false"}
 	if settings.ControlPlane != resource.Unmanaged {
 		testFlags = append(testFlags,
-			"--istio.test.revision=asm-managed",
+			// install_asm will install the image to all three channels.
+			// So all the revision labels should work.
+			// However, AFC currently only installs one rapid. Change the test
+			// revision to rapid to work with both cases.
+			"--istio.test.revision=asm-managed-rapid",
 			"--istio.test.skipDelta")
 	}
 

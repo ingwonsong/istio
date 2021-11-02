@@ -94,13 +94,7 @@ func configureEnvvars(settings *resource.Settings,
 		envVars["HTTP_PROXY"] = settings.ClusterProxy[0]
 		envVars["HTTPS_PROXY"] = settings.ClusterProxy[0]
 	}
-	// MCP VPCSC tests relies on AFC which doesn't allow image overwrite in prod.
-	// So we'll only run this periodically with fix images that is consistent with regular channel.
-	// TODO(ruigu): Remove this when http://b/204376909 is closed.
-	if settings.ControlPlane == resource.Managed && settings.FeatureToTest == resource.VPCSC {
-		envVars["TAG"] = "1.10-dev"
-		envVars["HUB"] = "gcr.io/istio-testing"
-	}
+
 	for k, v := range envVars {
 		log.Printf("Set env %s=%s", k, v)
 		if err := os.Setenv(k, v); err != nil {

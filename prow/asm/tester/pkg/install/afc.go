@@ -119,11 +119,11 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--cluster_location", cluster.Location,
 		"--cluster_name", cluster.Name,
 		"--managed",
-		// Fix the channel to regular since the go test needs to know injection label beforehand.
+		// Fix the channel to rapid since the go test needs to know injection label beforehand.
 		// Without this, AFC will use GKE channel which can change when we bump the cluster version.
-		// The channel doesn't matter here because we'll overwrite the istiod/proxyv2 image with test
-		// image built on-the-fly.
-		"--channel", "regular",
+		// The test will overwrite the istiod/proxyv2 image with test image built on-the-fly if
+		// staging environment is used.
+		"--channel", "rapid",
 		"--enable-all", // We can't use getInstallEnableFlags() since it apparently doesn't match what AFC expects
 		"--verbose",
 	}
@@ -146,11 +146,17 @@ func generateAFCInstallEnvvars(settings *resource.Settings) []string {
 			"_CI_ASM_PKG_LOCATION="+settings.InstallOverride.ASMImageBucket,
 		)
 	} else {
-		envvars = append(envvars,
-			"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
-			"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),
-			"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
-		)
+		// ASM MCP VPCSC test is required to use production by VPCSC integration.
+		// Unfortunately, production meshconfig control plane doesn't have access
+		// to asm-staging-images. So we'll skip any image overwrite for this particular
+		// test.
+		if settings.FeatureToTest != resource.VPCSC {
+			envvars = append(envvars,
+				"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
+				"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),
+				"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
+			)
+		}
 	}
 	return envvars
 }
