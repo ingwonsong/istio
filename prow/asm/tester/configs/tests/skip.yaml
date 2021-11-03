@@ -175,6 +175,11 @@ tests:
     - names:
       - TestReachability/global-plaintext*
       buganizerID: 204604480
+    - names:
+      - TestBadRemoteSecret
+      - TestTraffic/sniffing/http/headless.*
+      - TestTraffic/sniffing/grpc/headless.*
+      buganizerID: 205190928
 
   # Unmanaged CP + apm
   - selectors:

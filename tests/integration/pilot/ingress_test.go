@@ -554,7 +554,7 @@ spec:
 					for _, c := range cases {
 						c := c
 						if os.Getenv("CLUSTER_TYPE") == "bare-metal" && len(c.call.Headers["Host"]) > 0 {
-							authn.SetupEtcHostsFile(apps.Ingress, c.call.Headers["Host"][0])
+							authn.SetupEtcHostsFile(ingr, c.call.Headers["Host"][0])
 						}
 						t.NewSubTest(c.name).Run(func(t framework.TestContext) {
 							if err := t.ConfigIstio().ApplyYAML(apps.Namespace.Name(), ingressClassConfig,
