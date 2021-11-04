@@ -283,10 +283,8 @@ function configure_remote_secrets_for_baremetal() {
     local BM_HOST_IP_LOCAL
     read -r PORT_NUMBER BM_HOST_IP_LOCAL <<<"$(grep "localhost" "${BM_ARTIFACTS_PATH_LOCAL}/tunnel.sh" | sed 's/.*\-L\([0-9]*\):localhost.* root@\([0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\) -N/\1 \2/')"
     BM_HOST_IP_SET+=( "${BM_HOST_IP_LOCAL}")
-    local TB_CLUSTER_NAME
-    TB_CLUSTER_NAME="$(jq -r '.ClusterName' "$BM_ARTIFACTS_PATH_LOCAL"/metadata.json)"
     local BM_CLUSTER_NAME
-    BM_CLUSTER_NAME="cn-tailorbird-global-${TB_CLUSTER_NAME}"
+    BM_CLUSTER_NAME="cluster${i}"
     BM_CLUSTER_NAME_SET+=( "${BM_CLUSTER_NAME}")
     echo "For index ${i}, BM_CLUSTER_NAME: ${BM_CLUSTER_NAME}, BM_ARTIFACTS_PATH: ${BM_ARTIFACTS_PATH_LOCAL}, BM_HOST_IP: ${BM_HOST_IP_LOCAL}, proxy port: ${PORT_NUMBER}"
   done

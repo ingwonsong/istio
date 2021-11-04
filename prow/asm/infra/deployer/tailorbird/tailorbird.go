@@ -132,6 +132,9 @@ func (d *Instance) Run() error {
 	}
 
 	lis, err := common.NewWebServer(d.supportedHandlers())
+	if err != nil {
+		return err
+	}
 
 	flags = append(flags, d.cfg.GetWebServerFlags(lis)...)
 
@@ -272,7 +275,7 @@ func (d *Instance) rookeryFile() (string, error) {
 		f := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDir, string(d.cfg.Cluster), variant,
 			fmt.Sprintf("rookery-%d.yaml", d.cfg.TRACClusterIndex))
 		if _, err := os.Stat(f); err != nil {
-			return "", fmt.Errorf("Tailorbird rookery config file %q does not exist in TRAC, "+
+			return "", fmt.Errorf("tailorbird rookery config file %q does not exist in TRAC, "+
 				"please follow http://g3doc/cloud/anthos/trac/g3doc/user_guide/generators to generate the config file correctly", f)
 		}
 		return f, nil
@@ -289,7 +292,7 @@ func (d *Instance) rookeryFile() (string, error) {
 	tmplFileName = fmt.Sprintf("%s.%s", tmplFileName, "yaml")
 	tmplFile := filepath.Join(d.cfg.RepoRootDir, configRelDir, tmplFileName)
 	if _, err := os.Stat(tmplFile); err != nil {
-		return "", fmt.Errorf("Tailorbird rookery template %q does not exist in %q", tmplFile, configRelDir)
+		return "", fmt.Errorf("tailorbird rookery template %q does not exist in %q", tmplFile, configRelDir)
 	}
 
 	// Create the template from the template file.
@@ -332,7 +335,7 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 
 	tbFile, err := ioutil.ReadFile(d.cfg.Rookery)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't read file %s: %v", d.cfg.Rookery, err)
+		return nil, fmt.Errorf("couldn't read file %s: %v", d.cfg.Rookery, err)
 	}
 
 	var rook Rookery

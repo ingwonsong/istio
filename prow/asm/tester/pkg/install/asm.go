@@ -50,7 +50,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 	}
 	os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
 
-	for _, context := range contexts {
+	for i, context := range contexts {
 		contextLogger := log.New(os.Stdout,
 			fmt.Sprintf("[kubeContext: %s] ", context), log.Ldate|log.Ltime)
 		contextLogger.Println("Performing ASM installation...")
@@ -115,7 +115,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 		// If this is Cloud ESF based, don't install gateway here. The customized
 		// Cloud ESF gateway will be installed in each test.
 		if c.settings.UseASMCLI && !c.settings.InstallCloudESF {
-			if err := c.installIngressGateway(context, "", ""); err != nil {
+			if err := c.installIngressGateway(c.settings, context, "", i); err != nil {
 				return err
 			}
 		}

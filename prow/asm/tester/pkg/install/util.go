@@ -241,7 +241,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 			fmt.Sprintf("kubectl create ns istio-system --kubeconfig=%s", config),
 		)
 		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
-			return fmt.Errorf("Error at 'kubectl create ns ...': %w", err)
+			return fmt.Errorf("error at 'kubectl create ns ...': %w", err)
 		}
 
 		// Create the secret that can be used to pull images from GCR.
@@ -259,7 +259,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 			),
 		)
 		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
-			return fmt.Errorf("Error at 'kubectl create secret ...': %w", err)
+			return fmt.Errorf("error at 'kubectl create secret ...': %w", err)
 		}
 
 		// Save secret data once (to be passed into the test framework),
@@ -275,7 +275,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 				),
 			)
 			if err != nil {
-				return fmt.Errorf("Error at 'kubectl get secrets ...': %w", err)
+				return fmt.Errorf("error at 'kubectl get secrets ...': %w", err)
 			}
 		}
 
@@ -317,7 +317,7 @@ EOF'`,
 				),
 			)
 			if err != nil {
-				return fmt.Errorf("Error at 'kubectl apply ...': %s", err)
+				return fmt.Errorf("error at 'kubectl apply ...': %s", err)
 			}
 		}
 	}

@@ -43,20 +43,9 @@ func (c *installer) install(r *revision.Config) error {
 		case resource.GKEOnGCP:
 			log.Println("🏄 performing ASM installation")
 			return c.installASM(r)
-		case resource.GKEOnAWS, resource.APM:
+		default:
 			log.Println("🏄 performing ASM installation on proxied clusters")
-			return c.installASMOnProxiedClusters(r)
-		case resource.BareMetal:
-			if c.settings.ClusterTopology == resource.SingleCluster {
-				log.Println("🏄 performing ASM installation on proxied clusters")
-				return c.installASMOnProxiedClusters(r)
-			} else {
-				log.Println("🏄 performing ASM installation on proxy injected clusters")
-				return c.installASMOnProxyInjectedClusters(r)
-			}
-		case resource.EKS, resource.OnPrem:
-			log.Println("🏄 performing ASM multi cloud installation")
-			return c.installASMOnMulticloud(r)
+			return c.installASMOnMulticloudClusters(r)
 		}
 	} else if c.settings.ControlPlane == resource.Managed {
 		if c.settings.UseAFC {
@@ -68,7 +57,7 @@ func (c *installer) install(r *revision.Config) error {
 		}
 	}
 
-	return fmt.Errorf("Unsupported installation for ASM %q on Platform %q", c.settings.ControlPlane, c.settings.ClusterType)
+	return fmt.Errorf("unsupported installation for ASM %q on Platform %q", c.settings.ControlPlane, c.settings.ClusterType)
 }
 
 // preInstall contains all steps required before performing the direct install
