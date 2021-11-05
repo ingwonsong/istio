@@ -160,6 +160,9 @@ tests:
       - names:
           - TestCanonicalServices
         buganizerID: 203557135
+      - names:
+          - TestTelemetryAPITCPStats
+        buganizerID: 205336277
 
   # Unmanaged CP + bare-metal
   - selectors:
