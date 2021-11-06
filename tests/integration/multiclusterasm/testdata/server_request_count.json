@@ -1,4 +1,6 @@
 {
+  "api_version": "",
+  "api_name": "",
   "destination_canonical_revision": "v1",
   "destination_canonical_service_name": "{{ .destSvc}}",
   "destination_canonical_service_namespace": "{{ .namespace}}",

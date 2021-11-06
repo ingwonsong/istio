@@ -38,6 +38,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/components/stackdriver"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/scopes"
 	"istio.io/istio/pkg/test/util/tmpl"
 	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/tests/integration/telemetry"
@@ -49,6 +50,10 @@ const (
 	clientRequestCount           = "tests/integration/telemetry/stackdriver/testdata/client_request_count.json.tmpl"
 	serverLogEntry               = "tests/integration/telemetry/stackdriver/testdata/server_access_log.json.tmpl"
 	sdBootstrapConfigMap         = "stackdriver-bootstrap-config"
+
+	GcrProjectIDENV     = "GCR_PROJECT_ID"
+	ControlPlaneENV     = "CONTROL_PLANE"
+	managedControlPlane = "MANAGED"
 )
 
 var (
@@ -232,6 +237,15 @@ func unmarshalFromTemplateFile(file string, out proto.Message, clName, trustDoma
 	if err != nil {
 		return err
 	}
+	// TODO: replace with reading from meshConfig
+	projectID, controlPlane := os.Getenv(GcrProjectIDENV), os.Getenv(ControlPlaneENV)
+	if projectID == "" {
+		scopes.Framework.Warn("projectID is empty from env\n")
+	}
+	if controlPlane == managedControlPlane {
+		trustDomain = fmt.Sprintf("%s.svc.id.goog", projectID)
+	}
+
 	resource, err := tmpl.Evaluate(string(templateFile), map[string]interface{}{
 		"EchoNamespace": EchoNsInst.Name(),
 		"ClusterName":   clName,
