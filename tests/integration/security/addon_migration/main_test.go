@@ -116,13 +116,13 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				Inject:   true,
 				Revision: "default",
 			})
-			t.Config().ApplyYAMLOrFail(t, stable14Namespace.Name(), fmt.Sprintf(mtlsDr, stable14Namespace.Name()))
+			t.ConfigKube().ApplyYAMLOrFail(t, stable14Namespace.Name(), fmt.Sprintf(mtlsDr, stable14Namespace.Name()))
 			stable16Namespace := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix:   "stable-16",
 				Inject:   true,
 				Revision: "istio-1611",
 			})
-			t.Config().ApplyYAMLOrFail(t, stable16Namespace.Name(), fmt.Sprintf(mtlsDr, stable16Namespace.Name()))
+			t.ConfigKube().ApplyYAMLOrFail(t, stable16Namespace.Name(), fmt.Sprintf(mtlsDr, stable16Namespace.Name()))
 
 			migration14Namespace := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix:   "migration-14",
@@ -137,8 +137,8 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			})
 			// Setup DR to test mtls; the addon didn't have auto mtls enabled
 			for _, ns := range []namespace.Instance{migration14Namespace, migration16Namespace} {
-				t.Config().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(mtlsDr, ns.Name()))
-				t.Config().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(`apiVersion: networking.istio.io/v1alpha3
+				t.ConfigKube().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(mtlsDr, ns.Name()))
+				t.ConfigKube().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(`apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
   name: app

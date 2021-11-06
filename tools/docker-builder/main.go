@@ -42,6 +42,7 @@ func main() {
 	rootCmd.Flags().StringVar(&args.BaseVersion, "base-version", args.BaseVersion, "base version to use")
 	rootCmd.Flags().StringVar(&args.ProxyVersion, "proxy-version", args.ProxyVersion, "proxy version to use")
 	rootCmd.Flags().StringVar(&args.IstioVersion, "istio-version", args.IstioVersion, "istio version to use")
+	rootCmd.Flags().StringVar(&args.CloudEFSVersion, "cloudefs-version", args.CloudEFSVersion, "CloudEFS version to use")
 
 	rootCmd.Flags().StringSliceVar(&args.Targets, "targets", args.Targets, "targets to build")
 	rootCmd.Flags().StringSliceVar(&args.Variants, "variants", args.Variants, "variants to build")
@@ -262,6 +263,7 @@ func ConstructBakeFile(a Args) (map[string]string, error) {
 					"istio_version":    args.IstioVersion,
 					"VM_IMAGE_NAME":    vmImageName(target),
 					"VM_IMAGE_VERSION": vmImageVersion(target),
+					"CLOUDESF_VERSION": args.CloudEFSVersion,
 				},
 				Platforms: args.Architectures,
 			}

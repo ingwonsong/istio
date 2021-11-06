@@ -31,7 +31,7 @@ func Version() string {
 		return ""
 	}
 	version := strings.TrimSpace(string(file))
-	re := regexp.MustCompile("CLOUDESF_VERSION = \"(.*?)\"")
+	re := regexp.MustCompile("CLOUDESF_VERSION = (.+)")
 
 	match := re.FindStringSubmatch(version)
 	if len(match) < 2 {

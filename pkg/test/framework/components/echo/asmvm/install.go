@@ -160,7 +160,7 @@ func (i *instance) createWorkloadGroup(ctx resource.Context) error {
 	}
 
 	c := i.cluster
-	if err := ctx.Config(c.Primary()).ApplyYAML(i.config.Namespace.Name(), i.workloadGroup); err != nil {
+	if err := ctx.ConfigKube(c.Primary()).ApplyYAML(i.config.Namespace.Name(), i.workloadGroup); err != nil {
 		return fmt.Errorf("error applying workload group for %s to %s: %v", i.config.Service, c.PrimaryName(), err)
 	}
 	return nil

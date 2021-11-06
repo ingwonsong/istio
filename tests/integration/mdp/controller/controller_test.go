@@ -374,7 +374,7 @@ func stubEnvironmentCM(t framework.TestContext, envFile, namespace, targetVersio
 	}); err != nil {
 		t.Fatalf("failed to render template: %v", err)
 	}
-	if err := t.Config().ApplyYAML(namespace, buf.String()); err != nil {
+	if err := t.ConfigKube().ApplyYAML(namespace, buf.String()); err != nil {
 		t.Fatalf("failed to apply env cm file: %s, %v", path, err)
 	}
 }
@@ -392,7 +392,7 @@ func createAndApplyTemplate(t framework.TestContext, path, namespace string, dat
 	if err := tmpl.Execute(&buf, data); err != nil {
 		t.Fatalf("failed to render template: %v", err)
 	}
-	if err := t.Config().ApplyYAML(namespace, buf.String()); err != nil {
+	if err := t.ConfigKube().ApplyYAML(namespace, buf.String()); err != nil {
 		t.Fatalf("failed to apply template: %s, %v", path, err)
 	}
 }
@@ -402,7 +402,7 @@ func createAndApplyTestdataFile(t framework.TestContext, path, namespace string)
 	if err != nil {
 		t.Fatalf("failed to read file: %s: %v", path, err)
 	}
-	if err := t.Config().ApplyYAML(namespace, string(f)); err != nil {
+	if err := t.ConfigKube().ApplyYAML(namespace, string(f)); err != nil {
 		t.Fatalf("failed to apply file: %s, %v", path, err)
 	}
 }

@@ -304,7 +304,7 @@ func (b builder) deployServices() error {
 
 			ns := strings.Split(svcNs, ".")[1]
 
-			if err := b.ctx.Config().ApplyYAMLNoCleanup(ns, svcYaml); err != nil {
+			if err := b.ctx.ConfigKube().ApplyYAMLNoCleanup(ns, svcYaml); err != nil {
 				return err
 			}
 		}

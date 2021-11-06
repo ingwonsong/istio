@@ -126,7 +126,7 @@ func TestAuditStackdriver(t *testing.T) {
 				"Namespace": ns.Name(),
 			}
 			policies := tmpl.EvaluateAllOrFail(ctx, args, file.AsStringOrFail(ctx, auditPolicyForLogEntry))
-			ctx.Config().ApplyYAMLOrFail(ctx, ns.Name(), policies...)
+			ctx.ConfigIstio().ApplyYAMLOrFail(ctx, ns.Name(), policies...)
 			testMulticluster(ctx, func(ctx framework.TestContext, ns namespace.Instance, src, dest echo.Instance) {
 				ctx.Logf("Validating Audit Telemetry for for Cluster in project %v", projectID)
 				validateTelemetry(ctx, projectID, st, ns, src, dest, "http", "server-istio-audit-log")

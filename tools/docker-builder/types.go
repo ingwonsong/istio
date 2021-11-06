@@ -56,19 +56,20 @@ type Target struct {
 }
 
 type Args struct {
-	Push          bool
-	Save          bool
-	BuildxEnabled bool
+	Push            bool
+	Save            bool
+	BuildxEnabled   bool
 	NoClobber     bool
 	NoCache       bool
-	Targets       []string
-	Variants      []string
-	Architectures []string
-	BaseVersion   string
-	ProxyVersion  string
-	IstioVersion  string
-	Tag           string
-	Hubs          []string
+	Targets         []string
+	Variants        []string
+	Architectures   []string
+	BaseVersion     string
+	ProxyVersion    string
+	IstioVersion    string
+	Tag             string
+	Hubs          []             string
+	CloudEFSVersion string
 }
 
 // Define variants, which control the base image of an image.
@@ -142,18 +143,18 @@ func DefaultArgs() Args {
 	}
 
 	return Args{
-		Push:          false,
-		Save:          false,
-		NoCache:       false,
-		BuildxEnabled: true,
+		Push:            false,
+		Save:            false,
+		NoCache:       false,BuildxEnabled:   true,
 		Hubs:          hub,
-		Tag:           env.GetString("TAG", "latest"),
-		BaseVersion:   fetchBaseVersion(),
-		IstioVersion:  fetchIstioVersion(),
-		ProxyVersion:  pv,
-		Architectures: arch,
-		Targets:       targets,
-		Variants:      variants,
+		Tag:             env.GetString("TAG", "latest"),
+		BaseVersion:     fetchBaseVersion(),
+		IstioVersion:    fetchIstioVersion(),
+		ProxyVersion:    pv,
+		Architectures:   arch,
+		Targets:         targets,
+		Variants:        variants,
+		CloudEFSVersion: env.GetString("CLOUDESF_VERSION", "latest"),
 	}
 }
 

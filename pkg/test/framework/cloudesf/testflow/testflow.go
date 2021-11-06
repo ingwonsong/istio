@@ -307,7 +307,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		}
 
 		t.Logf("Deploying Cloud ESF based ingress gateway.")
-		if err := t.Config().ApplyYAML("istio-system", tmpl.MustEvaluate(gatewayTemplate, templateParams)); err != nil {
+		if err := t.ConfigKube().ApplyYAML("istio-system", tmpl.MustEvaluate(gatewayTemplate, templateParams)); err != nil {
 			t.Fatalf("fail to install the Cloud ESF based ingress gateway  , err: %v", err)
 		}
 
@@ -363,7 +363,7 @@ spec:
     args: ["-host=%s:80", %s]
 `, clientPod, clientNamespace, clientKSA, testClientImageAddr, cloudesf.Version(), clientContainer, address, testClientImageExtraArgs)
 		t.Logf("test client config:\n%s", yamlConfig)
-		if err := t.Config().ApplyYAML(clientNamespace, yamlConfig); err != nil {
+		if err := t.ConfigKube().ApplyYAML(clientNamespace, yamlConfig); err != nil {
 			t.Fatalf("Fail to run the test client: %v", err)
 		}
 

@@ -195,7 +195,7 @@ func TestBadRemoteSecret(t *testing.T) {
 				t.ConfigKube().ApplyYAMLOrFail(t, ns, secret)
 			}
 			// CreateRemoteSecret can never generate this, so create it manually
-			t.Config().ApplyYAMLOrFail(t, ns, `apiVersion: v1
+			t.ConfigIstio().ApplyYAMLOrFail(t, ns, `apiVersion: v1
 kind: Secret
 metadata:
   annotations:

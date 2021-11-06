@@ -498,6 +498,11 @@ tests:
       - names:
           - TestWorkloadEntryUpdatesStatus
         buganizerID: 198725015
+      - names:
+        - TestTraffic/virtualservice/set_host_header_multi_destination/vm
+        - TestTraffic/virtualservice/redirect_port_and_scheme
+        - TestTraffic/virtualservice/rewrite_uri/vm/to_vm
+        buganizerID: 204606628
 
   # Managed CP, cluster topology = sc OR SINGLECLUSTER
   - selectors:
@@ -510,6 +515,13 @@ tests:
       - names:
           - TestTelemetry/telemetry
         reason: Prometheus shouldn't be tested for MCP. We have a separate test for real stackdriver.
+      - names:
+        - TestPiggyback
+        - TestTraffic/host/ip/auto-http
+        - TestTraffic/jwt-claim-route
+        - TestTcpProbe/rewrite-fail
+        reason: Temporary disable until mesh agent upgraded to 1.11.2
+
   # Managed CP, cluster topology = sc OR SINGLECLUSTER, feature = VPC_SC
   - selectors:
       control_plane: managed
