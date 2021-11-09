@@ -183,15 +183,15 @@ func newProtocol(cfg Config) (protocol, error) {
 			},
 			do: cfg.Dialer.HTTP,
 		}
-		if len(cfg.Proxy) > 0 {
+		// AWS Ingress has external IP address
+		if os.Getenv("CLUSTER_TYPE") != "aws" && len(cfg.Proxy) > 0 {
 			proxyURL, err := url.Parse(cfg.Proxy)
 			if err != nil {
 				return nil, err
 			}
 			proto.client.Transport.(*http.Transport).Proxy = http.ProxyURL(proxyURL)
-		} else if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" {
-			proto.client.Transport.(*http.Transport).Proxy = http.ProxyFromEnvironment
 		}
+
 		if cfg.Request.Http3 && scheme.Instance(urlScheme) == scheme.HTTP {
 			return nil, fmt.Errorf("http3 requires HTTPS")
 		} else if cfg.Request.Http3 {

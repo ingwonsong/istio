@@ -46,7 +46,9 @@ func New(address string, tlsSettings *common.TLSSettings, extraDialOpts ...grpc.
 	// TODO: make use of common.ConnectionTimeout once it increases
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	dialOptions := []grpc.DialOption{grpc.WithBlock()}
+	// TODO: (tairan) remove grpc.WithNoProxy() when multicloud job does not export HTTP_PROXY
+	// related bug: https://buganizer.corp.google.com/issues/204600168
+	dialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithNoProxy()}
 	if tlsSettings != nil {
 		cert, err := tls.X509KeyPair([]byte(tlsSettings.ClientCert), []byte(tlsSettings.Key))
 		if err != nil {

@@ -338,7 +338,7 @@ func CheckExistence(ctx framework.TestContext, instances ...echo.Instances) {
 
 func WaitForConfig(ctx framework.TestContext, namespace namespace.Instance, configs ...string) {
 	// TODO: https://buganizer.corp.google.com/issues/204600168
-	if os.Getenv("CLUSTER_TYPE") == "bare-metal" {
+	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" || os.Getenv("CLUSTER_TYPE") == "apm" {
 		return
 	}
 	for _, config := range configs {

@@ -137,7 +137,7 @@ func genTopologyFile(settings *resource.Settings) error {
 		} else if settings.ClusterType == resource.BareMetal {
 			clusterName = "cluster" + strconv.Itoa(i)
 		} else {
-			if len(settings.ClusterProxy) > 1 {
+			if len(settings.ClusterProxy) != 0 {
 				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
 				defer os.Unsetenv("HTTPS_PROXY")
 			}
@@ -166,7 +166,7 @@ func genTopologyFile(settings *resource.Settings) error {
 		if settings.UseGCEVMs || settings.VMStaticConfigDir != "" {
 			cc += "\n    fakeVM: false"
 		}
-		if settings.ClusterType == resource.BareMetal {
+		if len(settings.ClusterProxy) != 0 {
 			cc += fmt.Sprintf("\n    sshuser: %s", settings.ClusterSSHUser[i])
 			cc += fmt.Sprintf("\n    sshkey: %s", settings.ClusterSSHKey[i])
 			cc += fmt.Sprintf("\n  httpProxy: %s", settings.ClusterProxy[i])
