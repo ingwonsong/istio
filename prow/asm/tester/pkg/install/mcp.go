@@ -161,13 +161,19 @@ func generateMCPInstallEnvvars(settings *resource.Settings) []string {
 			"_CI_CLOUDRUN_IMAGE_TAG="+settings.InstallOverride.Tag,
 		)
 	} else {
-		envvars = append(envvars,
-			"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
-			"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),
-			"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
-			"_CI_CLOUDRUN_IMAGE_HUB="+os.Getenv("HUB")+"/cloudrun",
-			"_CI_CLOUDRUN_IMAGE_TAG="+os.Getenv("TAG"),
-		)
+		// ASM MCP VPCSC test is required to use production by VPCSC integration.
+		// Unfortunately, production meshconfig control plane doesn't have access
+		// to asm-staging-images. So we'll skip any image overwrite for this particular
+		// test.
+		if settings.FeatureToTest != resource.VPCSC {
+			envvars = append(envvars,
+				"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
+				"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),
+				"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
+				"_CI_CLOUDRUN_IMAGE_HUB="+os.Getenv("HUB")+"/cloudrun",
+				"_CI_CLOUDRUN_IMAGE_TAG="+os.Getenv("TAG"),
+			)
+		}
 	}
 	if settings.UseASMCLI {
 		envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.NewtaroCommit)
