@@ -545,6 +545,9 @@ tests:
       reason: Unkown
       buganizerID: 195128010
     - names:
+      - TestTraffic/jwt-claim-route
+      reason: From http://gkecl/359561, Temporary disable until mesh agent upgraded to 1.11.2.
+    - names:
       - TestTraffic/host/ip/auto-http
       - TestTraffic/host/ip:18081/auto-http
       - TestTraffic/virtualservice/rewrite_uri
