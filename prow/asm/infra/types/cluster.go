@@ -24,6 +24,7 @@ var (
 	GKEOnPrem                     = addCluster("gke-on-prem")
 	GKEOnAWS                      = addCluster("aws")
 	GKEOnEKS                      = addCluster("eks")
+	GKEOnAKS                      = addCluster("aks")
 	GKEOnBareMetal                = addCluster("bare-metal")
 
 	SupportedClusters []Cluster

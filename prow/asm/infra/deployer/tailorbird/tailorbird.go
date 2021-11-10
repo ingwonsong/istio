@@ -243,6 +243,8 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 			version = "aws-1.7.1-gke.1"
 		case types.GKEOnGCPWithAnthosPrivateMode:
 			version = "1.8.0-pre.1"
+		default:
+			version = "latest"
 		}
 	}
 

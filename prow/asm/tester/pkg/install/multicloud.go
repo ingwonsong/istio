@@ -54,6 +54,11 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 		}
 		os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
 
+		// users are required to pass this as well for AKS; the ux may change in the future
+		if c.settings.ClusterType == resource.AKS {
+			os.Setenv("HUB_REGISTRATION_EXTRA_FLAGS", "--has-private-issuer")
+		}
+
 		for i, kubeconfig := range kubeconfigs {
 			kubeconfigLogger := log.New(os.Stdout,
 				fmt.Sprintf("[kubeconfig: %s] ", kubeconfig), log.Ldate|log.Ltime)

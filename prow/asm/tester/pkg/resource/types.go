@@ -30,6 +30,7 @@ const (
 	// TODO: update to "gke-on-aws"
 	GKEOnAWS  ClusterType = "aws"
 	EKS       ClusterType = "eks"
+	AKS       ClusterType = "aks"
 	BareMetal ClusterType = "bare-metal"
 	APM       ClusterType = "apm"
 )
