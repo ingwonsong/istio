@@ -33,7 +33,7 @@ spec:
        inject.istio.io/templates: gateway
      labels:
        istio: ingressgateway
-       istio.io/rev: asm-managed # This is required only if the namespace is not labeled.
+       istio.io/rev: asm-managed-rapid # This is required only if the namespace is not labeled.
    spec:
      containers:
      - name: istio-proxy
