@@ -1,15 +1,7 @@
-1b20ed486a3fc8c64663a947a9cad3f3c6d8379f
+aa133fd62e2007f5a227e040c5521fc65128a371
 ========================================
 Clay
-Thu Oct 28 16:17:25 2021 -0700
+Wed Nov 10 16:42:41 2021 -0800
 
-Handle kubeconfig via Connect gateway (#1031)
+Use proper configmap name for trust domain logic (#1038)
 
-Customers can also generate kubeconfig files by using the Connect
-gateway instead of the usual gcloud container command. In this case, we
-can't parse any information out of it nor can we validate the GCP
-settings (or even tell if it's GKE or not really).
-
-If we see that the kubeconfig context name starts with "connectgateway",
-we now assume that it's actually connecting via Connect gateway and
-don't attempt to parse any info or validate GCP resources.
