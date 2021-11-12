@@ -86,15 +86,25 @@ function build_istioctl() {
 
 # Register the clusters into the Hub of the Hub host project.
 # Parameters: $1 - Hub host project
-#             $2 - array of k8s contexts
+#             $2 - Value of --use-asmcli flag
+#             $3 - array of k8s contexts
 function register_clusters_in_hub() {
   local GKEHUB_PROJECT_ID=$1; shift
+  local USE_ASMCLI=$1; shift
   local CONTEXTS=("${@}")
   local ENVIRON_PROJECT_NUMBER
   ENVIRON_PROJECT_NUMBER=$(gcloud projects describe "${GKEHUB_PROJECT_ID}" --format="value(projectNumber)")
 
+  # The staging hub environments are needed for testing ASM Feature Controller
+  # in both staging and prod. Members registered to staging GKE Hub will use
+  # staging AFC, and members registered to prod GKE Hub will use prod AFC.
+
   # Create Hub service account for the Hub host project
   gcloud beta services identity create --service=gkehub.googleapis.com --project="${GKEHUB_PROJECT_ID}"
+  gcloud beta services identity create --service=staging-gkehub.sandbox.googleapis.com --project="${GKEHUB_PROJECT_ID}"
+  # Create Mesh service account for the Hub host project
+  gcloud beta services identity create --service=meshconfig.googleapis.com --project="${GKEHUB_PROJECT_ID}"
+  gcloud beta services identity create --service=staging-meshconfig.sandbox.googleapis.com --project="${GKEHUB_PROJECT_ID}"
 
   for i in "${!CONTEXTS[@]}"; do
     IFS="_" read -r -a VALS <<< "${CONTEXTS[$i]}"
@@ -102,10 +112,26 @@ function register_clusters_in_hub() {
     local PROJECT_ID=${VALS[1]}
     local CLUSTER_LOCATION=${VALS[2]}
     local CLUSTER_NAME=${VALS[3]}
+
+    # The staging hub service accounts are needed for testing ASM Feature Controller
+    # in both staging and prod. Members registered to staging GKE Hub will use
+    # staging AFC, and members registered to prod GKE Hub will use prod AFC.
+    # This means we need IAM bindings for both prod and staging SAs.
+
     # Add IAM binding for Hub SA in the Hub connect project
     gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
       --member "serviceAccount:service-${ENVIRON_PROJECT_NUMBER}@gcp-sa-gkehub.iam.gserviceaccount.com" \
       --role roles/gkehub.serviceAgent
+    gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+      --member "serviceAccount:service-${ENVIRON_PROJECT_NUMBER}@gcp-sa-staging-gkehub.iam.gserviceaccount.com" \
+      --role roles/gkehub.serviceAgent
+    # Add IAM binding for Mesh SA in the Hub connect project
+    gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+      --member "serviceAccount:service-${ENVIRON_PROJECT_NUMBER}@gcp-sa-servicemesh.iam.gserviceaccount.com" \
+      --role roles/anthosservicemesh.serviceAgent
+    gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+      --member "serviceAccount:service-${ENVIRON_PROJECT_NUMBER}@gcp-sa-staging-servicemesh.iam.gserviceaccount.com" \
+      --role roles/anthosservicemesh.serviceAgent
     # Sleep 2 mins to wait for the IAM binding to take into effect.
     # TODO(chizhg,tairan): remove the sleep after http://b/190864991 is fixed.
     sleep 2m
@@ -113,17 +139,19 @@ function register_clusters_in_hub() {
     # https://cloud.devsite.corp.google.com/service-mesh/docs/register-cluster
     # Verify two ways of Hub registration
     # if the cluster is in the Hub host project
-    if [[ "${PROJECT_ID}" == "${GKEHUB_PROJECT_ID}" ]]; then
-      gcloud beta container hub memberships register "${CLUSTER_NAME}" --project="${PROJECT_ID}" \
-        --gke-cluster="${CLUSTER_LOCATION}"/"${CLUSTER_NAME}" \
-        --enable-workload-identity \
-        --quiet
-    # if the cluster is in the connect project
-    else
-      gcloud beta container hub memberships register "${CLUSTER_NAME}" --project="${GKEHUB_PROJECT_ID}" \
-        --gke-uri=https://container.googleapis.com/v1/projects/"${PROJECT_ID}"/locations/"${CLUSTER_LOCATION}"/clusters/"${CLUSTER_NAME}" \
-        --enable-workload-identity \
-        --quiet
+    if [[ "${USE_ASMCLI}" != "true" ]]; then
+      if [[ "${PROJECT_ID}" == "${GKEHUB_PROJECT_ID}" ]]; then
+        gcloud beta container hub memberships register "${CLUSTER_NAME}" --project="${PROJECT_ID}" \
+          --gke-cluster="${CLUSTER_LOCATION}"/"${CLUSTER_NAME}" \
+          --enable-workload-identity \
+          --quiet
+      # if the cluster is in the connect project
+      else
+        gcloud beta container hub memberships register "${CLUSTER_NAME}" --project="${GKEHUB_PROJECT_ID}" \
+          --gke-uri=https://container.googleapis.com/v1/projects/"${PROJECT_ID}"/locations/"${CLUSTER_LOCATION}"/clusters/"${CLUSTER_NAME}" \
+          --enable-workload-identity \
+          --quiet
+      fi
     fi
   done
   echo "These are the Hub Memberships within Host project ${GKEHUB_PROJECT_ID}"

@@ -119,6 +119,7 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--cluster_location", cluster.Location,
 		"--cluster_name", cluster.Name,
 		"--managed",
+		"--fleet_id", settings.GCRProject,
 		// Fix the channel to rapid since the go test needs to know injection label beforehand.
 		// Without this, AFC will use GKE channel which can change when we bump the cluster version.
 		// The test will overwrite the istiod/proxyv2 image with test image built on-the-fly if
