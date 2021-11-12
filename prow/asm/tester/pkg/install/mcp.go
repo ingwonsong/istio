@@ -57,7 +57,7 @@ func (c *installer) installASMManagedControlPlane() error {
 		contextLogger.Println("Performing ASM installation...")
 		cluster := kube.GKEClusterSpecFromContext(context)
 
-		if c.settings.FeatureToTest == resource.Addon {
+		if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
 			// Enable access logs to make debugging possible
 			if err := exec.Run(fmt.Sprintf("bash -c 'kubectl --context=%s get cm istio -n istio-system -o yaml | sed \"s/accessLogFile\\:.*$/accessLogFile\\: \\/dev\\/stdout/g\" | kubectl replace -f -'", context)); err != nil {
 				return fmt.Errorf("error enabling access logs for testing with Addon: %w", err)
@@ -85,7 +85,7 @@ EOF'`, context)); err != nil {
 			return fmt.Errorf("error enabling access logging to help with debugging tests")
 		}
 
-		if c.settings.FeatureToTest == resource.Addon {
+		if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
 			contextLogger.Println("Skipping gateway, already installed by addon")
 		} else {
 			if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
@@ -136,7 +136,7 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		installFlags = append(installFlags, "--fleet_id", settings.GCRProject)
 	}
 
-	if settings.FeatureToTest == resource.CNI || settings.FeatureToTest == resource.Addon {
+	if settings.FeaturesToTest.Has(string(resource.CNI)) || settings.FeaturesToTest.Has(string(resource.Addon)) {
 		// Addon always will use CNI
 		installFlags = append(installFlags, "--option", "cni-managed")
 	}
@@ -165,7 +165,7 @@ func generateMCPInstallEnvvars(settings *resource.Settings) []string {
 		// Unfortunately, production meshconfig control plane doesn't have access
 		// to asm-staging-images. So we'll skip any image overwrite for this particular
 		// test.
-		if settings.FeatureToTest != resource.VPCSC {
+		if !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 			envvars = append(envvars,
 				"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
 				"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),

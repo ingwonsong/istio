@@ -43,11 +43,11 @@ func Setup(settings *resource.Settings) error {
 	log.Println("🎬 start setting up the environment...")
 
 	// Validate the settings before proceeding.
-	if err := resource.ValidateSettings(settings); err != nil {
+	if err := resource.ReconcileAndValidateSettings(settings); err != nil {
 		return err
 	}
 
-	// Populate the settings that will be used in runtime.
+	// Populate the settings that will be used during runtime.
 	if err := populateRuntimeSettings(settings); err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func Setup(settings *resource.Settings) error {
 		return err
 	}
 
-	if settings.ClusterType == resource.GKEOnGCP && settings.FeatureToTest != resource.Autopilot {
+	if settings.ClusterType == resource.GKEOnGCP && !settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		// Enable core dumps for Istio proxy
 		if err := enableCoreDumps(settings); err != nil {
 			return err
@@ -90,7 +90,7 @@ func enableCoreDumps(settings *resource.Settings) error {
 	return nil
 }
 
-// populate extra settings that will be used during the runtime
+// populate extra settings that will be used during runtime
 func populateRuntimeSettings(settings *resource.Settings) error {
 	settings.ConfigDir = filepath.Join(settings.RepoRootDir, configDir)
 
@@ -254,7 +254,7 @@ func fixGKE(settings *resource.Settings) error {
 		return err
 	}
 
-	if settings.FeatureToTest == resource.VPCSC {
+	if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		networkName := settings.GKENetworkName
 
 		// Create router and NAT
@@ -287,7 +287,8 @@ func fixGKE(settings *resource.Settings) error {
 		}
 	}
 
-	if settings.FeatureToTest == resource.PrivateClusterLimitedAccess || settings.FeatureToTest == resource.PrivateClusterNoAccess {
+	if settings.FeaturesToTest.Has(string(resource.PrivateClusterLimitedAccess)) ||
+		settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
 		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
 			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}

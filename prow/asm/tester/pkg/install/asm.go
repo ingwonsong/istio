@@ -120,7 +120,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 			}
 		}
 
-		if c.settings.FeatureToTest == resource.Autopilot {
+		if c.settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 			// b/203609464
 			// Autopilot does not provide control on node, and new cluster only provides a very small node pool,
 			// which will take time to scale up during test runs and lead to test timeout.
@@ -269,7 +269,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if rev.Overlay != "" {
 		overlays = append(overlays, filepath.Join(pkgPath, rev.Overlay))
 	}
-	if settings.FeatureToTest == resource.UserAuth {
+	if settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/user-auth.yaml"))
 	}
 	if os.Getenv(cloudAPIEndpointOverrides) == testEndpoint {
@@ -284,7 +284,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if settings.InstallCloudESF {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/cloudesf-e2e.yaml"))
 	}
-	if settings.FeatureToTest == resource.Autopilot {
+	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/autopilot-cni-image.yaml"))
 	}
 
@@ -297,7 +297,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	}
 
 	// Other random options
-	if settings.FeatureToTest == resource.Autopilot {
+	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		installFlags = append(installFlags, "--option", "cni-gke-autopilot")
 	} else {
 		installFlags = append(installFlags, "--option", "cni-gcp")

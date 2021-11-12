@@ -94,7 +94,6 @@ func configureEnvvars(settings *resource.Settings,
 		envVars["HTTP_PROXY"] = settings.ClusterProxy[0]
 		envVars["HTTPS_PROXY"] = settings.ClusterProxy[0]
 	}
-
 	for k, v := range envVars {
 		log.Printf("Set env %s=%s", k, v)
 		if err := os.Setenv(k, v); err != nil {

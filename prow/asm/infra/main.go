@@ -15,12 +15,14 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+
+	flag "github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"istio.io/istio/prow/asm/infra/config"
 	"istio.io/istio/prow/asm/infra/deployer"
@@ -32,6 +34,7 @@ import (
 func main() {
 	cfg := config.Default()
 
+	features := []string{}
 	flag.StringVar(&cfg.RepoRootDir, "repo-root-dir", cfg.RepoRootDir,
 		"the repo's root directory (required). Used as the working directory for running the kubetest2 command")
 	flag.StringVar(&cfg.ExtraDeployerFlags, "deployer-flags", cfg.ExtraDeployerFlags,
@@ -61,16 +64,17 @@ func main() {
 		fmt.Sprintf("the cluster topology for the SUT (optional). Can be one of %v", types.SupportedTopologies))
 	flag.StringVar((*string)(&cfg.WIP), "wip", string(cfg.WIP),
 		fmt.Sprintf("Workload Identity Pool, can be one of %v", types.SupportedWIPs))
-	flag.StringVar((*string)(&cfg.Feature), "feature", string(cfg.Feature),
-		fmt.Sprintf("the feature to test for ASM (optional). Can be one of %v", types.SupportedFeatures))
+	flag.StringSliceVar(&features, "feature", []string{},
+		fmt.Sprintf("the feature to test for ASM (optional). Can be one or multiple of %v", types.SupportedFeatures))
 	flag.StringVar(&cfg.GCSBucket, "gcs-bucket", cfg.GCSBucket,
 		"the GCS bucket to be used for the platform (optional). Supported values vary per platform")
 	flag.BoolVar(&cfg.IsCloudESFTest, "is-cloudesf-test", cfg.IsCloudESFTest, "whether it is the test using CloudESF as ingress gateway")
 	flag.Parse()
+	cfg.Features = sets.NewString(features...)
 
 	// Special case for testing the Addon.
 	// TODO: move it to Prow job config.
-	if cfg.Feature == types.Addon {
+	if cfg.Features.Has(string(types.Addon)) {
 		// We only support clusters that have EnsureExists, currently available on rapid only
 		cfg.ReleaseChannel = types.Rapid
 		cfg.ClusterVersion = "1.22"

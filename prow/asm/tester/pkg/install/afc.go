@@ -33,7 +33,7 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 
 	// ASM MCP VPCSC with AFC test requires the latest, as of 10/13/2021, unreleased gcloud binary .
 	// TODO(ruigu): Remove this part after the http://b/204468175.
-	if c.settings.FeatureToTest == resource.VPCSC {
+	if c.settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		if err := util.UpdateCloudSDKToPiperHead(); err != nil {
 			return err
 		}
@@ -127,13 +127,13 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--enable-all", // We can't use getInstallEnableFlags() since it apparently doesn't match what AFC expects
 		"--verbose",
 	}
-	if settings.FeatureToTest == resource.VPCSC {
+	if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		installFlags = append(installFlags, "--use_vpcsc")
 	}
 
 	// To test Managed CNI, we need to pass an extra flag to ASMCLI so that we don't
 	// manually apply static manifests
-	if settings.FeatureToTest == resource.CNI {
+	if settings.FeaturesToTest.Has(string(resource.CNI)) {
 		installFlags = append(installFlags, "--use_managed_cni")
 	}
 
@@ -157,7 +157,7 @@ func generateAFCInstallEnvvars(settings *resource.Settings) []string {
 		// Unfortunately, production meshconfig control plane doesn't have access
 		// to asm-staging-images. So we'll skip any image overwrite for this particular
 		// test.
-		if settings.FeatureToTest != resource.VPCSC {
+		if !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 			envvars = append(envvars,
 				"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
 				"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),

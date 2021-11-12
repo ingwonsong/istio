@@ -142,9 +142,10 @@ func (d *Instance) flags() ([]string, error) {
 	}
 	flags = append(flags, topologyFlags...)
 
-	if d.cfg.Feature != "" {
+	for f := range d.cfg.Features {
+		feat := types.Feature(f)
 		var featureFlags []string
-		switch d.cfg.Feature {
+		switch feat {
 		case types.VPCServiceControls:
 			featureFlags, err = featureVPCSCPresetup(d.cfg.GCPProjects, d.cfg.Topology)
 		case types.UserAuth:
@@ -155,7 +156,7 @@ func (d *Instance) flags() ([]string, error) {
 		case types.ContainerNetworkInterface:
 		case types.Autopilot:
 		default:
-			err = fmt.Errorf("feature %q is not supported", d.cfg.Feature)
+			err = fmt.Errorf("feature %q is not supported", feat)
 		}
 		flags = append(flags, featureFlags...)
 	}
@@ -179,12 +180,12 @@ func (d *Instance) getTopologyFlags(releaseChannel types.ReleaseChannel) ([]stri
 }
 
 func (d *Instance) getExtraDeployerFlags() []string {
-	if d.cfg.Feature == types.Autopilot {
+	if d.cfg.Features.Has(string(types.Autopilot)) {
 		return []string{"--autopilot=true", "--gcloud-command-group=beta"}
 	}
 
 	addonFlag := ""
-	if d.cfg.Feature == types.Addon {
+	if d.cfg.Features.Has(string(types.Addon)) {
 		addonFlag = " --addons=Istio"
 	}
 	if d.cfg.GcloudExtraFlags != "" {
@@ -203,7 +204,7 @@ func (d *Instance) getClusterVersion() string {
 }
 
 func (d *Instance) getReleaseChannel() (types.ReleaseChannel, error) {
-	if d.cfg.Feature == types.Addon {
+	if d.cfg.Features.Has(string(types.Addon)) {
 		// We only support clusters that have EnsureExists, currently available on rapid only
 		return types.Rapid, nil
 	}
@@ -219,7 +220,7 @@ func (d *Instance) getReleaseChannel() (types.ReleaseChannel, error) {
 func (d *Instance) singleClusterFlags(releaseChannel types.ReleaseChannel) ([]string, error) {
 	boskosResourceType := commonBoskosResource
 	// Testing with VPC-SC requires a different project type.
-	if d.cfg.Feature == types.VPCServiceControls {
+	if d.cfg.Features.Has(string(types.VPCServiceControls)) {
 		boskosResourceType = vpcSCBoskosResource
 	}
 	flags, err := d.getProjectFlag(func() (string, error) {
@@ -234,12 +235,11 @@ func (d *Instance) singleClusterFlags(releaseChannel types.ReleaseChannel) ([]st
 		"--release-channel="+string(releaseChannel),
 		"--version="+d.getClusterVersion())
 
-	switch d.cfg.Feature {
-	case types.PrivateClusterUnrestrictedAccess:
+	if d.cfg.Features.Has(string(types.PrivateClusterUnrestrictedAccess)) {
 		flags = append(flags, "--private-cluster-access-level=unrestricted", "--private-cluster-master-ip-range=172.16.0.32/28,173.16.0.32/28,174.16.0.32/28")
-	case types.PrivateClusterLimitedAccess:
+	} else if d.cfg.Features.Has(string(types.PrivateClusterLimitedAccess)) {
 		flags = append(flags, "--private-cluster-access-level=limited", "--private-cluster-master-ip-range=172.16.0.32/28,173.16.0.32/28,174.16.0.32/28")
-	case types.PrivateClusterNoAccess:
+	} else if d.cfg.Features.Has(string(types.PrivateClusterNoAccess)) {
 		flags = append(flags, "--private-cluster-access-level=no", "--private-cluster-master-ip-range=172.16.0.32/28,173.16.0.32/28,174.16.0.32/28")
 	}
 
@@ -251,7 +251,7 @@ func (d *Instance) singleClusterFlags(releaseChannel types.ReleaseChannel) ([]st
 func (d *Instance) multiClusterFlags(releaseChannel types.ReleaseChannel) ([]string, error) {
 	boskosResourceType := commonBoskosResource
 	// Testing with VPC-SC requires a different project type.
-	if d.cfg.Feature == types.VPCServiceControls {
+	if d.cfg.Features.Has(string(types.VPCServiceControls)) {
 		boskosResourceType = vpcSCBoskosResource
 	}
 
@@ -393,7 +393,7 @@ func featureVPCSCPresetup(gcpProjects []string, topology types.Topology) ([]stri
 func (d *Instance) multiProjectMultiClusterFlags(releaseChannel types.ReleaseChannel) ([]string, error) {
 	hostBoskosResourceType := sharedVPCHostBoskosResource
 	svcBoskosResourceType := sharedVPCSVCBoskosResource
-	if d.cfg.Feature == types.VPCServiceControls {
+	if d.cfg.Features.Has(string(types.VPCServiceControls)) {
 		hostBoskosResourceType = vpcSCSharedVPCHostBoskosResource
 		svcBoskosResourceType = vpcSCSharedVPCSVCBoskosResource
 	}

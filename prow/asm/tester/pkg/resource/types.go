@@ -200,7 +200,7 @@ func (io *InstallOverride) Set(value string) error {
 	}
 	installDetails := strings.Split(value, ":")
 	if len(installDetails) < 2 || len(installDetails) > 3 {
-		return fmt.Errorf("Malformed install override supplied %q", value)
+		return fmt.Errorf("malformed install override supplied %q", value)
 	}
 	io.isSet = true
 	io.Hub = installDetails[0]

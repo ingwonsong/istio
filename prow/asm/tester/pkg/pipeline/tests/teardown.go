@@ -25,7 +25,7 @@ import (
 func Teardown(settings *resource.Settings) error {
 	log.Println("🎬 start tearing down the tests...")
 
-	if settings.ControlPlane == resource.Unmanaged && settings.FeatureToTest == resource.UserAuth {
+	if settings.ControlPlane == resource.Unmanaged && settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 		return userauth.Teardown(settings)
 	}
 

@@ -81,7 +81,7 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		}
 	}
 
-	if settings.FeatureToTest == resource.Autopilot {
+	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		testFlags = append(testFlags, "--istio.test.skipTProxy=true")
 	}
 
@@ -122,7 +122,7 @@ func generateTestSelect(settings *resource.Settings) string {
 				testSelect = "-customsetup,-postsubmit,-flaky"
 			}
 		}
-		if settings.FeatureToTest == resource.UserAuth {
+		if settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 			testSelect = "+userauth"
 		}
 	} else if settings.ControlPlane == resource.Managed {

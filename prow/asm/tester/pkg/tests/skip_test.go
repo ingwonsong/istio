@@ -189,7 +189,7 @@ func TestTargetSkip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse skip test config for %q: %v", f.Name(), err)
 			}
-			skipFlags, err := testSkipFlags(skipTestConfig.Tests, "", skipLabels(&tc.settings))
+			skipFlags, _ := testSkipFlags(skipTestConfig.Tests, "", skipLabels(&tc.settings))
 			sort.Strings(skipFlags)
 			sort.Strings(tc.desiredTestSkips)
 			if diff := cmp.Diff(skipFlags, tc.desiredTestSkips); diff != "" {

@@ -23,6 +23,7 @@ import (
 	"github.com/octago/sflags/gen/gpflag"
 	"github.com/spf13/pflag"
 	"go.uber.org/multierr"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func BindFlags(settings *Settings) *pflag.FlagSet {
@@ -46,6 +47,7 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	if err != nil {
 		log.Fatalf("err: %v", err)
 	}
+
 	// Flag aliases
 	// TODO(landow): fully remove staticvm support
 	flags.StringVar(&settings.VMStaticConfigDir, "static-vms", "", "a directory in echo-vm-provisioner/configs that contains config files for provisioning the VM test environment")
@@ -54,11 +56,10 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	// TODO(chizhg): delete after we update the Prow jobs to use --vm-image-project
 	flags.StringVar(&settings.VMImageProject, "image-project", "debian-cloud", "VM image project that will be used as the `--image-project` flag value when using `gcloud compute instance-templates create` to create the VMs.")
 	return flags
-
 }
 
-// ValidateSettings performs basic checks for the settings.
-func ValidateSettings(settings *Settings) error {
+// ReconcileAndValidateSettings reconciles and performs basic checks for the settings.
+func ReconcileAndValidateSettings(settings *Settings) error {
 	var errs []error
 
 	if os.Getenv("KUBECONFIG") == "" && settings.Kubeconfig == "" {
@@ -69,6 +70,8 @@ func ValidateSettings(settings *Settings) error {
 		os.Setenv("KUBECONFIG", settings.Kubeconfig)
 	}
 	settings.Kubeconfig = os.Getenv("KUBECONFIG")
+
+	settings.FeaturesToTest = sets.NewString(settings.TempFeaturesToTest...)
 
 	if !pathExists(settings.RepoRootDir) {
 		errs = append(errs, fmt.Errorf("--repo-root-dir must be set as a valid path, now is %q", settings.RepoRootDir))

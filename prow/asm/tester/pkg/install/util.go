@@ -133,7 +133,7 @@ func createRemoteSecrets(settings *resource.Settings, contexts []string) error {
 			}
 
 			// for private clusters, convert the cluster master public IP to private IP
-			if settings.FeatureToTest == resource.VPCSC {
+			if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 				privateIPCmd := fmt.Sprintf("gcloud container clusters describe %s"+
 					" --project %s --zone %s --format \"value(privateClusterConfig.privateEndpoint)\"",
 					otherCluster.Name, otherCluster.ProjectID, otherCluster.Location)

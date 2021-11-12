@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	shell "github.com/kballard/go-shellquote"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"istio.io/istio/prow/asm/infra/types"
 )
@@ -58,7 +59,7 @@ type Instance struct {
 	Topology              types.Topology
 	WIP                   types.WIP
 	ReleaseChannel        types.ReleaseChannel
-	Feature               types.Feature
+	Features              sets.String
 	Rookery               string
 }
 
@@ -101,7 +102,7 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 		"--cluster-type="+string(c.Cluster),
 		"--cluster-topology="+string(c.Topology),
 		"--wip="+string(c.WIP),
-		"--feature="+string(c.Feature))
+		"--feature="+strings.Join(c.Features.List(), ","))
 	if c.UseOnePlatform {
 		testerFlags = append(testerFlags, "--use-oneplatform")
 	}

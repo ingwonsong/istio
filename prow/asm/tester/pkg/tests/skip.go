@@ -125,9 +125,7 @@ func packageSkipEnvvar(packageTargetGroup []TargetGroup, skipLabels SkipLabels) 
 		}
 		if matched {
 			for _, target := range targetGroup.Targets {
-				for _, name := range target.Names {
-					skipped = append(skipped, name)
-				}
+				skipped = append(skipped, target.Names...)
 			}
 		}
 	}
@@ -141,7 +139,7 @@ func skipLabels(settings *resource.Settings) SkipLabels {
 	labelMap[clusterTypeSkipLabel] = strings.ToLower(settings.ClusterType.String())
 	labelMap[clusterTopologySkipLabel] = strings.ToLower(settings.ClusterTopology.String())
 	labelMap[wipSkipLabel] = strings.ToLower(settings.WIP.String())
-	labelMap[featureSkipLabel] = strings.ToLower(settings.FeatureToTest.String())
+	labelMap[featureSkipLabel] = strings.ToLower(strings.Join(settings.FeaturesToTest.List(), ","))
 	labelMap[gceVmSkipLabel] = fmt.Sprintf("%t", settings.UseGCEVMs || settings.VMStaticConfigDir != "")
 	labelMap[multiversion] = fmt.Sprintf("%t", settings.RevisionConfig != "")
 	// a common label to easily allow selecting every test without having an empty selector

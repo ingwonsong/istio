@@ -14,6 +14,8 @@
 
 package resource
 
+import "k8s.io/apimachinery/pkg/util/sets"
+
 // Settings is a struct that uses annotations from github.com/octago/sflags
 // to define all the user configurable Tester settings on the command line.
 type Settings struct {
@@ -51,8 +53,9 @@ type Settings struct {
 	// A list of ssh key to connect to the bootstrap VM of Baremetal/AWS cluster
 	ClusterSSHKey []string
 
-	// The feature to test for this test flow
-	FeatureToTest Feature `flag:"feature" desc:"Feature to test for this test flow."`
+	// The additional features to test for this test flow
+	FeaturesToTest     sets.String
+	TempFeaturesToTest []string `flag:"feature" desc:"Feature to test for this test flow."`
 
 	// UNMANAGED or MANAGED
 	ControlPlane ControlPlaneType `flag:"control-plane" desc:"Type of the control plane, can be one of UNMANAGED or MANAGED."`
