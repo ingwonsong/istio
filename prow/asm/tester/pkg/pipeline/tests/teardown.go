@@ -29,9 +29,8 @@ func Teardown(settings *resource.Settings) error {
 		return userauth.Teardown(settings)
 	}
 
-	clusterType := settings.ClusterType
 	// Unset the proxy if the tests are run on proxied clusters.
-	if clusterType == resource.BareMetal || clusterType == resource.GKEOnAWS || clusterType == resource.APM {
+	if len(settings.ClusterProxy) != 0 {
 		os.Unsetenv("HTTP_PROXY")
 		os.Unsetenv("HTTPS_PROXY")
 	}

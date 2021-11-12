@@ -128,7 +128,7 @@ func gcrProjectIDs(settings *resource.Settings) (gcrProjectID1, gcrProjectID2 st
 // Outputs YAML to the topology file, in the structure of []cluster.Config to inform the test framework of details about
 // each cluster under test. cluster.Config is defined in pkg/test/framework/components/cluster/factory.go.
 func genTopologyFile(settings *resource.Settings) error {
-	configs := strings.Split(settings.Kubeconfig, string(os.PathListSeparator))
+	configs := filepath.SplitList(settings.Kubeconfig)
 	for i, kubeconfig := range configs {
 		var clusterName string
 		if settings.ClusterType == resource.GKEOnGCP {

@@ -36,7 +36,7 @@ func gatewayDir() string {
 }
 
 func (c *installer) installIngressGateway(settings *resource.Settings, context, kubeconfig string, idx int) error {
-	if c.settings.ClusterType == resource.BareMetal || c.settings.ClusterType == resource.GKEOnAWS || c.settings.ClusterType == resource.APM {
+	if len(c.settings.ClusterProxy) != 0 {
 		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
 		os.Setenv("http_proxy", settings.ClusterProxy[idx])
 		defer os.Unsetenv("HTTPS_PROXY")

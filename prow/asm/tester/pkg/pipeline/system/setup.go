@@ -37,9 +37,7 @@ func Setup(settings *resource.Settings) error {
 	if err != nil {
 		// Export the Pod logs if the tests are run on CI.
 		if os.Getenv("CI") == "true" {
-			if settings.ClusterType == resource.BareMetal ||
-				settings.ClusterType == resource.GKEOnAWS ||
-				settings.ClusterType == resource.APM {
+			if len(settings.ClusterProxy) != 0 {
 				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[0])
 				os.Setenv("http_proxy", settings.ClusterProxy[0])
 				defer os.Unsetenv("HTTPS_PROXY")

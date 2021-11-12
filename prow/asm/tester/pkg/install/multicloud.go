@@ -35,7 +35,7 @@ const (
 
 func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 	if c.settings.UseASMCLI {
-		kubeconfigs := strings.Split(c.settings.Kubeconfig, string(os.PathListSeparator))
+		kubeconfigs := filepath.SplitList(c.settings.Kubeconfig)
 		log.Println("Downloading ASM script for the installation...")
 		scriptPath, err := downloadInstallScript(c.settings, rev)
 		if err != nil {
@@ -62,7 +62,6 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 
 			networkID := "network" + strconv.Itoa(i)
 			clusterID := "cluster" + strconv.Itoa(i)
-
 			additionalFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
 				kubeconfig)
 			if err != nil {
@@ -80,6 +79,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 				exec.WithAdditionalArgs(additionalFlags)); err != nil {
 				return fmt.Errorf("ASM installation using script failed: %w", err)
 			}
+
 			if err := c.installIngressGateway(c.settings, "", kubeconfig, i); err != nil {
 				return err
 			}
@@ -168,7 +168,8 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 		installFlags = append(installFlags,
 			"--ca", "citadel",
 		)
-		if settings.ClusterType == resource.BareMetal {
+		// Tairan: for Citadel multicluster, cacerts need to be created ahead so that two clusters have the same root trust
+		if len(filepath.SplitList(settings.Kubeconfig)) > 1 {
 			installFlags = append(installFlags, "--ca_cert", "samples/certs/ca-cert.pem",
 				"--ca_key", "samples/certs/ca-key.pem",
 				"--root_cert", "samples/certs/root-cert.pem",
@@ -187,7 +188,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 
 // installExpansionGateway performs the steps documented at https://cloud.google.com/service-mesh/docs/on-premises-multi-cluster-setup
 func installExpansionGateway(settings *resource.Settings, rev *revision.Config, cluster, network, kubeconfig string, idx int) error {
-	if settings.ClusterType == resource.BareMetal || settings.ClusterType == resource.GKEOnAWS || settings.ClusterType == resource.APM {
+	if len(settings.ClusterProxy) != 0 {
 		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
 		os.Setenv("http_proxy", settings.ClusterProxy[idx])
 		defer os.Unsetenv("HTTPS_PROXY")

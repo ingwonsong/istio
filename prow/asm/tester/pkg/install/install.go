@@ -44,7 +44,7 @@ func (c *installer) install(r *revision.Config) error {
 			log.Println("🏄 performing ASM installation")
 			return c.installASM(r)
 		default:
-			log.Println("🏄 performing ASM installation on proxied clusters")
+			log.Println("🏄 performing ASM installation on multicloud clusters")
 			return c.installASMOnMulticloudClusters(r)
 		}
 	} else if c.settings.ControlPlane == resource.Managed {

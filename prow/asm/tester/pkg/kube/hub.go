@@ -16,13 +16,14 @@ package kube
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 )
 
 func GetEnvironProjectID(kubeConfig string) (string, error) {
-	configs := strings.Split(kubeConfig, ":")
+	configs := filepath.SplitList(kubeConfig)
 	environProjectId, err := exec.RunWithOutput(
 		fmt.Sprintf(`bash -c 'kubectl get memberships.hub.gke.io membership -o=json --kubeconfig=%s | jq .spec.workload_identity_pool | sed "s/^\"\(.*\).\(svc\|hub\).id.goog\"$/\1/g"'`, configs[0]))
 	if err != nil {

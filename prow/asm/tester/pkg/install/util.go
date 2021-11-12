@@ -233,7 +233,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 	cred := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 	configs := filepath.SplitList(settings.Kubeconfig)
 	for i, config := range configs {
-		if settings.ClusterType == resource.BareMetal || settings.ClusterType == resource.GKEOnAWS || settings.ClusterType == resource.APM {
+		if len(settings.ClusterProxy) != 0 {
 			os.Setenv("HTTP_PROXY", settings.ClusterProxy[i])
 			defer os.Unsetenv("HTTP_PROXY")
 		}

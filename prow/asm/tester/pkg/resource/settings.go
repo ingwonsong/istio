@@ -23,6 +23,7 @@ type Settings struct {
 	RepoRootDir string `flag:"repo-root-dir" desc:"Root directory of the repository."`
 
 	// A list of kubeconfig files that can be used to connnect to the test clusters
+	// TODO(chizhg): change it to an array
 	Kubeconfig string `flag:"kubeconfig" desc:"A list of kubeconfig files that can be used to connect to the test clusters."`
 
 	// The GCP projects used for creating GKE clusters and other resources
