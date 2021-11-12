@@ -7,6 +7,11 @@ ifeq ($(CLUSTER_TYPE), bare-metal)
 	export HTTPS_PROXY=$(HTTP_PROXY)
 endif
 
+_MCP_TEST_TIMEOUT = 30m
+ifneq ($(MCP_TEST_TIMEOUT),)
+	_MCP_TEST_TIMEOUT = $(MCP_TEST_TIMEOUT)
+endif
+
 # Presubmit integration tests targeting Kubernetes environment.
 .PHONY: test.integration.asm
 test.integration.asm: | $(JUNIT_REPORT)
@@ -62,7 +67,7 @@ test.integration.asm.security: | $(JUNIT_REPORT)
 # Custom test target for ASM managed control plane (MCP).
 .PHONY: test.integration.asm.mcp
 test.integration.asm.mcp: | $(JUNIT_REPORT) check-go-tag
-	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/... | grep -v "${DISABLED_PACKAGES}") -timeout 30m \
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/... | grep -v "${DISABLED_PACKAGES}") -timeout ${_MCP_TEST_TIMEOUT} \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug,mcp:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
