@@ -234,6 +234,10 @@ spec:
             httpGet:
               path: /readyz
               port: 8000
+          securityContext:
+            runAsGroup: 0
+            runAsUser: 0
+            runAsNonRoot: false
           command: ["install-cni"]
           env:
             # The CNI network config to install on each node.
