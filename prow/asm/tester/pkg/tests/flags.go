@@ -83,6 +83,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 
 	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		testFlags = append(testFlags, "--istio.test.skipTProxy=true")
+
+		// Autopilot could start repairing itself as it sees more workloads
+		// which takes more time for the pods to become ready
+		testFlags = append(testFlags, "--istio.test.echo.readinessTimeout=40m")
 	}
 
 	// Need to pass the revisions and versions to test framework if specified

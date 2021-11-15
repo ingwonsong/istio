@@ -165,7 +165,7 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 
 	// To test Managed CNI, we need to pass an extra flag to ASMCLI so that we don't
 	// manually apply static manifests
-	if settings.FeaturesToTest.Has(string(resource.CNI)) {
+	if settings.FeaturesToTest.Has(string(resource.CNI)) || settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		installFlags = append(installFlags, "--use_managed_cni")
 	}
 

@@ -200,6 +200,10 @@ func injectEnvVars(settings *resource.Settings) error {
 		envVars["MULTI_VERSION"] = "1"
 	}
 
+	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
+		envVars["MCP_TEST_TIMEOUT"] = "90m"
+	}
+
 	for name, val := range envVars {
 		log.Printf("Set env var: %s=%s", name, val)
 		if err := os.Setenv(name, val); err != nil {
