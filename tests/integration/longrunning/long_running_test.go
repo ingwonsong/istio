@@ -38,7 +38,7 @@ import (
 const (
 	PodASvc          = "a"
 	PodBSvc          = "b"
-	runDuration      = 5 * time.Minute
+	runDuration      = 10 * time.Minute
 	successThreshold = 0.95
 )
 
@@ -114,8 +114,6 @@ func TestLongRunning(t *testing.T) {
 				},
 			}).Start()
 
-			time.Sleep(runDuration / 2)
-
 			if url := os.Getenv("TEST_START_EVENT_URL"); url != "" {
 				client := &http.Client{Timeout: 1 * time.Hour}
 				log.Printf("firing test start event to %s", url)
@@ -129,7 +127,7 @@ func TestLongRunning(t *testing.T) {
 				}
 			}
 
-			time.Sleep(runDuration / 2)
+			time.Sleep(runDuration)
 
 			// Stop the traffic generator and get the result.
 			g.Stop().CheckSuccessRate(t, successThreshold)

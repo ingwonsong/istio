@@ -347,8 +347,10 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 	for _, knest := range rook.Spec.Knests {
 		for _, cluster := range knest.Spec.Clusters {
 			log.Printf("cluster to upgrade: %s", cluster.Metadata.Name)
-			upgradeCmds = append(upgradeCmds, fmt.Sprintf(`kubetest2-tailorbird --up --upgrade-cluster --upgrade-cluster-name %s --upgrade-target-platform-version %s`,
-				cluster.Metadata.Name, d.cfg.UpgradeClusterVersion))
+			for version := range d.cfg.UpgradeClusterVersion {
+				upgradeCmds = append(upgradeCmds, fmt.Sprintf(`kubetest2-tailorbird --up --upgrade-cluster --upgrade-cluster-name %s --upgrade-target-platform-version %s`,
+					cluster.Metadata.Name, version))
+			}
 		}
 	}
 
@@ -369,7 +371,7 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 
 func (d *Instance) supportedHandlers() map[string]func() (func(http.ResponseWriter, *http.Request), error) {
 	supportedHandler := map[string]func() (func(http.ResponseWriter, *http.Request), error){}
-	if d.cfg.UpgradeClusterVersion != "" {
+	if len(d.cfg.UpgradeClusterVersion) != 0 {
 		supportedHandler[common.UpgradePath] = d.newGkeUpgradeHandler
 	}
 	return supportedHandler

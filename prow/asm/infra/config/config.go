@@ -53,7 +53,7 @@ type Instance struct {
 	TRACClusterIndex      int
 	Cluster               types.Cluster
 	UseOnePlatform        bool
-	UpgradeClusterVersion string
+	UpgradeClusterVersion []string
 	GCSBucket             string
 	IsCloudESFTest        bool
 	Topology              types.Topology

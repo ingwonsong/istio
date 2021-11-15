@@ -503,7 +503,6 @@ func acquireBoskosProjectAndSetBilling(projectType string) (string, error) {
 }
 
 func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {
-
 	upgradeFunc := func(w http.ResponseWriter, _ *http.Request) {
 
 		projects := d.cfg.GCPProjects
@@ -522,8 +521,11 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 				arr := strings.Split(clusterRegion, "\t")
 				clusterName := arr[0]
 				region := arr[1]
-				upgradeCmds = append(upgradeCmds, fmt.Sprintf(`gcloud container clusters upgrade %s --project %s --region %s \
-					--cluster-version %s --master --quiet`, clusterName, project, region, d.cfg.UpgradeClusterVersion))
+				for _, version := range d.cfg.UpgradeClusterVersion {
+					upgradeCmds = append(upgradeCmds, fmt.Sprintf(`gcloud container clusters upgrade %s --project %s --region %s \
+					--cluster-version %s --master --quiet`, clusterName, project, region, version))
+				}
+
 			}
 
 		}
@@ -543,7 +545,7 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 
 func (d *Instance) supportedHandlers() map[string]func() (func(http.ResponseWriter, *http.Request), error) {
 	supportedHandler := map[string]func() (func(http.ResponseWriter, *http.Request), error){}
-	if d.cfg.UpgradeClusterVersion != "" {
+	if len(d.cfg.UpgradeClusterVersion) != 0 {
 		supportedHandler[common.UpgradePath] = d.newGkeUpgradeHandler
 	}
 	return supportedHandler

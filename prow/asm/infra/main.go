@@ -35,6 +35,7 @@ func main() {
 	cfg := config.Default()
 
 	features := []string{}
+	upgradeVersions := []string{}
 	flag.StringVar(&cfg.RepoRootDir, "repo-root-dir", cfg.RepoRootDir,
 		"the repo's root directory (required). Used as the working directory for running the kubetest2 command")
 	flag.StringVar(&cfg.ExtraDeployerFlags, "deployer-flags", cfg.ExtraDeployerFlags,
@@ -55,8 +56,8 @@ func main() {
 		"cluster index defined by go/anthos-trac. If its value is >=0, the rookery config file with the n-x version in go/trac-qual "+
 			"will be used by tailorbird to spin up the clusters. If <0, the custom config files in deployer/tailorbird/config in the ASM repo "+
 			"will be used. Defaults to -1 to use the custom config files.")
-	flag.StringVar(&cfg.UpgradeClusterVersion, "upgrade-cluster-version", cfg.UpgradeClusterVersion,
-		"version that cluster will be upgraded to, formatted as x.y1.z. Clusters will run for a short duration to ensure functionality after the cluster upgrade.")
+	flag.StringSliceVar(&upgradeVersions, "upgrade-cluster-version", []string{},
+		"comma seperated list of versions that clusters will be upgraded to, formatted as x.y1.z,x.y2.z. Clusters will run for a short duration to ensure functionality between the cluster upgrades.")
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
 		fmt.Sprintf("the cluster type, can be one of %v", types.SupportedClusters))
 	flag.BoolVar(&cfg.UseOnePlatform, "use-oneplatform", cfg.UseOnePlatform, "whether to use One Platform API to provision the cluster")
@@ -71,6 +72,7 @@ func main() {
 	flag.BoolVar(&cfg.IsCloudESFTest, "is-cloudesf-test", cfg.IsCloudESFTest, "whether it is the test using CloudESF as ingress gateway")
 	flag.Parse()
 	cfg.Features = sets.NewString(features...)
+	cfg.UpgradeClusterVersion = upgradeVersions
 
 	// Special case for testing the Addon.
 	// TODO: move it to Prow job config.
