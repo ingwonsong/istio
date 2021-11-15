@@ -278,6 +278,9 @@ tests:
       - names:
         - TestTraffic/jwt-claim-route
         reason: Temporary disable until mesh agent upgraded to 1.11.2
+      - names:
+        - TestDescribe
+        buganizerID: 208485368
 
   # Unmanaged CP + EKS (don't confuse with regular AWS)
   - selectors:

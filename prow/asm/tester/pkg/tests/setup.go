@@ -137,7 +137,7 @@ func genTopologyFile(settings *resource.Settings) error {
 		} else if settings.ClusterType == resource.BareMetal {
 			clusterName = "cluster" + strconv.Itoa(i)
 		} else {
-			if len(settings.ClusterProxy) != 0 {
+			if len(settings.ClusterProxy) > 1 {
 				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
 				defer os.Unsetenv("HTTPS_PROXY")
 			}
