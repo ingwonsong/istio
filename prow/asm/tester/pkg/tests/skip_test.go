@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func TestLabelMatches(t *testing.T) {
@@ -173,6 +174,27 @@ func TestTargetSkip(t *testing.T) {
 				ControlPlane: resource.Managed,
 			},
 			desiredTestSkips: nil,
+		},
+		{
+			name: "features to test should match if contained",
+			config: `tests:
+  - selectors:
+      feature_to_test: VPC_SC
+    targets:
+    - names:
+        - A
+        - B
+    - names:
+        - C
+`,
+			settings: resource.Settings{
+				FeaturesToTest: sets.NewString([]string{"VPC_SC", "CNI"}...),
+			},
+			desiredTestSkips: []string{
+				"--istio.test.skip=\"A\"",
+				"--istio.test.skip=\"B\"",
+				"--istio.test.skip=\"C\"",
+			},
 		},
 	}
 	for _, tc := range tcs {

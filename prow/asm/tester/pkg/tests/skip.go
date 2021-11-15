@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
@@ -154,7 +155,13 @@ func matches(selectors map[string]string, skipLabels map[string]string) (bool, e
 		if _, ok := skipLabels[k]; !ok {
 			return false, fmt.Errorf("unknown match key %s", k)
 		}
-		if strings.ToLower(v) != skipLabels[k] {
+		// feature_to_test is list of strings so we check containment, not exact match
+		if k == featureSkipLabel {
+			featureSet := sets.NewString(strings.Split(skipLabels[k], ",")...)
+			if !featureSet.Has(strings.ToLower(v)) {
+				return false, nil
+			}
+		} else if strings.ToLower(v) != skipLabels[k] {
 			return false, nil
 		}
 	}
