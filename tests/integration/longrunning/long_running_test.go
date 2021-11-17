@@ -38,7 +38,6 @@ import (
 const (
 	PodASvc          = "a"
 	PodBSvc          = "b"
-	runDuration      = 10 * time.Minute
 	successThreshold = 0.95
 )
 
@@ -126,9 +125,6 @@ func TestLongRunning(t *testing.T) {
 					log.Printf("HTTP call (%s) returned non-ok status: %d", url, resp.StatusCode)
 				}
 			}
-
-			time.Sleep(runDuration)
-
 			// Stop the traffic generator and get the result.
 			g.Stop().CheckSuccessRate(t, successThreshold)
 		})
