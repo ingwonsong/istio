@@ -52,6 +52,15 @@ tests:
     targets:
       # networking/
       - names:
+          - TestValidation/.*
+        buganizerID: 207384361
+      - names:
+          - TestTraffic/virtualservice/redirect_port_and_scheme/.*
+        buganizerID: 198205125
+      - names:
+          - TestTraffic/host/ip/.*
+        buganizerID: 207384317
+      - names:
           - TestTraffic/dns/.*
           - TestTraffic/serverfirst/.*
           - TestXFFGateway
@@ -73,6 +82,9 @@ tests:
         reason: istioctl x add-to-mesh does not work with revisions
 
       # security/
+      - names:
+          - TestRequestAuthentication
+        buganizerID: 207384362
       - names:
           - TestReachability/automtls-passthrough.*
         reason: UNKNOWN
