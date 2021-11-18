@@ -222,7 +222,7 @@ func main() {
 				"--istio.test.tag", istioTestTag,
 				"--istio.test.kube.config", strings.Join(kubeConfigs, ","),
 				"--istio.test.select", testSelect,
-				"--log_output_level=tf:debug,mcp:debug",
+				"--log_output_level=tf:debug",
 				// Disabling this test since it creates a service account.
 				// TODO(efiturri): Fix enable this.
 				"--istio.test.skip=TestBadRemoteSecret",
