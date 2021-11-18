@@ -50,7 +50,8 @@ type Instance struct {
 	TestFlags             string
 	GCPProjects           []string
 	ClusterVersion        string
-	TRACClusterIndex      int
+	TRACPlatformIndex     int
+	TRACComponentIndex    int
 	Cluster               types.Cluster
 	UseOnePlatform        bool
 	UpgradeClusterVersion []string
@@ -66,10 +67,11 @@ type Instance struct {
 // Default provides a config Instance with defaults filled in.
 func Default() Instance {
 	return Instance{
-		Cluster:          types.GKEOnGCP,
-		Topology:         types.SingleCluster,
-		WIP:              types.GKE,
-		TRACClusterIndex: -1,
+		Cluster:            types.GKEOnGCP,
+		Topology:           types.SingleCluster,
+		WIP:                types.GKE,
+		TRACPlatformIndex:  -1,
+		TRACComponentIndex: -1,
 	}
 }
 

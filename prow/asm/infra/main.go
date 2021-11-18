@@ -52,10 +52,14 @@ func main() {
 			types.SupportedReleaseChannels))
 	flag.StringVar(&cfg.ClusterVersion, "cluster-version", cfg.ClusterVersion,
 		"version for the the clusters (optional). Defaults to `latest`")
-	flag.IntVar(&cfg.TRACClusterIndex, "trac-cluster-index", cfg.TRACClusterIndex,
-		"cluster index defined by go/anthos-trac. If its value is >=0, the rookery config file with the n-x version in go/trac-qual "+
-			"will be used by tailorbird to spin up the clusters. If <0, the custom config files in deployer/tailorbird/config in the ASM repo "+
-			"will be used. Defaults to -1 to use the custom config files.")
+	flag.IntVar(&cfg.TRACPlatformIndex, "trac-platform-index", cfg.TRACPlatformIndex,
+		"Anthos platform release index (as defined by go/anthos-trac). Selects the `latest-Nth` version that will be tested. "+
+			"Both (or neither) of --trac-platform-index and --trac-component-index must be defined. "+
+			"If <0 (the default), the manually crafted Tailorbird Rookery files in the ASM repo will be used instead.")
+	flag.IntVar(&cfg.TRACComponentIndex, "trac-component-index", cfg.TRACComponentIndex,
+		"ASM release index (as defined by go/anthos-trac). Selects the `latest-Nth` version that will be tested. "+
+			"Both (or neither) of --trac-platform-index and --trac-component-index must be defined. "+
+			"If <0 (the default), the manually crafted Tailorbird Rookery files in the ASM repo will be used instead.")
 	flag.StringSliceVar(&upgradeVersions, "upgrade-cluster-version", []string{},
 		"comma seperated list of versions that clusters will be upgraded to, formatted as x.y1.z,x.y2.z. Clusters will run for a short duration to ensure functionality between the cluster upgrades.")
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
