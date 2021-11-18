@@ -11,6 +11,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/multierr v1.7.0
+	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-00010101000000-000000000000
 	k8s.io/api v0.22.2

@@ -15,11 +15,15 @@
 package install
 
 import (
+	contextpkg "context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"istio.io/istio/pkg/test/framework/util"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
@@ -80,6 +84,33 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 			exec.WithAdditionalEnvs(generateAFCInstallEnvvars(c.settings)),
 			exec.WithAdditionalArgs(generateAFCInstallFlags(c.settings, cluster))); err != nil {
 			return fmt.Errorf("MCP installation via AFC failed: %w", err)
+		}
+
+		// Check if MCP is properly installed in VPCSC mode.
+		// Calling the following API (fetchControlPlane) requires the consumer project to have GOOLGE_INTERNAL tenant manager label.
+		if c.settings.FeaturesToTest.Has(string(resource.VPCSC)) {
+			contextLogger.Println("Verifying MCP VPCSC installation...")
+			ctx := contextpkg.Background()
+			creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+			url := fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/locations/%s/clusters/%s/controlPlanes/asm-managed-rapid:fetchControlPlane", cluster.ProjectID, cluster.Location, cluster.Name)
+			resp, err := oauth2.NewClient(ctx, creds.TokenSource).Get(url)
+			if err != nil {
+				return fmt.Errorf("failed to create HTTP client for MCP VPCSC installation verification: %w", err)
+			}
+			defer resp.Body.Close()
+			cp := struct {
+				Name    string `json:"name"`
+				State   string `json:"state"`
+				VPCMode string `json:"vpcscMode"`
+			}{}
+			if err := json.NewDecoder(resp.Body).Decode(&cp); err != nil {
+				return fmt.Errorf("failed to decode HTTP response for MCP VPCSC installation verification: %w", err)
+			}
+			const expectedVPCSCMode = "COMPATIBLE"
+			if cp.VPCMode != expectedVPCSCMode {
+				return fmt.Errorf("MCP VPCSC installation via AFC failed, got: %v, want: %v", cp.VPCMode, expectedVPCSCMode)
+			}
+			contextLogger.Printf("Done verification. MCP VPCSC is installed in %v mode\n", cp.VPCMode)
 		}
 
 		if err := exec.Run(
