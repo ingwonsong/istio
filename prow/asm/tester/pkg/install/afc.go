@@ -87,7 +87,7 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 		}
 
 		// Check if MCP is properly installed in VPCSC mode.
-		// Calling the following API (fetchControlPlane) requires the consumer project to have GOOLGE_INTERNAL tenant manager label.
+		// Calling the following API (fetchControlPlane) requires the consumer project to have GOOGLE_INTERNAL tenant manager label.
 		if c.settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 			contextLogger.Println("Verifying MCP VPCSC installation...")
 			ctx := contextpkg.Background()

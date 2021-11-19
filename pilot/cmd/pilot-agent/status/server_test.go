@@ -654,26 +654,22 @@ func TestAppProbe(t *testing.T) {
 			statusCode: http.StatusOK,
 			podIP:      "127.0.0.1",
 		},
-		// TODO(ruigu): b/205630016
-		// Not supported. Figure out a flexible way to skip subtest of a unit test.
-		/*
-			{
-				name:       "tcp-livez-ipv6",
-				probePath:  "app-health/hello-world/livez",
-				config:     simpleTCPConfig,
-				statusCode: http.StatusOK,
-				podIP:      "::1",
-				ipv6:       true,
-			},
-			{
-				name:       "tcp-livez-wrapped-ipv6",
-				probePath:  "app-health/hello-world/livez",
-				config:     simpleTCPConfig,
-				statusCode: http.StatusOK,
-				podIP:      "[::1]",
-				ipv6:       true,
-			},
-		*/
+		{
+			name:       "tcp-livez-ipv6",
+			probePath:  "app-health/hello-world/livez",
+			config:     simpleTCPConfig,
+			statusCode: http.StatusOK,
+			podIP:      "::1",
+			ipv6:       true,
+		},
+		{
+			name:       "tcp-livez-wrapped-ipv6",
+			probePath:  "app-health/hello-world/livez",
+			config:     simpleTCPConfig,
+			statusCode: http.StatusOK,
+			podIP:      "[::1]",
+			ipv6:       true,
+		},
 		{
 			name:       "tcp-livez-localhost",
 			probePath:  "app-health/hello-world/livez",
