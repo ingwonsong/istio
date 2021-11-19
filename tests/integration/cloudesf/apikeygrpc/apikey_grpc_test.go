@@ -23,6 +23,7 @@ import (
 
 	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
+	"istio.io/istio/pkg/test/framework/cloudesf"
 	"istio.io/istio/pkg/test/framework/cloudesf/testflow"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/resource"
@@ -61,7 +62,7 @@ func TestCloudESFApiKeyGrpc(t *testing.T) {
 					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_virtual_service.json",
 					apiKeyGrpcTestConfigFolder + "/asm_backend.yaml",
 				},
-				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image",
+				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image:"+cloudesf.Version(),
 				"http://%s:80/v1/projects/random-project/apiKeys",
 				cloudESFTestClientImage,
 				`"--only_validate_resp_error_code"`,

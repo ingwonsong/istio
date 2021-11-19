@@ -23,6 +23,7 @@ import (
 
 	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
+	"istio.io/istio/pkg/test/framework/cloudesf"
 	"istio.io/istio/pkg/test/framework/cloudesf/testflow"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/resource"
@@ -57,7 +58,7 @@ func TestCloudESFGrpcEcho(t *testing.T) {
 					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_virtual_service.json",
 					grpcEchoTestConfigFolder + "/asm_backend.yaml",
 				},
-				"gcr.io/cloudesf-testing/grpc_echo_asm_e2e_config_ic_image",
+				"gcr.io/cloudesf-testing/grpc_echo_asm_e2e_config_ic_image:"+cloudesf.Version(),
 				"",
 				"us.gcr.io/cloudesf-testing/e2e_grpc_echo_test_client",
 				"",
