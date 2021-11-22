@@ -41,7 +41,7 @@ func TestCanonicalServices(t *testing.T) {
 		Run(func(ctx framework.TestContext) {
 			retry.UntilSuccessOrFail(ctx, func() error {
 				return verifyCanonicalServices(ctx, echoNames)
-			}, retry.Delay(time.Second*2), retry.Timeout(time.Second*35))
+			}, retry.Delay(time.Second*2), retry.Timeout(time.Second*120))
 		})
 }
 
