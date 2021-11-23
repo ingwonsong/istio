@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/credentials"
 
 	"istio.io/istio/pkg/security"
@@ -105,6 +106,18 @@ func (t *TokenProvider) exchangeCAToken(token string) (string, error) {
 		return token, nil
 	}
 	return t.opts.TokenExchanger.ExchangeToken(token)
+}
+
+// Token : Method implemented to enable TokenProvider to be used as an oAuth Token source
+func (t *TokenProvider) Token() (*oauth2.Token, error) {
+	if t == nil {
+		return nil, nil
+	}
+	token, err := t.GetToken()
+	if err != nil || token == "" {
+		return nil, err
+	}
+	return &oauth2.Token{AccessToken: token}, nil
 }
 
 func (t *TokenProvider) exchangeXDSToken(token string) (string, error) {

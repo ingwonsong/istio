@@ -701,6 +701,8 @@ func (a *Agent) newSecretManager() (*cache.SecretManagerClient, error) {
 	} else if a.secOpts.CAProviderName == security.GoogleCASProvider {
 		// Use a plugin
 		caClient, err := cas.NewGoogleCASClient(a.secOpts.CAEndpoint,
+			option.WithTokenSource(caclient.NewCATokenProvider(a.secOpts)),
+			// Both options need not be provided. PerGRPCCredentials need to be removed after testing
 			option.WithGRPCDialOption(grpc.WithPerRPCCredentials(caclient.NewCATokenProvider(a.secOpts))))
 		if err != nil {
 			return nil, err
