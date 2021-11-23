@@ -52,10 +52,10 @@ func (c *installer) install(r *revision.Config) error {
 	} else if c.settings.ControlPlane == resource.Managed {
 		if c.settings.UseAFC {
 			log.Println("🏄 performing ASM MCP installation via AFC")
-			return c.installASMManagedControlPlaneAFC()
+			return c.installASMManagedControlPlaneAFC(r)
 		} else {
 			log.Println("🏄 performing ASM MCP installation")
-			return c.installASMManagedControlPlane()
+			return c.installASMManagedControlPlane(r)
 		}
 	}
 

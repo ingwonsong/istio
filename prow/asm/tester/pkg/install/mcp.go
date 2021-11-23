@@ -22,11 +22,12 @@ import (
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
+	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
-func (c *installer) installASMManagedControlPlane() error {
+func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
 	contexts := c.settings.KubeContexts
 
 	log.Println("Downloading ASM script for the installation...")

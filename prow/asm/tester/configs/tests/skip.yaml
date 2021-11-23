@@ -61,6 +61,9 @@ tests:
           - TestTraffic/host/ip/.*
         buganizerID: 207384317
       - names:
+          - TestClusterLocal
+        buganizerID: 207384171
+      - names:
           - TestTraffic/dns/.*
           - TestTraffic/serverfirst/.*
           - TestXFFGateway

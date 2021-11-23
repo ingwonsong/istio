@@ -86,7 +86,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 				return fmt.Errorf("ASM installation using script failed: %w", err)
 			}
 
-			if err := c.installIngressGateway(c.settings, "", kubeconfig, i); err != nil {
+			if err := c.installIngressGateway(c.settings, rev, "", kubeconfig, i); err != nil {
 				return err
 			}
 			if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
@@ -195,8 +195,8 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 		return nil, fmt.Errorf("unsupported CA type for multicloud installation: %s", ca)
 	}
 
-	if settings.UseASMCLI {
-		installFlags = append(installFlags, commonASMCLIInstallFlags(settings)...)
+	if useASMCLI(settings, rev) {
+		installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
 	}
 
 	return installFlags, nil

@@ -226,7 +226,7 @@ func SetupApps(t resource.Context, i istio.Instance, apps *EchoDeployments) erro
 			WorkloadOnlyPorts: common.WorkloadPorts,
 		})
 
-	skipDelta := t.Settings().SkipDelta || !t.Settings().Revisions.AtLeast("1.11")
+	skipDelta := t.Settings().SkipDelta || !t.Settings().Revisions.AtLeast("1.12")
 	if !skipDelta {
 		builder = builder.
 			WithConfig(echo.Config{

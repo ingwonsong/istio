@@ -28,8 +28,15 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
-func ASMOutputDir() string {
-	return filepath.Join(os.Getenv("ARTIFACTS"), "asmcli_out")
+func ASMOutputDir(rev *revision.Config) (string, error) {
+	outputDir := filepath.Join(os.Getenv("ARTIFACTS"), "asmcli_out")
+	if rev != nil && rev.Name != "" {
+		outputDir = filepath.Join(outputDir, rev.Name)
+		if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
+			return "", fmt.Errorf("failed to generate output dir %s", outputDir)
+		}
+	}
+	return outputDir, nil
 }
 
 func (c *installer) installASM(rev *revision.Config) error {
@@ -114,8 +121,8 @@ func (c *installer) installASM(rev *revision.Config) error {
 		// Install Gateway
 		// If this is Cloud ESF based, don't install gateway here. The customized
 		// Cloud ESF gateway will be installed in each test.
-		if c.settings.UseASMCLI && !c.settings.InstallCloudESF {
-			if err := c.installIngressGateway(c.settings, context, "", i); err != nil {
+		if useASMCLI(c.settings, rev) && !c.settings.InstallCloudESF {
+			if err := c.installIngressGateway(c.settings, rev, context, "", i); err != nil {
 				return err
 			}
 		}
@@ -138,7 +145,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 		}
 	}
 
-	if c.settings.UseASMCLI {
+	if useASMCLI(c.settings, rev) {
 		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateASMInstallEnvvars(c.settings, rev, "")), // trustProjects is not used here
 			exec.WithAdditionalArgs(generateASMCreateMeshFlags(c.settings))); err != nil {
@@ -177,7 +184,7 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 			masterVars["_CI_ASM_IMAGE_TAG"] = os.Getenv("TAG")
 			masterVars["_CI_ASM_PKG_LOCATION"] = resource.DefaultASMImageBucket
 		}
-		if settings.UseASMCLI {
+		if useASMCLI(settings, rev) {
 			masterVars["_CI_ASM_KPT_BRANCH"] = settings.NewtaroCommit
 		} else {
 			masterVars["_CI_ASM_KPT_BRANCH"] = settings.ScriptaroCommit
@@ -203,7 +210,7 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 }
 
 // commonASMCLIInstallFlags should be appended to any asmcli invocation's flags
-func commonASMCLIInstallFlags(settings *resource.Settings) []string {
+func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config) []string {
 	var flags []string
 
 	// HubIDNS tests need to specify fleet ID to pass the fleet verification in ASMCLI
@@ -211,7 +218,10 @@ func commonASMCLIInstallFlags(settings *resource.Settings) []string {
 		flags = append(flags, "--fleet_id", kube.GKEClusterSpecFromContext(settings.KubeContexts[0]).ProjectID)
 	}
 
-	flags = append(flags, "--output_dir", ASMOutputDir())
+	outputDir, err := ASMOutputDir(rev)
+	if err == nil {
+		flags = append(flags, "--output_dir", outputDir)
+	}
 	return flags
 }
 
@@ -219,9 +229,9 @@ func commonASMCLIInstallFlags(settings *resource.Settings) []string {
 // script to install ASM.
 func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, pkgPath string, cluster *kube.GKEClusterSpec) []string {
 	var installFlags []string
-	if settings.UseASMCLI {
+	if useASMCLI(settings, rev) {
 		installFlags = append(installFlags, "install")
-		installFlags = append(installFlags, commonASMCLIInstallFlags(settings)...)
+		installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
 	} else {
 		installFlags = append(installFlags, "--mode", "install")
 	}

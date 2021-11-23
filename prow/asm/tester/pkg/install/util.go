@@ -24,6 +24,8 @@ import (
 	"regexp"
 	"strings"
 
+	version "github.com/hashicorp/go-version"
+
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
@@ -36,17 +38,22 @@ const scriptRepoBase = "https://raw.githubusercontent.com/GoogleCloudPlatform/an
 var enableOptionsArgs = []string{}
 
 func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (string, error) {
-	var scriptBaseName string
-	var scriptURL string
-	if settings.UseASMCLI {
-		scriptBaseName = "asmcli"
-		scriptURL = fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, settings.NewtaroCommit, scriptBaseName)
-	} else {
-		scriptBaseName = "install_asm"
-		scriptURL = fmt.Sprintf("%s/%s/scripts/asm-installer/%s", scriptRepoBase, settings.ScriptaroCommit, scriptBaseName)
+	var scriptURL, scriptBaseName string
+	if useASMCLI(settings, rev) {
+		scriptBranch := settings.NewtaroCommit
 		if rev != nil && rev.Version != "" {
-			scriptURL = fmt.Sprintf("%s/release-%s-asm/scripts/asm-installer/%s", scriptRepoBase, rev.Version, scriptBaseName)
+			scriptBranch = fmt.Sprintf("release-%s-asm", rev.Version)
 		}
+		scriptBaseName = "asmcli"
+		scriptURL = fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, scriptBranch, scriptBaseName)
+	} else {
+		scriptBranch := settings.ScriptaroCommit
+		if rev != nil && rev.Version != "" {
+			scriptBranch = fmt.Sprintf("release-%s-asm", rev.Version)
+		}
+		scriptBaseName = "asmcli"
+		scriptBaseName = "install_asm"
+		scriptURL = fmt.Sprintf("%s/%s/scripts/asm-installer/%s", scriptRepoBase, scriptBranch, scriptBaseName)
 	}
 
 	log.Printf("Downloading script from %s...", scriptURL)
@@ -283,7 +290,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		var istiodSvcAccount string
 		if rev.Name != "" {
 			istiodSvcAccount = fmt.Sprintf("istiod-%s", rev.Name)
-		} else if settings.UseASMCLI {
+		} else if useASMCLI(settings, rev) {
 			// asmcli install uses _CI_NO_REVISION or the "default" revision so no need for suffix
 			istiodSvcAccount = "istiod"
 		} else {
@@ -323,4 +330,19 @@ EOF'`,
 	}
 
 	return nil
+}
+
+func useASMCLI(settings *resource.Settings, rev *revision.Config) bool {
+	if rev != nil && rev.Version != "" {
+		// since 1.11 is the first release to have asmcli and not have install_asm, make sure that
+		// we use an installation script that exists.
+		v111, _ := version.NewVersion("1.11")
+		v, err := version.NewVersion(rev.Version)
+		if err != nil {
+			log.Printf("Failed to parse %q as version, defaulting to UseASMCLI=%t", rev.Version, settings.UseASMCLI)
+			return settings.UseASMCLI
+		}
+		return v.GreaterThanOrEqual(v111)
+	}
+	return settings.UseASMCLI
 }

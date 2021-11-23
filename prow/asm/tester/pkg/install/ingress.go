@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -31,11 +32,20 @@ const (
 )
 
 // TODO we don't want the command to memorize the entire list of files
-func gatewayDir() string {
-	return filepath.Join(ASMOutputDir(), ingressSamples)
+func gatewayDir(rev *revision.Config) (string, error) {
+	outputDir, err := ASMOutputDir(rev)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(outputDir, ingressSamples), nil
 }
 
-func (c *installer) installIngressGateway(settings *resource.Settings, context, kubeconfig string, idx int) error {
+func (c *installer) installIngressGateway(settings *resource.Settings, rev *revision.Config, context, kubeconfig string, idx int) error {
+	// TODO(samnaser) this prevents us from deploying ingresses for older versions. Long-term we should come up with
+	// a better approach here.
+	if rev != nil && rev.Version != "" {
+		return nil
+	}
 	if len(c.settings.ClusterProxy) != 0 {
 		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
 		os.Setenv("http_proxy", settings.ClusterProxy[idx])
@@ -52,10 +62,10 @@ func (c *installer) installIngressGateway(settings *resource.Settings, context, 
 		ctxFlags = append(ctxFlags, "--kubeconfig", kubeconfig)
 	}
 
-	if err := enableGatewayInjection(ctxFlags); err != nil {
+	if err := enableGatewayInjection(ctxFlags, rev); err != nil {
 		return err
 	}
-	gatewayManifests, err := listIngressFiles(ctxFlags)
+	gatewayManifests, err := listIngressFiles(ctxFlags, rev)
 	if err != nil {
 		return err
 	}
@@ -71,14 +81,20 @@ func (c *installer) installIngressGateway(settings *resource.Settings, context, 
 
 // enableGatewayInjection sets either istio-injection or istio.io/rev label on the gatewayNamespace to allow
 // using gateway injection
-func enableGatewayInjection(kubectlFlags []string) error {
-	// detect revision - used in enabling injection
-	revision, err := exec.RunWithOutput(
-		"kubectl get deploy -n istio-system -l app=istiod -o jsonpath='{.items[*].metadata.labels.istio\\.io\\/rev}'",
-		exec.WithAdditionalArgs(kubectlFlags),
-	)
-	if err != nil {
-		return fmt.Errorf("error getting istiod revision: %w", err)
+func enableGatewayInjection(kubectlFlags []string, rev *revision.Config) error {
+	var revision string
+	if rev != nil {
+		revision = rev.Name
+	} else {
+		// detect revision - used in enabling injection
+		var err error
+		revision, err = exec.RunWithOutput(
+			"kubectl get deploy -n istio-system -l app=istiod -o jsonpath='{.items[*].metadata.labels.istio\\.io\\/rev}'",
+			exec.WithAdditionalArgs(kubectlFlags),
+		)
+		if err != nil {
+			return fmt.Errorf("error getting istiod revision: %w", err)
+		}
 	}
 
 	// enable gateway injection
@@ -98,12 +114,16 @@ func enableGatewayInjection(kubectlFlags []string) error {
 // if the ingress service account already exists, it gets all items in that directory except
 // the service account (to avoid overwriting customized parts of the SA)
 // TODO we should be able to just use some merge strategry to avoid overwriting
-func listIngressFiles(kubectlFlags []string) ([]string, error) {
-	gatewayManifests := []string{gatewayDir()}
+func listIngressFiles(kubectlFlags []string, rev *revision.Config) ([]string, error) {
+	gwDir, err := gatewayDir(rev)
+	if err != nil {
+		return nil, fmt.Errorf("error retreiving gateway dir: %v", err)
+	}
+	gatewayManifests := []string{gwDir}
 	if saExists, err := checkForIngressSA(kubectlFlags); err == nil && saExists {
 		// relies on extglob to include all but the serviceaccount
 		gatewayManifests = []string{}
-		files, err := os.ReadDir(gatewayDir())
+		files, err := os.ReadDir(gwDir)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +132,7 @@ func listIngressFiles(kubectlFlags []string) ([]string, error) {
 			if strings.Contains(f.Name(), "serviceaccount") {
 				continue
 			}
-			gatewayManifests = append(gatewayManifests, filepath.Join(gatewayDir(), f.Name()))
+			gatewayManifests = append(gatewayManifests, filepath.Join(gwDir, f.Name()))
 		}
 	} else if err != nil {
 		return nil, err

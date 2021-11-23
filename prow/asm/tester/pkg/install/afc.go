@@ -25,14 +25,14 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"istio.io/istio/pkg/test/framework/util"
-
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
+	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
-func (c *installer) installASMManagedControlPlaneAFC() error {
+func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error {
 	contexts := c.settings.KubeContexts
 
 	// ASM MCP VPCSC with AFC test requires the latest, as of 10/13/2021, unreleased gcloud binary .
@@ -71,7 +71,7 @@ func (c *installer) installASMManagedControlPlaneAFC() error {
 		cluster := kube.GKEClusterSpecFromContext(context)
 
 		log.Println("Downloading ASM script for the installation...")
-		if !c.settings.UseASMCLI {
+		if !useASMCLI(c.settings, rev) {
 			return fmt.Errorf("asmcli must be used for afc: %w", err)
 		}
 		scriptPath, err := downloadInstallScript(c.settings, nil)
