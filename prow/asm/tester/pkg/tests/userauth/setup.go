@@ -45,26 +45,27 @@ func installASMUserAuth(settings *resource.Settings) error {
 	// Config install pkg
 	var res map[string]interface{}
 	// TODO(b/182940034): use ASM owned account once created
-	odicKeys, err := ioutil.ReadFile(fmt.Sprintf("%s/user-auth/userauth_oidc.json", settings.ConfigDir))
+	configs, err := ioutil.ReadFile(fmt.Sprintf("%s/user-auth/userauth_config.json", settings.ConfigDir))
 	if err != nil {
 		return fmt.Errorf("error reading the odic key file: %w", err)
 	}
-	err = json.Unmarshal(odicKeys, &res)
+	err = json.Unmarshal(configs, &res)
 	if err != nil {
 		return fmt.Errorf("error reading the odic key file: %w", err)
 	}
 	oidcClientID := res["client_id"].(string)
 	oidcClientSecret := res["client_secret"].(string)
 	oidcIssueURI := res["issuer"].(string)
-	// TODO(b/182918059): Fetch image from GCR release repo and GitHub packet.
-	userAuthImage := "gcr.io/gke-release-staging/ais:staging"
+	userAuthImage := res["image"].(string)
+	redirectURIPath := res["redirect_uri_path"].(string)
+
 	cmds := []string{
 		fmt.Sprintf("kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git@main %s/user-auth", settings.ConfigDir),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.image %s", settings.ConfigDir, userAuthImage),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientID %s", settings.ConfigDir, oidcClientID),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientSecret %s", settings.ConfigDir, oidcClientSecret),
 		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.issuerURI %s", settings.ConfigDir, oidcIssueURI),
-		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.redirectURIPath %s", settings.ConfigDir, "/_gcp_anthos_callback"),
+		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.redirectURIPath %s", settings.ConfigDir, redirectURIPath),
 	}
 	if err := exec.RunMultiple(cmds); err != nil {
 		return err
