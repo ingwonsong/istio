@@ -1,7 +1,7 @@
-aa133fd62e2007f5a227e040c5521fc65128a371
+86914e677a6b1877b375ca3bd85d1ee269b53fd9
 ========================================
-Clay
-Wed Nov 10 16:42:41 2021 -0800
+Yuan Yan
+Tue Nov 30 17:07:32 2021 -0800
 
-Use proper configmap name for trust domain logic (#1038)
+Add use_vpcsc flag to the main asmcli managed command (#1064)
 

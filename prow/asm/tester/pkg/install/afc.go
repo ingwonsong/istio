@@ -144,7 +144,6 @@ EOF'`, context)); err != nil {
 
 func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
 	installFlags := []string{
-		"x",
 		"install",
 		"--project_id", cluster.ProjectID,
 		"--cluster_location", cluster.Location,
@@ -158,6 +157,7 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--channel", "rapid",
 		"--enable-all", // We can't use getInstallEnableFlags() since it apparently doesn't match what AFC expects
 		"--verbose",
+		"--ca", "mesh_ca",
 	}
 	if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		installFlags = append(installFlags, "--use_vpcsc")
@@ -194,6 +194,16 @@ func generateAFCInstallEnvvars(settings *resource.Settings) []string {
 				"_CI_ASM_IMAGE_LOCATION="+os.Getenv("HUB"),
 				"_CI_ASM_IMAGE_TAG="+os.Getenv("TAG"),
 				"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
+			)
+		} else {
+			// TODO(b/208667932): Only existing prod image can be used
+			// for VPCSC test. This may need to be updated once the most
+			// recent prod image is available.
+			envvars = append(envvars,
+				"MAJOR=1",
+				"MINOR=11",
+				"POINT=2",
+				"REV=17",
 			)
 		}
 	}

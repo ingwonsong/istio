@@ -105,6 +105,7 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 	var installFlags []string
 	if settings.UseASMCLI {
 		installFlags = append(installFlags, "install")
+		installFlags = append(installFlags, "--legacy")
 	} else {
 		installFlags = append(installFlags, "--mode", "install")
 	}
