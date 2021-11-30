@@ -128,6 +128,11 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 	}
 	settings.NewtaroCommit = strings.Split(string(bytes), "\n")[0]
 
+	// TODO: UseASMCLI = true for all jobs
+	if settings.ClusterType == resource.GKEOnAWS && !settings.UseOnePlatform {
+		settings.UseASMCLI = false
+	}
+
 	return nil
 }
 
