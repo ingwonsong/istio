@@ -109,8 +109,7 @@ func TestStatsFilter(t *testing.T, feature features.Feature) {
 							return err
 						}
 						c := cltInstance.Config().Cluster
-						sourceCluster := getSourceClusterName(ctx, cltInstance)
-						sourceQuery, destinationQuery, appQuery := buildQuery(sourceCluster)
+						sourceQuery, destinationQuery, appQuery := buildQuery(c.Name())
 						prom := GetPromInstance()
 						// Query client side metrics
 						if _, err := prom.QuerySum(c, sourceQuery); err != nil {
@@ -118,7 +117,7 @@ func TestStatsFilter(t *testing.T, feature features.Feature) {
 							return err
 						}
 						// Query client side metrics for non-injected server
-						outOfMeshServerQuery := buildOutOfMeshServerQuery(sourceCluster)
+						outOfMeshServerQuery := buildOutOfMeshServerQuery(c.Name())
 						if _, err := prom.QuerySum(c, outOfMeshServerQuery); err != nil {
 							t.Logf("prometheus values for istio_requests_total for cluster %v: \n%s", c.Name(), util.PromDump(c, promInst, "istio_requests_total"))
 							return err
@@ -179,7 +178,7 @@ func TestStatsTCPFilter(t *testing.T, feature features.Feature) {
 							return err
 						}
 						c := cltInstance.Config().Cluster
-						destinationQuery := buildTCPQuery(getSourceClusterName(ctx, cltInstance))
+						destinationQuery := buildTCPQuery(c.Name())
 						if _, err := GetPromInstance().Query(c, destinationQuery); err != nil {
 							t.Logf("prometheus values for istio_tcp_connections_opened_total: \n%s", util.PromDump(c, promInst, "istio_tcp_connections_opened_total"))
 							return err
