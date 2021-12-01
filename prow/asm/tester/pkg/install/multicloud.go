@@ -86,8 +86,12 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
 				return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)
 			}
-			if err := configureExternalIP(c.settings, kubeconfig, i); err != nil {
-				return fmt.Errorf("failed to configure external IP for the cluster: %w", err)
+			// Do not configure external IP for single cluster
+			// BM single cluster creation does not provide VIP IP by default
+			if len(kubeconfigs) > 1 {
+				if err := configureExternalIP(c.settings, kubeconfig, i); err != nil {
+					return fmt.Errorf("failed to configure external IP for the cluster: %w", err)
+				}
 			}
 		}
 
