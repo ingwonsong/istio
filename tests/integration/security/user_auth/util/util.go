@@ -28,8 +28,63 @@ import (
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/shell"
+	"istio.io/istio/pkg/test/util/tmpl"
 	ingressutil "istio.io/istio/tests/integration/security/sds_ingress/util"
 )
+
+const OriginalUserAuthConfig = `
+apiVersion: security.anthos.io/v1beta1
+kind: UserAuthConfig
+metadata:
+  name: user-auth-config
+  namespace: asm-user-auth
+spec:
+  authentication:
+    oidc:
+      certificateAuthorityData: ""
+      issuerURI: "https://accounts.google.com"
+      proxy: ""
+      oauthCredentialsSecret:
+        name: "oauth-secret"
+        namespace: "asm-user-auth"
+      redirectURIHost: ""
+      redirectURIPath: "/_gcp_anthos_callback"
+      scopes: ""
+      groupsClaim: ""
+  outputJWTAudience: "test_audience"
+`
+
+const NoAudUserAuthConfig = `
+apiVersion: security.anthos.io/v1beta1
+kind: UserAuthConfig
+metadata:
+  name: user-auth-config
+  namespace: asm-user-auth
+spec:
+  authentication:
+    oidc:
+      certificateAuthorityData: ""
+      issuerURI: "https://accounts.google.com"
+      proxy: ""
+      oauthCredentialsSecret:
+        name: "oauth-secret"
+        namespace: "asm-user-auth"
+      redirectURIHost: ""
+      redirectURIPath: "/_gcp_anthos_callback"
+      scopes: ""
+      groupsClaim: ""
+`
+
+type UserAuthConfigFields struct {
+	CA           string
+	IssuerURI    string
+	Proxy        string
+	RedirectHost string
+	RedirectPath string
+	Scopes       string
+	GroupsClaim  string
+	Aud          string
+}
 
 // SetupConfig Setup following items assuming httpbin is deployed to default namespace:
 // 1. Create k8s secret using existing cert
@@ -79,4 +134,29 @@ func RestartDeploymentOrFail(ctx framework.TestContext, deployments []string, na
 			ctx.Fatalf("failed to wait rollout status for %v/%v: %v", namespace, deploymentName, err)
 		}
 	}
+}
+
+func NewUserAuthConfig(userAuthConfigFields UserAuthConfigFields) string {
+	tpl := `
+apiVersion: security.anthos.io/v1beta1
+kind: UserAuthConfig
+metadata:
+  name: user-auth-config
+  namespace: asm-user-auth
+spec:
+  authentication:
+    oidc:
+      certificateAuthorityData: {{ .CA }}
+      issuerURI: {{ .IssuerURI }}
+      proxy: {{ .Proxy }}
+      oauthCredentialsSecret:
+        name: "oauth-secret"
+        namespace: "asm-user-auth"
+      redirectURIHost: {{ .RedirectHost }}
+      redirectURIPath: {{ .RedirectPath }}
+      scopes: {{ .Scopes }}
+      groupsClaim: {{ .GroupsClaim }}
+  outputJWTAudience: {{ .Aud }}
+`
+	return tmpl.MustEvaluate(tpl, userAuthConfigFields)
 }
