@@ -94,6 +94,10 @@ func (n *naiveCache) RevisionForPod(ctx context.Context, pod *v1.Pod) (string, e
 		return "", err
 	}
 	rs, err := n.controllingReplicaset(ctx, pod)
+	// if pod is not controlled by replicaset, we shouldn't manage it.  revision ""
+	if rs == nil {
+		return "", nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -306,6 +310,9 @@ func mdpControlsPod(pod *v1.Pod) bool {
 
 func (n *naiveCache) controllingReplicaset(ctx context.Context, pod *v1.Pod) (*appsv1.ReplicaSet, error) {
 	ctrl := v12.GetControllerOf(pod)
+	if ctrl == nil {
+		return nil, nil
+	}
 	rs := &appsv1.ReplicaSet{}
 	err := n.client.Get(ctx, client.ObjectKey{Name: ctrl.Name, Namespace: pod.Namespace}, rs)
 	if err != nil {
