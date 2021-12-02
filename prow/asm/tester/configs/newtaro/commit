@@ -1,7 +1,7 @@
-86914e677a6b1877b375ca3bd85d1ee269b53fd9
+8384c74f909f540bdf7f11718674eaa033363fd7
 ========================================
 Yuan Yan
-Tue Nov 30 17:07:32 2021 -0800
+Thu Dec 2 10:55:39 2021 -0800
 
-Add use_vpcsc flag to the main asmcli managed command (#1064)
+Add use_managed_cni flag to asmcli install (#1065)
 
