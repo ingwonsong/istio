@@ -123,6 +123,18 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		resultMetricLabel = metrics.ResourceError
 		return result, err
 	}
+
+	versions, total := n.ReadPodCache.GetProxyVersionCount(dpc.Spec.Revision)
+	metrics.ReportProxies(versions, dpc.Spec.Revision)
+	if total < 1 {
+		log.Infof("no pods in revision %s, nothing to upgrade", dpc.Spec.Revision)
+		dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
+			0, n.metricsRecord)
+		n.statusWorker.EnqueueStatus(dpc)
+		metrics.ReportReconcileState(dpc.Spec.Revision, dpc.Status.State)
+		resultMetricLabel = metrics.Success
+		return result, nil
+	}
 	var err error
 	cpVersion, err = getControlPlaneExpectedVersion(ctx, n.Client, dpc.Spec.Revision)
 	if err != nil {
@@ -145,7 +157,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.VersionError
 		err := fmt.Errorf("DataPlaneControl for revision %s expects version '%s', but Control Plane is "+
-			"injecting version '%s', cannot reconcile", dpc.Spec.Revision, dpc.Spec.ProxyVersion, cpVersion)
+			"injecting version '%s', cannot reconcile.  MCP rollout may be in progress", dpc.Spec.Revision, dpc.Spec.ProxyVersion, cpVersion)
 		dpc.Status = v1alpha1.DataPlaneControlStatus{
 			State: v1alpha1.Error,
 			ErrorDetails: &v1alpha1.DataPlaneControlError{
@@ -157,19 +169,6 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		}
 		n.statusWorker.EnqueueStatus(dpc)
 		return result, err
-	}
-
-	// TODO: if version is unsupported, what do we do?  exit?
-	versions, total := n.ReadPodCache.GetProxyVersionCount(dpc.Spec.Revision)
-	metrics.ReportProxies(versions, dpc.Spec.Revision)
-	if total < 1 {
-		log.Infof("no pods in revision %s, nothing to upgrade", dpc.Spec.Revision)
-		dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
-			0, n.metricsRecord)
-		n.statusWorker.EnqueueStatus(dpc)
-		metrics.ReportReconcileState(dpc.Spec.Revision, dpc.Status.State)
-		resultMetricLabel = metrics.Success
-		return result, nil
 	}
 	targetPct := float32(dpc.Spec.ProxyTargetBasisPoints*100) / totalBasisPoints
 	newVersion := dpc.Spec.ProxyVersion
