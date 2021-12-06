@@ -258,6 +258,9 @@ tests:
           - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
+      - names:
+          - TestTelemetryAPITCPStats
+        buganizerID: 205336277
 
       # networking/ tests
       - names:
