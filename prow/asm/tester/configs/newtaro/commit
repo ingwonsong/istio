@@ -1,7 +1,7 @@
-8384c74f909f540bdf7f11718674eaa033363fd7
+fafb3be3ebb448fe9934debc02de45e244842e70
 ========================================
-Yuan Yan
-Thu Dec 2 10:55:39 2021 -0800
+Jason Wang
+Fri Dec 3 11:06:48 2021 -0800
 
-Add use_managed_cni flag to asmcli install (#1065)
+Allow project number in identity provider for multicloud cluster (#1066)
 
