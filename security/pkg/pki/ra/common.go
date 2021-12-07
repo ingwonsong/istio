@@ -107,12 +107,6 @@ func NewIstioRA(opts *IstioRAOptions) (RegistrationAuthority, error) {
 			return nil, fmt.Errorf("failed to create an K8s CA: %v", err)
 		}
 		return istioRA, err
-	} else if opts.ExternalCAType == ExtCACas {
-		istioRA, err := NewGoogleCasRA(opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create a Private CA: %v", err)
-		}
-		return istioRA, err
 	}
 	return nil, fmt.Errorf("invalid CA Name %s", opts.ExternalCAType)
 }
