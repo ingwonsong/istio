@@ -201,6 +201,9 @@ tests:
       - TestTraffic/sniffing/http/headless.*
       - TestTraffic/sniffing/grpc/headless.*
       buganizerID: 205190928
+    - names:
+      - TestClusterLocal/subsets
+      buganizerID: 209865846
 
   # Unmanaged CP + apm
   - selectors:
