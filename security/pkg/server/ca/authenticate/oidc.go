@@ -95,7 +95,7 @@ func (j *JwtAuthenticator) authenticate(ctx context.Context, bearerToken string)
 	sa := &JwtPayload{}
 	// "aud" for trust domain, "sub" has "system:serviceaccount:$namespace:$serviceaccount".
 	// in future trust domain may use another field as a standard is defined.
-	if err := idToken.Claims(&sa); err != nil {
+	if err := idToken.Claims(sa); err != nil {
 		return nil, fmt.Errorf("failed to extract claims from ID token: %v", err)
 	}
 	if !strings.HasPrefix(sa.Sub, "system:serviceaccount") {
