@@ -18,7 +18,6 @@ require (
 	cloud.google.com/go/security v1.1.1
 	cloud.google.com/go v0.97.0
 	cloud.google.com/go/container v0.1.0
-	cloud.google.com/go/monitoring v1.1.0 // indirect
 	cloud.google.com/go/profiler v0.1.0
 	cloud.google.com/go/security v1.1.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
@@ -264,4 +263,13 @@ require (
 	sigs.k8s.io/kustomize/api v0.10.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
+)
+
+require (
+	cloud.google.com/go/logging v1.4.2 // indirect
+	cloud.google.com/go/monitoring v1.1.0 // indirect
+	cloud.google.com/go/trace v1.0.0 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 )

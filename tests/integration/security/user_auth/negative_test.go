@@ -145,21 +145,11 @@ func TestMisconfiguration(t *testing.T) {
 			// revert oauth secret after test client_id and client_secret
 			updateSecretOrFail(ctx, secretName, []string{clientID, clientSecret}, [][]byte{originalClientID, originalClientSecret})
 
-			// Invalid scope value should get Error 400: Error 400: invalid_scope
-			ctx.NewSubTest("invalidScopes").Run(func(ctx framework.TestContext) {
-				config := util.NewUserAuthConfig(
-					util.UserAuthConfigFields{
-						CA:           "",
-						IssuerURI:    "https://accounts.google.com",
-						Proxy:        "",
-						RedirectHost: localhostURL,
-						RedirectPath: "/_gcp_anthos_callback",
-						Scopes:       "dummy",
-						GroupsClaim:  "",
-						Aud:          "test_audience",
-					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(5 * time.Second)
+			// No outputJWTAudience field should timeout due to redirection loop
+			ctx.NewSubTest("outputJWTAudience").Run(func(ctx framework.TestContext) {
+				// Test no outputJWTAudience field
+				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, util.NoAudUserAuthConfig)
+				time.Sleep(10 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -172,88 +162,18 @@ func TestMisconfiguration(t *testing.T) {
 				if err := wd.WaitWithTimeout(selenium.WaitForTitleCondition("Sign in - Google Accounts"), 20*time.Second); err != nil {
 					ctx.Fatalf("unable to load sign in page %v", err)
 				}
-				// Get a reference to the text box containing code.
-				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section/header/div/h2/span")
-				tx, err := elem.Text()
-				if err != nil {
-					ctx.Fatalf("unable to get the text from sign in page content %v", err)
+				selenium.InputByXPathOrFail(ctx, wd, "//*[@id=\"identifierId\"]\n", "cloud_gatekeeper_prober_prod_authorized@gmail.com")
+				selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"identifierNext\"]/div/button")
+				// Password page
+				if err := wd.Wait(selenium.GoogleSignInPageIdleCondition()); err != nil {
+					ctx.Fatalf("unable to load password page %v", err)
 				}
-				ctx.Log(tx)
-				if !strings.Contains(tx, "Error 400: invalid_scope") {
-					ctx.Fatalf("Cannot find redirect uri mismatch text.")
-				}
-			})
-
-			// Invalid redirect URL should get Error 400: redirect_uri_mismatch
-			ctx.NewSubTest("invalidRedirectURL").Run(func(ctx framework.TestContext) {
-				// Test invalid redirect host
-				config := util.NewUserAuthConfig(
-					util.UserAuthConfigFields{
-						CA:           "",
-						IssuerURI:    "https://accounts.google.com",
-						Proxy:        "",
-						RedirectHost: "https://fake.host",
-						RedirectPath: "/_gcp_anthos_callback",
-						Scopes:       "",
-						GroupsClaim:  "",
-						Aud:          "test_audience",
-					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(5 * time.Second)
-				// setup chrome and chromedriver
-				service, wd := selenium.StartChromeOrFail(ctx)
-				defer service.Stop()
-				defer wd.Quit()
-				// Navigate
-				if err := wd.Get("https://localhost:8443/headers"); err != nil {
-					ctx.Fatalf("unable to fetch the localhost headers page %v", err)
-				}
-				// Sign in email page
-				if err := wd.WaitWithTimeout(selenium.WaitForTitleCondition("Sign in - Google Accounts"), 20*time.Second); err != nil {
-					ctx.Fatalf("unable to load sign in page %v", err)
-				}
-				// Get a reference to the text box containing code.
-				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section[1]/header/div/h2/span")
-				tx, err := elem.Text()
-				if err != nil {
-					ctx.Fatalf("unable to get the text from sign in page content %v", err)
-				}
-				ctx.Log(tx)
-				if !strings.Contains(tx, "Error 400: redirect_uri_mismatch") {
-					ctx.Fatalf("Cannot find redirect uri mismatch text.")
-				}
-
-				// Test invalid redirect path
-				config = util.NewUserAuthConfig(
-					util.UserAuthConfigFields{
-						CA:           "",
-						IssuerURI:    "https://accounts.google.com",
-						Proxy:        "",
-						RedirectHost: localhostURL,
-						RedirectPath: "/dummy",
-						Scopes:       "",
-						GroupsClaim:  "",
-						Aud:          "test_audience",
-					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(5 * time.Second)
-				// Navigate
-				if err := wd.Get("https://localhost:8443/headers"); err != nil {
-					ctx.Fatalf("unable to fetch the localhost headers page %v", err)
-				}
-				// Sign in email page
-				if err := wd.WaitWithTimeout(selenium.WaitForTitleCondition("Sign in - Google Accounts"), 20*time.Second); err != nil {
-					ctx.Fatalf("unable to load sign in page %v", err)
-				}
-				// Get a reference to the text box containing code.
-				elem = selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section[1]/header/div/h2/span")
-				tx, err = elem.Text()
-				if err != nil {
-					ctx.Fatalf("unable to get the text from sign in page content %v", err)
-				}
-				ctx.Log(tx)
-				if !strings.Contains(tx, "Error 400: redirect_uri_mismatch") {
-					ctx.Fatalf("Cannot find redirect uri mismatch text.")
+				selenium.InputByCSSOrFail(ctx, wd, "#password input", "bB2iAGl7VfDE7n7")
+				selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"passwordNext\"]/div/button")
+				// Timeout for loading error page due to headless mode
+				// TODO(b/210551310): revisit test after fixing the behavior
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("//*[@id=\"error-information-popup-content\"]/div[2]"), 30*time.Second); err != nil {
+					ctx.Log("unable to load error page %v", err)
 				}
 			})
 
@@ -271,7 +191,7 @@ func TestMisconfiguration(t *testing.T) {
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(5 * time.Second)
+				time.Sleep(10 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -310,7 +230,7 @@ func TestMisconfiguration(t *testing.T) {
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(5 * time.Second)
+				time.Sleep(10 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -331,6 +251,45 @@ func TestMisconfiguration(t *testing.T) {
 				}
 				ctx.Log(tx)
 				if !strings.Contains(tx, "Error 400: redirect_uri_mismatch") {
+					ctx.Fatalf("Cannot find redirect uri mismatch text.")
+				}
+			})
+
+			// Invalid scope value should get Error 400: Error 400: invalid_scope
+			ctx.NewSubTest("invalidScopes").Run(func(ctx framework.TestContext) {
+				config := util.NewUserAuthConfig(
+					util.UserAuthConfigFields{
+						CA:           "",
+						IssuerURI:    "https://accounts.google.com",
+						Proxy:        "",
+						RedirectHost: localhostURL,
+						RedirectPath: "/_gcp_anthos_callback",
+						Scopes:       "dummy",
+						GroupsClaim:  "",
+						Aud:          "test_audience",
+					})
+				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				time.Sleep(10 * time.Second)
+				// setup chrome and chromedriver
+				service, wd := selenium.StartChromeOrFail(ctx)
+				defer service.Stop()
+				defer wd.Quit()
+				// Navigate
+				if err := wd.Get("https://localhost:8443/headers"); err != nil {
+					ctx.Fatalf("unable to fetch the localhost headers page %v", err)
+				}
+				// Sign in email page
+				if err := wd.WaitWithTimeout(selenium.WaitForTitleCondition("Sign in - Google Accounts"), 20*time.Second); err != nil {
+					ctx.Fatalf("unable to load sign in page %v", err)
+				}
+				// Get a reference to the text box containing code.
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section/header/div/h2/span")
+				tx, err := elem.Text()
+				if err != nil {
+					ctx.Fatalf("unable to get the text from sign in page content %v", err)
+				}
+				ctx.Log(tx)
+				if !strings.Contains(tx, "Error 400: invalid_scope") {
 					ctx.Fatalf("Cannot find redirect uri mismatch text.")
 				}
 			})
