@@ -182,7 +182,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 				"--cert_chain", "samples/certs/cert-chain.pem")
 		}
 	} else if ca == resource.PrivateCA {
-		issuingCaPoolId := fmt.Sprintf("%s-%s-cluster", gcp.CasSubCaIdPrefix, os.Getenv("BUILD_ID"))
+		issuingCaPoolId := fmt.Sprintf("%s-%s", gcp.CasSubCaIdPrefix, gcp.CasRootCaLoc)
 		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
 			env.SharedGCPProject, gcp.CasRootCaLoc, issuingCaPoolId)
 		installFlags = append(installFlags, "--ca", "gcp_cas")

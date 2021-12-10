@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	CasSubCaIdPrefix = "asm-sub-pool"
+	CasSubCaIdPrefix = "asm-testci-sub-pool"
 	CasRootCaLoc     = "us-central1"
 )
 

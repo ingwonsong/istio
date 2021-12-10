@@ -25,6 +25,7 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
+	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -245,9 +246,9 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if ca == resource.MeshCA {
 		installFlags = append(installFlags, "--ca", "mesh_ca")
 	} else if ca == resource.PrivateCA {
-		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", gcp.CasSubCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
+		issuingCaPoolId := fmt.Sprintf("%s-%s", gcp.CasSubCaIdPrefix, cluster.Location)
 		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
-			cluster.ProjectID, cluster.Location, issuingCaPoolId)
+			env.SharedGCPProject, cluster.Location, issuingCaPoolId)
 		installFlags = append(installFlags, "--ca", "gcp_cas")
 		installFlags = append(installFlags, "--ca_pool", caName)
 	} else if ca == resource.Citadel {

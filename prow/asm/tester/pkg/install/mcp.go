@@ -24,6 +24,7 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
+	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -127,9 +128,9 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 	if ca == resource.MeshCA {
 		caFlags = append(caFlags, "--ca", "mesh_ca")
 	} else if ca == resource.PrivateCA {
-		issuingCaPoolId := fmt.Sprintf("%s-%s-%s", gcp.CasSubCaIdPrefix, os.Getenv("BUILD_ID"), cluster.Name)
+		issuingCaPoolId := fmt.Sprintf("%s-%s", gcp.CasSubCaIdPrefix, cluster.Location)
 		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
-			cluster.ProjectID, cluster.Location, issuingCaPoolId)
+			env.SharedGCPProject, cluster.Location, issuingCaPoolId)
 		caFlags = append(caFlags, "--ca", "gcp_cas")
 		caFlags = append(caFlags, "--ca_pool", caName)
 	}
