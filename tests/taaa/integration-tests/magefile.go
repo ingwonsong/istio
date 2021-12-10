@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	compilerImgPath = "gcr.io/istio-testing/build-tools:master-latest"
+	compilerImgPath = "gcr.io/asm-staging-images/asm/build-tools:master-latest"
 	repoRoot        = "../../.."
 	outPath         = "./out"
 	outBinPath      = outPath + "/usr/bin"

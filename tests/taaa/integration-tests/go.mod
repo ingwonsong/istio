@@ -8,6 +8,7 @@ replace istio.io/istio => ../../..
 
 require (
 	github.com/davecgh/go-spew v1.1.1
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/magefile/mage v1.11.0
 	github.com/spf13/cobra v1.2.1
 	gke-internal.git.corp.google.com/taaa/lib.git v0.0.0-20210923204113-d7e249b27cfd

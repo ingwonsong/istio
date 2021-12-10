@@ -15,12 +15,14 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	shell "github.com/kballard/go-shellquote"
 	"github.com/magefile/mage/sh"
 	"github.com/spf13/cobra"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/entrypoint"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/magetools"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_integration"
+	pkgexec "istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests"
@@ -66,7 +68,7 @@ func createCmdJUnit(errorOutput string, cmdRunErr error) {
 	// Create the XML contents according to error details available.
 	var xmlContent string
 	if cmdRunErr == nil {
-		xmlContent = fmt.Sprintf(successXML)
+		xmlContent = successXML
 	} else {
 		rawErrorMessage := fmt.Sprintf("Install failed with error:\n%s\n", cmdRunErr.Error())
 		if errorOutput != "" {
@@ -94,6 +96,18 @@ func createCmdJUnit(errorOutput string, cmdRunErr error) {
 }
 
 func main() {
+	// The args format is supposed to be `entrypoint xxx`.
+	// If the subcommand is not taaa, we'll run asm_tester directly without
+	// going into the taaa-specific logic.
+	if len(os.Args) > 1 && os.Args[1] != "taaa" {
+		asmTesterArgs := append([]string{"--setup-env", "--setup-system"}, os.Args[1:]...)
+		if err := pkgexec.Run(fmt.Sprintf("asm_tester %s", shell.Join(asmTesterArgs...))); err != nil {
+			log.Fatalf("error running asm_tester: %v", err)
+		}
+
+		return
+	}
+
 	entrypoint.RunCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		magetools.SetLogTemplate(log.New(os.Stdout, "", log.Default().Flags()))
 		m := &asmpb.ASM{}
@@ -233,7 +247,7 @@ func main() {
 			log.Printf("Base test flags:\n%q", testFlags)
 			workDir, err := os.Getwd()
 			if err != nil {
-				return fmt.Errorf("Failed to get working directory: %s", err)
+				return fmt.Errorf("error getting working directory: %w", err)
 			}
 			// TODO(coryrc): the rest of the tests
 			/*
@@ -249,7 +263,7 @@ func main() {
 			for _, bin := range internal.Tests {
 				newWorkDir := path.Join(internal.RepoCopyRoot, internal.IntegrationTestRoot, bin)
 				if err := os.Chdir(newWorkDir); err != nil {
-					return fmt.Errorf("Failed to change working directory: %s", err)
+					return fmt.Errorf("error changing working directory: %w", err)
 				}
 				passedFlags := append(testFlags,
 					"--istio.test.work_dir="+path.Join(entrypoint.OutputDirectory, bin),
@@ -290,9 +304,9 @@ func createKubeConfigs(pb *asmpb.ASM) ([]string, string, error) {
 		}
 		kubeconfigs = append(kubeconfigs, k)
 	}
-	mergedKubeConfigFile, err := os.CreateTemp("/tmp/", fmt.Sprintf("taaa.kubeconfigFile.merged.*.yaml"))
+	mergedKubeConfigFile, err := os.CreateTemp("/tmp/", "taaa.kubeconfigFile.merged.*.yaml")
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed to create merged kubeconfig file got error %s", err)
+		return nil, "", fmt.Errorf("error creating merged kubeconfig file: %w", err)
 	}
 	defer mergedKubeConfigFile.Close()
 	mergedContent, err := sh.OutputWith(map[string]string{
@@ -334,7 +348,6 @@ func runInstall(env map[string]string) error {
 		"asm_tester",
 		"--setup-env",
 		"--setup-system",
-		"--use-asmcli=false", // newtaro appears to currently broken.
 		"--repo-root-dir", internal.RepoCopyRoot,
 		"--install-from", testerSetting.InstallOverride.String(),
 		"--wip", testerSetting.WIP.String(),

@@ -1,12 +1,19 @@
 # Test Artifact
 
-The image here compiles tests and stores them in an OCI image. We use
-them to get test results into GKE Networking Guitar dataplanev2 TestGrid.
+The image here compiles tests and stores them in an OCI image. We use the image
+for two main purposes:
+
+1. Run the tests and get test results into GKE Networking Guitar dataplanev2
+   TestGrid with go/taaa.
+
+1. Run ASM installation as part of SUT provisioning flow with go/tailorbird.
 
 The image bundles in the tests images used by the integration tests,
 the test binaries themselves and the `Tester` application at
 `$REPO_ROOT/prow/asm/tester`. The Tester is used to install ASM on the
-clusters and handle the necessary environment det up.
+clusters and handle the necessary environment setup.
+
+More details can be checked from go/asm-tester-image
 
 ## Compiler image
 
