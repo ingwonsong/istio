@@ -60,7 +60,7 @@ type metricsRecord struct {
 }
 
 // MaxTimeToReconcile is the maximum time we can allow one cluster to reconcile.
-var MaxTimeToReconcile = 24 * time.Hour
+var MaxTimeToReconcile = 12 * time.Hour
 
 // var MaxTimeToReconcile = 24*time.Hour
 // these vars allow for test injection

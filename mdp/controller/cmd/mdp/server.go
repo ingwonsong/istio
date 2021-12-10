@@ -124,7 +124,7 @@ func run() {
 		scope.Fatalf("Could not add manager scheme: %v", err)
 	}
 
-	mrt := env.RegisterDurationVar("MDP_RECONCILE_TIME", 24*time.Hour, "the maximum time to reconcile an "+
+	mrt := env.RegisterDurationVar("MDP_RECONCILE_TIME", reconciler.MaxTimeToReconcile, "the maximum time to reconcile an "+
 		"entire revision using MDP")
 	reconciler.MaxTimeToReconcile = mrt.Get()
 	scope.Infof("using max reconcile time of %v", reconciler.MaxTimeToReconcile)
