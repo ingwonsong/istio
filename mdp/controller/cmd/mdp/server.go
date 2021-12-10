@@ -16,6 +16,8 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"strings"
 	"time"
 
@@ -24,7 +26,9 @@ import (
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -59,6 +63,10 @@ var (
 )
 
 func serverCmd() *cobra.Command {
+	go func() {
+		fmt.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	loggingOptions := log.DefaultOptions()
 	introspectionOptions := ctrlz.DefaultOptions()
 
@@ -102,6 +110,9 @@ func run() {
 		LeaderElection:          !runLocal,
 		LeaderElectionNamespace: "istio-system",
 		LeaderElectionID:        "mdp-eviction-leader",
+		NewClient: func(_ cache.Cache, config *rest.Config, options client.Options, _ ...client.Object) (client.Client, error) {
+			return client.New(config, options)
+		},
 	}
 
 	// Create a new Cmd to provide shared dependencies and start components
