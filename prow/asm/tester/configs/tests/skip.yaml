@@ -497,9 +497,6 @@ tests:
       - names:
         - TestTraffic/virtualservice/redirect_port_and_scheme
         buganizerID: 200588569
-      - names:
-        - TestIstioOnGKEToMeshCA
-        buganizerID: 210486494
 
       # telemetry/ tests
       - names:

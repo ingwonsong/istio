@@ -280,6 +280,8 @@ configure_mesh_ca_16() {
     "image":"gcr.io/gke-release/istio/pilot:1.6.14-gke.7"
   }]}}},
   "metadata":{"annotations":{"istio-addon-migrate-start":"true"}}}'
+  echo "Restarting 1.6 istiod"
+  kube rollout restart deployment/istiod-istio-1611 -n istio-system
   kube rollout status -w deployment/istiod-istio-1611 -n istio-system
 
   # Next, we need to convince pods to send new CSR's. Our options are to restart all pods, wait 12-24hrs,

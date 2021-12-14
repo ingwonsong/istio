@@ -304,6 +304,12 @@ spec:
 			// check the configMap for success status to make sure auto migration is done
 			verifyMigrationStateCM(t, t.Clusters().Default(), migrationSuccessState)
 
+			// for 1.6 we use istio.io/rev label so istioctl x revision tag set default does not cover
+			// nolint: staticcheck
+			if err := migration16Namespace.SetLabel("istio.io/rev", "asm-managed"); err != nil {
+				t.Fatal(err)
+			}
+
 			for _, i := range migration14 {
 				if err := i.Restart(); err != nil {
 					t.Fatal(err)
@@ -354,6 +360,12 @@ spec:
 				// We allow a small buffer here as the addon did not have graceful shutdown
 				ingressCheck16.Stop().CheckSuccessRate(t, 0.95)
 			})
+
+			tp := t.CreateTmpDirectoryOrFail("addon-migration")
+			kube.DumpPods(t, tp, migration16Namespace.Name(), []string{"app=migration"})
+			kube.DumpPods(t, tp, stable16Namespace.Name(), []string{"app=migration"})
+			kube.DumpPods(t, tp, migration14Namespace.Name(), []string{"app=migration"})
+			kube.DumpPods(t, tp, stable14Namespace.Name(), []string{"app=migration"})
 
 			t.Logf("starting cleanup")
 			cleanupCheck14 := traffic.NewGenerator(t, traffic.Config{
