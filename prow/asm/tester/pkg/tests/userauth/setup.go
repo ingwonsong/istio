@@ -79,8 +79,11 @@ func installASMUserAuth(settings *resource.Settings) error {
 			fmt.Sprintf("kubectl create namespace userauth-test --context %s", context),
 			fmt.Sprintf("kubectl label namespace userauth-test %s --overwrite --context %s", label, context),
 
+			fmt.Sprintf("kubectl create namespace squid --context %s", context),
+
 			// TODO(b/182914654): deploy app in go code
 			fmt.Sprintf("kubectl -n userauth-test apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml --context %s", context),
+			fmt.Sprintf("kubectl -n squid apply -f %s/user-auth/squid.yaml --context %s", settings.ConfigDir, context),
 
 			// Create the kubernetes secret for the encryption and signing key.
 			fmt.Sprintf(`kubectl create secret generic secret-key  \

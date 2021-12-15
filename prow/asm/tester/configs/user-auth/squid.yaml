@@ -1,0 +1,185 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid
+data:
+  squid.conf: |
+    include /etc/squid/conf.d/*.conf
+    acl Safe_ports port 80    # http
+    acl Safe_ports port 443   # https
+    acl SquidPort port 3128
+    acl SquidPort port 3129
+    acl CONNECT method CONNECT
+    # Deny requests to certain unsafe ports
+    http_access allow SquidPort localhost
+    http_access deny !Safe_ports
+    # INSERT YOUR OWN RULE(S) HERE TO ALLOW ACCESS FROM YOUR CLIENTS
+    acl StaticContent urlpath_regex \.(gif|jpg|png|svg|css|js|ttf|woff|woff2)$
+    acl Gg ssl::server_name_regex -i .*\.google\.com
+    acl GgApi ssl::server_name_regex -i .*\.googleapis\.com
+    acl GgRef referer_regex -i .*\.com
+    acl step1 at_step SslBump1
+    acl step2 at_step SslBump2
+    acl step3 at_step SslBump3
+    ssl_bump peek step1 all
+    ssl_bump bump all
+    ssl_bump terminate all
+    # Squid listens to port 3128 with normal proxy mode
+    http_port 3128
+    # Squid listens to port 3129 with MITM proxy mode using cert with exp. Dec 20 2031
+    # openssl req -config squid_openssl.cnf -new -newkey rsa:2048 -sha256 -days 3650 -nodes -x509 -extensions v3_ca -keyout squid-ca-key.pem -out squid-ca-cert.pem
+    http_port 3129 ssl-bump generate-host-certificates=on dynamic_cert_mem_cache_size=4MB tls-cert=/etc/squid/cert/squid-ca-cert.pem tls-key=/etc/squid/cert/squid-ca-key.pem
+    include /etc/squid/conf.d.tail/*.conf
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-cert
+data:
+  squid-ca-cert.pem: |
+    -----BEGIN CERTIFICATE-----
+    MIIEhjCCA26gAwIBAgIJAINiZtlbTqd0MA0GCSqGSIb3DQEBCwUAMHMxCzAJBgNV
+    BAYTAklUMQ4wDAYDVQQIDAVJdGFseTEOMAwGA1UEBwwFTWlsYW4xDjAMBgNVBAoM
+    BVNxdWlkMQ8wDQYDVQQLDAZEZXZPcHMxIzAhBgNVBAMMGlNxdWlkIGt1YmVybmV0
+    ZXMuaW8gZmlsdGVyMB4XDTIxMTIyMjIwMDE1OFoXDTMxMTIyMDIwMDE1OFowczEL
+    MAkGA1UEBhMCSVQxDjAMBgNVBAgMBUl0YWx5MQ4wDAYDVQQHDAVNaWxhbjEOMAwG
+    A1UECgwFU3F1aWQxDzANBgNVBAsMBkRldk9wczEjMCEGA1UEAwwaU3F1aWQga3Vi
+    ZXJuZXRlcy5pbyBmaWx0ZXIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
+    AQCsfyg/dMpcgPLR5rqng2mABAAhawMiMcy1SSBJT2BWXRdkIZgcbW91ZrB4yrWl
+    KcMbQVSlT+ARAmAft5cXmrAnHA5S8fldRJtzvpdleAAoqKRK5bci0J72yjTIDvhh
+    2fJ19jq31HuVneumvz2/GLgADQf0m5JRj+PzusuvPaG85E9TiFr6/yViwaJVy3jD
+    eZCI6GVPWc/BjcMdjFg2GTFzktg8G8sAa0jhS+sd0CbV68MHRTxHgd2ld3WKv965
+    Jy4dAhhQ1tdft4BefJRtP2M81qQi+nO8ZlgqGLRnZG7yfwF4+77NY0+gGaDeZnsk
+    PRD8kYov3aE5uoAVFapHfeTTAgMBAAGjggEbMIIBFzAdBgNVHQ4EFgQUQhisMIZU
+    QGwN67u4L2v18Qg3cU0wgaUGA1UdIwSBnTCBmoAUQhisMIZUQGwN67u4L2v18Qg3
+    cU2hd6R1MHMxCzAJBgNVBAYTAklUMQ4wDAYDVQQIDAVJdGFseTEOMAwGA1UEBwwF
+    TWlsYW4xDjAMBgNVBAoMBVNxdWlkMQ8wDQYDVQQLDAZEZXZPcHMxIzAhBgNVBAMM
+    GlNxdWlkIGt1YmVybmV0ZXMuaW8gZmlsdGVyggkAg2Jm2VtOp3QwDAYDVR0TBAUw
+    AwEB/zAfBgNVHREEGDAWgRRyb290QHNxdWlkLWNhY2hlLm9yZzAfBgNVHRIEGDAW
+    gRRyb290QHNxdWlkLWNhY2hlLm9yZzANBgkqhkiG9w0BAQsFAAOCAQEAIFghexb9
+    F6jSGzreFf+Yg6g+fhuioDZNyovWe8Ox3Ll5ZtzTjtA37Awt/bfxkhJR730UEPqX
+    AjBJjTPmN5tYzx2sj89c9BoU/5U9lXy6ii047FOLF8hIsS1Qn3r2/IWRZX8h3t1D
+    ML0fN0Pe2uh2GkAp/Drchi6rWe+Kb1JwOawEMP0f5jHsHJkuOFD7C6MLryIbNL1E
+    EiauL8brafjRoVr0rMpr3t6THSVo3T374+y857GIK4DfUHGCQewaxEXPFo4G7ov+
+    /7oa9eUUtfHPMjwVohptJezLA7KHGaARtmfC5a6Ff5UuKDj0ND5EXmfq75sOcQJ8
+    svnP+fL+ptdNeg==
+    -----END CERTIFICATE-----
+  squid-ca-key.pem: |
+    -----BEGIN PRIVATE KEY-----
+    MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCsfyg/dMpcgPLR
+    5rqng2mABAAhawMiMcy1SSBJT2BWXRdkIZgcbW91ZrB4yrWlKcMbQVSlT+ARAmAf
+    t5cXmrAnHA5S8fldRJtzvpdleAAoqKRK5bci0J72yjTIDvhh2fJ19jq31HuVneum
+    vz2/GLgADQf0m5JRj+PzusuvPaG85E9TiFr6/yViwaJVy3jDeZCI6GVPWc/BjcMd
+    jFg2GTFzktg8G8sAa0jhS+sd0CbV68MHRTxHgd2ld3WKv965Jy4dAhhQ1tdft4Be
+    fJRtP2M81qQi+nO8ZlgqGLRnZG7yfwF4+77NY0+gGaDeZnskPRD8kYov3aE5uoAV
+    FapHfeTTAgMBAAECggEADNNzoaxEc7Ze176pOFVsHcmuXM3BMOS1DPHABdNyHVnU
+    qGxbDBoTBI67JnAkK4C8ciVcbuJOjdU4YoNbJ7UnzfCnHAHEAexdBrEwPqo6kMth
+    U/Ratqr+duk4HXwHefcjsSO63/pbqhdQ81ga9j+XRuGxKr36ljf1wiSsin4xrYLJ
+    E2zW2EmbBJOhZGshDuwENq67MHnKRcenP4SlGA+qVsTUrEmTzT5l+2mwCWpbQejk
+    EmXWuP4XNA1f27a8bddhhr/iK1kEkDZ98J3rFtezO0CnDrGZd4CJ0sHJhp431hkm
+    /k5MSs3MfDEsp/rzQLtZyr/gy3RgxqTdEYDGfOMSMQKBgQDhZS2cvMjpzYXjNp/C
+    9QhwyESdzz7YPEsptglqd2NHRdLiMMb4Yxni8CtHnls9tsv+v8VfQ+QY/NGbI5vv
+    bFI0lU+5KALXquwovzD6z83nO8tb5Ka0pNcCWkaLnA027LOgKWBIMZbeknSBYeWA
+    XFVEV7lCXut8VzlgOyFTaP/BKwKBgQDD6zT07LUWU5V6FspWxOBv745MqgdigMxy
+    rXC4OlYtFa4g9WlOcotiYSXrx55FuccJgSJl+ufHYhBYUrnOzbVvTiZspg9rfqDi
+    8AxPw6WYN6+X63+ariz5SINKV6xn3WVn9XFnhp9aGKSAJDbXY7DSJ57HgoDDRlax
+    FvR/VpwG+QKBgFNFIfjJ9iAKgfBTeep4xEmGc3Mp4bnZbJtYWVowCUmHjkVqZ9fU
+    JPgmapbm9iZypiLTjoOHfXmNzZJXMYDer/AlSXLKSWKMDvtuxxWiOBu5h4PHkZ8j
+    VxvTZkSlvmwQPrxpDN0fFPHdgZVbKYKmmgnJrvPKRY2GW/glYEaEgBhJAoGBAIdV
+    t5wk0yacEFpo2da8YukPyvVsUnOZ0yC4bG/mZFb6bfF4dQjqmRwZTY+ksdEqdrI7
+    EN7vRiJ1vCK26oFPmjBMBMDyqR4xN8Pr3CVRWddfSB2iYOAhxxFgJMk67O5GgmEg
+    q/i+ht8+vIuD+Joq1B8nnUfl/zplIUdtOvGni1pJAoGAPvl7Ezlee+XgWUjDG+6I
+    5o0zfYJODSAWdm6ducif6dFnF+1qbPNT2mgtpgKA9ZYk/HtFZonKOokNoshta/15
+    FZKrw5a0QBHqW+bfNLp7mTj5T9K7RhkhXYdhD7pdhrTZdFMLudxXt9k1VeZ5uf6z
+    JB0TqAxFOHKWSNnCldOymqQ=
+    -----END PRIVATE KEY-----
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: squid
+  name: squid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: squid
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: squid
+    spec:
+      containers:
+      - image: b4tman/squid
+        name: squid
+        command: ['/usr/sbin/squid']
+        args: ['-f', '/etc/squid/squid.conf', '--foreground', '-YCd', '1']
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -exc
+            - "squidclient -T 3 https://kubernetes.io/docs/home/ | grep -qF '200 OK'"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -exc
+            - "squidclient -T 3 mgr:info 2> /dev/null | grep -qF '200 OK'"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: "/etc/squid/cert"
+        - name: squid-cache
+          mountPath: "/var/cache/squid"
+        - name: squid-conf
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+      initContainers:
+      - name: init-squid
+        image: b4tman/squid
+        command: ['/bin/sh']
+        args: ['-c', 'rm -rf /var/cache/squid/ssl_db; /usr/lib/squid/security_file_certgen -c -s /var/cache/squid/ssl_db -M 4MB']
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: "/etc/squid/cert"
+        - name: squid-cache
+          mountPath: "/var/cache/squid"
+        - name: squid-conf
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+      volumes:
+      - name: squid-conf
+        configMap:
+          name: squid
+      - name: ssl-certs
+        configMap:
+          name: squid-cert
+      - name: squid-cache
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: squid
+  name: squid
+spec:
+  ports:
+  - name: 3128-3128
+    port: 3128
+    protocol: TCP
+    targetPort: 3128
+  - name: 3129-3129
+    port: 3129
+    protocol: TCP
+    targetPort: 3129
+  selector:
+    app: squid
+  type: ClusterIP

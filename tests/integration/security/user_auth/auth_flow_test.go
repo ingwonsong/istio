@@ -18,6 +18,7 @@
 package userauth
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,11 @@ import (
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/tests/integration/security/user_auth/selenium"
 	"istio.io/istio/tests/integration/security/user_auth/util"
+)
+
+const (
+	localPort   = 8443
+	ingressPort = 443
 )
 
 func TestBasicAuthFlow(t *testing.T) {
@@ -35,13 +41,12 @@ func TestBasicAuthFlow(t *testing.T) {
 			util.SetupConfig(ctx)
 
 			// port-forward to cluster
-			forwarder := util.GetIngressPortForwarderOrFail(ctx, ist, 8443, 8443)
+			forwarder := util.GetIngressPortForwarderOrFail(ctx, ist, localPort, ingressPort)
 			if err := forwarder.Start(); err != nil {
 				t.Fatalf("failed starting port forwarder for pod: %v", err)
 			}
 			// check the port-forward availability
-			util.ValidatePortForward(ctx, "8443")
-
+			util.ValidatePortForward(ctx, strconv.Itoa(localPort))
 			// setup chrome and chromedriver
 			service, wd := selenium.StartChromeOrFail(ctx)
 			defer service.Stop()

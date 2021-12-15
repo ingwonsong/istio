@@ -35,7 +35,6 @@ import (
 const (
 	userAuthNS        = "asm-user-auth"
 	secretName        = "oauth-secret"
-	port              = 8443
 	clientID          = "clientID"
 	clientSecret      = "clientSecret"
 	dummyClientID     = "dGVzdGNsaWVudGlk"
@@ -59,12 +58,12 @@ func TestMisconfiguration(t *testing.T) {
 		Run(func(ctx framework.TestContext) {
 			util.SetupConfig(ctx)
 			// port-forward to cluster
-			forwarder := util.GetIngressPortForwarderOrFail(ctx, ist, port, port)
+			forwarder := util.GetIngressPortForwarderOrFail(ctx, ist, localPort, ingressPort)
 			if err := forwarder.Start(); err != nil {
 				t.Fatalf("failed starting port forwarder for ingress: %v", err)
 			}
 			// check the port-forward availability
-			util.ValidatePortForward(ctx, strconv.Itoa(port))
+			util.ValidatePortForward(ctx, strconv.Itoa(localPort))
 
 			// Get clients
 			cluster := ctx.Clusters().Default()
@@ -149,7 +148,7 @@ func TestMisconfiguration(t *testing.T) {
 			ctx.NewSubTest("outputJWTAudience").Run(func(ctx framework.TestContext) {
 				// Test no outputJWTAudience field
 				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, util.NoAudUserAuthConfig)
-				time.Sleep(10 * time.Second)
+				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -177,6 +176,8 @@ func TestMisconfiguration(t *testing.T) {
 				}
 			})
 
+			time.Sleep(5 * time.Second)
+
 			// Invalid redirect URL Host should get Error 400: redirect_uri_mismatch
 			ctx.NewSubTest("invalidRedirectURLHost").Run(func(ctx framework.TestContext) {
 				config := util.NewUserAuthConfig(
@@ -191,7 +192,7 @@ func TestMisconfiguration(t *testing.T) {
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(10 * time.Second)
+				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -215,6 +216,8 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("Cannot find redirect uri mismatch text.")
 				}
 			})
+
+			time.Sleep(5 * time.Second)
 
 			// Invalid redirect URL Path should get Error 400: redirect_uri_mismatch
 			ctx.NewSubTest("invalidRedirectURLPath").Run(func(ctx framework.TestContext) {
@@ -230,7 +233,7 @@ func TestMisconfiguration(t *testing.T) {
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(10 * time.Second)
+				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -255,6 +258,8 @@ func TestMisconfiguration(t *testing.T) {
 				}
 			})
 
+			time.Sleep(5 * time.Second)
+
 			// Invalid scope value should get Error 400: Error 400: invalid_scope
 			ctx.NewSubTest("invalidScopes").Run(func(ctx framework.TestContext) {
 				config := util.NewUserAuthConfig(
@@ -269,7 +274,7 @@ func TestMisconfiguration(t *testing.T) {
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
-				time.Sleep(10 * time.Second)
+				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -290,9 +295,93 @@ func TestMisconfiguration(t *testing.T) {
 				}
 				ctx.Log(tx)
 				if !strings.Contains(tx, "Error 400: invalid_scope") {
-					ctx.Fatalf("Cannot find redirect uri mismatch text.")
+					ctx.Fatalf("Cannot find invalid_scope text.")
 				}
 			})
+
+			time.Sleep(5 * time.Second)
+
+			// Invalid IssuerURI should get Authentication Error
+			ctx.NewSubTest("invalidIssuerURI").Run(func(ctx framework.TestContext) {
+				config := util.NewUserAuthConfig(
+					util.UserAuthConfigFields{
+						CA:           "",
+						IssuerURI:    "https://invalid.issuer.com",
+						Proxy:        "",
+						RedirectHost: localhostURL,
+						RedirectPath: "/_gcp_anthos_callback",
+						Scopes:       "",
+						GroupsClaim:  "",
+						Aud:          "test_audience",
+					})
+				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				time.Sleep(5 * time.Second)
+				// setup chrome and chromedriver
+				service, wd := selenium.StartChromeOrFail(ctx)
+				defer service.Stop()
+				defer wd.Quit()
+				// Navigate
+				if err := wd.Get("https://localhost:8443/headers"); err != nil {
+					ctx.Fatalf("unable to fetch the localhost headers page %v", err)
+				}
+				// Headers page
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("/html/body/pre"), 20*time.Second); err != nil {
+					ctx.Fatalf("unable to load headers page %v", err)
+				}
+				// Get a reference to the text box containing code.
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "/html/body/pre")
+				tx, err := elem.Text()
+				if err != nil {
+					ctx.Fatalf("unable to get the text from headers page content %v", err)
+				}
+				ctx.Log(tx)
+				if !strings.Contains(tx, "Authentication Failed.") {
+					ctx.Fatalf("Failed to detect authentication failure.")
+				}
+			})
+
+			time.Sleep(5 * time.Second)
+
+			// Invalid Issuer CA should get Authentication Error
+			ctx.NewSubTest("invalidIssuerCA").Run(func(ctx framework.TestContext) {
+				config := util.NewUserAuthConfig(
+					util.UserAuthConfigFields{
+						CA:           "ZmFrZSBjZXJ0aWZpY2F0ZQ==",
+						IssuerURI:    "https://accounts.google.com",
+						Proxy:        "",
+						RedirectHost: localhostURL,
+						RedirectPath: "/_gcp_anthos_callback",
+						Scopes:       "",
+						GroupsClaim:  "",
+						Aud:          "test_audience",
+					})
+				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				time.Sleep(5 * time.Second)
+				// setup chrome and chromedriver
+				service, wd := selenium.StartChromeOrFail(ctx)
+				defer service.Stop()
+				defer wd.Quit()
+				// Navigate
+				if err := wd.Get("https://localhost:8443/headers"); err != nil {
+					ctx.Fatalf("unable to fetch the localhost headers page %v", err)
+				}
+				// Headers page
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("/html/body/pre"), 20*time.Second); err != nil {
+					ctx.Fatalf("unable to load headers page %v", err)
+				}
+				// Get a reference to the text box containing code.
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "/html/body/pre")
+				tx, err := elem.Text()
+				if err != nil {
+					ctx.Fatalf("unable to get the text from headers page content %v", err)
+				}
+				ctx.Log(tx)
+				if !strings.Contains(tx, "Authentication Failed.") {
+					ctx.Fatalf("Failed to detect authentication failure.")
+				}
+			})
+
+			time.Sleep(5 * time.Second)
 
 			// revert the config back to original
 			ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, util.OriginalUserAuthConfig)
