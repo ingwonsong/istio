@@ -270,10 +270,8 @@ func PodShouldBeInjected(pod *v1.Pod) bool {
 	}
 
 	// skip special kubernetes system namespaces
-	for _, namespace := range inject.IgnoredNamespaces {
-		if pod.Namespace == namespace {
-			return false
-		}
+	if inject.IgnoredNamespaces.Contains(pod.Namespace) {
+		return false
 	}
 
 	annos := pod.GetAnnotations()
