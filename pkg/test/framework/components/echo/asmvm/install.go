@@ -197,7 +197,10 @@ func (i *instance) createInstanceTemplate() error {
 	workload := fmt.Sprintf("%s/%s", i.config.Namespace.Name(), i.config.Service+"-v1")
 	meshVal := fmt.Sprintf("gke-cluster=%s,workload=%s", gkeCluster, workload)
 
-	instanceMetadata := strings.Join(i.cluster.InstanceMetadata(), ",")
+	// TODO(b/210923265): Remove once gcloud adds the metadata.
+	md := append(i.cluster.InstanceMetadata(), "osconfig-disabled-features=tasks")
+
+	instanceMetadata := strings.Join(md, ",")
 
 	cmd := exec.Command("gcloud", "beta", "compute",
 		"instance-templates", "create", i.resourceName(),
