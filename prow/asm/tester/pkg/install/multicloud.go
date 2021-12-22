@@ -126,7 +126,6 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			"install_asm_on_proxied_clusters",
 			nil,
 			exec.WithAdditionalEnvs([]string{
-				fmt.Sprintf("HTTP_PROXY=%s", c.settings.ClusterProxy[0]),
 				fmt.Sprintf("HTTPS_PROXY=%s", c.settings.ClusterProxy[0]),
 			}),
 		)
@@ -206,9 +205,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 func installExpansionGateway(settings *resource.Settings, rev *revision.Config, cluster, network, kubeconfig string, idx int) error {
 	if len(settings.ClusterProxy) != 0 {
 		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
-		os.Setenv("http_proxy", settings.ClusterProxy[idx])
 		defer os.Unsetenv("HTTPS_PROXY")
-		defer os.Unsetenv("http_proxy")
 	}
 	revName := "default"
 	if rev.Name != "" {
@@ -252,7 +249,9 @@ func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int
 		if err := exec.Dispatch(settings.RepoRootDir, "baremetal::configure_external_ip",
 			[]string{kubeconfig},
 			exec.WithAdditionalEnvs(
-				[]string{fmt.Sprintf("HTTPS_PROXY=%s", settings.ClusterProxy[idx])})); err != nil {
+				[]string{fmt.Sprintf("HTTPS_PROXY=%s", settings.ClusterProxy[idx])},
+			),
+		); err != nil {
 			return err
 		}
 		return nil

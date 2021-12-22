@@ -91,7 +91,6 @@ func configureEnvvars(settings *resource.Settings,
 	}
 	// required for bare metal and multicloud environments single cluster jobs
 	if len(settings.ClusterProxy) == 1 {
-		envVars["HTTP_PROXY"] = settings.ClusterProxy[0]
 		envVars["HTTPS_PROXY"] = settings.ClusterProxy[0]
 	}
 	for k, v := range envVars {

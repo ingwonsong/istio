@@ -241,8 +241,8 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 	configs := filepath.SplitList(settings.Kubeconfig)
 	for i, config := range configs {
 		if len(settings.ClusterProxy) != 0 {
-			os.Setenv("HTTP_PROXY", settings.ClusterProxy[i])
-			defer os.Unsetenv("HTTP_PROXY")
+			os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
+			defer os.Unsetenv("HTTPS_PROXY")
 		}
 		err := exec.Run(
 			fmt.Sprintf("kubectl create ns istio-system --kubeconfig=%s", config),

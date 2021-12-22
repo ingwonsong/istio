@@ -2,11 +2,6 @@
 # Target: test.integration.asm.*
 #-----------------------------------------------------------------------------
 
-ifeq ($(CLUSTER_TYPE), bare-metal)
-	export HTTP_PROXY
-	export HTTPS_PROXY=$(HTTP_PROXY)
-endif
-
 _MCP_TEST_TIMEOUT = 30m
 ifneq ($(MCP_TEST_TIMEOUT),)
 	_MCP_TEST_TIMEOUT = $(MCP_TEST_TIMEOUT)

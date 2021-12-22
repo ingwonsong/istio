@@ -39,9 +39,7 @@ func Setup(settings *resource.Settings) error {
 		if os.Getenv("CI") == "true" {
 			if len(settings.ClusterProxy) != 0 {
 				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[0])
-				os.Setenv("http_proxy", settings.ClusterProxy[0])
 				defer os.Unsetenv("HTTPS_PROXY")
-				defer os.Unsetenv("http_proxy")
 			}
 
 			log.Printf("######### Print all env vars #########")

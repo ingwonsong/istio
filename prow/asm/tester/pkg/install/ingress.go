@@ -48,9 +48,7 @@ func (c *installer) installIngressGateway(settings *resource.Settings, rev *revi
 	}
 	if len(c.settings.ClusterProxy) != 0 {
 		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
-		os.Setenv("http_proxy", settings.ClusterProxy[idx])
 		defer os.Unsetenv("HTTPS_PROXY")
-		defer os.Unsetenv("http_proxy")
 	}
 
 	// TODO resource.Settings should have an easy way to fetch this for a given cluster

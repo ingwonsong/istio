@@ -31,7 +31,6 @@ func Teardown(settings *resource.Settings) error {
 
 	// Unset the proxy if the tests are run on proxied clusters.
 	if len(settings.ClusterProxy) != 0 {
-		os.Unsetenv("HTTP_PROXY")
 		os.Unsetenv("HTTPS_PROXY")
 	}
 
