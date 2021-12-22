@@ -22,6 +22,7 @@ import (
 
 	"github.com/thalescpl-io/k8s-kms-plugin/apis/istio/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"istio.io/pkg/log"
 )
@@ -55,7 +56,7 @@ type KeyEncryptionService struct {
 // TODO: go back to istio.GetClientSocket once merged
 func GetClientSocket(socket string, timeout time.Duration) (ctx context.Context, cancel context.CancelFunc, c istio.KeyManagementServiceClient, err error) {
 	// Get Client
-	options := []grpc.DialOption{grpc.WithInsecure()}
+	options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	var conn *grpc.ClientConn
 	if conn, err = grpc.Dial("unix:"+socket, options...); err != nil {
 		return

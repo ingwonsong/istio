@@ -315,9 +315,6 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if settings.ClusterTopology == resource.MultiProject {
 		installFlags = append(installFlags, "--option", "multiproject")
 	}
-	if settings.WIP == resource.HUBWorkloadIdentityPool {
-		installFlags = append(installFlags, "--option", "hub-meshca")
-	}
 	if settings.UseVMs {
 		installFlags = append(installFlags, "--option", "vm")
 	}

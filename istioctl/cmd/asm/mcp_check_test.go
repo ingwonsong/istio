@@ -52,10 +52,9 @@ func TestMCPCheck(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			util.CompareContent(
+			util.CompareContent(t,
 				[]byte(strings.ReplaceAll(w.String(), out, "output-path")),
-				filepath.Join("testdata", tt.name, "output"),
-				t)
+				filepath.Join("testdata", tt.name, "output"))
 			err := filepath.Walk(out, func(path string, info fs.FileInfo, err error) error {
 				if err != nil {
 					return err
@@ -73,7 +72,7 @@ func TestMCPCheck(t *testing.T) {
 						return err
 					}
 				}
-				util.CompareContent(got, goldenFilePath, t)
+				util.CompareContent(t, got, goldenFilePath)
 				return nil
 			})
 			if err != nil {
