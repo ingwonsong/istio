@@ -339,7 +339,7 @@ function configure_remote_secrets_for_baremetal() {
         REACH_IP=$(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "${BM_ARTIFACTS_PATH_SET[$j]}"/id_rsa root@"${BM_HOST_IP_SET[$j]}" "ip -4 addr show ens4 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'")
         sed -i 's/server\:.*/server\: https:\/\/'"${REACH_IP}:8118"'/' "secret-${j}"
         sed -i 's/certificate-authority-data\:.*/insecure-skip-tls-verify\: true/' "secret-${j}"
-        HTTPS_PROXY=${HTTP_PROXYS[$j]} kubectl apply --kubeconfig="${MC_CONFIGS[$i]}" -f "secret-${j}"
+        HTTPS_PROXY=${HTTP_PROXYS[$i]} kubectl apply --kubeconfig="${MC_CONFIGS[$i]}" -f "secret-${j}"
       fi
     done
   done
