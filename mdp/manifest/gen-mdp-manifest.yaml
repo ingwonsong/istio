@@ -238,6 +238,7 @@ spec:
             runAsGroup: 0
             runAsUser: 0
             runAsNonRoot: false
+            privileged: false
           command: ["install-cni"]
           env:
             # The CNI network config to install on each node.
