@@ -456,7 +456,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 			// but it's uncertain why this happens. Ignore the error for now
 			// since the error says the project has already been dissociated.
 			// TODO(chizhg): enable the error check after figuring out the cause.
-			_ = exec.Run(fmt.Sprintf("gcloud beta compute shared-vpc"+
+			_, _ = exec.Output(fmt.Sprintf("gcloud beta compute shared-vpc"+
 				" associated-projects remove %s --host-project=%s", project, hostProject))
 		}
 	}
@@ -482,7 +482,7 @@ func acquireMultiGCPProjects(hostBoskosResourceType string, svcBoskosResourceTyp
 		associatedHostProjectStr := strings.TrimSpace(string(associatedHostProject))
 		if associatedHostProjectStr != "" {
 			// TODO(chizhg): enable the error check after figuring out the cause.
-			_ = exec.Run(fmt.Sprintf("gcloud beta compute shared-vpc"+
+			_, _ = exec.Output(fmt.Sprintf("gcloud beta compute shared-vpc"+
 				" associated-projects remove %s --host-project=%s", sp, associatedHostProjectStr))
 		}
 	}
