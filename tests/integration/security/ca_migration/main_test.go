@@ -182,7 +182,7 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 				t.Fatalf("unable to update meshca control plane deployment: %v", err)
 			}
 			// TODO: need better way to rollout and restart meshca deployment and wait until pods are active
-			time.Sleep(20 * time.Second)
+			time.Sleep(40 * time.Second)
 			checkConnectivity(t, ctx, b, d, true, "post-trust-test-same-ca-conn")
 			checkConnectivity(t, ctx, a, b, false, "post-trust-test-cross-ca-conn")
 		})
