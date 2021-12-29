@@ -106,7 +106,7 @@ EOF'`, context)); err != nil {
 		}
 	}
 
-	if err := createRemoteSecrets(c.settings, contexts); err != nil {
+	if err := createRemoteSecrets(c.settings, rev, scriptPath); err != nil {
 		return fmt.Errorf("failed to create remote secrets: %w", err)
 	}
 

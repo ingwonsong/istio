@@ -145,16 +145,8 @@ func (c *installer) installASM(rev *revision.Config) error {
 		}
 	}
 
-	if useASMCLI(c.settings, rev) {
-		if err := exec.Run(scriptPath,
-			exec.WithAdditionalEnvs(generateASMInstallEnvvars(c.settings, rev, "")), // trustProjects is not used here
-			exec.WithAdditionalArgs(generateASMCreateMeshFlags(c.settings))); err != nil {
-			return fmt.Errorf("failed to create mesh using asmcli: %w", err)
-		}
-	} else {
-		if err := createRemoteSecrets(c.settings, contexts); err != nil {
-			return fmt.Errorf("failed to create remote secrets: %w", err)
-		}
+	if err := createRemoteSecrets(c.settings, rev, scriptPath); err != nil {
+		return fmt.Errorf("failed to create remote secrets: %w", err)
 	}
 	return nil
 }

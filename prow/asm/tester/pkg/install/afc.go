@@ -35,6 +35,15 @@ import (
 func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error {
 	contexts := c.settings.KubeContexts
 
+	log.Println("Downloading ASM script for the installation...")
+	if !useASMCLI(c.settings, rev) {
+		return fmt.Errorf("asmcli must be used for afc: %t", useASMCLI(c.settings, rev))
+	}
+	scriptPath, err := downloadInstallScript(c.settings, nil)
+	if err != nil {
+		return fmt.Errorf("failed to download the install script: %w", err)
+	}
+
 	// ASM MCP VPCSC with AFC test requires the latest, as of 10/13/2021, unreleased gcloud binary .
 	// TODO(ruigu): Remove this part after the http://b/204468175.
 	if c.settings.FeaturesToTest.Has(string(resource.VPCSC)) {
@@ -70,15 +79,6 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 		contextLogger.Println("Performing ASM installation via AFC...")
 		cluster := kube.GKEClusterSpecFromContext(context)
 
-		log.Println("Downloading ASM script for the installation...")
-		if !useASMCLI(c.settings, rev) {
-			return fmt.Errorf("asmcli must be used for afc: %w", err)
-		}
-		scriptPath, err := downloadInstallScript(c.settings, nil)
-		if err != nil {
-			return fmt.Errorf("failed to download the install script: %w", err)
-		}
-
 		contextLogger.Println("Running installation using install script...")
 		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateAFCInstallEnvvars(c.settings)),
@@ -92,6 +92,9 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 			contextLogger.Println("Verifying MCP VPCSC installation...")
 			ctx := contextpkg.Background()
 			creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+			if err != nil {
+				return fmt.Errorf("failed to find default credentials for MCP VPCSC installation verification: %w", err)
+			}
 			url := fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/locations/%s/clusters/%s/controlPlanes/asm-managed-rapid:fetchControlPlane", cluster.ProjectID, cluster.Location, cluster.Name)
 			resp, err := oauth2.NewClient(ctx, creds.TokenSource).Get(url)
 			if err != nil {
@@ -135,7 +138,7 @@ EOF'`, context)); err != nil {
 		contextLogger.Println("Done installing MCP via AFC...")
 	}
 
-	if err := createRemoteSecrets(c.settings, contexts); err != nil {
+	if err := createRemoteSecrets(c.settings, rev, scriptPath); err != nil {
 		return fmt.Errorf("failed to create remote secrets: %w", err)
 	}
 

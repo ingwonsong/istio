@@ -118,7 +118,15 @@ func getInstallEnableFlags() []string {
 }
 
 // createRemoteSecrets creates remote secrets for each cluster to each other cluster
-func createRemoteSecrets(settings *resource.Settings, contexts []string) error {
+func createRemoteSecrets(settings *resource.Settings, rev *revision.Config, scriptPath string) error {
+	// VPC-SC mode should not use create-mesh since it does not handle private IPs
+	if useASMCLI(settings, rev) && !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
+		return exec.Run(scriptPath,
+			exec.WithAdditionalEnvs(generateASMInstallEnvvars(settings, rev, "")), // trustProjects is not used here
+			exec.WithAdditionalArgs(generateASMCreateMeshFlags(settings)))
+	}
+
+	contexts := settings.KubeContexts
 	for _, context := range contexts {
 		for _, otherContext := range contexts {
 			if context == otherContext {
