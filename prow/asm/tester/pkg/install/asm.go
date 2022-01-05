@@ -302,7 +302,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	// Other random options
 	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		installFlags = append(installFlags, "--option", "cni-gke-autopilot")
-	} else {
+	} else if settings.ClusterType != resource.HybridGKEAndBareMetal {
 		installFlags = append(installFlags, "--option", "cni-gcp")
 	}
 	if settings.ClusterTopology == resource.MultiProject {

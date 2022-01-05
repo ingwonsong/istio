@@ -42,7 +42,7 @@ const (
 	tracConfigRelDir = "../../team/anthos-trac-team/configs/tailorbird/asm/"
 
 	// GCS path for downloading kubetest2-tailorbird binary
-	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2021-09-21-001841/kubetest2-tailorbird"
+	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2022-01-13-230609/kubetest2-tailorbird"
 
 	installawsIamAuthenticatorCmd = `curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/aws-iam-authenticator \
 			&& chmod +x ./aws-iam-authenticator \
@@ -238,7 +238,7 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 		case types.GKEOnPrem:
 			version = "latest"
 		case types.GKEOnBareMetal:
-			version = "1.7"
+			version = "1.10"
 		case types.GKEOnAWS:
 			version = "aws-1.7.1-gke.1"
 		case types.GKEOnGCPWithAnthosPrivateMode:
@@ -258,6 +258,9 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 			versionPrefix = version
 			version = ""
 		case types.GKEOnBareMetal, types.GKEOnAWS:
+			versionPrefix = version
+			version = "latest"
+		case types.HybridGKEAndGKEOnBareMetal:
 			versionPrefix = version
 			version = "latest"
 		}

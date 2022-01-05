@@ -1,0 +1,75 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  creationTimestamp: null
+  name: tairan-baremetal-hybrid-rookery
+  namespace: tailorbird-users
+spec:
+  gcpProjects:
+  - managedAccounts:
+    - email: baremetal-dev@tairan-asm-multi-cloud-dev.iam.gserviceaccount.com
+      keyfile: baremetal-key.json
+    name: tairan-asm-multi-cloud-dev
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      creationTimestamp: null
+      name: tairan-baremetal-hybrid-knest
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          creationTimestamp: null
+          name: tairan-baremetal-hybrid-bm-cluster-01
+          namespace: tailorbird-users
+        spec:
+          distribution: gke
+          provider: baremetal
+          provisionerArgs:
+            anthosBMDownloaderSAPath: /var/tailorbird/managed-keys/tairan-baremetal-hybrid-rookery/baremetal-key.json
+            bmctlVersionPrefix: "{{ .VersionPrefix }}"
+            gkeConnectSAPath: /var/tailorbird/managed-keys/tairan-baremetal-hybrid-rookery/baremetal-key.json
+            gkeLoggingSAPath: /var/tailorbird/managed-keys/tairan-baremetal-hybrid-rookery/baremetal-key.json
+            gkeRegisterSAPath: /var/tailorbird/managed-keys/tairan-baremetal-hybrid-rookery/baremetal-key.json
+            googleApplicationCredentials: /var/tailorbird/managed-keys/tairan-baremetal-hybrid-rookery/baremetal-key.json
+            passthroughEnv: |
+              {
+                "NUM_GCE_VIPS": "2",
+                "SUBNET": "baremetal-internal-01",
+                "MANIFEST_PROFILE_ENV": "staging",
+                "NETWORK_TAGS": "baremetal-hybrid",
+                "CONTROLPLANE_USE_GCE_VIP": "1"
+              }
+            project: tairan-asm-multi-cloud-dev
+            proxyPort: "8218"
+            scriptsVersion: latest
+            scriptsVersionPrefix: "0.0"
+            username: prowuser
+        status: {}
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          creationTimestamp: null
+          name: tairan-baremetal-hybrid-gcp-cluster-01
+        spec:
+          distribution: gke
+          provider: gcp
+          provisionerArgs:
+            pluginSpecYaml: |
+              pluginOptions:
+                # note: this currently leaves orphan firewall rules, needs some sort of janitor
+                skipNetworkTeardowns: true
+              projectOptions:
+                projects: tairan-asm-multi-cloud-dev
+              networkOptions:
+                network: cluster-net
+              clusterOptions:
+                clusters: test-cluster-tairan-hybrid-01
+                regions: us-central1
+                gcloudExtraFlags: --enable-ip-alias --subnetwork=cluster-internal-01
+                workloadIdentityEnabled: true
+        status: {}
+    status: {}
+status: {}

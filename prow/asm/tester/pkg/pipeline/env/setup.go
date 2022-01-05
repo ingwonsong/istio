@@ -240,6 +240,8 @@ func fixClusterConfigs(settings *resource.Settings) error {
 		err = fixAWS(settings)
 	case resource.APM:
 		err = fixAPM(settings)
+	case resource.HybridGKEAndBareMetal:
+		err = fixHybridGKEAndBareMetal(settings)
 	}
 
 	kubeContexts, kubeContextErr := kube.Contexts()
@@ -568,6 +570,28 @@ func fixAWS(settings *resource.Settings) error {
 		}
 	}
 
+	return nil
+}
+
+func fixHybridGKEAndBareMetal(settings *resource.Settings) error {
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		if strings.Contains(config, "artifacts/kubeconfig") {
+			if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+				// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
+				clusterArtifactsPath: filepath.Dir(config),
+				scriptRelPath:        "tunnel.sh",
+				regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
+				sshKeyRelPath:        "id_rsa",
+			}); err != nil {
+				return err
+			}
+		} else {
+			settings.ClusterProxy = append(settings.ClusterProxy, "")
+			settings.ClusterSSHUser = append(settings.ClusterSSHUser, "")
+			settings.ClusterSSHKey = append(settings.ClusterSSHKey, "")
+		}
+	}
 	return nil
 }
 

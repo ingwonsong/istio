@@ -46,7 +46,7 @@ func (c *installer) installIngressGateway(settings *resource.Settings, rev *revi
 	if rev != nil && rev.Version != "" {
 		return nil
 	}
-	if len(c.settings.ClusterProxy) != 0 {
+	if len(c.settings.ClusterProxy) != 0 && settings.ClusterProxy[idx] != "" {
 		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
 		defer os.Unsetenv("HTTPS_PROXY")
 	}
