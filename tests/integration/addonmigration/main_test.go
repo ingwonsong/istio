@@ -309,7 +309,8 @@ spec:
 			if err := migration16Namespace.SetLabel("istio.io/rev", "asm-managed"); err != nil {
 				t.Fatal(err)
 			}
-
+			tp := t.CreateTmpDirectoryOrFail("addon-migration-workload")
+			kube.DumpPods(t, tp, "istio-system", []string{"app=istio-ingressgateway"})
 			for _, i := range migration14 {
 				if err := i.Restart(); err != nil {
 					t.Fatal(err)
@@ -361,7 +362,6 @@ spec:
 				ingressCheck16.Stop().CheckSuccessRate(t, 0.95)
 			})
 
-			tp := t.CreateTmpDirectoryOrFail("addon-migration")
 			kube.DumpPods(t, tp, migration16Namespace.Name(), []string{"app=migration"})
 			kube.DumpPods(t, tp, stable16Namespace.Name(), []string{"app=migration"})
 			kube.DumpPods(t, tp, migration14Namespace.Name(), []string{"app=migration"})

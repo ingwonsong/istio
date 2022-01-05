@@ -360,7 +360,7 @@ EOF
   kube get deploy istio-pilot -n istio-system -o yaml > configure_mesh_ca_istio_pilot_deploy.yaml
   kube patch deploy istio-pilot -n istio-system -p='{"spec":{"template":{"spec":{"containers":[{
     "name":"discovery",
-    "image":"gcr.io/gke-release/istio/pilot:1.4.10-gke.12",
+    "image":"gcr.io/gke-release/istio/pilot:1.4.10-gke.21",
     "env":[{"name":"PILOT_SKIP_VALIDATE_TRUST_DOMAIN","value":"true"}]
   }]}}}}'
 
