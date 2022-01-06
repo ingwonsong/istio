@@ -16,7 +16,7 @@ replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 require (
 	cloud.google.com/go/compute v1.2.0
 	cloud.google.com/go/security v1.1.1
-	cloud.google.com/go v0.97.0
+	cloud.google.com/go v0.99.0
 	cloud.google.com/go/container v0.1.0
 	cloud.google.com/go/profiler v0.1.0
 	cloud.google.com/go/security v1.1.0
