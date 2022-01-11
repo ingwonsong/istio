@@ -1,6 +1,7 @@
-03eb5853c6415a0e5905ab991bbf1fe4b495750a
+e66cea85968953a93b4f88cb4ddfefd8c225f010
 ========================================
-Mathieu Benoit
-Mon Dec 20 13:20:35 2021 -0500
+Zhengzhe Yang
+Mon Jan 10 14:20:25 2022 -0800
 
-onlineboutique - v0.3.4 (#1085)
+managed cni enablement default to empty string (#1094)
+
