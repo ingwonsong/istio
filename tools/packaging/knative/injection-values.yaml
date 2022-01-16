@@ -102,6 +102,7 @@ global:
     # examples:
     #     Redirect only selected ports:            --includeInboundPorts="80,8080"
     excludeInboundPorts: ""
+    includeInboundPorts: "*"
 
     # This controls the 'policy' in the sidecar injector.
     autoInject: enabled
