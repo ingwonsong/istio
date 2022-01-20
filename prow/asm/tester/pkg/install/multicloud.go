@@ -49,6 +49,9 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 		if c.settings.ClusterType == resource.OnPrem {
 			environProject = onPremFleetProject
 		}
+		if c.settings.MulticloudOverrideEnvironProject {
+			environProject = c.settings.GCPProjects[0]
+		}
 		environProjectNumber, err := gcp.GetProjectNumber(environProject)
 		if err != nil {
 			return fmt.Errorf("failed to read environ number: %w", err)
