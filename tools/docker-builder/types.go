@@ -59,8 +59,8 @@ type Args struct {
 	Push            bool
 	Save            bool
 	BuildxEnabled   bool
-	NoClobber     bool
-	NoCache       bool
+	NoClobber       bool
+	NoCache         bool
 	Targets         []string
 	Variants        []string
 	Architectures   []string
@@ -68,7 +68,7 @@ type Args struct {
 	ProxyVersion    string
 	IstioVersion    string
 	Tag             string
-	Hubs          []             string
+	Hubs            []string
 	CloudEFSVersion string
 }
 
@@ -143,10 +143,10 @@ func DefaultArgs() Args {
 	}
 
 	return Args{
-		Push:            false,
-		Save:            false,
-		NoCache:       false,BuildxEnabled:   true,
-		Hubs:          hub,
+		Push:    false,
+		Save:    false,
+		NoCache: false, BuildxEnabled: true,
+		Hubs:            hub,
 		Tag:             env.GetString("TAG", "latest"),
 		BaseVersion:     fetchBaseVersion(),
 		IstioVersion:    fetchIstioVersion(),
