@@ -44,6 +44,9 @@ tests:
     - names:
         - TestTelemetryAPIStats
       buganizerID: 203820028
+    - names:
+      - TestJWTHTTPS
+      buganizerID: 215175941
 
 
   # Multiversion test skips.
@@ -531,6 +534,9 @@ tests:
       - names:
           - TestCNI19Upgrade
         reason: no longer needed
+      - names:
+        - TestJWTHTTPS
+        buganizerID: 215175941
 
       # security/ tests
       - names:
@@ -611,7 +617,7 @@ tests:
       buganizerID: 195128010
     - names:
       - TestTraffic/virtualservice/set_authority_header*
-      reason: Unkown
+      reason: Unknown
       buganizerID: 195128010
     - names:
       - TestTraffic/jwt-claim-route
@@ -620,7 +626,14 @@ tests:
       - TestTraffic/host/ip/auto-http
       - TestTraffic/host/ip:18081/auto-http
       - TestTraffic/virtualservice/rewrite_uri
-      reason: Unkown
+      reason: Unknown
+      buganizerID: 195128010
+    - names:
+      - TestTraffic/sniffing/http10_to_http
+      - TestTraffic/sniffing/http10_to_auto
+      - TestTraffic/sniffing/http10_to_external
+      - TestTraffic/sniffing/http10_to_external_auto
+      reason: Unknown
       buganizerID: 195128010
 
 packages:
