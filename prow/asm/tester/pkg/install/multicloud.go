@@ -72,7 +72,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			networkID := "network" + strconv.Itoa(i)
 			clusterID := "cluster" + strconv.Itoa(i)
 			additionalFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
-				kubeconfig)
+				kubeconfig, environProject)
 			if err != nil {
 				return fmt.Errorf("error generating multicloud install flags: %w", err)
 			}
@@ -137,7 +137,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 
 // generateASMMultiCloudInstallFlags returns the flags required when running the install
 // script to install ASM on multi cloud.
-func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revision.Config, kubeconfig string) ([]string, error) {
+func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revision.Config, kubeconfig string, environProject string) ([]string, error) {
 	var installFlags []string
 	installFlags = append(installFlags, "install",
 		"--kubeconfig", kubeconfig,
@@ -160,13 +160,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 			"--service-account", serviceAccount)
 	}
 
-	if settings.ClusterType == resource.OnPrem {
-		installFlags = append(installFlags,
-			"--fleet_id", onPremFleetProject)
-	} else {
-		installFlags = append(installFlags,
-			"--fleet_id", proxiedClusterFleetProject)
-	}
+	installFlags = append(installFlags, "--fleet_id", environProject)
 
 	ca := settings.CA
 	if rev.CA != "" {
