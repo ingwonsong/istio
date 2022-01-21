@@ -25,6 +25,7 @@ var (
 		"pkg/test/framework/features/",
 		"prow/asm/tester/",
 		IntegrationTestRoot,
+		"samples/multicluster/",
 	}
 	// The glob patterns used to match code files that we do not want to copy
 	// into the TaaA image. We cannot have source code in images as a policy.
