@@ -43,7 +43,7 @@ GOPKG="$GOPATH/pkg"
 BUILDINFO=${BUILDINFO:-""}
 STATIC=${STATIC:-1}
 LDFLAGS=${LDFLAGS:--extldflags -static}
-GOBUILDFLAGS=${GOBUILDFLAGS:-""}
+GOBUILDFLAGS=${GOBUILDFLAGS:--tags="netgo,osusergo"}
 # Split GOBUILDFLAGS by spaces into an array called GOBUILDFLAGS_ARRAY.
 IFS=' ' read -r -a GOBUILDFLAGS_ARRAY <<< "$GOBUILDFLAGS"
 

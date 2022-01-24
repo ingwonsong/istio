@@ -266,7 +266,7 @@ ifeq ($(DEBUG),1)
 # gobuild script uses custom linker flag to set the variables.
 RELEASE_LDFLAGS=''
 else
-RELEASE_LDFLAGS='-extldflags -s -w'
+RELEASE_LDFLAGS='-extldflags -static -s -w'
 endif
 
 # List of all binaries to build
