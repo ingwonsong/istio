@@ -4,6 +4,13 @@ ARG BASE_VERSION=latest
 # The following section is used as base image if BASE_DISTRIBUTION=debug
 FROM gcr.io/istio-release/base:${BASE_VERSION} as debug
 
+# hadolint ignore=DL3005,DL3008
+RUN apt-get update && \
+  apt-get install --no-install-recommends -y jq \
+  && apt-get upgrade -y \
+  && apt-get clean \
+  && rm -rf  /var/log/*log /var/lib/apt/lists/* /var/log/apt/* /var/lib/dpkg/*-old /var/cache/debconf/*-old
+
 ENV WD=/usr/local/bin
 # hadolint ignore=SC2046
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
@@ -14,9 +21,9 @@ ARG TARGETARCH
 COPY ${TARGETARCH:-amd64}/istioctl /usr/local/bin/istioctl
 COPY ${TARGETARCH:-amd64}/addonmigration $WD/addon-migration
 COPY migrate-addon.sh $WD/migrate-addon
-COPY migration_cluster_list.yaml $WD/migration_cluster_list.yaml
+COPY migration_cluster_list $WD/migration_cluster_list
 # this source is optional
-# COPY *rollback_cluster_list.yaml $WD/rollback_cluster_list.yaml
+# COPY *rollback_cluster_list $WD/rollback_cluster_list
 
 WORKDIR $WD
 ENTRYPOINT ["./addon-migration"]

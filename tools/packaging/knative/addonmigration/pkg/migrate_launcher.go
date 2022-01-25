@@ -33,9 +33,9 @@ import (
 
 const (
 	// when cluster is in migrationTarget, it would be migrated from addon to MCP
-	migrationTargetPath = "migration_cluster_list.yaml"
+	migrationTargetPath = "migration_cluster_list"
 	// when cluster is in rollbackTarget, it would be rollback to addon
-	rollbackTargetPath = "rollback_cluster_list.yaml"
+	rollbackTargetPath = "rollback_cluster_list"
 	// defaultRevisionName is the revision name for regular channel
 	defaultRevisionName = "asm-managed"
 	regularChannel      = "regular"
@@ -75,7 +75,9 @@ func initTargetClusterList(filepath string, tm targetClusterMap) {
 	}
 	lines := strings.Split(string(dat), "\n")
 	for _, cHash := range lines {
-		tm[cHash] = true
+		if !strings.HasPrefix(cHash, "#") {
+			tm[cHash] = true
+		}
 	}
 }
 
