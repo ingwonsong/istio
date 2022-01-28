@@ -94,6 +94,10 @@
               "typeUrl": "type.googleapis.com/net.envoy.proto.service_control_v2.FilterConfig",
               "value": {
                 "checkCacheConfig": {},
+                "estubsGrpc": {
+                  "clientRootCertPath": "/roots.pem",
+                  "targetUri": "servicecontrol.googleapis.com:443"
+                },
                 "generatedHeaderPrefix": "X-Endpoint-",
                 "reportBatchConfig": {},
                 "requirements": [
@@ -124,16 +128,6 @@
                 ],
                 "scCallingConfig": {
                   "networkFailOpen": true
-                },
-                "serviceControlGrpc": {
-                  "googleGrpc": {
-                    "channelCredentials": {
-                      "googleDefault": {}
-                    },
-                    "statPrefix": "service_control_grpc_call",
-                    "targetUri": "servicecontrol.googleapis.com:443"
-                  },
-                  "timeout": "30s"
                 },
                 "services": [
                   {

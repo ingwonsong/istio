@@ -89,6 +89,7 @@ spec:
     metadata:
       annotations:
         inject.istio.io/templates: gateway
+        sidecar.istio.io/logLevel: debug
       labels:
         app: istio-ingressgateway
         istio: ingressgateway
@@ -323,7 +324,8 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		// it should return 401 as expected.
 		// TODO(b/197691552): ASM CloudESF is healthy while the CloudESF exposed paths return 503
 		if healthCheckPath != "" {
-			healthCheck(t, i, fmt.Sprintf(healthCheckPath, address), 401)
+			// Expected status code is 400 because of missing consumer ID.
+			healthCheck(t, i, fmt.Sprintf(healthCheckPath, address), 400)
 		} else {
 			// Just simply sleep instead of doing healthcheck on grpc-echo, otherwise we need to
 			// introduce its grpc library from google3.

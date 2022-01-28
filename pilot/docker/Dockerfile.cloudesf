@@ -41,6 +41,7 @@ COPY ${TARGETARCH:-amd64}/pilot-agent /usr/local/bin/pilot-agent
 # COPY all the Cloud ESF artifacts.
 COPY --from=cloudesf_gcr /envoy /usr/local/bin/envoy
 COPY --from=cloudesf_gcr /usr/grte /usr/grte
+COPY --from=cloudesf_gcr /roots.pem /roots.pem
 
 # Add group nobody to workaround InitGoogle which by default
 # will chroot to nobody. See https://source.corp.google.com/piper///depot/google3/base/init_google.h;l=58-63.

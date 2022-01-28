@@ -5,6 +5,8 @@ metadata:
 spec:
   meshConfig:
     enableTracing: false
+    pathNormalization:
+      normalization: DECODE_AND_MERGE_SLASHES
   values:
     gateways:
       istio-ingressgateway:
