@@ -17,6 +17,7 @@ package caclient
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	privateca "cloud.google.com/go/security/privateca/apiv1"
@@ -33,13 +34,25 @@ var googleCASClientLog = log.RegisterScope("googlecas", "Google CAS client debug
 
 // GoogleCASClient: Agent side plugin for Google CAS
 type GoogleCASClient struct {
-	caSigner string
-	caClient *privateca.CertificateAuthorityClient
+	caSigner              string
+	caCertificateTemplate string
+	caClient              *privateca.CertificateAuthorityClient
 }
 
 // NewGoogleCASClient create a CA client for Google CAS.
+// capool follows the format ca_pool:certificate_template in google-cas setup and certificate_template is optional.
+// ca_pool format: projects/*/locations/*/caPools/*
+// certificate_template format: projects/*/locations/*/certificateTemplates/*
 func NewGoogleCASClient(capool string, options ...option.ClientOption) (security.Client, error) {
-	caClient := &GoogleCASClient{caSigner: capool}
+	// check if the capool contains certificate_template and parse them if exists.
+	caOpts := strings.Split(capool, ":")
+	var certificateTemplate string
+	if len(caOpts) > 1 {
+		capool = caOpts[0]
+		certificateTemplate = caOpts[1]
+	}
+
+	caClient := &GoogleCASClient{caSigner: capool, caCertificateTemplate: certificateTemplate}
 	ctx := context.Background()
 	var err error
 
@@ -49,7 +62,10 @@ func NewGoogleCASClient(capool string, options ...option.ClientOption) (security
 		googleCASClientLog.Errorf("unable to initialize google cas caclient: %v", err)
 		return nil, err
 	}
-	googleCASClientLog.Debugf("Intitialized Google CAS plugin with endpoint: %v", capool)
+	googleCASClientLog.Infof("Intitialized Google CAS plugin with endpoint: %v", capool)
+	if certificateTemplate != "" {
+		googleCASClientLog.Infof("Intitialized Google CAS plugin with template: %v", certificateTemplate)
+	}
 	return caClient, nil
 }
 
@@ -62,7 +78,8 @@ func (r *GoogleCASClient) createCertReq(name string, csrPEM []byte, lifetime tim
 		Parent:        r.caSigner,
 		CertificateId: name,
 		Certificate: &privatecapb.Certificate{
-			Lifetime: durationpb.New(lifetime),
+			Lifetime:            durationpb.New(lifetime),
+			CertificateTemplate: r.caCertificateTemplate,
 			CertificateConfig: &privatecapb.Certificate_Config{
 				Config: &privatecapb.CertificateConfig{
 					SubjectConfig: &privatecapb.CertificateConfig_SubjectConfig{

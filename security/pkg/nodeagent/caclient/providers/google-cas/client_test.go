@@ -34,6 +34,9 @@ var (
 	fakeExpectedRootCaBundle        = []string{"bar"}
 	fakePoolLocator                 = "projects/test-project/locations/test-location/caPools/test-pool"
 	badPoolLocator                  = "bad-pool"
+	// nolint: lll
+	fakePoolWithTemplate = "projects/test-project/locations/test-location/caPools/test-pool:projects/test-project/locations/test-location/certificateTemplates/test-template"
+	badPoolWithTemplate  = "projects/test-project/locations/test-location/caPools/test-pool:bad-template"
 )
 
 func TestGoogleCASClient(t *testing.T) {
@@ -45,16 +48,18 @@ func TestGoogleCASClient(t *testing.T) {
 		service            mock.CASService
 		expectedCert       []string
 		expectedCertBundle []string
-		expectedErr        error
+		expectedSignErr    error
+		expectedBundleErr  error
 	}{
-		"Valid certs": {
+		"Valid certs with Pool": {
 			// Check RootCertBundle is correctly extracted from CAS response
 			// Check Certchain is correctly build from CAS response
 			poolLocator:        fakePoolLocator,
 			service:            mock.CASService{CertPEM: fakeCert, CertChainPEM: fakeCertChain, CaCertBundle: fakeCaBundle},
 			expectedCert:       fakeCombinedCert,
 			expectedCertBundle: fakeExpectedRootCaBundle,
-			expectedErr:        nil,
+			expectedSignErr:    nil,
+			expectedBundleErr:  nil,
 		},
 		"Invalid Pool": {
 			// Destination is invalid pool
@@ -62,7 +67,27 @@ func TestGoogleCASClient(t *testing.T) {
 			service:            mock.CASService{CertPEM: fakeCert, CertChainPEM: fakeCertChain, CaCertBundle: fakeCaBundle},
 			expectedCert:       fakeCombinedCert,
 			expectedCertBundle: fakeExpectedRootCaBundle,
-			expectedErr:        status.Error(codes.InvalidArgument, "malformed ca path"),
+			expectedSignErr:    status.Error(codes.InvalidArgument, "malformed ca path"),
+			expectedBundleErr:  status.Error(codes.InvalidArgument, "malformed ca path"),
+		},
+		"Valid certs with Pool and Template": {
+			// Check RootCertBundle is correctly extracted from CAS response
+			// Check Certchain is correctly build from CAS response
+			poolLocator:        fakePoolWithTemplate,
+			service:            mock.CASService{CertPEM: fakeCert, CertChainPEM: fakeCertChain, CaCertBundle: fakeCaBundle},
+			expectedCert:       fakeCombinedCert,
+			expectedCertBundle: fakeExpectedRootCaBundle,
+			expectedSignErr:    nil,
+			expectedBundleErr:  nil,
+		},
+		"Invalid Template": {
+			// Destination constains invalid template
+			poolLocator:        badPoolWithTemplate,
+			service:            mock.CASService{CertPEM: fakeCert, CertChainPEM: fakeCertChain, CaCertBundle: fakeCaBundle},
+			expectedCert:       fakeCombinedCert,
+			expectedCertBundle: fakeExpectedRootCaBundle,
+			expectedSignErr:    status.Error(codes.InvalidArgument, "malformed ca certificate template"),
+			expectedBundleErr:  nil,
 		},
 	}
 
@@ -84,12 +109,12 @@ func TestGoogleCASClient(t *testing.T) {
 
 		resp, err := cli.CSRSign([]byte{0o1}, 1)
 		if err != nil {
-			if err.Error() != tc.expectedErr.Error() {
-				t.Errorf("Test case [%s] Cert Check: error (%s) does not match expected error (%s)", id, err.Error(), tc.expectedErr.Error())
+			if err.Error() != tc.expectedSignErr.Error() {
+				t.Errorf("Test case [%s] Cert Check: error (%s) does not match expected error (%s)", id, err.Error(), tc.expectedSignErr.Error())
 			}
 		} else {
-			if tc.expectedErr != nil {
-				t.Errorf("Test case [%s] Cert Check: expect error: %s but got no error", id, tc.expectedErr.Error())
+			if tc.expectedSignErr != nil {
+				t.Errorf("Test case [%s] Cert Check: expect error: %s but got no error", id, tc.expectedSignErr.Error())
 			} else if !reflect.DeepEqual(resp, tc.expectedCert) {
 				t.Errorf("Test case [%s] Cert Check: resp: got %+v, expected %v", id, resp, tc.expectedCert)
 			}
@@ -97,12 +122,12 @@ func TestGoogleCASClient(t *testing.T) {
 
 		resp, err = cli.GetRootCertBundle()
 		if err != nil {
-			if err.Error() != tc.expectedErr.Error() {
-				t.Errorf("Test case [%s] RootCaBundle check: error (%s) does not match expected error (%s)", id, err.Error(), tc.expectedErr.Error())
+			if err.Error() != tc.expectedBundleErr.Error() {
+				t.Errorf("Test case [%s] RootCaBundle check: error (%s) does not match expected error (%s)", id, err.Error(), tc.expectedSignErr.Error())
 			}
 		} else {
-			if tc.expectedErr != nil {
-				t.Errorf("Test case [%s] RootCaBundle check: expect error: %s but got no error", id, tc.expectedErr.Error())
+			if tc.expectedBundleErr != nil {
+				t.Errorf("Test case [%s] RootCaBundle check: expect error: %s but got no error", id, tc.expectedSignErr.Error())
 			} else if !reflect.DeepEqual(resp, tc.expectedCertBundle) {
 				t.Errorf("Test case [%s] RootCaBundle check: resp: got %+v, expected %v", id, resp, tc.expectedCertBundle)
 			}

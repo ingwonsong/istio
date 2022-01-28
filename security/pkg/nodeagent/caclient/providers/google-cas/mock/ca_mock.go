@@ -95,6 +95,27 @@ func (ca CASService) certEncode(cert *certificate) *privatecapb.Certificate {
 	return pb
 }
 
+// TODO: Add ca pool and template validations to cas client creation.
+func validateCertificateTemplate(ct string) error {
+	if ct == "" {
+		return nil
+	}
+	pieces := strings.Split(ct, "/")
+	if len(pieces) != 6 {
+		return errors.New("malformed certificate authority certificate template")
+	}
+	if pieces[0] != "projects" {
+		return errors.New("malformed certificate authority certificate template")
+	}
+	if pieces[2] != "locations" {
+		return errors.New("malformed certificate authority certificate template")
+	}
+	if pieces[4] != "certificateTemplates" {
+		return errors.New("malformed certificate authority certificate template")
+	}
+	return nil
+}
+
 // CreateCertificate is a mocked function for the Google CAS CA API.
 func (ca CASService) CreateCertificate(ctx context.Context, req *privatecapb.CreateCertificateRequest) (*privatecapb.Certificate, error) {
 	_, _, _, err := parseCertificateAuthorityPath(req.Parent)
@@ -105,6 +126,9 @@ func (ca CASService) CreateCertificate(ctx context.Context, req *privatecapb.Cre
 	switch req.GetCertificate().CertificateConfig.(type) {
 	case *privatecapb.Certificate_PemCsr:
 		return nil, status.Errorf(codes.InvalidArgument, "cannot request certificates using PEM CSR format")
+	}
+	if err = validateCertificateTemplate(req.GetCertificate().GetCertificateTemplate()); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "malformed ca certificate template")
 	}
 	certResourcePath := path.Join("projects", project, "locations", location, "caPools", authority, "certificates", req.GetCertificate().GetName())
 	certObj := &certificate{
