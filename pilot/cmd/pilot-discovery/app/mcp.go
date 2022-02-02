@@ -197,6 +197,16 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	serverArgs.RegistryOptions.KubeOptions.ClusterID = cluster.ID(features.ClusterName)
 	features.SharedMeshConfig = fmt.Sprintf("istio-%s", p.Revision)
 
+	// In cloudrun we have relatively small memory limits. To avoid OOM, we drop the OSS defaults for rate
+	// limit/throttle to avoid too many concurrent pushes.
+	// If they are explicitly configured, do not override the settings. This allows overriding outside the code.
+	if _, f := os.LookupEnv("PILOT_MAX_REQUESTS_PER_SECOND"); !f {
+		features.RequestLimit = 25
+	}
+	if _, f := os.LookupEnv("PILOT_PUSH_THROTTLE"); !f {
+		features.PushThrottle = 25
+	}
+
 	features.EnableAuthDebug = true
 	features.WorkloadEntryCrossCluster = true
 	features.PilotCertProvider = constants.CertProviderNone
