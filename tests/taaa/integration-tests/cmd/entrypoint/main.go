@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -100,6 +101,13 @@ func main() {
 	// If the subcommand is not taaa, we'll run asm_tester directly without
 	// going into the taaa-specific logic.
 	if len(os.Args) > 1 && os.Args[1] != "taaa" {
+		if gac := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); gac != "" {
+			out, err := exec.Command("gcloud", "auth", "activate-service-account", fmt.Sprintf("--key-file=%s", gac)).CombinedOutput()
+			if err != nil {
+				log.Fatalf("failed to activate service account for gcloud %v:\n%s", err, string(out))
+			}
+			log.Printf("Activated service account from %q: %v", gac, string(out))
+		}
 		asmTesterArgs := append([]string{"--setup-env", "--setup-system"}, os.Args[1:]...)
 		if err := pkgexec.Run(fmt.Sprintf("asm_tester %s", shell.Join(asmTesterArgs...))); err != nil {
 			log.Fatalf("error running asm_tester: %v", err)
