@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
@@ -189,6 +190,8 @@ func generateMCPInstallEnvvars(settings *resource.Settings) []string {
 				"_CI_ASM_PKG_LOCATION="+resource.DefaultASMImageBucket,
 				"_CI_CLOUDRUN_IMAGE_HUB="+os.Getenv("HUB")+"/cloudrun",
 				"_CI_CLOUDRUN_IMAGE_TAG="+os.Getenv("TAG"),
+				// Use CRDs from our branch instead of the KPT branch
+				"_CI_BASE_REL_PATH="+filepath.Join(settings.RepoRootDir, basePath),
 			)
 		}
 	}

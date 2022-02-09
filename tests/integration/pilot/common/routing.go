@@ -398,7 +398,8 @@ spec:
 			workloadAgnostic: true,
 		},
 		TrafficTestCase{
-			name: "redirect port and scheme",
+			name:            "redirect port and scheme",
+			minIstioVersion: "1.12.0",
 			config: `
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService

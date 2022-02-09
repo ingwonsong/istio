@@ -16,21 +16,23 @@ package kube
 
 import (
 	"fmt"
-	"strings"
+	"path/filepath"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 )
 
 // Contexts returns the kubectl contexts name.
-func Contexts() ([]string, error) {
+func Contexts(kubeconfigsStr string) ([]string, error) {
+	kubeconfigs := filepath.SplitList(kubeconfigsStr)
 	// Get all contexts of the clusters.
-	var kubeContexts string
-	var err error
-	kubeContexts, err = exec.RunWithOutput("kubectl config view -o jsonpath=\"{range .contexts[*]}{.name}{','}{end}\"")
-	if err != nil {
-		return nil, fmt.Errorf("error getting the kubectl contexts: %w", err)
+	var kubeContexts []string
+	for _, kc := range kubeconfigs {
+		var err error
+		kubeContext, err := exec.RunWithOutput(`kubectl config view -o 'jsonpath={.contexts[0].name}' --kubeconfig=` + kc)
+		if err != nil {
+			return nil, fmt.Errorf("error getting the kubectl contexts: %w", err)
+		}
+		kubeContexts = append(kubeContexts, kubeContext)
 	}
-	// Trim the trailing ","
-	kubeContexts = kubeContexts[:len(kubeContexts)-1]
-	return strings.Split(kubeContexts, ","), nil
+	return kubeContexts, nil
 }

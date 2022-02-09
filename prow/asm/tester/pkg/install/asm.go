@@ -167,6 +167,8 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 	if rev.Version == "" {
 		masterVars := map[string]string{}
 		masterVars["_CI_ISTIOCTL_REL_PATH"] = filepath.Join(settings.RepoRootDir, istioctlPath)
+		// Use CRDs from our branch instead of the KPT branch
+		masterVars["_CI_BASE_REL_PATH"] = filepath.Join(settings.RepoRootDir, basePath)
 		if useASMCLI(settings, rev) {
 			masterVars["_CI_ASM_KPT_BRANCH"] = settings.NewtaroCommit
 		} else {

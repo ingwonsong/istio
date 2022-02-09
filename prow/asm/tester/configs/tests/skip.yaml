@@ -42,9 +42,6 @@ tests:
         - TestRemoteClusters
       buganizerID: 194713967
     - names:
-        - TestTelemetryAPIStats
-      buganizerID: 203820028
-    - names:
       - TestJWTHTTPS
       buganizerID: 215175941
 
@@ -542,9 +539,6 @@ tests:
           - TestAddToAndRemoveFromMesh
         reason: test doesn't respect --istio.test.revision istio.test.revision
       - names:
-          - TestGateway
-        reason: BROKEN! CRDs need to be deployed before istiod runs. Here, we install istiod first, causing failure
-      - names:
           - TestRevisionedUpgrade
         reason: OSS CP upgrade not supported with MCP
       - names:
@@ -554,12 +548,6 @@ tests:
         - TestTlsGatewaysWithQUIC/quic
         - TestMtlsGatewaysWithQUIC/quic
         reason: Experemental code. Not supported by GKE
-      - names:
-        - TestLocality/FailoverPriority/EDS
-        buganizerID: 198848464
-      - names:
-        - TestTraffic/virtualservice/redirect_port_and_scheme
-        buganizerID: 200588569
 
       # telemetry/ tests
       - names:

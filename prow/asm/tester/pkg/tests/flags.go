@@ -29,13 +29,19 @@ import (
 func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	testFlags := []string{"--istio.test.kube.deploy=false"}
 	if settings.ControlPlane != resource.Unmanaged {
-		testFlags = append(testFlags,
-			// install_asm will install the image to all three channels.
-			// So all the revision labels should work.
-			// However, AFC currently only installs one rapid. Change the test
-			// revision to rapid to work with both cases.
-			"--istio.test.revision=asm-managed-rapid",
-			"--istio.test.skipDelta")
+		if !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
+			testFlags = append(testFlags,
+				// install_asm will install the image to all three channels.
+				// So all the revision labels should work.
+				// However, AFC currently only installs one rapid. Change the test
+				// revision to rapid to work with both cases.
+				"--istio.test.revision=asm-managed-rapid",
+				"--istio.test.skipDelta")
+		} else {
+			testFlags = append(testFlags,
+				// TODO(b/208667932) VPC-SC does not run using latest config
+				"--istio.test.revisions=asm-managed-rapid=1.11.2", "--istio.test.skipDelta")
+		}
 	}
 
 	// multicloud settings
@@ -63,7 +69,8 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		// TODO these are the only security tests that excercise VMs. The other tests are written in a way
 		// they panic with StaticVMs.
 		if settings.TestTarget == "test.integration.asm.security" {
-			enabledTests := []string{"TestReachability",
+			enabledTests := []string{
+				"TestReachability",
 				"TestMtlsStrictK8sCA",
 				"TestPassThroughFilterChain",
 				"TestAuthorization_mTLS",

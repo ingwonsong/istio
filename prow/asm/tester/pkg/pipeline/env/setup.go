@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -96,7 +97,7 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 
 	var gcrProjectID string
 	if settings.ClusterType == resource.GKEOnGCP {
-		gkeContexts, err := kube.Contexts()
+		gkeContexts, err := kube.Contexts(settings.Kubeconfig)
 		if err != nil {
 			return err
 		}
@@ -244,7 +245,7 @@ func fixClusterConfigs(settings *resource.Settings) error {
 		err = fixHybridGKEAndBareMetal(settings)
 	}
 
-	kubeContexts, kubeContextErr := kube.Contexts()
+	kubeContexts, kubeContextErr := kube.Contexts(settings.Kubeconfig)
 	if kubeContextErr != nil {
 		err = multierror.Append(err, kubeContextErr)
 	}
@@ -255,7 +256,7 @@ func fixClusterConfigs(settings *resource.Settings) error {
 }
 
 func fixGKE(settings *resource.Settings) error {
-	gkeContexts, err := kube.Contexts()
+	gkeContexts, err := kube.Contexts(settings.Kubeconfig)
 	if err != nil {
 		return err
 	}
