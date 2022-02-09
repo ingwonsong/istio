@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/go-multierror"
+
 	"istio.io/istio/prow/asm/tester/pkg/install"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
@@ -27,7 +28,11 @@ import (
 
 var (
 	systemLogDir     = filepath.Join(os.Getenv("ARTIFACTS"), "system-pod-logs")
-	systemNamespaces = []string{"istio-system", "asm-system"}
+	systemNamespaces = map[string]string{
+		"istio-system": "",
+		"asm-system":   "",
+		"kube-system":  "k8s-app=istio-cni-node",
+	}
 )
 
 func Setup(settings *resource.Settings) error {
@@ -48,8 +53,8 @@ func Setup(settings *resource.Settings) error {
 			}
 			log.Printf("######### Done printing #########")
 			for _, kubeconfig := range filepath.SplitList(settings.Kubeconfig) {
-				for _, ns := range systemNamespaces {
-					exportLogErr := kube.ExportLogs(kubeconfig, ns, systemLogDir)
+				for ns, selector := range systemNamespaces {
+					exportLogErr := kube.ExportLogs(kubeconfig, ns, selector, systemLogDir)
 					err = multierror.Append(err, exportLogErr)
 				}
 			}
