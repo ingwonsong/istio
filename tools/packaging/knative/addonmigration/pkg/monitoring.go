@@ -55,7 +55,7 @@ func (m *migrationWorker) InitializeMonitoring(clusterName, location string) (*M
 	if pi, ok := gcpMetadata[platform.GCPProject]; ok {
 		projectID = pi
 	}
-	if err := os.MkdirAll(tokenDir, os.FileMode(0744)); err != nil {
+	if err := os.MkdirAll(tokenDir, os.FileMode(0o744)); err != nil {
 		return nil, fmt.Errorf("failed to create token dir: %v", err)
 	}
 	if err := m.RefreshToken(); err != nil {
@@ -111,7 +111,7 @@ func (m *migrationWorker) RefreshToken() error {
 	if err != nil {
 		return fmt.Errorf("failed to create a token under service account %s in namespace: %v", serviceAccount, err)
 	}
-	if err := os.WriteFile(model.K8sSATrustworthyJwtFileName, []byte(tokenReq.Status.Token), os.FileMode(0744)); err != nil {
+	if err := os.WriteFile(model.K8sSATrustworthyJwtFileName, []byte(tokenReq.Status.Token), os.FileMode(0o744)); err != nil {
 		return fmt.Errorf("failed to write jwt to local fs: %v", err)
 	}
 	log.Info("Security token for service account has been generated and stored")

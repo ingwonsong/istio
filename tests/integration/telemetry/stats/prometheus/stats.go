@@ -20,7 +20,6 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"testing"
 
@@ -196,18 +195,6 @@ func TestStatsTCPFilter(t *testing.T, feature features.Feature) {
 				t.Fatalf("test failed: %v", err)
 			}
 		})
-}
-
-// getSourceClusterName is a helper function to decide the sourceCluster label value.
-func getSourceClusterName(ctx framework.TestContext, cltInstance echo.Instance) (sourceCluster string) {
-	sourceCluster = "Kubernetes"
-	c := cltInstance.Config().Cluster
-	// TODO: remove when MCP tests all run with multiclusters
-	cpType := os.Getenv(ControlPlaneENV)
-	if len(ctx.Clusters()) > 1 || cpType == "MANAGED" || os.Getenv("CLUSTER_TYPE") == "bare-metal" {
-		sourceCluster = c.Name()
-	}
-	return
 }
 
 // TestSetup set up echo app for stats testing.

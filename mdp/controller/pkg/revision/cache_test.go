@@ -333,10 +333,10 @@ func TestPodOperations(t *testing.T) {
 		mypodkeys[client.ObjectKeyFromObject(pod)] = struct{}{}
 	}
 	expectedKeys := map[client.ObjectKey]struct{}{
-		client.ObjectKey{Name: myRev + "Pod", Namespace: myRev}:    {},
-		client.ObjectKey{Name: otherRev + "Pod", Namespace: myRev}: {},
-		client.ObjectKey{Name: noRev + "Pod", Namespace: myRev}:    {},
-		client.ObjectKey{Name: myRev + "Pod", Namespace: noRev}:    {},
+		{Name: myRev + "Pod", Namespace: myRev}:    {},
+		{Name: otherRev + "Pod", Namespace: myRev}: {},
+		{Name: noRev + "Pod", Namespace: myRev}:    {},
+		{Name: myRev + "Pod", Namespace: noRev}:    {},
 	}
 	if !reflect.DeepEqual(mypodkeys, expectedKeys) {
 		t.Fatal("PodsFromRevision is missing an expected pod.")

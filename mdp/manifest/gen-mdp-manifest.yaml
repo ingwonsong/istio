@@ -225,11 +225,6 @@ spec:
         # and CNI network config file on each node.
         - name: install-cni
           image: "{{ .MDP_HUB }}/install-cni:{{ .MDP_TAG }}"
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8000
-            initialDelaySeconds: 5
           readinessProbe:
             httpGet:
               path: /readyz
