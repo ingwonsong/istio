@@ -152,7 +152,7 @@ build.docker.proxyv2: $(ISTIO_ENVOY_LINUX_RELEASE_DIR)/metadata-exchange-filter.
 build.docker.cloudesf: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap.json
 build.docker.cloudesf: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/gcp_envoy_bootstrap.json
 build.docker.cloudesf: $(ISTIO_OUT_LINUX)/pilot-agent
-build.docker.cloudesf: pilot/docker/Dockerfile.cloudesf_proxyv2
+build.docker.cloudesf: pilot/docker/Dockerfile.cloudesf
 	$(DOCKER_RULE)
 
 build.docker.pilot: ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap.json
@@ -170,7 +170,6 @@ build.docker.cloudrun: $(ISTIO_OUT)/knative/injection-template.yaml
 build.docker.cloudrun: $(ISTIO_OUT)/knative/mutatingwebhook.yaml
 build.docker.cloudrun: manifests/charts/base/files/gen-istio-cluster.yaml
 build.docker.cloudrun: tools/packaging/knative/injection-values.yaml
-build.docker.cloudrun: tools/packaging/knative/istiod-gcp.sh
 build.docker.cloudrun: tools/packaging/knative/mesh_template.yaml
 build.docker.cloudrun: tools/packaging/knative/Dockerfile.cloudrun
 	$(DOCKER_RULE)
@@ -280,7 +279,7 @@ build.docker.mdp: $(ISTIO_OUT_LINUX)/mdp
 
 # addon auto migration
 build.docker.addon-migration: tools/packaging/knative/migrate-addon.sh
-build.docker.addon-migration: tools/packaging/knative/addonmigration/migration_cluster_list.yaml
+build.docker.addon-migration: tools/packaging/knative/addonmigration/migration_cluster_list
 # add rollback_cluster_list.yaml when needed
 build.docker.addon-migration: $(ISTIO_OUT_LINUX)/addonmigration
 build.docker.addon-migration: $(ISTIO_OUT_LINUX)/istioctl
@@ -291,52 +290,6 @@ build.docker.addon-migration: tools/packaging/knative/addonmigration/Dockerfile.
 build.docker.base: docker/Dockerfile.base
 	$(DOCKER_RULE)
 build.docker.distroless: docker/Dockerfile.distroless
-
-.PHONY: dockerx dockerx.save
-
-# Can also be linux/arm64, or both with linux/amd64,linux/arm64
-DOCKER_ARCHITECTURES ?= linux/amd64
-
-# Docker has an experimental new build engine, https://github.com/docker/buildx
-# This brings substantial (10x) performance improvements when building Istio
-# However, its only built into docker since v19.03. Because its so new that devs are likely to not have
-# this version, and because its experimental, this is not the default build method. As this matures we should migrate over.
-# For performance, in CI this method is used.
-# This target works by reusing the existing docker methods. Each docker target declares it's dependencies.
-# We then override the docker rule and "build" all of these, where building just copies the dependencies
-# We then generate a "bake" file, which defines all of the docker files in the repo
-# Finally, we call `docker buildx bake` to generate the images.
-ifeq ($(DOCKER_V2_BUILDER), true)
-dockerx:
-	./tools/docker --push=$(or $(DOCKERX_PUSH),$(DOCKERX_PUSH),false)
-else
-dockerx: DOCKER_RULE?=mkdir -p $(DOCKERX_BUILD_TOP)/$@ && TARGET_ARCH=$(TARGET_ARCH) ./tools/docker-copy.sh $^ $(DOCKERX_BUILD_TOP)/$@ && cd $(DOCKERX_BUILD_TOP)/$@ $(BUILD_PRE)
-dockerx: RENAME_TEMPLATE?=mkdir -p $(DOCKERX_BUILD_TOP)/$@ && cp $(ECHO_DOCKER)/$(VM_OS_DOCKERFILE_TEMPLATE) $(DOCKERX_BUILD_TOP)/$@/Dockerfile$(suffix $@)
-dockerx: docker | $(ISTIO_DOCKER_TAR)
-dockerx:
-	HUBS="$(HUBS)" \
-		TAG=$(TAG) \
-		PROXY_REPO_SHA=$(PROXY_REPO_SHA) \
-		VERSION=$(VERSION) \
-		CLOUDESF_VERSION=$(CLOUDESF_VERSION) \
-		DOCKER_ALL_VARIANTS="$(DOCKER_ALL_VARIANTS)" \
-		ISTIO_DOCKER_TAR=$(ISTIO_DOCKER_TAR) \
-		INCLUDE_UNTAGGED_DEFAULT=$(INCLUDE_UNTAGGED_DEFAULT) \
-		BASE_VERSION=$(BASE_VERSION) \
-		DOCKERX_PUSH=$(DOCKERX_PUSH) \
-		DOCKER_ARCHITECTURES=$(DOCKER_ARCHITECTURES) \
-		./tools/buildx-gen.sh $(DOCKERX_BUILD_TOP) $(DOCKER_TARGETS)
-	@# Retry works around https://github.com/docker/buildx/issues/298
-	DOCKER_CLI_EXPERIMENTAL=enabled bin/retry.sh "read: connection reset by peer" docker buildx bake $(BUILDX_BAKE_EXTRA_OPTIONS) -f $(DOCKERX_BUILD_TOP)/docker-bake.hcl $(or $(DOCKER_BUILD_VARIANTS),default) || \
-		{ tools/dump-docker-logs.sh; exit 1; }
-endif
-
-# Support individual images like `dockerx.pilot`
-dockerx.%:
-	@DOCKER_TARGETS=docker.$* BUILD_ALL=false $(MAKE) --no-print-directory -f Makefile.core.mk dockerx
-
-docker.base: docker/Dockerfile.base
-	$(DOCKER_RULE)
 
 # VM Base images
 build.docker.app_sidecar_base_debian_9: VM_OS_DOCKERFILE_TEMPLATE=Dockerfile.app_sidecar_base
