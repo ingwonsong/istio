@@ -14,15 +14,13 @@ replace github.com/docker/docker => github.com/moby/moby v17.12.0-ce-rc1.0.20200
 replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 
 require (
+	cloud.google.com/go v0.100.2 // indirect
 	cloud.google.com/go/compute v1.2.0
-	cloud.google.com/go/security v1.1.1
-	cloud.google.com/go v0.99.0
 	cloud.google.com/go/container v0.1.0
 	cloud.google.com/go/profiler v0.1.0
-	cloud.google.com/go/security v1.1.0
+	cloud.google.com/go/security v1.1.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20220128185157-8216dc216151
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20211102141018-f7be0cbad29c
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/aws/aws-sdk-go v1.42.45
 	github.com/cenkalti/backoff/v4 v4.1.2
@@ -62,9 +60,8 @@ require (
 	github.com/miekg/dns v1.1.45
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/onsi/gomega v1.18.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/gomega v1.17.0
+	github.com/onsi/gomega v1.18.1
 	github.com/openshift/api v0.0.0-20200713203337-b2494ecb17dd
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.12.1
@@ -76,7 +73,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
 	github.com/tebeka/selenium v0.9.9
-	github.com/thalescpl-io/k8s-kms-plugin v0.5.1-0.20220205004901-68806ed18998 // Latest release doesn't include required APIs
+	// github.com/thalescpl-io/k8s-kms-plugin v0.5.1-0.20220205004901-68806ed18998 // Latest release doesn't include required APIs
+	github.com/thalescpl-io/k8s-kms-plugin v0.5.1-0.20200921230108-72051fb36f12 // Latest release doesn't include required APIs
 	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5
 	github.com/yl2chen/cidranger v1.0.2
 	go.opencensus.io v0.23.0
@@ -116,7 +114,6 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.100.2 // indirect
 	cloud.google.com/go/logging v1.4.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -171,7 +168,6 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.0.1 // indirect
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
@@ -265,11 +261,19 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
 
+require contrib.go.opencensus.io/exporter/stackdriver v0.13.10
+
 require (
-	cloud.google.com/go/logging v1.4.2 // indirect
+	cloud.google.com/go/iam v0.1.1 // indirect
 	cloud.google.com/go/monitoring v1.1.0 // indirect
 	cloud.google.com/go/trace v1.0.0 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/golang/snappy v0.0.3 // indirect
+	github.com/google/pprof v0.0.0-20210804190019-f964ff605595 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-retryablehttp v0.6.6 // indirect
+	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
+	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
+	github.com/hashicorp/vault/sdk v0.1.14-0.20200519221838-e0cfd64bc267 // indirect
+	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 )

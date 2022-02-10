@@ -3,7 +3,7 @@ module istio.io/istio/prow/asm/tester
 go 1.16
 
 require (
-	github.com/google/go-cmp v0.5.6
+	github.com/google/go-cmp v0.5.7
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-version v1.4.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
@@ -15,9 +15,9 @@ require (
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-00010101000000-000000000000
-	k8s.io/api v0.23.1
-	k8s.io/apimachinery v0.23.1
-	k8s.io/client-go v0.23.1
+	k8s.io/api v0.23.3
+	k8s.io/apimachinery v0.23.3
+	k8s.io/client-go v0.23.3
 )
 
 replace istio.io/istio => ../../..
