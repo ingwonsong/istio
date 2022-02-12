@@ -78,14 +78,6 @@ func main() {
 	cfg.Features = sets.NewString(features...)
 	cfg.UpgradeClusterVersion = upgradeVersions
 
-	// Special case for testing the Addon.
-	// TODO: move it to Prow job config.
-	if cfg.Features.Has(string(types.Addon)) {
-		// We only support clusters that have EnsureExists, currently available on rapid only
-		cfg.ReleaseChannel = types.Rapid
-		cfg.ClusterVersion = "1.22"
-	}
-
 	if cfg.IsCloudESFTest {
 		cfg.TestFlags = cfg.TestFlags + " --install-cloudesf"
 	}

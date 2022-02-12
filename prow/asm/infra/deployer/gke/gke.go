@@ -160,7 +160,6 @@ func (d *Instance) flags() ([]string, error) {
 		}
 		flags = append(flags, featureFlags...)
 	}
-
 	flags = append(flags, "--test=exec", "--", d.cfg.TestScript)
 
 	return flags, err
@@ -204,11 +203,6 @@ func (d *Instance) getClusterVersion() string {
 }
 
 func (d *Instance) getReleaseChannel() (types.ReleaseChannel, error) {
-	if d.cfg.Features.Has(string(types.Addon)) {
-		// We only support clusters that have EnsureExists, currently available on rapid only
-		return types.Rapid, nil
-	}
-
 	if d.cfg.ReleaseChannel != "" {
 		return d.cfg.ReleaseChannel, nil
 	}

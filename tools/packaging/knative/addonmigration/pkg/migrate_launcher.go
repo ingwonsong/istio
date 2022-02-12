@@ -129,7 +129,7 @@ EOF'`
 			return fmt.Errorf("failed to provision mcp, result: %s, err: %v", res, err)
 		}
 		// -y flag needed to be put at the beginning
-		msCommand := fmt.Sprintf("bash -c 'migrate-addon -y -z --command %s'", m.scriptArgs.command)
+		msCommand := fmt.Sprintf("bash -c 'migrate-addon -y -z  --mcp_channel %s --command %s'", m.scriptArgs.channel, m.scriptArgs.command)
 		var res string
 		var err error
 		if res, err = shell.Execute(true, msCommand); err != nil {
