@@ -559,6 +559,11 @@ tests:
       - names:
           - TestTelemetry
         buganizerID: 190420441
+      - names:
+          - TestSimpleTlsOrigination
+          - TestMutualTlsOrigination
+        buganizerID: 219498565
+
       # cloudesf/tests
       - names:
           - TestCloudESFApiKeyGrpc
