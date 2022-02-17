@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	CasSubCaIdPrefix = "asm-testci-sub-pool"
-	CasRootCaLoc     = "us-central1"
+	CasSubCaIdPrefix        = "asm-testci-sub-pool"
+	CasCertTemplateIdPrefix = "asm-testci-cert-template"
+	CasRootCaLoc            = "us-central1"
 )
 
 func GetProjectNumber(projectId string) (string, error) {

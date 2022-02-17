@@ -155,6 +155,7 @@ func (d *Instance) flags() ([]string, error) {
 		case types.PrivateClusterNoAccess:
 		case types.ContainerNetworkInterface:
 		case types.Autopilot:
+		case types.CasCertTemplate:
 		default:
 			err = fmt.Errorf("feature %q is not supported", feat)
 		}
