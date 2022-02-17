@@ -97,6 +97,15 @@ func (c *installer) preInstall(rev *revision.Config) error {
 			}); err != nil {
 			return err
 		}
+		if err := exec.Dispatch(
+			c.settings.RepoRootDir,
+			"clean_up_multiproject_permissions",
+			[]string{
+				c.settings.GCRProject,
+				strings.Join(c.settings.ClusterGCPProjects, " "),
+			}); err != nil {
+			return err
+		}
 	}
 	// Setup permissions to allow pulling images from GCR registries.
 	// TODO(samnaser) should be in env setup but since service account name

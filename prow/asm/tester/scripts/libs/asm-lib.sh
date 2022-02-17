@@ -158,6 +158,30 @@ function register_clusters_in_hub() {
   gcloud beta container hub memberships list --project="${GKEHUB_PROJECT_ID}"
 }
 
+# Clean up multiproject permissions removes excessive project bindings from the
+# meshconfig p4sa used in ASM and MCP. Excessive permissions on the P4SA causes
+# Meshconfig.Initialize to fail, subsequently causing ASM/MCP installation to fail
+# (b/219832876).
+# TODO(@aakashshukla): Remove this function once project-level control plane deprovisioning is implemented.
+# Parameters: $1: Fleet Project
+#             $2: Array of Cluster Projects
+function clean_up_multiproject_permissions() {
+  local FLEET_ID=$1; shift
+  local PROJECTS=("${@}")
+
+  echo "cleaning up excessive bindings on the projects meshdataplane service account"
+  for i in "${PROJECTS[@]}"; do
+    POST_DATA='{semantics:"REPLACE"}'
+    curl --request POST --header 'X-Server-Timeout: 600' --header "Authorization: Bearer $(gcloud auth print-access-token)" \
+        --header "Content-Type: application/json"     --data "${POST_DATA}"  \
+        https://staging-meshconfig.sandbox.googleapis.com/v1alpha1/projects/"${i}":initialize
+
+    curl --request POST --header 'X-Server-Timeout: 600' --header "Authorization: Bearer $(gcloud auth print-access-token)" \
+            --header "Content-Type: application/json"     --data "${POST_DATA}"  \
+            https://meshconfig.googleapis.com/v1alpha1/projects/"${i}":initialize
+  done
+}
+
 # Creates ca certs on the cluster
 # $1    kubeconfig
 function install_certs() {
