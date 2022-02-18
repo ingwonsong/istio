@@ -63,7 +63,7 @@ func (r Result) PercentSuccess() float64 {
 // CheckSuccessRate asserts that a minimum success threshold was met.
 func (r Result) CheckSuccessRate(t test.Failer, minimumPercent float64) {
 	if r.PercentSuccess() < minimumPercent {
-		t.Fatalf("Minimum success threshold, %f, was not met. %d/%d (%f) requests failed: %v",
+		t.Fatalf("Minimum success threshold, %f, was not met. %d/%d (%f) requests succeeded: %v",
 			minimumPercent, r.SuccessfulRequests, r.TotalRequests, r.PercentSuccess(), r.Error)
 	}
 	if r.SuccessfulRequests == r.TotalRequests {

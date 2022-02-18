@@ -37,7 +37,7 @@ spec:
         imagePullPolicy: Always
         name: addon-migration
         args:
-        - --mcp_channel=regular
+        - "--mcp_channel={{ .MCP_CHANNEL }}"
         env:
         - name: "SKIP_TARGET_CHECK"
           value: "true"

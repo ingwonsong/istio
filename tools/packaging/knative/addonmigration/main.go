@@ -46,6 +46,8 @@ const (
 	migrationConfigMapName = "asm-addon-migration-state"
 	migrationStatusField   = "migrationStatus"
 	migrationSuccessStatus = "SUCCESS"
+	// used in previous migration guide
+	migrationCompleteStatus = "COMPLETE"
 )
 
 func main() {
@@ -131,17 +133,8 @@ func checkMigrationComplete(clientSet *kubernetes.Clientset) bool {
 	if cm, err := clientSet.CoreV1().ConfigMaps(istioSystemNS).
 		Get(ctx, migrationConfigMapName, v1.GetOptions{}); err == nil {
 		if cm.Data != nil {
-			if val, ok := cm.Data[migrationStatusField]; ok && val == migrationSuccessStatus {
+			if val, ok := cm.Data[migrationStatusField]; ok && (val == migrationSuccessStatus || val == migrationCompleteStatus) {
 				log.Infof("Found existing migration state configMap with success state")
-				return true
-			}
-		}
-	}
-	if cm, err := clientSet.CoreV1().ConfigMaps(istioSystemNS).
-		Get(ctx, mcpEnvConfigMapName, v1.GetOptions{}); err == nil {
-		if cm.Data != nil {
-			if _, ok := cm.Data["CLOUDRUN_ADDR"]; ok {
-				log.Infof("Found CLOUDRUN_ADDR field from existing mcp env configmap")
 				return true
 			}
 		}

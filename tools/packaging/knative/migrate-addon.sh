@@ -53,6 +53,8 @@ SUB_COMMAND=""
 ZERO_DOWNTIME=""
 # SUCCESS represents the state when migration is complete
 SUCCESS="SUCCESS"
+# default to regular
+REVISION="asm-managed"
 
 # Setup colors, only if its a terminal
 if [[ -t 1 ]]; then
@@ -249,9 +251,9 @@ xjb8UkCmyjU=
 configure_mesh_ca_16() {
   # TODO: skip when there is no 1.6 usage at all
   prompt "Configuring Istio Addon 1.6 to trust Anthos Service Mesh..."
-  HUB_WIP="$(kube get cm -n istio-system env-asm-managed -ojsonpath='{.data.TRUST_DOMAIN}' --ignore-not-found)"
+  HUB_WIP="$(kube get cm -n istio-system env-${REVISION} -ojsonpath='{.data.TRUST_DOMAIN}' --ignore-not-found)"
   if [[ -z ${HUB_WIP} ]]; then
-    HUB_WIP="$(kube get cm -n istio-system istio-asm-managed -oyaml | grep 'trustDomain: .*' | cut -d':' -f2 | xargs)"
+    HUB_WIP="$(kube get cm -n istio-system istio-${REVISION} -oyaml | grep 'trustDomain: .*' | cut -d':' -f2 | xargs)"
   fi
 
   if [[ "${HUB_WIP}" == "" ]]; then
@@ -345,9 +347,9 @@ data:
   meshca-root.pem: $(echo "${MESH_CA_ROOT}" | base64 -w 0)
 EOF
 
-  HUB_WIP="$(kube get cm -n istio-system env-asm-managed -ojsonpath='{.data.TRUST_DOMAIN}' --ignore-not-found)"
+  HUB_WIP="$(kube get cm -n istio-system env-${REVISION} -ojsonpath='{.data.TRUST_DOMAIN}' --ignore-not-found)"
   if [[ -z ${HUB_WIP} ]]; then
-    HUB_WIP="$(kube get cm -n istio-system istio-asm-managed -oyaml | grep 'trustDomain: .*' | cut -d':' -f2 | xargs)"
+    HUB_WIP="$(kube get cm -n istio-system istio-${REVISION} -oyaml | grep 'trustDomain: .*' | cut -d':' -f2 | xargs)"
   fi
 
   if [[ "${HUB_WIP}" == "" ]]; then
@@ -474,7 +476,7 @@ spec:
         istio: ingressgateway
         app: istio-ingressgateway
         release: istio
-        istio.io/rev: asm-managed
+        istio.io/rev: ${REVISION}
     spec:
       serviceAccountName: asm-ingressgateway
       containers:
@@ -530,14 +532,19 @@ EOF
 }
 
 rollback_gateway() {
+  prompt "Rolling back the Anthos Service Mesh gateway..."
   # pending
-  true
+  kube -n istio-system scale deployment istio-ingressgateway --replicas=1
+  kube wait --for=condition=available --timeout=600s deployment/istio-ingressgateway -n istio-system
+  for resource_type in Role Rolebinding ServiceAccount deployment; do
+    kube -n istio-system delete ${resource_type} asm-ingressgateway
+  done
 }
 
 replace_webhook() {
   prompt "Configuring sidecar injection to use Anthos Service Mesh by default..."
   kube patch mutatingwebhookconfigurations istio-sidecar-injector --type=json -p='[{"op": "replace", "path": "/webhooks"}]'
-  ${ISTIOCTL_BIN} x revision tag set default --revision=asm-managed --overwrite
+  ${ISTIOCTL_BIN} x revision tag set default --revision=${REVISION} --overwrite
   echo -e "${green}OK${clr}"
 }
 
@@ -792,7 +799,7 @@ rollback_all() {
   fi
   # rollback webook
   cat <<EOF | kube apply -f -
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   labels:
@@ -811,6 +818,8 @@ webhooks:
       namespace: istio-system
       path: /inject
   failurePolicy: Fail
+  sideEffects: None
+  admissionReviewVersions: ["v1beta1", "v1"]
   name: sidecar-injector.istio.io
   namespaceSelector:
     matchLabels:
@@ -855,6 +864,7 @@ usage() {
     echo "  --skip-confirm, -y                select 'yes' for any prompts"
     echo "  --context                         context to use for kubectl"
     echo "  --dir                             explicitly configure directory for migration artifacts"
+    echo "  --mcp_channel                     configure mcp channel to be migrated to, support regular and stable now"
     echo "  --command config-check            check 1.4 configurations that need to be migrated"
     echo "  --command disable-galley-webhook  disable 1.4 galley validation webhook"
     echo "  --command migrate-configs         migrate all 1.4 configurations that can be auto-migrated"
@@ -910,7 +920,21 @@ while (( "$#" )); do
             ISTIOCTL_BIN="${PWD}/istioctl"
             readonly ISTIOCTL_BIN
             shift
-            ;; 
+            ;;
+        -c | --mcp_channel)
+            arg_required "${@}"
+            CHANNEL=${2}
+            if [[ ${CHANNEL} == "regular" ]]; then
+              REVISION="asm-managed"
+            elif [[ ${CHANNEL} == "stable" ]]; then
+              REVISION="asm-managed-stable"
+            else
+              # do not support rapid now
+              echo "ERROR: unsupported channel \"$CHANNEL\""
+            fi
+            readonly REVISION
+            shift
+            ;;
         *)
             echo "ERROR: unknown parameter \"$PARAM\""
             usage

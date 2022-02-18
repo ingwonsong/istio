@@ -74,7 +74,7 @@ func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
 				return fmt.Errorf("setup prerequsite failed: %w", err)
 			}
 			contextLogger.Println("Running asmcli to enable prerequisites only, use migration tool to perform install instead")
-			return nil
+			continue
 		}
 
 		contextLogger.Println("Running installation using install script...")
