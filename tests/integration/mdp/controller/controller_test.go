@@ -57,8 +57,6 @@ const (
 	workload1          = "mdp-app1"
 	workload2          = "mdp-app2"
 	workloadPDB        = "mdp-pdb-restricted"
-	revision19         = "asm-1-9"
-	revisionMaster     = "asm-master"
 	crTemplatePath     = "testdata/mdp_cr.yaml.tmpl"
 	RunWithGenManifest = "RUN_WITH_GEN_MANIFEST"
 	GcrProjectIDENV    = "GCR_PROJECT_ID"
@@ -75,6 +73,8 @@ var (
 	prowTestImageHub  string
 	builtProxyVersion string
 	genManifestPath   = filepath.Join(env.IstioSrc, "mdp/manifest/gen-mdp-manifest.yaml")
+	oldRevision       = os.Getenv("OLD_REVISION")
+	newRevision       = os.Getenv("NEW_REVISION")
 )
 
 func TestMain(m *testing.M) {
@@ -84,8 +84,8 @@ func TestMain(m *testing.M) {
 }
 
 // TestProxiesRestarted verify whether the MDP controller can upgrade proxies as expected
-// 1. Two control planes would be installed at setup stage by providing the RevisionConfig to the test framework, i.e. 1.9-asm and master-asm.
-//    Initially the proxies are injected with old version, i.e. 1.9-asm
+// 1. Two control planes would be installed at setup stage by providing the RevisionConfig to the test framework, i.e. 1.11-asm and master-asm.
+//    Initially the proxies are injected with old version, i.e. 1.11-asm
 // 2. Then it relabels the namespace for new version, i.e. master-asm,
 //    so after MDP successfully evict a pod, the newly created pods would be injected with proxies of new version.
 // 3. verify upgraded proxies percentage, CR status
@@ -98,9 +98,9 @@ func TestProxiesRestarted(t *testing.T) {
 			ns = namespace.NewOrFail(t, t, namespace.Config{
 				Prefix: "mdp-workload",
 				Inject: true,
-				Labels: map[string]string{"istio.io/rev": revision19},
+				Labels: map[string]string{"istio.io/rev": oldRevision},
 			})
-			prowTestImageHub, builtProxyVersion = getIstiodVersion(t, cs, "asm-master")
+			prowTestImageHub, builtProxyVersion = getIstiodVersion(t, cs, newRevision)
 			t.Logf("got prow test hub: %v, tag: %v", prowTestImageHub, builtProxyVersion)
 			stubEnvironmentCM(t, "env", "istio-system", builtProxyVersion)
 			if af := os.Getenv(RunWithGenManifest); af == "true" {
@@ -132,8 +132,8 @@ func TestProxiesRestarted(t *testing.T) {
 				{
 					expectedPercentage: 66,
 					expectedDPState:    mdpapi.Ready,
-					newRevision:        revisionMaster,
-					oldRevision:        revision19,
+					newRevision:        newRevision,
+					oldRevision:        oldRevision,
 				},
 			}
 			for _, test := range testcases {
