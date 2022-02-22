@@ -49,10 +49,6 @@ func Cmd() *cobra.Command {
 var errorUnsupportedConfig = fmt.Errorf("unsupported configuration found")
 
 func mcpCheckCommand() *cobra.Command {
-	for _, s := range log.Scopes() {
-		// Hide irrelevant logs. We print, not log
-		s.SetOutputLevel(log.WarnLevel)
-	}
 	var filenames []string
 	outDir := "asm-generated-configs"
 	revision := "asm-managed-rapid"
@@ -69,6 +65,10 @@ This operator is non-destructive and does not access a Kubernetes cluster; all c
   # Check multiple overlays and output to a specified directory
   istioctl asm mcp-migrate -f istio-config.yaml -f enable-access-logs.yaml --out-dir /tmp/config`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			for _, s := range log.Scopes() {
+				// Hide irrelevant logs. We print, not log
+				s.SetOutputLevel(log.WarnLevel)
+			}
 			err := runMcpCheck(cmd.OutOrStdout(), filenames, outDir, revision)
 			if err == errorUnsupportedConfig {
 				os.Exit(2)
