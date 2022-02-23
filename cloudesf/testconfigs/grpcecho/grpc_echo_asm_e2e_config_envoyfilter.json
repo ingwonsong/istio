@@ -59,6 +59,7 @@
                 "api_key",
                 "key"
               ],
+              "matchUnregisteredCustomVerb": true,
               "printOptions": {},
               "protoDescriptor": "/etc/istio/proxy/grpc_echo_asm_e2e_config_descriptor",
               "queryParamUnescapePlus": true,
