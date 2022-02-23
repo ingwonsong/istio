@@ -32,16 +32,16 @@ import (
 // directory, if the tests are run in CI.
 // TODO(chizhg): reuse the functions in istio.io/istio/pkg/test/kube/dump.go
 // instead of making a new one here.
-func ExportLogs(kubeconfig, namespace, dir string) error {
+func ExportLogs(kubeconfig, namespace, selector, dir string) error {
 	cli, err := NewClient(kubeconfig)
 	if err != nil {
 		return err
 	}
 
-	return exportLogs(context.Background(), cli, kubeconfig, namespace, dir)
+	return exportLogs(context.Background(), cli, kubeconfig, namespace, selector, dir)
 }
 
-func exportLogs(ctx context.Context, kubeClient kubernetes.Interface, kubeconfig, namespace, dir string) error {
+func exportLogs(ctx context.Context, kubeClient kubernetes.Interface, kubeconfig, namespace, selector, dir string) error {
 	// Create a directory for the namespace.
 	logPath := filepath.Join(dir, filepath.Base(kubeconfig), namespace)
 	if err := os.MkdirAll(logPath, os.ModePerm); err != nil {
@@ -50,7 +50,9 @@ func exportLogs(ctx context.Context, kubeClient kubernetes.Interface, kubeconfig
 
 	// List all the Pods in the namespace.
 	podsClient := kubeClient.CoreV1().Pods(namespace)
-	pods, err := podsClient.List(context.Background(), metav1.ListOptions{})
+	pods, err := podsClient.List(context.Background(), metav1.ListOptions{
+		LabelSelector: selector,
+	})
 	if err != nil {
 		return fmt.Errorf("error listing pods in namespace %q: %w", namespace, err)
 	}
