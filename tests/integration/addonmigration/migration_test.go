@@ -220,11 +220,13 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			// Check both our continuous traffic to ensure we have zero downtime
 			t.NewSubTest("continuous-traffic-addon-14").Run(func(t framework.TestContext) {
 				// Addon traffic should always succeed
-				selfCheck14.Stop().CheckSuccessRate(t, 1)
+				// Tolerate one random request timeout at the end that are not related to server error
+				selfCheck14.Stop().CheckSuccessRate(t, 0.999)
 			})
 			t.NewSubTest("continuous-traffic-addon-16").Run(func(t framework.TestContext) {
 				// Addon traffic should always succeed
-				selfCheck16.Stop().CheckSuccessRate(t, 1)
+				// Tolerate one random request timeout at the end that are not related to server error
+				selfCheck16.Stop().CheckSuccessRate(t, 0.999)
 			})
 			t.NewSubTest("continuous-traffic-cross-14").Run(func(t framework.TestContext) {
 				// We allow a small buffer here as the addon did not have graceful shutdown
