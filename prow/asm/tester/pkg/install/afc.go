@@ -138,8 +138,8 @@ EOF'`, context)); err != nil {
 		contextLogger.Println("Done installing MCP via AFC...")
 	}
 
-	if err := createRemoteSecrets(c.settings, rev, scriptPath); err != nil {
-		return fmt.Errorf("failed to create remote secrets: %w", err)
+	if err := createRemoteSecretsManaged(c.settings); err != nil {
+		return fmt.Errorf("failed to enable managed multicluster: %w", err)
 	}
 
 	return nil
