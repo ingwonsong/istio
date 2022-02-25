@@ -131,6 +131,13 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		issuingCaPoolId := fmt.Sprintf("%s-%s", gcp.CasSubCaIdPrefix, cluster.Location)
 		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
 			env.SharedGCPProject, cluster.Location, issuingCaPoolId)
+		if settings.FeaturesToTest.Has(string(resource.CasCertTemplate)) {
+			caCertificateTemplateId := fmt.Sprintf("%s-%s", gcp.CasCertTemplateIdPrefix, cluster.Location)
+			certTemplate := fmt.Sprintf("projects/%s/locations/%s/certificateTemplates/%s",
+				env.SharedGCPProject, cluster.Location, caCertificateTemplateId)
+			caName = fmt.Sprintf("%s:%s", caName, certTemplate)
+		}
+		caFlags = append(caFlags, "--enable_gcp_iam_roles")
 		caFlags = append(caFlags, "--ca", "gcp_cas")
 		caFlags = append(caFlags, "--ca_pool", caName)
 	}

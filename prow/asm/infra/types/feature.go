@@ -26,6 +26,7 @@ var (
 	PrivateClusterNoAccess           = addFeature("PRIVATE_CLUSTER_NO_ACCESS")
 	ContainerNetworkInterface        = addFeature("CNI")
 	Autopilot                        = addFeature("AUTOPILOT")
+	CasCertTemplate                  = addFeature("CAS_CERT_TEMPLATE")
 
 	SupportedFeatures []Feature
 )
