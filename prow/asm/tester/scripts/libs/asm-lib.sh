@@ -470,3 +470,24 @@ EOF
     configure_validating_webhook "${ASM_REVISION_LABEL}" "${MC_CONFIGS[$i]}"
   done
 }
+
+#1: add/remove IAM policy binding
+#2: ca pool name
+#3: ca pool location
+#4: Workload identity pool
+#5: project Id
+#6: ca certificate template
+function amend_privateca_iam() {
+  # Remove IAM bindings on ca-pool and certificate template
+
+  gcloud privateca pools "$1" "$2" --location "$3" --member "$4" --project "$5" \
+    --role "roles/privateca.workloadCertificateRequester" --quiet &> /dev/null
+
+  gcloud privateca pools "$1" "$2" --location "$3" --member "$4" --project "$5" \
+    --role "roles/privateca.auditor" --quiet &> /dev/null
+
+  if [[ -n "$6" ]]; then
+    gcloud privateca templates "$1" "$6" --location "$3" --member "$4" --project "$5" \
+      --role "roles/privateca.templateUser" --quiet &> /dev/null
+  fi
+}
