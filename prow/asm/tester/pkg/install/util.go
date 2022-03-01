@@ -173,6 +173,28 @@ func createRemoteSecrets(settings *resource.Settings, rev *revision.Config, scri
 	return nil
 }
 
+// createRemoteSecretsManaged uses the declarative API to create remote secrets for clusters.
+func createRemoteSecretsManaged(settings *resource.Settings) error {
+	for _, context := range settings.KubeContexts {
+		log.Printf("Enabling managed multicluster for context %q", context)
+		if err := exec.Run(
+			// TODO(samnaser) remove CROSS_CLUSTER_SERVICE_DISCOVERY once it's removed.
+			fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --context=%s apply --server-side --field-manager mmc -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: asm-options
+  namespace: istio-system
+data:
+  "CROSS_CLUSTER_SERVICE_DISCOVERY": "on"
+  "multicluster_mode": "connected"
+EOF'`, context)); err != nil {
+			return fmt.Errorf("failed to enable managed multicluster for context %q: %w", context, err)
+		}
+	}
+	return nil
+}
+
 // createRemoteSecretsMulticloud is similar to createRemoteSecrets except it operates on kubeconfigs
 // and without GKE-on-GCP-specific logic.
 func createRemoteSecretsMulticloud(settings *resource.Settings, kubeconfigs []string) error {
