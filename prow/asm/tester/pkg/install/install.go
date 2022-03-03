@@ -43,6 +43,9 @@ func (c *installer) install(r *revision.Config) error {
 		case resource.GKEOnGCP:
 			log.Println("🏄 performing ASM installation")
 			return c.installASM(r)
+		case resource.HybridGKEAndBareMetal:
+			log.Println("🏄 performing ASM installation on hybrid clusters")
+			return c.installASMOnHybridClusters(r)
 		default:
 			log.Println("🏄 performing ASM installation on multicloud clusters")
 			return c.installASMOnMulticloudClusters(r)

@@ -135,6 +135,12 @@ func genTopologyFile(settings *resource.Settings) error {
 			clusterName = fmt.Sprintf("cn-%s-%s-%s", cs.ProjectID, cs.Location, cs.Name)
 		} else if settings.ClusterType == resource.BareMetal {
 			clusterName = "cluster" + strconv.Itoa(i)
+		} else if settings.ClusterType == resource.HybridGKEAndBareMetal {
+			if isBMCluster(kubeconfig) {
+				clusterName = "cluster-bm"
+			} else {
+				clusterName = "cluster-gcp"
+			}
 		} else {
 			if len(settings.ClusterProxy) > 1 {
 				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
@@ -165,7 +171,7 @@ func genTopologyFile(settings *resource.Settings) error {
 		if settings.UseGCEVMs || settings.VMStaticConfigDir != "" {
 			cc += "\n    fakeVM: false"
 		}
-		if len(settings.ClusterProxy) != 0 {
+		if i < len(settings.ClusterProxy) {
 			cc += fmt.Sprintf("\n    sshuser: %s", settings.ClusterSSHUser[i])
 			cc += fmt.Sprintf("\n    sshkey: %s", settings.ClusterSSHKey[i])
 			cc += fmt.Sprintf("\n  httpProxy: %s", settings.ClusterProxy[i])
@@ -176,7 +182,15 @@ func genTopologyFile(settings *resource.Settings) error {
 		// TODO(cont): rather than array of kubeconfig/context names.
 
 		if settings.ClusterType != resource.GKEOnGCP && len(configs) > 1 {
-			cc += fmt.Sprintf("\n  network: network%d", i)
+			networkID := fmt.Sprintf("network%d", i)
+			if settings.ClusterType == resource.HybridGKEAndBareMetal {
+				if isBMCluster(kubeconfig) {
+					networkID = "network-bm"
+				} else {
+					networkID = "tairan-asm-multi-cloud-dev-cluster-net"
+				}
+			}
+			cc += fmt.Sprintf("\n  network: %s", networkID)
 		}
 
 		if err := topology.AddClusterConfig(cc); err != nil {
@@ -184,4 +198,8 @@ func genTopologyFile(settings *resource.Settings) error {
 		}
 	}
 	return nil
+}
+
+func isBMCluster(kubeconfig string) bool {
+	return strings.HasSuffix(kubeconfig, "artifacts/kubeconfig")
 }

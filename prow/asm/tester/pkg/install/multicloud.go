@@ -46,7 +46,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 		// Set the _CI_ENVIRON_PROJECT_NUMBER as the project where fleet is registered
 		// TODO(chizhg): use the same project for all multicloud.
 		environProject := proxiedClusterFleetProject
-		if c.settings.ClusterType == resource.OnPrem {
+		if c.settings.ClusterType == resource.OnPrem || c.settings.ClusterType == resource.HybridGKEAndBareMetal {
 			environProject = onPremFleetProject
 		}
 		if c.settings.MulticloudOverrideEnvironProject {
@@ -79,7 +79,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			additionalFlags = append(additionalFlags, "--network_id", networkID)
 
 			additionalEnvVars := generateASMInstallEnvvars(c.settings, rev, "")
-			if i < len(c.settings.ClusterProxy) {
+			if i < len(c.settings.ClusterProxy) && c.settings.ClusterProxy[i] != "" {
 				additionalEnvVars = append(additionalEnvVars, "HTTPS_PROXY="+c.settings.ClusterProxy[i])
 			}
 
@@ -119,6 +119,17 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			// TODO(samnaser) should we use `asmcli create-mesh`?
 			if c.settings.ClusterType == resource.OnPrem {
 				return createRemoteSecretsMulticloud(c.settings, kubeconfigs)
+			}
+
+			if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
+				return exec.Dispatch(
+					c.settings.RepoRootDir,
+					"configure_remote_secrets_for_gcp_baremetal_hybrid",
+					nil,
+					exec.WithAdditionalEnvs([]string{
+						fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
+					}),
+				)
 			}
 		}
 
@@ -200,7 +211,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 
 // installExpansionGateway performs the steps documented at https://cloud.google.com/service-mesh/docs/on-premises-multi-cluster-setup
 func installExpansionGateway(settings *resource.Settings, rev *revision.Config, cluster, network, kubeconfig string, idx int) error {
-	if len(settings.ClusterProxy) != 0 {
+	if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[idx] != "" {
 		os.Setenv("HTTPS_PROXY", settings.ClusterProxy[idx])
 		defer os.Unsetenv("HTTPS_PROXY")
 	}
@@ -258,6 +269,16 @@ func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int
 			[]string{kubeconfig},
 			exec.WithAdditionalEnvs(
 				[]string{fmt.Sprintf("HERCULES_CLI_LAB=%s", herculesLab)})); err != nil {
+			return err
+		}
+		return nil
+	} else if settings.ClusterType == resource.HybridGKEAndBareMetal { // Patch BM in hybrid setup
+		if err := exec.Dispatch(settings.RepoRootDir, "baremetal::hybrid_configure_external_ip",
+			[]string{kubeconfig},
+			exec.WithAdditionalEnvs(
+				[]string{fmt.Sprintf("HTTPS_PROXY=%s", settings.ClusterProxy[idx])},
+			),
+		); err != nil {
 			return err
 		}
 		return nil

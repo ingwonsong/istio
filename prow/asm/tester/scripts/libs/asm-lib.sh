@@ -239,6 +239,43 @@ function configure_remote_secrets_for_baremetal() {
   done
 }
 
+# Creates remote secrets for each cluster pair for all the clusters under test
+function configure_remote_secrets_for_gcp_baremetal_hybrid() {
+  declare -a HTTP_PROXYS
+  IFS=',' read -r -a HTTP_PROXYS <<< "${HTTP_PROXY_LIST}"
+  declare GCP_CONFIG
+  declare BM_CONFIG
+  declare BM_PROXY
+
+  for i in "${!MC_CONFIGS[@]}"; do
+    if [[ ${MC_CONFIGS[$i]} == *"artifacts/kubeconfig"* ]]; then
+      BM_CONFIG="${MC_CONFIGS[$i]}"
+      BM_PROXY="${HTTP_PROXYS[$i]}"
+    else
+      GCP_CONFIG="${MC_CONFIGS[$i]}"
+    fi
+  done
+
+  echo "BM_CONFIG: ${BM_CONFIG}, BM_PROXY: ${BM_PROXY}, GCP_CONFIG: ${GCP_CONFIG}"
+
+  # Generate GCP remote secret
+  istioctl x create-remote-secret \
+    --kubeconfig="${GCP_CONFIG}" \
+    --name="cluster-gcp" > "secret-gcp"
+
+  # Generate BM remote secret
+  HTTPS_PROXY=${BM_PROXY} istioctl x create-remote-secret \
+    --kubeconfig="${BM_CONFIG}" \
+    --name="cluster-bm" > "secret-bm"
+  sed -i 's/certificate-authority-data\:.*/insecure-skip-tls-verify\: true/' "secret-bm"
+
+  # Apply GCP secret to BM cluster
+  HTTPS_PROXY=${BM_PROXY} kubectl apply --kubeconfig="${BM_CONFIG}" -f "secret-gcp"
+
+  # Apply BM secret to GCP cluster
+  kubectl apply --kubeconfig="${GCP_CONFIG}" -f "secret-bm"
+}
+
 # on-prem specific fucntion to configure external ips for the gateways
 # Parameters:
 # $1    kubeconfig
@@ -291,6 +328,18 @@ function baremetal::configure_external_ip() {
   BM_ARTIFACTS_PATH_LOCAL=${BM_KUBECONFIG%/*}
   local EXPANSION_IP
   EXPANSION_IP="$(jq '.outputs.full_cluster.value.resources.networks.gce.ips."gce-vip-0"' "$BM_ARTIFACTS_PATH_LOCAL"/internal/terraform/terraform.tfstate)"
+  echo "----------Configuring external IP for expansion gw----------"
+  kubectl patch svc istio-eastwestgateway -n istio-system \
+    --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": '"${EXPANSION_IP}"'}]' \
+    --kubeconfig="$1"
+}
+
+function baremetal::hybrid_configure_external_ip() {
+  local BM_KUBECONFIG="$1"
+  local BM_ARTIFACTS_PATH_LOCAL
+  BM_ARTIFACTS_PATH_LOCAL=${BM_KUBECONFIG%/*}
+  local EXPANSION_IP
+  EXPANSION_IP="$(jq '.outputs.full_cluster.value.resources.networks.gce.ips."gce-vip-0"' "$BM_ARTIFACTS_PATH_LOCAL"/terraform.tfstate)"
   echo "----------Configuring external IP for expansion gw----------"
   kubectl patch svc istio-eastwestgateway -n istio-system \
     --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": '"${EXPANSION_IP}"'}]' \

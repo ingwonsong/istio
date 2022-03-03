@@ -28,11 +28,12 @@ const (
 	GKEOnGCP ClusterType = "gke"
 	OnPrem   ClusterType = "gke-on-prem"
 	// TODO: update to "gke-on-aws"
-	GKEOnAWS  ClusterType = "aws"
-	EKS       ClusterType = "eks"
-	AKS       ClusterType = "aks"
-	BareMetal ClusterType = "bare-metal"
-	APM       ClusterType = "apm"
+	GKEOnAWS              ClusterType = "aws"
+	EKS                   ClusterType = "eks"
+	AKS                   ClusterType = "aks"
+	BareMetal             ClusterType = "bare-metal"
+	APM                   ClusterType = "apm"
+	HybridGKEAndBareMetal ClusterType = "hybrid-gke-and-bare-metal"
 )
 
 // Set converts the value string to ClusterType
