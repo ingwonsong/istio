@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// mcpinit holds functions that are shared by MCP's istiod
+// Package mcpinit holds functions that are shared by MCP's istiod
 // initialization and the mcputils binary.
 package mcpinit
 

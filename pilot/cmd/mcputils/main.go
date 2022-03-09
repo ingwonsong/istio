@@ -30,6 +30,7 @@ import (
 	istioctlcmd "istio.io/istio/istioctl/cmd"
 	"istio.io/istio/pilot/cmd/pilot-discovery/app/mcpinit"
 	"istio.io/istio/pkg/cmd"
+	"istio.io/istio/pkg/config/constants"
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/pkg/log"
 	"istio.io/pkg/version"
@@ -76,6 +77,7 @@ func newMCPServeCommand() *cobra.Command {
 			}
 			mux.Handle("/mcp-install-crds", handler{s.installCRDs})
 			mux.Handle("/mcp-run-precheck", handler{s.runPrecheck})
+			mux.Handle("/mcp-update-webhooks", handler{s.updateWebhooks})
 
 			addr := fmt.Sprintf(":%s", params.port)
 			log.Infof("Listening on: %s", addr)
@@ -142,6 +144,12 @@ type installCRDsRequest struct {
 	// checking to see if the user has any MCP webhooks installed
 	// first.
 	Force bool `json:"force"`
+}
+
+type updateWehooksRequest struct {
+	RequestShared
+	// Revision signals which webhook/controlplane should be updated
+	Revision string `json:"revision"`
 }
 
 type server struct {
@@ -234,6 +242,79 @@ func (s *server) installCRDs(req *http.Request) (string, *httpError) {
 		}
 	}
 	return fmt.Sprintf("CRDs installed (version: %s)\n", version.Info.Version), nil
+}
+
+func (s *server) fetchWebhookURLForMigration(ctx context.Context, client kubelib.Client, revision string) (string, error) {
+	cmAPI := client.CoreV1().ConfigMaps(constants.IstioSystemNamespace)
+	name := fmt.Sprintf("env-%s", revision)
+	cm, err := cmAPI.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	addr := cm.Data["CLOUDRUN_ADDR"]
+	if addr == "" {
+		return "", fmt.Errorf("cloudrun_addr does not exist in %s", name)
+	}
+	// In asm version 1.13+ we indicate whether a webhook should be proxied using
+	// the WEBHOOK_PROXY flag set in the config map.
+	//
+	// Note: VPC-SC uses a webhook proxy prior to 1.13, but VPC-SC webhooks should
+	// not be updated in the webhook migration since VPC-SC is an AFC only feature.
+	if cm.Data["WEBHOOK_PROXY"] == "true" {
+		return fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/webhooks/inject/ISTIO_META_CLOUDRUN_ADDR/%s", s.project, addr), nil
+	}
+	return fmt.Sprintf("https://%s/inject/ISTIO_META_CLOUDRUN_ADDR/%s", addr, addr), nil
+}
+
+func (s *server) getAndUpdateWebhook(ctx context.Context, client kubelib.Client, revision string) error {
+	mwh, err := client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, fmt.Sprintf("istiod-%s", revision), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	// We don't need to update AFC webhooks since AFC already fixes webhooks to
+	// use the value set in the configmap.
+	if mwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com" {
+		log.Infof("webhook is owned by AFC")
+		return nil
+	}
+	webhookURL, err := s.fetchWebhookURLForMigration(ctx, client, revision)
+	if err != nil {
+		return err
+	}
+	for i := range mwh.Webhooks {
+		webhook := &mwh.Webhooks[i]
+		webhook.ClientConfig.URL = &webhookURL
+	}
+	_, err = client.AdmissionregistrationV1().MutatingWebhookConfigurations().Update(ctx, mwh, metav1.UpdateOptions{})
+	return err
+}
+
+func (s *server) updateWebhooks(req *http.Request) (string, *httpError) {
+	var r updateWehooksRequest
+	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
+		return "", &httpError{
+			code:    http.StatusBadRequest,
+			message: fmt.Sprintf("json decoding error: %v", err),
+		}
+	}
+	log.Infof("Received update webhooks request: %+v", r)
+
+	client, _, err := s.createKubeClient(req.Context(), s.project, r.Location, r.Cluster)
+	if err != nil {
+		return "", &httpError{
+			code:    http.StatusBadRequest,
+			message: err.Error(),
+		}
+	}
+
+	if err := s.getAndUpdateWebhook(req.Context(), client, r.Revision); err != nil {
+		return "", &httpError{
+			code:    http.StatusPreconditionFailed,
+			message: err.Error(),
+		}
+	}
+
+	return fmt.Sprintf("Webhooks updated (project: %s, location: %s, cluster: %s, revision: %s)\n", s.project, r.Location, r.Cluster, r.Revision), nil
 }
 
 func (s *server) runPrecheck(req *http.Request) (string, *httpError) {
