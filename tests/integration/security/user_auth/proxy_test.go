@@ -78,7 +78,7 @@ func TestProxy(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 
 				// setup chrome and chromedriver
@@ -133,7 +133,7 @@ func TestProxy(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 
 				// setup chrome and chromedriver
@@ -176,7 +176,7 @@ func TestProxy(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 
 				// setup chrome and chromedriver
@@ -231,7 +231,7 @@ func TestProxy(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 
 				// setup chrome and chromedriver

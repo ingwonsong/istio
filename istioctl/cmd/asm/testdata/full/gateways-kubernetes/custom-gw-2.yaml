@@ -27,6 +27,7 @@ spec:
 ---
 
 
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -160,9 +161,8 @@ spec:
                   operator: In
                   values:
                   - "s390x"
+
 ---
-
-
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
@@ -181,9 +181,8 @@ spec:
     matchLabels:
       app: istio-ingressgateway
       istio: ingressgateway
+
 ---
-
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -199,8 +198,6 @@ rules:
   resources: ["secrets"]
   verbs: ["get", "watch", "list"]
 ---
-
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -219,8 +216,6 @@ subjects:
 - kind: ServiceAccount
   name: custom-gw-2-service-account
 ---
-
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -255,9 +250,9 @@ spec:
       port: 443
       protocol: TCP
       targetPort: 8443
+
+  
 ---
-
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -270,4 +265,8 @@ metadata:
     istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
+
 ---
+
+---
+

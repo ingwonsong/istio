@@ -29,10 +29,9 @@ import (
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/cloudesf"
 	"istio.io/istio/pkg/test/framework/components/istio"
-	"istio.io/istio/pkg/test/framework/image"
+	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/shell"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/istio/pkg/test/util/tmpl"
 )
 
 var (
@@ -308,9 +307,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		}
 
 		t.Logf("Deploying Cloud ESF based ingress gateway.")
-		if err := t.ConfigKube().ApplyYAML("istio-system", tmpl.MustEvaluate(gatewayTemplate, templateParams)); err != nil {
-			t.Fatalf("fail to install the Cloud ESF based ingress gateway  , err: %v", err)
-		}
+		t.ConfigKube().Eval(templateParams, gatewayTemplate).ApplyOrFail(t, "istio-system")
 
 		// Get the ingress address.
 		address, _ := i.CustomIngressFor(t.Clusters().Default(), "istio-ingressgateway", "ingressgateway").HTTPAddress()
@@ -365,9 +362,7 @@ spec:
     args: ["-host=%s:80", %s]
 `, clientPod, clientNamespace, clientKSA, testClientImageAddr, cloudesf.Version(), clientContainer, address, testClientImageExtraArgs)
 		t.Logf("test client config:\n%s", yamlConfig)
-		if err := t.ConfigKube().ApplyYAML(clientNamespace, yamlConfig); err != nil {
-			t.Fatalf("Fail to run the test client: %v", err)
-		}
+		t.ConfigKube().YAML(yamlConfig).ApplyOrFail(t, clientNamespace)
 
 		// Wait the test client container finish.
 		retry.UntilSuccessOrFail(t, func() error {
@@ -395,15 +390,15 @@ spec:
 }
 
 func cloudEsfImage() string {
-	s, _ := image.SettingsFromCommandLine()
+	s, _ := resource.SettingsFromCommandLine("cloudesf")
 	hub := "gcr.io/cloudesf-testing/asm"
-	if s.Hub != image.DefaultHub {
-		hub = s.Hub
+	if s.Image.Hub != "gcr.io/istio-testing" {
+		hub = s.Image.Hub
 	}
 
 	tag := "dev-stable"
-	if s.Tag != image.DefaultTag {
-		tag = s.Tag
+	if s.Image.Tag != "latest" {
+		tag = s.Image.Tag
 	}
 
 	return fmt.Sprintf("%s/cloudesf:%s", hub, tag)

@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,14 +28,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"istio.io/istio/pkg/config/constants"
+	"istio.io/istio/pkg/test/echo/check"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/image"
+	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/kube"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/istio/pkg/test/util/tmpl"
-	"istio.io/istio/tests/integration/security/util/connection"
 	"istio.io/pkg/log"
 )
 
@@ -110,39 +108,29 @@ func checkConnectivity(t framework.TestContext, a echo.Instances, b echo.Instanc
 		t.NewSubTest(fmt.Sprintf("post-migration/%s.%s->%s.%s",
 			src.Config().Service, src.Config().Namespace.Prefix(),
 			dst.Config().Service, dst.Config().Namespace.Prefix())).
-			Run(func(ctx framework.TestContext) {
+			Run(func(t framework.TestContext) {
 				callOptions := echo.CallOptions{
-					Target:   dst,
-					PortName: "http",
-					Scheme:   scheme.HTTP,
-					Count:    1,
+					To:     dst,
+					Port:   echo.Port{Name: "http"},
+					Scheme: scheme.HTTP,
+					Count:  1,
+					Check:  check.OK(),
 				}
-				checker := connection.Checker{
-					From:          src,
-					Options:       callOptions,
-					ExpectSuccess: true,
-					DestClusters:  b.Clusters(),
-				}
-				checker.CheckOrFail(ctx)
+				src.CallOrFail(t, callOptions)
 			})
 	}
 }
 
 func deployAutomigration(t framework.TestContext, channel, revision string) {
 	// replace with deploy migration job
-	bt, err := ioutil.ReadFile("testdata/migration_deployment.yaml")
-	if err != nil {
-		t.Fatalf("failed to read migration job yaml: %v", err)
-	}
-	cls, err := image.SettingsFromCommandLine()
+	cls, err := resource.SettingsFromCommandLine("addon")
 	if err != nil {
 		t.Fatalf("failed to get settings from CLI: %v", err)
 	}
-	md := tmpl.EvaluateOrFail(t, string(bt), map[string]string{"HUB": cls.Hub, "TAG": cls.Tag, "MCP_CHANNEL": channel})
 	cs := t.Clusters().Default()
-	if err := t.ConfigIstio().ApplyYAMLNoCleanup("istio-system", md); err != nil {
-		t.Fatalf("failed to apply migration job manifest: %v", err)
-	}
+	t.ConfigIstio().
+		EvalFile(map[string]string{"HUB": cls.Image.Hub, "TAG": cls.Image.Tag, "MCP_CHANNEL": channel}, "testdata/migration_deployment.yaml").
+		ApplyOrFail(t, "istio-system", resource.NoCleanup)
 	defer dumpMigrationJobPod(t)
 	_, err = kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(cs, "istio-system", "istio=addon-migration"))
 	if err != nil {

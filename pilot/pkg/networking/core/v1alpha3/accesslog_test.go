@@ -113,7 +113,7 @@ func TestListenerAccessLog(t *testing.T) {
 			accessLogBuilder.reset()
 
 			// Validate that access log filter uses the new format.
-			listeners := buildAllListeners(&fakePlugin{}, env)
+			listeners := buildAllListeners(&fakePlugin{}, env, getProxy())
 			for _, l := range listeners {
 				if l.AccessLog[0].Filter == nil {
 					t.Fatal("expected filter config in listener access log configuration")
@@ -220,6 +220,24 @@ func TestBuildAccessLogFromTelemetry(t *testing.T) {
 						LogFormat: &meshconfig.MeshConfig_ExtensionProvider_EnvoyFileAccessLogProvider_LogFormat{
 							LogFormat: &meshconfig.MeshConfig_ExtensionProvider_EnvoyFileAccessLogProvider_LogFormat_Text{
 								Text: "%LOCAL_REPLY_BODY%:%RESPONSE_CODE%:path=%REQ(:path)%\n",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	defaultJSONFormat := &model.LoggingConfig{
+		Providers: []*meshconfig.MeshConfig_ExtensionProvider{
+			{
+				Name: "",
+				Provider: &meshconfig.MeshConfig_ExtensionProvider_EnvoyFileAccessLog{
+					EnvoyFileAccessLog: &meshconfig.MeshConfig_ExtensionProvider_EnvoyFileAccessLogProvider{
+						Path: devStdout,
+						LogFormat: &meshconfig.MeshConfig_ExtensionProvider_EnvoyFileAccessLogProvider_LogFormat{
+							LogFormat: &meshconfig.MeshConfig_ExtensionProvider_EnvoyFileAccessLogProvider_LogFormat_Labels{
+								Labels: &types.Struct{},
 							},
 						},
 					},
@@ -434,6 +452,17 @@ func TestBuildAccessLogFromTelemetry(t *testing.T) {
 		},
 	}
 
+	defaultJSONLabelsOut := &fileaccesslog.FileAccessLog{
+		Path: devStdout,
+		AccessLogFormat: &fileaccesslog.FileAccessLog_LogFormat{
+			LogFormat: &core.SubstitutionFormatString{
+				Format: &core.SubstitutionFormatString_JsonFormat{
+					JsonFormat: EnvoyJSONLogFormatIstio,
+				},
+			},
+		},
+	}
+
 	customLabelsOut := &fileaccesslog.FileAccessLog{
 		Path: devStdout,
 		AccessLogFormat: &fileaccesslog.FileAccessLog_LogFormat{
@@ -636,6 +665,20 @@ func TestBuildAccessLogFromTelemetry(t *testing.T) {
 				{
 					Name:       wellknown.FileAccessLog,
 					ConfigType: &accesslog.AccessLog_TypedConfig{TypedConfig: util.MessageToAny(customTextOut)},
+				},
+			},
+		},
+		{
+			name: "default-labels",
+			meshConfig: &meshconfig.MeshConfig{
+				AccessLogEncoding: meshconfig.MeshConfig_TEXT,
+			},
+			spec:        defaultJSONFormat,
+			forListener: false,
+			expected: []*accesslog.AccessLog{
+				{
+					Name:       wellknown.FileAccessLog,
+					ConfigType: &accesslog.AccessLog_TypedConfig{TypedConfig: util.MessageToAny(defaultJSONLabelsOut)},
 				},
 			},
 		},

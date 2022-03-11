@@ -25,7 +25,7 @@ import (
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/common"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/kube"
 )
@@ -60,11 +60,11 @@ func TestInstallSuccess(t *testing.T) {
 				t.Fatal("MDP Controller failed to start")
 			}
 
-			builder := echoboot.NewBuilder(tc, cs)
+			builder := deployment.New(tc, cs)
 			builder = builder.WithConfig(echo.Config{
 				Namespace: ns,
 				Service:   "example-workload",
-				Ports:     common.EchoPorts,
+				Ports:     common.Ports,
 				Subsets:   []echo.SubsetConfig{{}},
 			})
 			instances := builder.BuildOrFail(t)

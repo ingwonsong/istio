@@ -21,8 +21,9 @@ import (
 	"google.golang.org/api/compute/v1"
 
 	"istio.io/istio/pkg/test"
-	"istio.io/istio/pkg/test/echo/client"
+	echotest "istio.io/istio/pkg/test/echo"
 	"istio.io/istio/pkg/test/echo/common"
+	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/scopes"
 )
@@ -30,14 +31,19 @@ import (
 var _ echo.Workload = &workload{}
 
 type workload struct {
-	*client.Instance
+	*echotest.Client
 	// gce instnace name
 	name string
 	// internal instance ip
 	address string
+	cluster cluster.Cluster
 }
 
-func newWorkloads(migInstances []*compute.Instance, grpcPort int, tls *common.TLSSettings) ([]echo.Workload, error) {
+func (w *workload) Cluster() cluster.Cluster {
+	return w.cluster
+}
+
+func newWorkloads(migInstances []*compute.Instance, grpcPort int, tls *common.TLSSettings, c cluster.Cluster) ([]echo.Workload, error) {
 	var out []echo.Workload
 	var errs error
 	for _, i := range migInstances {
@@ -49,7 +55,7 @@ func newWorkloads(migInstances []*compute.Instance, grpcPort int, tls *common.TL
 		scopes.Framework.Infof("%s:\n  external IP: %s\n  internal IP: %s\n  status: %s",
 			i.Name, externalIP, internalIP, i.Status)
 
-		w, err := newWorkload(i.Name, externalIP, internalIP, grpcPort, tls)
+		w, err := newWorkload(i.Name, externalIP, internalIP, grpcPort, tls, c)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -63,15 +69,16 @@ func newWorkloads(migInstances []*compute.Instance, grpcPort int, tls *common.TL
 	return out, nil
 }
 
-func newWorkload(name, grpcAddr, internalAddr string, grpcPort int, tls *common.TLSSettings) (*workload, error) {
-	c, err := client.New(fmt.Sprintf("%s:%d", grpcAddr, grpcPort), tls)
+func newWorkload(name, grpcAddr, internalAddr string, grpcPort int, tls *common.TLSSettings, cc cluster.Cluster) (*workload, error) {
+	c, err := echotest.New(fmt.Sprintf("%s:%d", grpcAddr, grpcPort), tls)
 	if err != nil {
 		return nil, err
 	}
 	return &workload{
-		name:     name,
-		Instance: c,
-		address:  internalAddr,
+		name:    name,
+		Client:  c,
+		cluster: cc,
+		address: internalAddr,
 	}, nil
 }
 

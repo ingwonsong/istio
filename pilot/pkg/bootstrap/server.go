@@ -306,7 +306,7 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 
 	whc := func() map[string]string {
 		if wh != nil {
-			return wh.Config.Templates
+			return wh.Config.RawTemplates
 		}
 		return map[string]string{}
 	}
@@ -527,7 +527,7 @@ func (s *Server) initSDSServer() {
 		log.Warnf("skipping Kubernetes credential reader; PILOT_ENABLE_XDS_IDENTITY_CHECK must be set to true for this feature.")
 	} else {
 		creds := kubecredentials.NewMulticluster(s.clusterID)
-		creds.AddEventHandler(func(name string, namespace string) {
+		creds.AddSecretHandler(func(name string, namespace string) {
 			s.XDSServer.ConfigUpdate(&model.PushRequest{
 				Full: false,
 				ConfigsUpdated: map[model.ConfigKey]struct{}{

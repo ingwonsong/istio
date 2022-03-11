@@ -147,7 +147,7 @@ func TestMisconfiguration(t *testing.T) {
 			// No outputJWTAudience field should timeout due to redirection loop
 			ctx.NewSubTest("outputJWTAudience").Run(func(ctx framework.TestContext) {
 				// Test no outputJWTAudience field
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, util.NoAudUserAuthConfig)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(util.NoAudUserAuthConfig).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
@@ -191,7 +191,7 @@ func TestMisconfiguration(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
@@ -232,7 +232,7 @@ func TestMisconfiguration(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
@@ -273,7 +273,7 @@ func TestMisconfiguration(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
@@ -314,7 +314,7 @@ func TestMisconfiguration(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
@@ -355,7 +355,7 @@ func TestMisconfiguration(t *testing.T) {
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
-				ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, config)
+				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(config).ApplyOrFail(ctx, userAuthNS)
 				time.Sleep(5 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
@@ -384,7 +384,7 @@ func TestMisconfiguration(t *testing.T) {
 			time.Sleep(5 * time.Second)
 
 			// revert the config back to original
-			ctx.ConfigKube(ctx.Clusters().Configs()...).ApplyYAMLOrFail(ctx, userAuthNS, util.OriginalUserAuthConfig)
+			ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(util.OriginalUserAuthConfig).ApplyOrFail(ctx, userAuthNS)
 
 			forwarder.Close()
 		})

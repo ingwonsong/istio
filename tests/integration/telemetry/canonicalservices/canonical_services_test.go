@@ -26,7 +26,7 @@ import (
 
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/util/retry"
@@ -61,7 +61,7 @@ func setupEchoes(echoNames []string) resource.SetupFn {
 		if err != nil {
 			return err
 		}
-		builder := echoboot.NewBuilder(ctx, ctx.Clusters()...)
+		builder := deployment.New(ctx, ctx.Clusters()...)
 		for _, name := range echoNames {
 			builder.WithConfig(echo.Config{
 				Namespace: ns,

@@ -22,15 +22,14 @@ import (
 	"os"
 	"path"
 
+	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/test/echo/common"
 	"istio.io/istio/pkg/test/env"
-	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
-	"istio.io/istio/pkg/test/framework/components/echo/echotest"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
+	"istio.io/istio/pkg/test/framework/components/echo/match"
 	"istio.io/istio/pkg/test/framework/components/istio"
-	"istio.io/istio/pkg/test/framework/components/istioctl"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/resource"
 )
@@ -87,7 +86,7 @@ func EchoConfig(name string, ns namespace.Instance, headless bool, annos echo.An
 				Name:     "http",
 				Protocol: protocol.HTTP,
 				// We use a port > 1024 to not require root
-				InstancePort: 8090,
+				WorkloadPort: 8090,
 				ServicePort:  8095,
 			},
 			{
@@ -102,58 +101,68 @@ func EchoConfig(name string, ns namespace.Instance, headless bool, annos echo.An
 				Name:         "https",
 				Protocol:     protocol.HTTPS,
 				ServicePort:  443,
-				InstancePort: 8443,
+				WorkloadPort: 8443,
 				TLS:          true,
 			},
 			{
 				Name:         "http-8091",
 				Protocol:     protocol.HTTP,
-				InstancePort: 8091,
+				WorkloadPort: 8091,
 			},
 			{
 				Name:         "http-8092",
 				Protocol:     protocol.HTTP,
-				InstancePort: 8092,
+				WorkloadPort: 8092,
 			},
 			{
 				Name:         "tcp-8093",
 				Protocol:     protocol.TCP,
-				InstancePort: 8093,
+				WorkloadPort: 8093,
 			},
 			{
 				Name:         "tcp-8094",
 				Protocol:     protocol.TCP,
-				InstancePort: 8094,
+				WorkloadPort: 8094,
 			},
-		},
-		// Workload Ports needed by TestPassThroughFilterChain
-		// The port 8084-8089 will be defined only in the workload and not in the k8s service.
-		WorkloadOnlyPorts: []echo.WorkloadPort{
+			// Workload Ports needed by TestPassThroughFilterChain
+			// The port 8084-8089 will be defined only in the workload and not in the k8s service.
 			{
-				Port:     8085,
-				Protocol: protocol.HTTP,
-			},
-			{
-				Port:     8086,
-				Protocol: protocol.HTTP,
+				Name:         "tcp-8085",
+				ServicePort:  echo.NoServicePort,
+				WorkloadPort: 8085,
+				Protocol:     protocol.HTTP,
 			},
 			{
-				Port:     8087,
-				Protocol: protocol.TCP,
+				Name:         "tcp-8086",
+				ServicePort:  echo.NoServicePort,
+				WorkloadPort: 8086,
+				Protocol:     protocol.HTTP,
 			},
 			{
-				Port:     8088,
-				Protocol: protocol.TCP,
+				Name:         "tcp-8087",
+				ServicePort:  echo.NoServicePort,
+				WorkloadPort: 8087,
+				Protocol:     protocol.TCP,
 			},
 			{
-				Port:     8089,
-				Protocol: protocol.HTTPS,
-				TLS:      true,
+				Name:         "tcp-8088",
+				ServicePort:  echo.NoServicePort,
+				WorkloadPort: 8088,
+				Protocol:     protocol.TCP,
 			},
 			{
-				Port:     8084,
-				Protocol: protocol.HTTPS,
-				TLS:      true,
+				Name:         "tcp-8089",
+				ServicePort:  echo.NoServicePort,
+				WorkloadPort: 8089,
+				Protocol:     protocol.HTTPS,
+				TLS:          true,
+			},
+			{
+				Name:         "tcp-8084",
+				ServicePort:  echo.NoServicePort,
+				WorkloadPort: 8084,
+				Protocol:     protocol.HTTPS,
+				TLS:          true,
 			},
 		},
 	}
@@ -162,7 +171,7 @@ func EchoConfig(name string, ns namespace.Instance, headless bool, annos echo.An
 	// Ref: https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
 	if headless {
 		for i := range out.Ports {
-			out.Ports[i].ServicePort = out.Ports[i].InstancePort
+			out.Ports[i].ServicePort = out.Ports[i].WorkloadPort
 		}
 	}
 	return out
@@ -176,8 +185,8 @@ func MustReadCert(f string) string {
 	return string(b)
 }
 
-func SetupApps(ctx resource.Context, i istio.Instance, apps *EchoDeployments, buildVM bool) error {
-	if ctx.Settings().SkipVM {
+func SetupApps(ctx resource.Context, _ istio.Instance, apps *EchoDeployments, buildVM bool) error {
+	if ctx.Settings().Skip(echo.VM) {
 		buildVM = false
 	}
 	var err error
@@ -203,7 +212,7 @@ func SetupApps(ctx resource.Context, i istio.Instance, apps *EchoDeployments, bu
 		return err
 	}
 
-	builder := echoboot.NewBuilder(ctx).
+	builder := deployment.New(ctx).
 		WithClusters(ctx.Clusters()...).
 		WithConfig(EchoConfig(ASvc, apps.Namespace1, false, nil)).
 		WithConfig(EchoConfig(BSvc, apps.Namespace1, false, nil)).
@@ -248,14 +257,14 @@ func SetupApps(ctx resource.Context, i istio.Instance, apps *EchoDeployments, bu
 					Name:         "http",
 					Protocol:     protocol.HTTP,
 					ServicePort:  80,
-					InstancePort: 8080,
+					WorkloadPort: 8080,
 				},
 				{
 					// HTTPS port
 					Name:         "https",
 					Protocol:     protocol.HTTPS,
 					ServicePort:  443,
-					InstancePort: 8443,
+					WorkloadPort: 8443,
 					TLS:          true,
 				},
 			},
@@ -282,102 +291,81 @@ func SetupApps(ctx resource.Context, i istio.Instance, apps *EchoDeployments, bu
 		return err
 	}
 	apps.All = echos
-	apps.A = echos.Match(echo.Service(ASvc))
-	apps.B = echos.Match(echo.Service(BSvc))
-	apps.C = echos.Match(echo.Service(CSvc))
-	apps.D = echos.Match(echo.Service(DSvc))
-	apps.E = echos.Match(echo.Service(ESvc))
+	apps.A = match.Service(ASvc).GetMatches(echos)
+	apps.B = match.Service(BSvc).GetMatches(echos)
+	apps.C = match.Service(CSvc).GetMatches(echos)
+	apps.D = match.Service(DSvc).GetMatches(echos)
+	apps.E = match.Service(ESvc).GetMatches(echos)
 
-	apps.Multiversion = echos.Match(echo.Service(MultiversionSvc))
-	apps.Headless = echos.Match(echo.Service(HeadlessSvc))
-	apps.Naked = echos.Match(echo.Service(NakedSvc))
-	apps.VM = echos.Match(echo.Service(VMSvc))
-	apps.HeadlessNaked = echos.Match(echo.Service(HeadlessNakedSvc))
+	apps.Multiversion = match.Service(MultiversionSvc).GetMatches(echos)
+	apps.Headless = match.Service(HeadlessSvc).GetMatches(echos)
+	apps.Naked = match.Service(NakedSvc).GetMatches(echos)
+	apps.VM = match.Service(VMSvc).GetMatches(echos)
+	apps.HeadlessNaked = match.Service(HeadlessNakedSvc).GetMatches(echos)
 
 	return nil
 }
 
-func (apps *EchoDeployments) IsNaked(i echo.Instance) bool {
-	return apps.HeadlessNaked.Contains(i) || apps.Naked.Contains(i)
+func (apps *EchoDeployments) IsNaked(t echo.Target) bool {
+	return apps.HeadlessNaked.ContainsTarget(t) || apps.Naked.ContainsTarget(t)
 }
 
-func (apps *EchoDeployments) IsHeadless(i echo.Instance) bool {
-	return apps.HeadlessNaked.Contains(i) || apps.Headless.Contains(i)
+func (apps *EchoDeployments) IsHeadless(t echo.Target) bool {
+	return apps.HeadlessNaked.ContainsTarget(t) || apps.Headless.ContainsTarget(t)
 }
 
-func (apps *EchoDeployments) IsVM(i echo.Instance) bool {
-	return apps.VM.Contains(i)
+func (apps *EchoDeployments) IsVM(t echo.Target) bool {
+	return apps.VM.ContainsTarget(t)
 }
 
 // IsMultiversion matches instances that have Multi-version specific setup.
-func IsMultiversion() echo.Matcher {
-	return func(i echo.Instance) bool {
-		if len(i.Config().Subsets) != 2 {
-			return false
-		}
-		var matchIstio, matchLegacy bool
-		for _, s := range i.Config().Subsets {
-			if s.Version == "vistio" {
-				matchIstio = true
-			} else if s.Version == "vlegacy" && !s.Annotations.GetBool(echo.SidecarInject) {
-				matchLegacy = true
-			}
-		}
-		return matchIstio && matchLegacy
+var IsMultiversion match.Matcher = func(i echo.Instance) bool {
+	if len(i.Config().Subsets) != 2 {
+		return false
 	}
-}
-
-// CheckExistence skips the test if any instance is not available.
-func CheckExistence(ctx framework.TestContext, instances ...echo.Instances) {
-	for _, inst := range instances {
-		if inst == nil || len(inst) == 0 {
-			ctx.Skip()
+	var matchIstio, matchLegacy bool
+	for _, s := range i.Config().Subsets {
+		if s.Version == "vistio" {
+			matchIstio = true
+		} else if s.Version == "vlegacy" && !s.Annotations.GetBool(echo.SidecarInject) {
+			matchLegacy = true
 		}
 	}
+	return matchIstio && matchLegacy
 }
 
-func WaitForConfig(ctx framework.TestContext, namespace namespace.Instance, configs ...string) {
-	// TODO: https://buganizer.corp.google.com/issues/204600168
-	if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "aws" || os.Getenv("CLUSTER_TYPE") == "apm" {
-		return
+var IsNotMultiversion = match.Not(IsMultiversion)
+
+// SourceMatcher matches workload pod A with sidecar injected and VM
+func SourceMatcher(ns string, skipVM bool) match.Matcher {
+	m := match.NamespacedName(model.NamespacedName{
+		Name:      ASvc,
+		Namespace: ns,
+	})
+
+	if !skipVM {
+		m = match.Or(m, match.NamespacedName(model.NamespacedName{
+			Name:      VMSvc,
+			Namespace: ns,
+		}))
 	}
-	for _, config := range configs {
-		for _, c := range ctx.Clusters().Primaries() {
-			c := c
-			ik := istioctl.NewOrFail(ctx, ctx, istioctl.Config{Cluster: c})
-			// calling istioctl invoke in parallel can cause issues due to heavy package-var usage
-			if err := ik.WaitForConfigs(namespace.Name(), config); err != nil {
-				// Get proxy status for additional debugging
-				s, _, _ := ik.Invoke([]string{"ps"})
-				ctx.Logf("wait failed: %v", err)
-				ctx.Logf("proxy status: %v", s)
-				// TODO(https://github.com/istio/istio/issues/37148) fail hard in this case
-			}
-		}
-		// Continue anyways, so we can assess the effectiveness of using `istioctl wait`
+
+	return m
+}
+
+// DestMatcher matches workload pod B with sidecar injected and VM
+func DestMatcher(ns string, skipVM bool) match.Matcher {
+	m := match.NamespacedName(model.NamespacedName{
+		Name:      BSvc,
+		Namespace: ns,
+	})
+
+	if !skipVM {
+		m = match.Or(m, match.NamespacedName(model.NamespacedName{
+			Name:      VMSvc,
+			Namespace: ns,
+		}))
 	}
-}
 
-// SourceFilter returns workload pod A with sidecar injected and VM
-func SourceFilter(t framework.TestContext, apps *EchoDeployments, ns string, skipVM bool) []echotest.Filter {
-	rt := []echotest.Filter{func(instances echo.Instances) echo.Instances {
-		inst := apps.A.Match(echo.Namespace(ns))
-		if !skipVM {
-			inst = append(inst, apps.VM.Match(echo.Namespace(ns))...)
-		}
-		return inst
-	}}
-	return rt
-}
-
-// DestFilter returns workload pod B with sidecar injected and VM
-func DestFilter(t framework.TestContext, apps *EchoDeployments, ns string, skipVM bool) []echotest.Filter {
-	rt := []echotest.Filter{func(instances echo.Instances) echo.Instances {
-		inst := apps.B.Match(echo.Namespace(ns))
-		if !skipVM {
-			inst = append(inst, apps.VM.Match(echo.Namespace(ns))...)
-		}
-		return inst
-	}}
-	return rt
+	return m
 }

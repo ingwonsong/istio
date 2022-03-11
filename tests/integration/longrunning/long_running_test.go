@@ -27,7 +27,8 @@ import (
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
+	"istio.io/istio/pkg/test/framework/components/echo/match"
 	"istio.io/istio/pkg/test/framework/components/echo/util/traffic"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
@@ -70,7 +71,7 @@ func setupApps(t resource.Context) error {
 	if err != nil {
 		return err
 	}
-	echos, err := echoboot.NewBuilder(t).
+	echos, err := deployment.New(t).
 		WithClusters(t.Clusters()...).
 		WithConfig(echoConfig(ns, PodASvc)).
 		WithConfig(echoConfig(ns, PodBSvc)).
@@ -79,8 +80,8 @@ func setupApps(t resource.Context) error {
 		return err
 	}
 
-	PodA = echos.Match(echo.Service(PodASvc))
-	PodB = echos.Match(echo.Service(PodBSvc))
+	PodA = match.Service(PodASvc).GetMatches(echos)
+	PodB = match.Service(PodBSvc).GetMatches(echos)
 
 	return nil
 }
@@ -94,7 +95,7 @@ func echoConfig(ns namespace.Instance, name string) echo.Config {
 				Name:     "http",
 				Protocol: protocol.HTTP,
 				// we use a port > 1024 to not require root
-				InstancePort: 18080,
+				WorkloadPort: 18080,
 			},
 		},
 		Subsets: []echo.SubsetConfig{{}},
@@ -108,8 +109,8 @@ func TestLongRunning(t *testing.T) {
 			g := traffic.NewGenerator(t, traffic.Config{
 				Source: PodA[0],
 				Options: echo.CallOptions{
-					Target:   PodB[0],
-					PortName: "http",
+					To:   PodB,
+					Port: echo.Port{Name: "http"},
 				},
 			}).Start()
 

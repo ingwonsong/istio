@@ -23,3 +23,4 @@ spec:
       env:
         ENABLE_CLOUD_ESF: "true"
         PILOT_ENABLE_METADATA_EXCHANGE: "false"
+        PILOT_ENABLE_ALPN_FILTER: "false"

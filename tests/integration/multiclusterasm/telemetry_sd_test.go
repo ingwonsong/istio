@@ -28,21 +28,19 @@ import (
 
 	"google.golang.org/api/option"
 
+	"istio.io/istio/pkg/http/headers"
+	"istio.io/istio/pkg/test/echo/check"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-
-	// Side-effect import to register cmd line flags
 	"istio.io/istio/pkg/test/framework/components/echo/common"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
 
 	// Side-effect import to register cmd line flags
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
 	_ "istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	stackdriver "istio.io/istio/pkg/test/framework/components/stackdriverasm"
 	"istio.io/istio/pkg/test/framework/resource"
-	"istio.io/istio/pkg/test/util/file"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/istio/pkg/test/util/tmpl"
 )
 
 const (
@@ -71,17 +69,17 @@ func setupApps(ctx resource.Context) error {
 	if err != nil {
 		return err
 	}
-	apps, err = echoboot.NewBuilder(ctx).
+	apps, err = deployment.New(ctx).
 		WithClusters(ctx.Clusters()...).
 		WithConfig(echo.Config{
 			Namespace: ns,
 			Service:   "app",
-			Ports:     common.EchoPorts,
+			Ports:     common.Ports,
 		}).
 		WithConfig(echo.Config{
 			Namespace:  ns,
 			Service:    "vm",
-			Ports:      common.EchoPorts,
+			Ports:      common.Ports,
 			DeployAsVM: true,
 		}).
 		Build()
@@ -125,8 +123,10 @@ func TestAuditStackdriver(t *testing.T) {
 			args := map[string]string{
 				"Namespace": ns.Name(),
 			}
-			policies := tmpl.EvaluateAllOrFail(ctx, args, file.AsStringOrFail(ctx, auditPolicyForLogEntry))
-			ctx.ConfigIstio().ApplyYAMLOrFail(ctx, ns.Name(), policies...)
+			ctx.ConfigIstio().
+				EvalFile(args, auditPolicyForLogEntry).
+				ApplyOrFail(ctx, ns.Name())
+
 			testMulticluster(ctx, func(ctx framework.TestContext, ns namespace.Instance, src, dest echo.Instance) {
 				ctx.Logf("Validating Audit Telemetry for for Cluster in project %v", projectID)
 				validateTelemetry(ctx, projectID, st, ns, src, dest, "http", "server-istio-audit-log")
@@ -203,19 +203,18 @@ func validateControlPlaneTelemetry(t framework.TestContext, projectID string, sd
 }
 
 func sendTraffic(t framework.TestContext, src, dest echo.Instance, portName string) error {
-	r, err := src.Call(echo.CallOptions{
-		Count:    requestCount,
-		Target:   dest,
-		PortName: portName,
-		Headers: map[string][]string{
-			"Host": {dest.Config().ClusterLocalFQDN()},
-		},
+	_, err := src.Call(echo.CallOptions{
+		Count:   requestCount,
+		To:      dest,
+		Port:    echo.Port{Name: portName},
+		HTTP:    echo.HTTP{Headers: headers.New().WithHost(dest.Config().ClusterLocalFQDN()).Build()},
 		Message: t.Name(),
+		Check:   check.OK(),
 	})
 	if err != nil {
 		return err
 	}
-	return r.CheckOK()
+	return nil
 }
 
 func validateMetrics(t framework.TestContext, portName string, projectID string, sd *stackdriver.Instance, ns namespace.Instance, src, dest echo.Instance,
@@ -252,7 +251,7 @@ func validateMetrics(t framework.TestContext, portName string, projectID string,
 		"srcSvc":           src.Config().Service,
 		"destSvc":          dest.Config().Service,
 		"protocol":         strings.ToLower(string(echoPort.Protocol)),
-		"port":             echoPort.InstancePort,
+		"port":             echoPort.WorkloadPort,
 		"sourceOwner":      srcOwner,
 		"destinationOwner": destOwner,
 	})

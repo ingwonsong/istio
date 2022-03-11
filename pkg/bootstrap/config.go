@@ -39,6 +39,7 @@ import (
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/kube/labels"
 	"istio.io/istio/pkg/util/protomarshal"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
 
@@ -70,7 +71,7 @@ type Config struct {
 	*model.Node
 }
 
-// newTemplateParams creates a new template configuration for the given configuration.
+// toTemplateParams creates a new template configuration for the given configuration.
 func (cfg Config) toTemplateParams() (map[string]interface{}, error) {
 	opts := make([]option.Instance, 0)
 
@@ -268,9 +269,36 @@ func getNodeMetadataOptions(node *model.Node) []option.Instance {
 
 	opts = append(opts,
 		option.NodeMetadata(node.Metadata, node.RawMetadata),
+		option.RuntimeFlags(extractRuntimeFlags(node.Metadata.ProxyConfig)),
 		option.EnvoyStatusPort(node.Metadata.EnvoyStatusPort),
 		option.EnvoyPrometheusPort(node.Metadata.EnvoyPrometheusPort))
 	return opts
+}
+
+var StripFragment = env.RegisterBoolVar("HTTP_STRIP_FRAGMENT_FROM_PATH_UNSAFE_IF_DISABLED", true, "").Get()
+
+func extractRuntimeFlags(cfg *model.NodeMetaProxyConfig) map[string]string {
+	// Setup defaults
+	runtimeFlags := map[string]string{
+		"overload.global_downstream_max_connections":                                                           "2147483647",
+		"envoy.deprecated_features:envoy.config.listener.v3.Listener.hidden_envoy_deprecated_use_original_dst": "true",
+		"envoy.reloadable_features.require_strict_1xx_and_204_response_headers":                                "false",
+		"re2.max_program_size.error_level":                                                                     "32768",
+		"envoy.reloadable_features.http_reject_path_with_fragment":                                             "false",
+	}
+	if !StripFragment {
+		// Note: the condition here is basically backwards. This was a mistake in the initial commit and cannot be reverted
+		runtimeFlags["envoy.reloadable_features.http_strip_fragment_from_path_unsafe_if_disabled"] = "false"
+	}
+	for k, v := range cfg.RuntimeValues {
+		if v == "" {
+			// Envoy runtime doesn't see "" as a special value, so we use it to mean 'unset default flag'
+			delete(runtimeFlags, k)
+			continue
+		}
+		runtimeFlags[k] = v
+	}
+	return runtimeFlags
 }
 
 func getLocalityOptions(l *core.Locality) []option.Instance {
@@ -473,18 +501,19 @@ func extractAttributesMetadata(envVars []string, plat platform.Environment, meta
 
 // MetadataOptions for constructing node metadata.
 type MetadataOptions struct {
-	Envs                []string
-	Platform            platform.Environment
-	InstanceIPs         []string
-	StsPort             int
-	ID                  string
-	ProxyConfig         *meshAPI.ProxyConfig
-	PilotSubjectAltName []string
-	OutlierLogPath      string
-	ProvCert            string
-	annotationFilePath  string
-	EnvoyStatusPort     int
-	EnvoyPrometheusPort int
+	Envs                        []string
+	Platform                    platform.Environment
+	InstanceIPs                 []string
+	StsPort                     int
+	ID                          string
+	ProxyConfig                 *meshAPI.ProxyConfig
+	PilotSubjectAltName         []string
+	OutlierLogPath              string
+	ProvCert                    string
+	annotationFilePath          string
+	EnvoyStatusPort             int
+	EnvoyPrometheusPort         int
+	ExitOnZeroActiveConnections bool
 }
 
 // GetNodeMetaData function uses an environment variable contract
@@ -525,6 +554,7 @@ func GetNodeMetaData(options MetadataOptions) (*model.Node, error) {
 	}
 	meta.EnvoyStatusPort = options.EnvoyStatusPort
 	meta.EnvoyPrometheusPort = options.EnvoyPrometheusPort
+	meta.ExitOnZeroActiveConnections = model.StringBool(options.ExitOnZeroActiveConnections)
 
 	meta.ProxyConfig = (*model.NodeMetaProxyConfig)(options.ProxyConfig)
 

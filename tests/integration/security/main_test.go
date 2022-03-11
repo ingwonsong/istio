@@ -24,7 +24,6 @@ import (
 
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/istio"
-	"istio.io/istio/pkg/test/framework/image"
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/tests/integration/security/util"
 	"istio.io/pkg/log"
@@ -53,18 +52,12 @@ func setupConfig(ctx resource.Context, cfg *istio.Config) {
 	if cfg == nil {
 		return
 	}
-	img, err := image.SettingsFromCommandLine()
-	if err != nil {
-		panic(err)
-	}
-
 	controlPlaneValues := `
 values:
   pilot: 
     env: 
       PILOT_JWT_ENABLE_REMOTE_JWKS: true
 meshConfig:
-  accessLogEncoding: JSON
   accessLogFile: /dev/stdout
   defaultConfig:
     image:
@@ -73,7 +66,7 @@ meshConfig:
       numTrustedProxies: 1`
 
 	imageType := "default"
-	if strings.HasSuffix(img.Tag, "-distroless") {
+	if strings.HasSuffix(ctx.Settings().Image.Tag, "-distroless") {
 		imageType = "distroless"
 	}
 

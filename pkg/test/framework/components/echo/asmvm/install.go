@@ -32,7 +32,6 @@ import (
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/common"
 	"istio.io/istio/pkg/test/framework/components/echo/kube"
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/scopes"
@@ -115,7 +114,7 @@ spec:
 `
 
 func (i *instance) generateConfig() error {
-	params, err := kube.TemplateParams(i.config, nil, nil)
+	params, err := kube.TemplateParams(i.config, nil)
 	if err != nil {
 		return err
 	}
@@ -160,7 +159,7 @@ func (i *instance) createWorkloadGroup(ctx resource.Context) error {
 	}
 
 	c := i.cluster
-	if err := ctx.ConfigKube(c.Primary()).ApplyYAML(i.config.Namespace.Name(), i.workloadGroup); err != nil {
+	if err := ctx.ConfigKube(c.Primary()).YAML(i.workloadGroup).Apply(i.config.Namespace.Name()); err != nil {
 		return fmt.Errorf("error applying workload group for %s to %s: %v", i.config.Service, c.PrimaryName(), err)
 	}
 	return nil
@@ -260,11 +259,11 @@ func (i *instance) initializeWorkloads() error {
 	}
 
 	scopes.Framework.Infof("Initializing echo gRPC clients for managed instances in group %s", i.resourceName())
-	grpcPort := common.GetPortForProtocol(&i.config, protocol.GRPC)
-	if grpcPort == nil {
+	grpcPort, f := i.config.Ports.ForProtocol(protocol.GRPC)
+	if !f {
 		return errors.New("unable fo find GRPC command port")
 	}
-	workloads, err := newWorkloads(migInstances, grpcPort.InstancePort, i.config.TLSSettings)
+	workloads, err := newWorkloads(migInstances, grpcPort.WorkloadPort, i.config.TLSSettings, i.cluster)
 	if err != nil {
 		return err
 	}

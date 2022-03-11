@@ -26,10 +26,12 @@ import (
 	"time"
 
 	"istio.io/istio/pkg/config/protocol"
+	"istio.io/istio/pkg/http/headers"
 	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
+	"istio.io/istio/pkg/test/framework/components/echo/match"
 	"istio.io/istio/pkg/test/framework/components/echo/util/traffic"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/kube"
@@ -48,13 +50,13 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				Inject:   true,
 				Revision: "default",
 			})
-			t.ConfigKube().ApplyYAMLOrFail(t, stable14Namespace.Name(), fmt.Sprintf(mtlsDr, stable14Namespace.Name()))
+			t.ConfigKube().YAML(fmt.Sprintf(mtlsDr, stable14Namespace.Name())).ApplyOrFail(t, stable14Namespace.Name())
 			stable16Namespace := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix:   "stable-16",
 				Inject:   true,
 				Revision: "istio-1611",
 			})
-			t.ConfigKube().ApplyYAMLOrFail(t, stable16Namespace.Name(), fmt.Sprintf(mtlsDr, stable16Namespace.Name()))
+			t.ConfigKube().YAML(fmt.Sprintf(mtlsDr, stable16Namespace.Name())).ApplyOrFail(t, stable16Namespace.Name())
 
 			migration14Namespace := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix:   "migration-14",
@@ -69,11 +71,11 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			})
 			// Setup DR to test mtls; the addon didn't have auto mtls enabled
 			for _, ns := range []namespace.Instance{migration14Namespace, migration16Namespace} {
-				t.ConfigKube().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(mtlsDr, ns.Name()))
-				t.ConfigKube().ApplyYAMLOrFail(t, ns.Name(), fmt.Sprintf(gwVS, ns.Name(), ns.Name()))
+				t.ConfigKube().YAML(fmt.Sprintf(mtlsDr, ns.Name())).ApplyOrFail(t, ns.Name())
+				t.ConfigKube().YAML(fmt.Sprintf(gwVS, ns.Name(), ns.Name())).ApplyOrFail(t, ns.Name())
 			}
 
-			builder := echoboot.NewBuilder(t)
+			builder := deployment.New(t)
 
 			// Create workloads in namespaces served by both CA's
 			echos := builder.
@@ -83,18 +85,17 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				WithConfig(util.EchoConfig("migration", migration14Namespace, false, nil)).
 				WithConfig(util.EchoConfig("migration", migration16Namespace, false, nil)).
 				BuildOrFail(t)
-
-			stable14 := echos.Match(echo.Service("addon").And(echo.Namespace(stable14Namespace.Name())))
-			migration14 := echos.Match(echo.Service("migration").And(echo.Namespace(migration14Namespace.Name())))
-			stable16 := echos.Match(echo.Service("addon").And(echo.Namespace(stable16Namespace.Name())))
-			migration16 := echos.Match(echo.Service("migration").And(echo.Namespace(migration16Namespace.Name())))
+			stable14 := match.And(match.Service("addon"), match.Namespace(stable14Namespace.Name())).GetMatches(echos)
+			migration14 := match.And(match.Service("migration"), match.Namespace(migration14Namespace.Name())).GetMatches(echos)
+			stable16 := match.And(match.Service("addon"), match.Namespace(stable16Namespace.Name())).GetMatches(echos)
+			migration16 := match.And(match.Service("migration"), match.Namespace(migration16Namespace.Name())).GetMatches(echos)
 
 			t.Log("starting traffic...")
 			selfCheck14 := traffic.NewGenerator(t, traffic.Config{
 				Source: stable14[0],
 				Options: echo.CallOptions{
-					Target:   stable14[0],
-					PortName: "http",
+					To:   stable14[0],
+					Port: echo.Port{Name: "http"},
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
@@ -102,8 +103,8 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			crossCheck14 := traffic.NewGenerator(t, traffic.Config{
 				Source: stable14[0],
 				Options: echo.CallOptions{
-					Target:   migration14[0],
-					PortName: "http",
+					To:   migration14[0],
+					Port: echo.Port{Name: "http"},
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
@@ -111,8 +112,8 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			selfCheck16 := traffic.NewGenerator(t, traffic.Config{
 				Source: stable16[0],
 				Options: echo.CallOptions{
-					Target:   stable16[0],
-					PortName: "http",
+					To:   stable16[0],
+					Port: echo.Port{Name: "http"},
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
@@ -120,8 +121,8 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			crossCheck16 := traffic.NewGenerator(t, traffic.Config{
 				Source: stable16[0],
 				Options: echo.CallOptions{
-					Target:   migration16[0],
-					PortName: "http",
+					To:   migration16[0],
+					Port: echo.Port{Name: "http"},
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
@@ -130,24 +131,24 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			ingressCheck14 := traffic.NewGenerator(t, traffic.Config{
 				Source: ingress,
 				Options: echo.CallOptions{
-					Port: &echo.Port{
+					Port: echo.Port{
 						Protocol: protocol.HTTP,
 					},
-					Path: "/",
-					Headers: map[string][]string{
-						"Host": {fmt.Sprintf("%s.example.com", migration14Namespace.Name())},
+					HTTP: echo.HTTP{
+						Path:    "/",
+						Headers: headers.New().WithHost(fmt.Sprintf("%s.example.com", migration14Namespace.Name())).Build(),
 					},
 				},
 			}).Start()
 			ingressCheck16 := traffic.NewGenerator(t, traffic.Config{
 				Source: ingress,
 				Options: echo.CallOptions{
-					Port: &echo.Port{
+					Port: echo.Port{
 						Protocol: protocol.HTTP,
 					},
-					Path: "/",
-					Headers: map[string][]string{
-						"Host": {fmt.Sprintf("%s.example.com", migration16Namespace.Name())},
+					HTTP: echo.HTTP{
+						Path:    "/",
+						Headers: headers.New().WithHost(fmt.Sprintf("%s.example.com", migration16Namespace.Name())).Build(),
 					},
 				},
 				Interval: 200 * time.Millisecond,
@@ -156,8 +157,8 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			crossCheck14to16 := traffic.NewGenerator(t, traffic.Config{
 				Source: stable14[0],
 				Options: echo.CallOptions{
-					Target:   migration16[0],
-					PortName: "http",
+					To:   migration16[0],
+					Port: echo.Port{Name: "http"},
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
@@ -165,8 +166,8 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			crossCheck16to14 := traffic.NewGenerator(t, traffic.Config{
 				Source: stable16[0],
 				Options: echo.CallOptions{
-					Target:   migration14[0],
-					PortName: "http",
+					To:   migration14[0],
+					Port: echo.Port{Name: "http"},
 				},
 				Interval: 200 * time.Millisecond,
 			}).Start()
@@ -263,12 +264,12 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				cleanupCheck14 := traffic.NewGenerator(t, traffic.Config{
 					Source: ingress,
 					Options: echo.CallOptions{
-						Port: &echo.Port{
+						Port: echo.Port{
 							Protocol: protocol.HTTP,
 						},
-						Path: "/",
-						Headers: map[string][]string{
-							"Host": {fmt.Sprintf("%s.example.com", migration14Namespace.Name())},
+						HTTP: echo.HTTP{
+							Path:    "/",
+							Headers: headers.New().WithHost(fmt.Sprintf("%s.example.com", migration14Namespace.Name())).Build(),
 						},
 					},
 					Interval: 200 * time.Millisecond,
@@ -276,12 +277,12 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				cleanupCheck16 := traffic.NewGenerator(t, traffic.Config{
 					Source: ingress,
 					Options: echo.CallOptions{
-						Port: &echo.Port{
+						Port: echo.Port{
 							Protocol: protocol.HTTP,
 						},
-						Path: "/",
-						Headers: map[string][]string{
-							"Host": {fmt.Sprintf("%s.example.com", migration16Namespace.Name())},
+						HTTP: echo.HTTP{
+							Path:    "/",
+							Headers: headers.New().WithHost(fmt.Sprintf("%s.example.com", migration16Namespace.Name())).Build(),
 						},
 					},
 					Interval: 200 * time.Millisecond,

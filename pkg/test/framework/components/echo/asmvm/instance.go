@@ -26,7 +26,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 
 	"istio.io/istio/pkg/test"
-	"istio.io/istio/pkg/test/echo/client"
+	echotest "istio.io/istio/pkg/test/echo"
 	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/cluster/asmvm"
 	"istio.io/istio/pkg/test/framework/components/echo"
@@ -34,7 +34,6 @@ import (
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/framework/util"
 	"istio.io/istio/pkg/test/scopes"
-	"istio.io/istio/pkg/test/util/retry"
 )
 
 var _ echo.Instance = &instance{}
@@ -151,48 +150,50 @@ func (i *instance) Address() string {
 	return i.address
 }
 
-func (i *instance) Workloads() ([]echo.Workload, error) {
+func (i *instance) Workloads() (echo.Workloads, error) {
 	i.Lock()
 	defer i.Unlock()
 	return i.workloads, nil
 }
 
-func (i *instance) WorkloadsOrFail(t test.Failer) []echo.Workload {
-	i.Lock()
-	defer i.Unlock()
-	w, err := i.Workloads()
-	if err != nil {
-		t.Fatalf("failed getting workloads for %s", i.Config().Service)
-	}
-	return w
-}
-
-func (i *instance) defaultClient() (*client.Instance, error) {
-	i.Lock()
-	defer i.Unlock()
-	return i.workloads[0].(*workload).Instance, nil
-}
-
-func (i *instance) Call(opts echo.CallOptions) (client.ParsedResponses, error) {
-	return common.ForwardEcho(i.Config().Service, i.defaultClient, &opts, false)
-}
-
-func (i *instance) CallOrFail(t test.Failer, opts echo.CallOptions) client.ParsedResponses {
+func (i *instance) WorkloadsOrFail(t test.Failer) echo.Workloads {
 	t.Helper()
-	res, err := i.Call(opts)
+	out, err := i.Workloads()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return res
+	return out
 }
 
-func (i *instance) CallWithRetry(opts echo.CallOptions, retryOptions ...retry.Option) (client.ParsedResponses, error) {
-	return common.ForwardEcho(i.Config().Service, i.defaultClient, &opts, true, retryOptions...)
+func (i *instance) MustWorkloads() echo.Workloads {
+	out, err := i.Workloads()
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
 
-func (i *instance) CallWithRetryOrFail(t test.Failer, opts echo.CallOptions, retryOptions ...retry.Option) client.ParsedResponses {
+func (i *instance) Clusters() cluster.Clusters {
+	return cluster.Clusters{i.cluster}
+}
+
+func (i *instance) Instances() echo.Instances {
+	return echo.Instances{i}
+}
+
+func (i *instance) defaultClient() (*echotest.Client, error) {
+	i.Lock()
+	defer i.Unlock()
+	return i.workloads[0].(*workload).Client, nil
+}
+
+func (i *instance) Call(opts echo.CallOptions) (echotest.Responses, error) {
+	return common.ForwardEcho(i.Config().Service, i.defaultClient, &opts)
+}
+
+func (i *instance) CallOrFail(t test.Failer, opts echo.CallOptions) echotest.Responses {
 	t.Helper()
-	res, err := i.CallWithRetry(opts, retryOptions...)
+	res, err := i.Call(opts)
 	if err != nil {
 		t.Fatal(err)
 	}

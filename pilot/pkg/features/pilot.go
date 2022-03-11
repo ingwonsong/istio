@@ -105,6 +105,12 @@ var (
 			" EDS pushes may be delayed, but there will be fewer pushes. By default this is enabled",
 	).Get()
 
+	SendUnhealthyEndpoints = env.RegisterBoolVar(
+		"PILOT_SEND_UNHEALTHY_ENDPOINTS",
+		true,
+		"If enabled, Pilot will include unhealthy endpoints in EDS pushes and even if they are sent Envoy does not use them for load balancing.",
+	).Get()
+
 	// HTTP10 will add "accept_http_10" to http outbound listeners. Can also be set only for specific sidecars via meta.
 	HTTP10 = env.RegisterBoolVar(
 		"PILOT_HTTP10",
@@ -278,12 +284,33 @@ var (
 			"ENABLE_MCS_HOST also be enabled.").Get() &&
 		EnableMCSHost
 
+	EnableLegacyLBAlgorithmDefault = env.RegisterBoolVar(
+		"ENABLE_LEGACY_LB_ALGORITHM_DEFAULT",
+		false,
+		"If enabled, destinations for which no LB algorithm is specified will use the legacy "+
+			"default, ROUND_ROBIN. Care should be taken when using ROUND_ROBIN in general as it can "+
+			"overburden endpoints, especially when weights are used.").Get()
+
 	EnableAnalysis = env.RegisterBoolVar(
 		"PILOT_ENABLE_ANALYSIS",
 		false,
 		"If enabled, pilot will run istio analyzers and write analysis errors to the Status field of any "+
 			"Istio Resources",
 	).Get()
+
+	AnalysisInterval = func() time.Duration {
+		val, _ := env.RegisterDurationVar(
+			"PILOT_ANALYSIS_INTERVAL",
+			10*time.Second,
+			"If analysis is enabled, pilot will run istio analyzers using this value as interval in seconds "+
+				"Istio Resources",
+		).Lookup()
+		if val < 1*time.Second {
+			log.Warnf("PILOT_ANALYSIS_INTERVAL %s is too small, it will be set to default 10 seconds", val.String())
+			return 10 * time.Second
+		}
+		return val
+	}()
 
 	EnableStatus = env.RegisterBoolVar(
 		"PILOT_ENABLE_STATUS",
@@ -383,10 +410,6 @@ var (
 		"If enabled, service entries with selectors will select pods from the cluster. "+
 			"It is safe to disable it if you are quite sure you don't need this feature").Get()
 
-	EnableK8SServiceSelectWorkloadEntries = env.RegisterBoolVar("PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES", true,
-		"If enabled, Kubernetes services with selectors will select workload entries with matching labels. "+
-			"It is safe to disable it if you are quite sure you don't need this feature").Get()
-
 	InjectionWebhookConfigName = env.RegisterStringVar("INJECTION_WEBHOOK_CONFIG_NAME", "istio-sidecar-injector",
 		"Name of the mutatingwebhookconfiguration to patch, if istioctl is not used.").Get()
 
@@ -453,6 +476,10 @@ var (
 
 	MetadataExchange = env.RegisterBoolVar("PILOT_ENABLE_METADATA_EXCHANGE", true,
 		"If true, pilot will add metadata exchange filters, which will be consumed by telemetry filter.",
+	).Get()
+
+	ALPNFilter = env.RegisterBoolVar("PILOT_ENABLE_ALPN_FILTER", true,
+		"If true, pilot will add Istio ALPN filters, required for proper protocol sniffing.",
 	).Get()
 
 	WorkloadEntryAutoRegistration = env.RegisterBoolVar("PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION", true,
@@ -596,6 +623,9 @@ var (
 				"`clientKey`, `clientCertificate`, `tokenFile`, and `exec`.").Get()
 		return sets.NewSet(strings.Split(v, ",")...)
 	}()
+
+	VerifySDSCertificate = env.RegisterBoolVar("VERIFY_SDS_CERTIFICATE", true,
+		"If enabled, certificates fetched from SDS server will be verified before sending back to proxy.").Get()
 )
 
 // EnableEndpointSliceController returns the value of the feature flag and whether it was actually specified.

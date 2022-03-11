@@ -18,16 +18,13 @@
 package controller
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"text/template"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -43,7 +40,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/common"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	kube2 "istio.io/istio/pkg/test/kube"
 	"istio.io/istio/pkg/test/scopes"
@@ -106,15 +103,15 @@ func TestProxiesRestarted(t *testing.T) {
 			if af := os.Getenv(RunWithGenManifest); af == "true" {
 				applyGenMDPManifest(t)
 			}
-			builder := echoboot.NewBuilder(t).WithClusters(cs)
+			builder := deployment.New(t).WithClusters(cs)
 			builder = builder.WithConfig(echo.Config{
 				Namespace: ns,
 				Service:   workload1,
-				Ports:     common.EchoPorts,
+				Ports:     common.Ports,
 			}).WithConfig(echo.Config{
 				Namespace: ns,
 				Service:   workload2,
-				Ports:     common.EchoPorts,
+				Ports:     common.Ports,
 			})
 			instances = builder.BuildOrFail(t)
 			_, err := kube2.WaitUntilPodsAreReady(kube2.NewSinglePodFetch(cs, "kube-system", "k8s-app=istio-cni-node"))
@@ -178,7 +175,7 @@ func applyGenMDPManifest(t framework.TestContext) {
 	}
 }
 
-func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder echo.Builder, oldRevision, newRevision, newVersion string) {
+func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder deployment.Builder, oldRevision, newRevision, newVersion string) {
 	pdbns := namespace.NewOrFail(t, t, namespace.Config{
 		Prefix: "mdp-workload-pdb",
 		Inject: true,
@@ -187,7 +184,7 @@ func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder echo.
 	pdbInst := builder.WithConfig(echo.Config{
 		Namespace: pdbns,
 		Service:   workloadPDB,
-		Ports:     common.EchoPorts,
+		Ports:     common.Ports,
 	}).BuildOrFail(t)
 	pdbWL, err := pdbInst[len(pdbInst)-1].Workloads()
 	if err != nil {
@@ -360,51 +357,17 @@ func verifyPodStatus(t framework.TestContext, cs cluster.Cluster) {
 func stubEnvironmentCM(t framework.TestContext, envFile, namespace, targetVersion string) {
 	// TODO @iamwen: remove this stub once test is running against mcp.
 	path := fmt.Sprintf("testdata/%s.yaml", envFile)
-	mdpCM, err := ioutil.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read env cm file: %s: %v", envFile, err)
-	}
-	tmpl, err := template.New("MDPTest").Parse(string(mdpCM))
-	if err != nil {
-		t.Fatalf("failed to create template: %v", err)
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]string{
+	t.ConfigKube().EvalFile(map[string]string{
 		"NewProxyVersion": targetVersion,
-	}); err != nil {
-		t.Fatalf("failed to render template: %v", err)
-	}
-	if err := t.ConfigKube().ApplyYAML(namespace, buf.String()); err != nil {
-		t.Fatalf("failed to apply env cm file: %s, %v", path, err)
-	}
+	}, path).ApplyOrFail(t, namespace)
 }
 
 func createAndApplyTemplate(t framework.TestContext, path, namespace string, data map[string]interface{}) {
-	tp, err := ioutil.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read template: %v", err)
-	}
-	tmpl, err := template.New("MDPTest").Parse(string(tp))
-	if err != nil {
-		t.Fatalf("failed to create template: %v", err)
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		t.Fatalf("failed to render template: %v", err)
-	}
-	if err := t.ConfigKube().ApplyYAML(namespace, buf.String()); err != nil {
-		t.Fatalf("failed to apply template: %s, %v", path, err)
-	}
+	t.ConfigKube().EvalFile(data, path).ApplyOrFail(t, namespace)
 }
 
 func createAndApplyTestdataFile(t framework.TestContext, path, namespace string) {
-	f, err := ioutil.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read file: %s: %v", path, err)
-	}
-	if err := t.ConfigKube().ApplyYAML(namespace, string(f)); err != nil {
-		t.Fatalf("failed to apply file: %s, %v", path, err)
-	}
+	t.ConfigKube().File(path).ApplyOrFail(t, namespace)
 }
 
 // verifyMDPCRStatus verify the status of MDP CR in the cluster as expected in different stages.

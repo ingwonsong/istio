@@ -26,16 +26,17 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"istio.io/istio/pkg/test/echo/check"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
+	"istio.io/istio/pkg/test/framework/components/echo/deployment"
+	"istio.io/istio/pkg/test/framework/components/echo/match"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/label"
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/tests/integration/security/util"
-	"istio.io/istio/tests/integration/security/util/connection"
 )
 
 var inst istio.Instance
@@ -52,25 +53,24 @@ const (
 func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances, b echo.Instances,
 	expectSuccess bool, testPrefix string) {
 	t.Helper()
-	ctx.NewSubTest(testPrefix).Run(func(ctx framework.TestContext) {
+	ctx.NewSubTest(testPrefix).Run(func(t framework.TestContext) {
 		srcList := []echo.Instance{a[0], b[0]}
 		dstList := []echo.Instance{b[0], a[0]}
 		for index := range srcList {
 			src := srcList[index]
 			dst := dstList[index]
 			callOptions := echo.CallOptions{
-				Target:   dst,
-				PortName: "http",
-				Scheme:   scheme.HTTP,
-				Count:    1,
+				To:     dst,
+				Port:   echo.Port{Name: "http"},
+				Scheme: scheme.HTTP,
+				Count:  1,
 			}
-			checker := connection.Checker{
-				From:          src,
-				Options:       callOptions,
-				ExpectSuccess: expectSuccess,
-				DestClusters:  b.Clusters(),
+			if expectSuccess {
+				callOptions.Check = check.OK()
+			} else {
+				callOptions.Check = check.Error()
 			}
-			checker.CheckOrFail(ctx)
+			src.CallOrFail(t, callOptions)
 		}
 	})
 }
@@ -105,7 +105,7 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 				Revision: MeshCARevision,
 			})
 
-			builder := echoboot.NewBuilder(ctx)
+			builder := deployment.New(ctx)
 
 			builder.
 				WithClusters(ctx.Clusters()...).
@@ -120,10 +120,10 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 				return
 			}
 			cluster := ctx.Clusters().Default()
-			a := echos.Match(echo.Service(ASvc)).Match(echo.InCluster(cluster))
-			b := echos.Match(echo.Service(BSvc)).Match(echo.InCluster(cluster))
-			c := echos.Match(echo.Service(CSvc)).Match(echo.InCluster(cluster))
-			d := echos.Match(echo.Service(DSvc)).Match(echo.InCluster(cluster))
+			a := match.And(match.Service(ASvc), match.InCluster(cluster)).GetMatches(echos)
+			b := match.And(match.Service(BSvc), match.InCluster(cluster)).GetMatches(echos)
+			c := match.And(match.Service(CSvc), match.InCluster(cluster)).GetMatches(echos)
+			d := match.And(match.Service(DSvc), match.InCluster(cluster)).GetMatches(echos)
 
 			// 1. Setup Test
 			checkConnectivity(t, ctx, b, c, true, "init-test-cross-ca-mtls")
