@@ -43,7 +43,7 @@ func gatewayDir(rev *revision.Config) (string, error) {
 func (c *installer) installIngressGateway(settings *resource.Settings, rev *revision.Config, context, kubeconfig string, idx int) error {
 	// TODO(samnaser) this prevents us from deploying ingresses for older versions. Long-term we should come up with
 	// a better approach here.
-	if rev != nil && rev.Version != "" {
+	if rev != nil && rev.Version != "" && rev.Name != "" {
 		return nil
 	}
 	if len(c.settings.ClusterProxy) != 0 && settings.ClusterProxy[idx] != "" {

@@ -47,7 +47,7 @@ type installer struct {
 // both before and after the actual installation.
 func (c *installer) Install() error {
 	if c.settings.RevisionConfig == "" {
-		return c.installInner(&revision.Config{})
+		return c.installInner(&revision.Config{Version: c.settings.ASMVersion})
 	}
 
 	revisionConfigPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "revision-deployer", c.settings.RevisionConfig)

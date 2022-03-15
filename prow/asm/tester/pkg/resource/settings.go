@@ -48,6 +48,10 @@ type Settings struct {
 	// MulticloudOverrideEnvironProject makes GCPProjects take precedence over hardcoded values for multicloud projects.
 	MulticloudOverrideEnvironProject bool `flag:"multicloud-override-environ-project" desc:"When running on multicloud clusters, prefer --gcp-projects to hardcoded project names."`
 
+	// ASMVersion indicates what ASM version this version of ASM belongs to.
+	// Format is similar to revision versions, e.g. 1.10, 1.11.
+	ASMVersion string `flag:"asm-version" desc:"asm-version pins scripts and istiod versions to release versions, instead of specific commits and locally-built binary. For example: 1.10, 1.11."`
+
 	// A list of http proxy used for multicloud cluster connection
 	ClusterProxy []string
 
