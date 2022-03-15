@@ -123,7 +123,7 @@ func generateTestSelect(settings *resource.Settings) string {
 		if settings.TestTarget == asmSecurityTarget ||
 			settings.TestTarget == asmNetworkingTarget {
 			if testSelect == "" {
-				testSelect = "-customsetup,-postsubmit,-flaky"
+				testSelect = "-customsetup,-postsubmit"
 			}
 		}
 		if settings.FeaturesToTest.Has(string(resource.UserAuth)) {

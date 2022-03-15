@@ -198,7 +198,6 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 		features.PushThrottle = 25
 	}
 
-	features.EnableAuthDebug = true
 	features.WorkloadEntryCrossCluster = true
 	features.PilotCertProvider = constants.CertProviderNone
 	features.MultiRootMesh = true

@@ -27,8 +27,9 @@ VERBOSE=${VERBOSE:-"0"}
 V=""
 if [[ "${VERBOSE}" == "1" ]];then
     V="-x"
+    set -x
 fi
-set -x
+
 SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 OUT=${1:?"output path"}
@@ -43,12 +44,12 @@ GOPKG="$GOPATH/pkg"
 BUILDINFO=${BUILDINFO:-""}
 STATIC=${STATIC:-1}
 LDFLAGS=${LDFLAGS:--extldflags -static}
-GOBUILDFLAGS=${GOBUILDFLAGS:--tags="netgo,osusergo"}
+GOBUILDFLAGS=${GOBUILDFLAGS:-""}
 # Split GOBUILDFLAGS by spaces into an array called GOBUILDFLAGS_ARRAY.
 IFS=' ' read -r -a GOBUILDFLAGS_ARRAY <<< "$GOBUILDFLAGS"
 
 GCFLAGS=${GCFLAGS:-}
-export CGO_ENABLED=${CGO_ENABLED:-1}
+export CGO_ENABLED=${CGO_ENABLED:-0}
 
 if [[ "${STATIC}" !=  "1" ]];then
     LDFLAGS=""

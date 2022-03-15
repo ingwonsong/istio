@@ -12,15 +12,6 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-# Set up authentication if using custom Envoy URL
-# This is needed to fetch Envoy binary for ASM, especially in prow
-ifdef ISTIO_ENVOY_BASE_URL
-ifdef GOOGLE_APPLICATION_CREDENTIALS
-$(shell gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}")
-endif
-export AUTH_HEADER ?= Authorization: Bearer $(shell gcloud auth print-access-token)
-endif
-
 #-----------------------------------------------------------------------------
 # Global Variables
 #-----------------------------------------------------------------------------
@@ -202,7 +193,6 @@ ifeq ($(PULL_POLICY),)
   $(error "PULL_POLICY cannot be empty")
 endif
 
-include mdp/manifest/gen.mk
 include tools/proto/proto.mk
 
 .PHONY: default
@@ -242,7 +232,7 @@ $(OUTPUT_DIRS):
 .PHONY: ${GEN_CERT}
 GEN_CERT := ${ISTIO_BIN}/generate_cert
 ${GEN_CERT}:
-	GOOS=$(GOOS_LOCAL) && GOARCH=$(GOARCH_LOCAL) && CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./security/tools/generate_cert
+	GOOS=$(GOOS_LOCAL) && GOARCH=$(GOARCH_LOCAL) && common/scripts/gobuild.sh $@ ./security/tools/generate_cert
 
 #-----------------------------------------------------------------------------
 # Target: precommit
@@ -420,17 +410,17 @@ gen-kustomize:
 
 # Non-static istioctl targets. These are typically a build artifact.
 ${ISTIO_OUT}/release/istioctl-linux-amd64: depend
-	GOOS=linux GOARCH=amd64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
+	GOOS=linux GOARCH=amd64 LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 ${ISTIO_OUT}/release/istioctl-linux-armv7: depend
-	GOOS=linux GOARCH=arm GOARM=7 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
+	GOOS=linux GOARCH=arm GOARM=7 LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 ${ISTIO_OUT}/release/istioctl-linux-arm64: depend
-	GOOS=linux GOARCH=arm64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
+	GOOS=linux GOARCH=arm64 LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 ${ISTIO_OUT}/release/istioctl-osx: depend
-	GOOS=darwin GOARCH=amd64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
+	GOOS=darwin GOARCH=amd64 LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 ${ISTIO_OUT}/release/istioctl-osx-arm64: depend
-	GOOS=darwin GOARCH=arm64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
+	GOOS=darwin GOARCH=arm64 LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 ${ISTIO_OUT}/release/istioctl-win.exe: depend
-	GOOS=windows LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
+	GOOS=windows LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 
 # generate the istioctl completion files
 ${ISTIO_OUT}/release/istioctl.bash: ${LOCAL_OUT}/istioctl
@@ -538,17 +528,6 @@ include tools/packaging/packaging.mk
 include tests/integration/tests.mk
 
 include common/Makefile.common.mk
-
-#-----------------------------------------------------------------------------
-# Target: ASM specific tests
-#-----------------------------------------------------------------------------
-include tests/integration/tests-asm.mk
-include prow/asm/tester/tester.mk
-
-#-----------------------------------------------------------------------------
-# Target: Cloudrun
-#-----------------------------------------------------------------------------
-include tools/packaging/knative/Makefile
 
 # Include ASM stuff
 -include Makefile.asm.mk

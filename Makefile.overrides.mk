@@ -34,5 +34,3 @@ endif
 .PHONY: istioctl-install
 istioctl-install: istioctl-install-container
 	cp out/$(TARGET_OS)_$(TARGET_ARCH)/istioctl ${GOPATH}/bin
-
-ISTIO_ENVOY_BASE_URL ?= https://storage.googleapis.com/asm-testing/istio/dev

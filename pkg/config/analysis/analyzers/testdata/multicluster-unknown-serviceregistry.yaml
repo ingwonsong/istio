@@ -1,6 +1,8 @@
 apiVersion: v1
 kind: Secret
 metadata:
+  labels:
+    istio/multiCluster: "true"
   name: istio-remote-secret-istio-remote
   namespace: istio-system
 stringData:

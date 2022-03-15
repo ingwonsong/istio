@@ -8,3 +8,17 @@ asm-proxy-update:
 .PHONY: asm-go-tidy
 asm-go-tidy:
 	@bin/asm-go-tidy.sh
+
+
+include mdp/manifest/gen.mk
+
+#-----------------------------------------------------------------------------
+# Target: ASM specific tests
+#-----------------------------------------------------------------------------
+include tests/integration/tests-asm.mk
+include prow/asm/tester/tester.mk
+
+#-----------------------------------------------------------------------------
+# Target: Cloudrun
+#-----------------------------------------------------------------------------
+include tools/packaging/knative/Makefile
