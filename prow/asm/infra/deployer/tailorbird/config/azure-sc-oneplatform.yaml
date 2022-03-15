@@ -1,0 +1,26 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-azure-sc-1p
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 7200 # 2 hours
+  knests:
+    - apiVersion: sut.tailorbird.io/v1alpha1
+      kind: Knest
+      metadata:
+        name: asm-ci-azure-sc-1p-knest
+      spec:
+        clusters:
+          - apiVersion: sut.tailorbird.io/v1alpha1
+            kind: Cluster
+            metadata:
+              name: asm-ci-azure-sc-1p-cluster
+            spec:
+              provider: azure
+              distribution: gke
+              provisionerArgs:
+                region: centralus
+                nodeCount: "6"
+                kubernetesVersion: 1.21.5-gke.2800
+                username: asm-svc-acct
