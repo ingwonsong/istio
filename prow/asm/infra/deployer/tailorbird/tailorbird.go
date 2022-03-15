@@ -238,7 +238,8 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 		case types.GKEOnPrem:
 			version = "latest"
 		case types.GKEOnBareMetal:
-			version = "1.10"
+			version = "latest"
+			versionPrefix = "0.0"
 		case types.GKEOnAWS:
 			version = "aws-1.7.1-gke.1"
 		case types.GKEOnGCPWithAnthosPrivateMode:
