@@ -209,6 +209,7 @@ func TestBadRemoteSecret(t *testing.T) {
 
 				t.ConfigKube().YAML(secret).ApplyOrFail(t, ns)
 			}
+			// Test exec auth
 			// CreateRemoteSecret can never generate this, so create it manually
 			t.ConfigIstio().YAML(`apiVersion: v1
 kind: Secret

@@ -66,7 +66,7 @@ func appendWarning(warnings []string, node interface{}, path string, warning str
 		if defaultF && reflect.DeepEqual(defaultVal, v) {
 			return warnings
 		}
-		if cv, ok := v.(*operator.BoolValueForPB); ok {
+		if cv, ok := v.(*protobuf.BoolValue); ok {
 			v = cv.GetValue()
 		}
 		switch reflect.TypeOf(v).Kind() {
@@ -128,9 +128,9 @@ func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string
 	var meshConfigFilename string
 	// First we will check mesh config. Users can set this, but they need to do it by configmap.
 	// A few settings doe nothing, so we warn about those.
-	if len(originalIop.Spec.MeshConfig) > 0 {
+	if len(v1alpha1.AsMap(originalIop.Spec.MeshConfig)) > 0 {
 		fmt.Fprintln(w, color.New(color.FgBlue).Sprint("\nMigrating MeshConfig settings..."))
-		cm, err := constructMeshConfigmap(originalIop.DeepCopy().Spec.MeshConfig, revision, configDeleteList)
+		cm, err := constructMeshConfigmap(v1alpha1.AsMap(originalIop.Spec.MeshConfig), revision, configDeleteList)
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string
 	if !handledDefaultGateway && hasEnabledGateway(profileIOP.Spec.GetComponents().GetIngressGateways()) {
 		gwIOP := extractGateway(originalIop.DeepCopy(), &operator.GatewaySpec{
 			Name:    "istio-ingressgateway",
-			Enabled: &operator.BoolValueForPB{protobuf.BoolValue{Value: true}},
+			Enabled: &protobuf.BoolValue{Value: true},
 		}, "istio-ingressgateway", revision, configDeleteList)
 		if gwIOP != nil {
 			gateways++
@@ -318,7 +318,7 @@ func extractGateway(iop *v1alpha1.IstioOperator, gw *operator.GatewaySpec, gwNam
 		return nil
 	}
 	spec := iop.DeepCopy().Spec
-	values := spec.Values
+	values := v1alpha1.AsMap(spec.Values)
 
 	// Remove values we do not want the user to attempt to configure
 	for _, v := range configDeleteList {
@@ -364,7 +364,7 @@ func extractGateway(iop *v1alpha1.IstioOperator, gw *operator.GatewaySpec, gwNam
 					K8S:       gw.K8S,
 				}},
 			},
-			Values: values,
+			Values: v1alpha1.MustNewStruct(values),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gw.Name,
