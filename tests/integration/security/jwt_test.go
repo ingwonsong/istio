@@ -19,6 +19,7 @@ package security
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -34,6 +35,7 @@ import (
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/tests/common/jwt"
 	"istio.io/istio/tests/integration/security/util"
+	"istio.io/istio/tests/integration/security/util/authn"
 	"istio.io/istio/tests/integration/security/util/scheck"
 )
 
@@ -584,7 +586,15 @@ func TestIngressRequestAuthentication(t *testing.T) {
 							}
 
 							c.customizeCall(&opts)
-
+							if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" || os.Getenv("CLUSTER_TYPE") == "hybrid-gke-and-bare-metal" {
+								// Request will be sent to host in the host header with HTTP proxy
+								// Modify the /etc/hosts file on the bootstrap VM to direct the request to ingress gateway
+								if len(ingr.Cluster().SSHKey()) > 0 {
+									if err := authn.SetupEtcHostsFile(ingr, opts.GetHost()); err != nil {
+										t.Fatal(err)
+									}
+								}
+							}
 							ingr.CallOrFail(t, opts)
 						})
 					}
