@@ -1,45 +1,47 @@
 #!/bin/bash
 
+# Copyright 2022 Istio Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -euxo pipefail
 
 export BRANCH="${BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 export ASM_BRANCH_SUFFIX="-asm"
 export UPSTREAM_BRANCH=${BRANCH/${ASM_BRANCH_SUFFIX}/}
-export ISTIO_DIR="$(git rev-parse --show-toplevel)"
+ISTIO_DIR="$(git rev-parse --show-toplevel)"
+export ISTIO_DIR
 export PROXY_DIR="${ISTIO_DIR}/../proxy"
 
 function fix_proxy() {
   pushd "${ISTIO_DIR}"
-  COMMIT_MESSAGE="gcb sync bot: update proxy sha"
-  GCB_SYNC_BOT_PROXY_SHA_COMMIT=$(git log --pretty=oneline | grep "${COMMIT_MESSAGE}" | cut -d' ' -f 1 | head -n1)
-  ISTIO_DEP_SHA=$(git show ${UPSTREAM_BRANCH}:istio.deps | grep PROXY_REPO_SHA -A 4 | grep lastStableSHA | cut -f 4 -d '"' )
-  # Check when the proxy SHA was last updated.
-  # if there are no commit from sync bot use latest commit from a log to
-  # get a timestamp
-  if [[ ${GCB_SYNC_BOT_PROXY_SHA_COMMIT} == "" ]]; then
-  LATEST_PROXY_SHA_UPDATE_COMMIT=$(git log -n 1 --pretty=format:%H istio.deps)
-  else
-    LATEST_PROXY_SHA_UPDATE_COMMIT=${GCB_SYNC_BOT_PROXY_SHA_COMMIT}
-  fi
-  PROXY_SHA_COMMIT_DATE=$(git show -s --format=%at ${LATEST_PROXY_SHA_UPDATE_COMMIT})
-  DELTA_SEC=$(expr $(date +%s)-${PROXY_SHA_COMMIT_DATE})
-
+  ISTIO_DEP_SHA=$(git show "${UPSTREAM_BRANCH}:istio.deps" | grep PROXY_REPO_SHA -A 4 | grep lastStableSHA | cut -f 4 -d '"' )
 
   # find latest proxy sha that has corresponding envoy binary pushed to gcs.
   PROXY_SHA=""
-  pushd ${PROXY_DIR}
+  pushd "${PROXY_DIR}"
   git fetch origin
-  git checkout origin/${BRANCH}
-  git reset --hard origin/${BRANCH}
+  git checkout "origin/${BRANCH}"
+  git reset --hard "origin/${BRANCH}"
   COMMIT="$(git rev-parse HEAD)"
   if gsutil stat "gs://asm-testing/istio/dev/envoy-alpha-${COMMIT}.tar.gz"; then
-  PROXY_SHA=${COMMIT}
+    PROXY_SHA="${COMMIT}"
   else
     echo "envoy binary for ${COMMIT} not found from gcs, please check proxy build flow"
     exit 1
   fi
   popd
-  if [[ ${PROXY_SHA} != "" && ${PROXY_SHA} != ${ISTIO_DEP_SHA} ]]; then
+  if [[ "${PROXY_SHA}" != "" && "${PROXY_SHA}" != ${ISTIO_DEP_SHA}"" ]]; then
     # make a commit with updated sha
     jq ".[0].lastStableSHA = \"${PROXY_SHA}\"" istio.deps -Mr > istio.deps.new
     mv istio.deps.new istio.deps

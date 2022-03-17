@@ -32,7 +32,7 @@ import (
 	"istio.io/istio/pkg/test/echo/check"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/common"
+	"istio.io/istio/pkg/test/framework/components/echo/common/ports"
 	"istio.io/istio/pkg/test/framework/components/echo/deployment"
 
 	// Side-effect import to register cmd line flags
@@ -74,12 +74,12 @@ func setupApps(ctx resource.Context) error {
 		WithConfig(echo.Config{
 			Namespace: ns,
 			Service:   "app",
-			Ports:     common.Ports,
+			Ports:     ports.All(),
 		}).
 		WithConfig(echo.Config{
 			Namespace:  ns,
 			Service:    "vm",
-			Ports:      common.Ports,
+			Ports:      ports.All(),
 			DeployAsVM: true,
 		}).
 		Build()
@@ -227,8 +227,8 @@ func validateMetrics(t framework.TestContext, portName string, projectID string,
 	if err != nil {
 		t.Fatalf("failed to read expected label file for asm: %v", err)
 	}
-	echoPort := dest.Config().PortByName(portName)
-	if echoPort == nil {
+	echoPort, f := dest.Config().Ports.ForName(portName)
+	if !f {
 		t.Fatal("%s does not have a port %s", dest.Config().Service, portName)
 		return nil
 	}

@@ -12,9 +12,6 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-# Include ASM stuff
--include Makefile.asm.mk
-
 # Set up authentication if using custom Envoy URL
 # This is needed to fetch Envoy binary for ASM, especially in prow
 ifdef ISTIO_ENVOY_BASE_URL
@@ -34,7 +31,7 @@ SHELL := /bin/bash -o pipefail
 export VERSION ?= 1.14-dev
 
 # Base version of Istio image to use
-BASE_VERSION ?= master-2022-03-05T19-01-04
+BASE_VERSION ?= master-2022-03-16T19-01-24
 
 export GO111MODULE ?= on
 export GOPROXY ?= https://proxy.golang.org
@@ -552,3 +549,6 @@ include prow/asm/tester/tester.mk
 # Target: Cloudrun
 #-----------------------------------------------------------------------------
 include tools/packaging/knative/Makefile
+
+# Include ASM stuff
+-include Makefile.asm.mk

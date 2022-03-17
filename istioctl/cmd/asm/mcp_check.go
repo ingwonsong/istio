@@ -44,11 +44,11 @@ import (
 
 // We need to lazy load or we emit some logs that make all istioctl commands spam logs
 var (
-	defaultProfileSpec interface{}
+	defaultProfileSpec *operator.IstioOperatorSpec
 	profileOnce        = sync.Once{}
 )
 
-func appendWarning(warnings []string, node interface{}, path string, warning string) []string {
+func appendWarning(warnings []string, node *operator.IstioOperatorSpec, path string, warning string) []string {
 	profileOnce.Do(func() {
 		profileYAML, err := helm.GetProfileYAML("", "default")
 		if err != nil {
@@ -68,6 +68,9 @@ func appendWarning(warnings []string, node interface{}, path string, warning str
 		}
 		if cv, ok := v.(*protobuf.BoolValue); ok {
 			v = cv.GetValue()
+		}
+		if cv, ok := v.(*protobuf.Value); ok {
+			v = v1alpha1.AsInterface(cv)
 		}
 		switch reflect.TypeOf(v).Kind() {
 		case reflect.Struct, reflect.Map, reflect.Ptr:
