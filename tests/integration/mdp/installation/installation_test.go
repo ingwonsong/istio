@@ -24,7 +24,7 @@ import (
 
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/common"
+	"istio.io/istio/pkg/test/framework/components/echo/common/ports"
 	"istio.io/istio/pkg/test/framework/components/echo/deployment"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/kube"
@@ -64,7 +64,7 @@ func TestInstallSuccess(t *testing.T) {
 			builder = builder.WithConfig(echo.Config{
 				Namespace: ns,
 				Service:   "example-workload",
-				Ports:     common.Ports,
+				Ports:     ports.All(),
 				Subsets:   []echo.SubsetConfig{{}},
 			})
 			instances := builder.BuildOrFail(t)

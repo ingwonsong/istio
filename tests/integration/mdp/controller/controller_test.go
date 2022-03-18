@@ -39,7 +39,7 @@ import (
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/common"
+	"istio.io/istio/pkg/test/framework/components/echo/common/ports"
 	"istio.io/istio/pkg/test/framework/components/echo/deployment"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	kube2 "istio.io/istio/pkg/test/kube"
@@ -107,11 +107,11 @@ func TestProxiesRestarted(t *testing.T) {
 			builder = builder.WithConfig(echo.Config{
 				Namespace: ns,
 				Service:   workload1,
-				Ports:     common.Ports,
+				Ports:     ports.All(),
 			}).WithConfig(echo.Config{
 				Namespace: ns,
 				Service:   workload2,
-				Ports:     common.Ports,
+				Ports:     ports.All(),
 			})
 			instances = builder.BuildOrFail(t)
 			_, err := kube2.WaitUntilPodsAreReady(kube2.NewSinglePodFetch(cs, "kube-system", "k8s-app=istio-cni-node"))
@@ -184,7 +184,7 @@ func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder deplo
 	pdbInst := builder.WithConfig(echo.Config{
 		Namespace: pdbns,
 		Service:   workloadPDB,
-		Ports:     common.Ports,
+		Ports:     ports.All(),
 	}).BuildOrFail(t)
 	pdbWL, err := pdbInst[len(pdbInst)-1].Workloads()
 	if err != nil {

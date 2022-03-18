@@ -39,7 +39,6 @@ spec:
             cpu: 500m
         hpaSpec:
           minReplicas: 2
-        replicaCount: 2
         env:
           - name: ENABLE_STACKDRIVER_MONITORING
             value: "true"

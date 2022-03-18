@@ -26,9 +26,10 @@ source "${WD}/libs/asm-lib.sh"
 # bash libraries from our Go scripts.
 # Parameters: $1: name of the function to execute
 #             $2: arguments to pass to the function
+# shellcheck disable=SC2294
 function dispatch() {
-	cmd="$1"; shift 1;
-	eval "$cmd" "$@"
+  cmd="$1"; shift 1;
+  eval "$cmd" "$@"
 }
 
 dispatch "$@"

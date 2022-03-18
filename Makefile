@@ -24,6 +24,9 @@ SHELL := /bin/bash
 # allow optional per-repo overrides
 -include Makefile.overrides.mk
 
+# ASM overrides
+-include Makefile.asm.overrides.mk
+
 # cloudesf specific overrides
 -include cloudesf/Makefile.cloudesf.version.mk
 

@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/test/echo/check"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/framework"
@@ -120,10 +121,10 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 				return
 			}
 			cluster := ctx.Clusters().Default()
-			a := match.And(match.Service(ASvc), match.InCluster(cluster)).GetMatches(echos)
-			b := match.And(match.Service(BSvc), match.InCluster(cluster)).GetMatches(echos)
-			c := match.And(match.Service(CSvc), match.InCluster(cluster)).GetMatches(echos)
-			d := match.And(match.Service(DSvc), match.InCluster(cluster)).GetMatches(echos)
+			a := match.And(match.ServiceName(model.NamespacedName{Name: ASvc, Namespace: nsA.Name()}), match.Cluster(cluster)).GetMatches(echos)
+			b := match.And(match.ServiceName(model.NamespacedName{Name: BSvc, Namespace: nsB.Name()}), match.Cluster(cluster)).GetMatches(echos)
+			c := match.And(match.ServiceName(model.NamespacedName{Name: CSvc, Namespace: nsC.Name()}), match.Cluster(cluster)).GetMatches(echos)
+			d := match.And(match.ServiceName(model.NamespacedName{Name: DSvc, Namespace: nsD.Name()}), match.Cluster(cluster)).GetMatches(echos)
 
 			// 1. Setup Test
 			checkConnectivity(t, ctx, b, c, true, "init-test-cross-ca-mtls")

@@ -25,6 +25,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
+	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/test"
 	echotest "istio.io/istio/pkg/test/echo"
 	"istio.io/istio/pkg/test/framework/components/cluster"
@@ -142,8 +143,20 @@ func (i *instance) ID() resource.ID {
 	return i.id
 }
 
+func (i *instance) NamespacedName() model.NamespacedName {
+	return i.config.NamespacedName()
+}
+
+func (i *instance) PortForName(name string) echo.Port {
+	return i.Config().Ports.MustForName(name)
+}
+
 func (i *instance) Config() echo.Config {
 	return i.config
+}
+
+func (i *instance) Addresses() []string {
+	return []string{i.address}
 }
 
 func (i *instance) Address() string {
