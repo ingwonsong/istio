@@ -1,7 +1,7 @@
-b5b16a145a5dfdd5c4a36bb1e20188c61305c6d0
+63cb74a22e5cb2d7d45e80f006bb83901b65f5f8
 ========================================
 Xinnan Wen
-Fri Feb 18 16:34:15 2022 -0800
+Mon Mar 21 16:41:33 2022 -0700
 
-sync migrate-addon script to latest (#1129)
+sync migrate addon script: check existence of control plane (#1154)
 
