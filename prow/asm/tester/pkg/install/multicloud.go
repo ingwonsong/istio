@@ -198,6 +198,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 			env.SharedGCPProject, gcp.CasRootCaLoc, issuingCaPoolId)
 		installFlags = append(installFlags, "--ca", "gcp_cas")
 		installFlags = append(installFlags, "--ca_pool", caName)
+		installFlags = append(installFlags, "--enable_gcp_iam_roles")
 	} else {
 		return nil, fmt.Errorf("unsupported CA type for multicloud installation: %s", ca)
 	}

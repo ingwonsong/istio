@@ -21,12 +21,17 @@ import (
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
+	"istio.io/istio/prow/asm/tester/pkg/kube"
+	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
 func Teardown(settings *resource.Settings) error {
 	log.Println("🎬 start cleaning up ASM control plane installation...")
 
+	if settings.CA == resource.PrivateCA {
+		cleanupPrivateCa(settings)
+	}
 	if settings.ControlPlane == resource.Unmanaged {
 		cleanUpImages()
 	} else {
@@ -95,4 +100,31 @@ func removeGcpPermissions(settings *resource.Settings) error {
 		}
 	}
 	return nil
+}
+
+func cleanupPrivateCa(settings *resource.Settings) {
+	var certTemplate string
+	if settings.ClusterType == resource.GKEOnGCP {
+		wip := fmt.Sprintf("group:%v.svc.id.goog:/allAuthenticatedUsers/",
+			kube.GKEClusterSpecFromContext(settings.KubeContexts[0]).ProjectID)
+		for _, context := range settings.KubeContexts {
+			cluster := kube.GKEClusterSpecFromContext(context)
+			caName := gcp.GetPrivateCAPool(env.SharedGCPProject, cluster.Location)
+			if settings.FeaturesToTest.Has(string(resource.CasCertTemplate)) {
+				certTemplate = gcp.GetPrivateCACertTemplate(env.SharedGCPProject, cluster.Location)
+			} else {
+				certTemplate = ""
+			}
+			exec.Dispatch(settings.RepoRootDir,
+				"amend_privateca_iam",
+				[]string{"remove-iam-policy-binding",
+					caName,
+					cluster.Location,
+					wip,
+					env.SharedGCPProject,
+					certTemplate,
+				})
+
+		}
+	}
 }
