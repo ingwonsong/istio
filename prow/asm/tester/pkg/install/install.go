@@ -131,6 +131,27 @@ func (c *installer) postInstall(rev *revision.Config) error {
 		if err := multiversion.ReplaceWebhook(rev, context); err != nil {
 			return err
 		}
+		if err := EnableAccessLogging(context); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func EnableAccessLogging(context string) error {
+	if err := exec.Run(
+		fmt.Sprintf(`bash -c 'cat <<EOF | kubectl apply --context=%s -f -
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: mesh-default
+  namespace: istio-system
+spec:
+  accessLogging:
+  - disabled: false
+EOF'`, context)); err != nil {
+		// warn instead of error since some tests do not setup CRDs at all
+		log.Println("error enabling access logging to help with debugging tests")
 	}
 	return nil
 }
