@@ -130,8 +130,8 @@ func deployAutomigration(t framework.TestContext, channel, revision string) {
 	manifestPath := istioEnv.IstioSrc + "/tools/packaging/knative/addonmigration/addon-migration-manifest.yaml"
 	cs := t.Clusters().Default()
 	t.ConfigIstio().
-		EvalFile(map[string]string{"HUB": cls.Image.Hub, "TAG": cls.Image.Tag, "MCP_CHANNEL": channel}, manifestPath).
-		ApplyOrFail(t, "istio-system", resource.NoCleanup)
+		EvalFile("istio-system", map[string]string{"HUB": cls.Image.Hub, "TAG": cls.Image.Tag, "MCP_CHANNEL": channel}, manifestPath).
+		ApplyOrFail(t, resource.NoCleanup)
 	defer dumpMigrationJobPod(t)
 	_, err = kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(cs, "istio-system", "istio=addon-migration"))
 	if err != nil {

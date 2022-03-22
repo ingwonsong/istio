@@ -357,17 +357,17 @@ func verifyPodStatus(t framework.TestContext, cs cluster.Cluster) {
 func stubEnvironmentCM(t framework.TestContext, envFile, namespace, targetVersion string) {
 	// TODO @iamwen: remove this stub once test is running against mcp.
 	path := fmt.Sprintf("testdata/%s.yaml", envFile)
-	t.ConfigKube().EvalFile(map[string]string{
+	t.ConfigKube().EvalFile(namespace, map[string]string{
 		"NewProxyVersion": targetVersion,
-	}, path).ApplyOrFail(t, namespace)
+	}, path).ApplyOrFail(t)
 }
 
 func createAndApplyTemplate(t framework.TestContext, path, namespace string, data map[string]interface{}) {
-	t.ConfigKube().EvalFile(data, path).ApplyOrFail(t, namespace)
+	t.ConfigKube().EvalFile(namespace, data, path).ApplyOrFail(t)
 }
 
 func createAndApplyTestdataFile(t framework.TestContext, path, namespace string) {
-	t.ConfigKube().File(path).ApplyOrFail(t, namespace)
+	t.ConfigKube().File(namespace, path).ApplyOrFail(t)
 }
 
 // verifyMDPCRStatus verify the status of MDP CR in the cluster as expected in different stages.

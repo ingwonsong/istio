@@ -124,8 +124,8 @@ func TestAuditStackdriver(t *testing.T) {
 				"Namespace": ns.Name(),
 			}
 			ctx.ConfigIstio().
-				EvalFile(args, auditPolicyForLogEntry).
-				ApplyOrFail(ctx, ns.Name())
+				EvalFile(ns.Name(), args, auditPolicyForLogEntry).
+				ApplyOrFail(ctx)
 
 			testMulticluster(ctx, func(ctx framework.TestContext, ns namespace.Instance, src, dest echo.Instance) {
 				ctx.Logf("Validating Audit Telemetry for for Cluster in project %v", projectID)

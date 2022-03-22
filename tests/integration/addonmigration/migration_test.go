@@ -51,13 +51,13 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				Inject:   true,
 				Revision: "default",
 			})
-			t.ConfigKube().YAML(fmt.Sprintf(mtlsDr, stable14Namespace.Name())).ApplyOrFail(t, stable14Namespace.Name())
+			t.ConfigKube().YAML(stable14Namespace.Name(), fmt.Sprintf(mtlsDr, stable14Namespace.Name())).ApplyOrFail(t)
 			stable16Namespace := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix:   "stable-16",
 				Inject:   true,
 				Revision: "istio-1611",
 			})
-			t.ConfigKube().YAML(fmt.Sprintf(mtlsDr, stable16Namespace.Name())).ApplyOrFail(t, stable16Namespace.Name())
+			t.ConfigKube().YAML(stable16Namespace.Name(), fmt.Sprintf(mtlsDr, stable16Namespace.Name())).ApplyOrFail(t)
 
 			migration14Namespace := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix:   "migration-14",
@@ -72,8 +72,8 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			})
 			// Setup DR to test mtls; the addon didn't have auto mtls enabled
 			for _, ns := range []namespace.Instance{migration14Namespace, migration16Namespace} {
-				t.ConfigKube().YAML(fmt.Sprintf(mtlsDr, ns.Name())).ApplyOrFail(t, ns.Name())
-				t.ConfigKube().YAML(fmt.Sprintf(gwVS, ns.Name(), ns.Name())).ApplyOrFail(t, ns.Name())
+				t.ConfigKube().YAML(ns.Name(), fmt.Sprintf(mtlsDr, ns.Name())).ApplyOrFail(t)
+				t.ConfigKube().YAML(ns.Name(), fmt.Sprintf(gwVS, ns.Name(), ns.Name())).ApplyOrFail(t)
 			}
 
 			builder := deployment.New(t)

@@ -31,7 +31,7 @@ func MCPDefaultProxyConfig(pc meshconfig.ProxyConfig) meshconfig.ProxyConfig {
 	return pc
 }
 
-func MCPDefaultMeshConfig(mc meshconfig.MeshConfig) meshconfig.MeshConfig {
+func MCPDefaultMeshConfig(mc *meshconfig.MeshConfig) *meshconfig.MeshConfig {
 	// Disable locality LB by default, but users can still turn it on
 	mc.LocalityLbSetting = &v1alpha3.LocalityLoadBalancerSetting{
 		Enabled: &types.BoolValue{Value: true},

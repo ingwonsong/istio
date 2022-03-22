@@ -35,37 +35,37 @@ PROXY_HUB ?= grc.io/asm-staging-images
 GOTEMPLATE_REPLACE = sed -E 's/gotemplatereplace_(\w+?)/{{.\1}}/g'
 
 .PHONY: all-cloudrun
-all-cloudrun: $(ISTIO_OUT)/knative/telemetry-sd.yaml $(ISTIO_OUT)/knative/telemetry.yaml $(ISTIO_OUT)/knative/injection-template.yaml $(ISTIO_OUT)/knative/mutatingwebhook.yaml
+all-cloudrun: $(TARGET_OUT_LINUX)/knative/telemetry-sd.yaml $(TARGET_OUT_LINUX)/knative/telemetry.yaml $(TARGET_OUT_LINUX)/knative/injection-template.yaml $(TARGET_OUT_LINUX)/knative/mutatingwebhook.yaml
 
-$(ISTIO_OUT)/knative/telemetry-sd.yaml: manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml tools/packaging/knative/values.telemetry-sd.yaml
-	mkdir -p $(ISTIO_OUT)/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml ${ISTIO_OUT}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml ${ISTIO_OUT}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml ${ISTIO_OUT}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${ISTIO_OUT}/knative/Chart.yaml
-	helm template $(ISTIO_OUT)/knative -f tools/packaging/knative/values.telemetry-sd.yaml | ${GOTEMPLATE_REPLACE} > $@
+$(TARGET_OUT_LINUX)/knative/telemetry-sd.yaml: manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml tools/packaging/knative/values.telemetry-sd.yaml
+	mkdir -p $(TARGET_OUT_LINUX)/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml ${TARGET_OUT_LINUX}/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml ${TARGET_OUT_LINUX}/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml ${TARGET_OUT_LINUX}/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${TARGET_OUT_LINUX}/knative/Chart.yaml
+	helm template $(TARGET_OUT_LINUX)/knative -f tools/packaging/knative/values.telemetry-sd.yaml | ${GOTEMPLATE_REPLACE} > $@
 
-$(ISTIO_OUT)/knative/telemetry.yaml: manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml
-	mkdir -p $(ISTIO_OUT)/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml ${ISTIO_OUT}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml ${ISTIO_OUT}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml ${ISTIO_OUT}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${ISTIO_OUT}/knative/Chart.yaml
-	helm template $(ISTIO_OUT)/knative -f tools/packaging/knative/values.telemetry.yaml | ${GOTEMPLATE_REPLACE} > $@
+$(TARGET_OUT_LINUX)/knative/telemetry.yaml: manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml
+	mkdir -p $(TARGET_OUT_LINUX)/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml ${TARGET_OUT_LINUX}/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml ${TARGET_OUT_LINUX}/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml ${TARGET_OUT_LINUX}/knative/templates
+	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${TARGET_OUT_LINUX}/knative/Chart.yaml
+	helm template $(TARGET_OUT_LINUX)/knative -f tools/packaging/knative/values.telemetry.yaml | ${GOTEMPLATE_REPLACE} > $@
 
-$(ISTIO_OUT)/knative/injection-template.yaml: manifests/charts/istio-control/istio-discovery/files/injection-template.yaml
-	mkdir -p $(ISTIO_OUT)/knative
-	cp tools/packaging/knative/injection-template-extra.yaml ${ISTIO_OUT}/knative/injection-template.yaml
-	echo -e "\n  sidecar: |-" >> ${ISTIO_OUT}/knative/injection-template.yaml
-	cat manifests/charts/istio-control/istio-discovery/files/injection-template.yaml | ${GOTEMPLATE_REPLACE} | sed 's/^/    /g' >> ${ISTIO_OUT}/knative/injection-template.yaml
-	echo -e "\n  gateway: |-" >> ${ISTIO_OUT}/knative/injection-template.yaml
-	cat manifests/charts/istio-control/istio-discovery/files/gateway-injection-template.yaml | ${GOTEMPLATE_REPLACE} | sed 's/^/    /g' >> ${ISTIO_OUT}/knative/injection-template.yaml
+$(TARGET_OUT_LINUX)/knative/injection-template.yaml: manifests/charts/istio-control/istio-discovery/files/injection-template.yaml
+	mkdir -p $(TARGET_OUT_LINUX)/knative
+	cp tools/packaging/knative/injection-template-extra.yaml ${TARGET_OUT_LINUX}/knative/injection-template.yaml
+	echo -e "\n  sidecar: |-" >> ${TARGET_OUT_LINUX}/knative/injection-template.yaml
+	cat manifests/charts/istio-control/istio-discovery/files/injection-template.yaml | ${GOTEMPLATE_REPLACE} | sed 's/^/    /g' >> ${TARGET_OUT_LINUX}/knative/injection-template.yaml
+	echo -e "\n  gateway: |-" >> ${TARGET_OUT_LINUX}/knative/injection-template.yaml
+	cat manifests/charts/istio-control/istio-discovery/files/gateway-injection-template.yaml | ${GOTEMPLATE_REPLACE} | sed 's/^/    /g' >> ${TARGET_OUT_LINUX}/knative/injection-template.yaml
 
-$(ISTIO_OUT)/knative/mutatingwebhook.yaml: manifests/charts/istio-control/istio-discovery/templates/mutatingwebhook.yaml
-	mkdir -p $(ISTIO_OUT)/knative-wh/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/mutatingwebhook.yaml ${ISTIO_OUT}/knative-wh/templates
-	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${ISTIO_OUT}/knative-wh/Chart.yaml
-	helm template istio $(ISTIO_OUT)/knative-wh -n istio-system -f tools/packaging/knative/values.webhook.yaml | ${GOTEMPLATE_REPLACE} | sed 's/name: istio-sidecar-injector-/name: istiod-/g' > $@
+$(TARGET_OUT_LINUX)/knative/mutatingwebhook.yaml: manifests/charts/istio-control/istio-discovery/templates/mutatingwebhook.yaml
+	mkdir -p $(TARGET_OUT_LINUX)/knative-wh/templates
+	cp manifests/charts/istio-control/istio-discovery/templates/mutatingwebhook.yaml ${TARGET_OUT_LINUX}/knative-wh/templates
+	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${TARGET_OUT_LINUX}/knative-wh/Chart.yaml
+	helm template istio $(TARGET_OUT_LINUX)/knative-wh -n istio-system -f tools/packaging/knative/values.webhook.yaml | ${GOTEMPLATE_REPLACE} | sed 's/name: istio-sidecar-injector-/name: istiod-/g' > $@
 
 # Setup the CloudRun Istiod revision
 knative/setup:

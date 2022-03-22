@@ -307,7 +307,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		}
 
 		t.Logf("Deploying Cloud ESF based ingress gateway.")
-		t.ConfigKube().Eval(templateParams, gatewayTemplate).ApplyOrFail(t, "istio-system")
+		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t)
 
 		// Get the ingress address.
 		address, _ := i.CustomIngressFor(t.Clusters().Default(), "istio-ingressgateway", "ingressgateway").HTTPAddress()
@@ -362,7 +362,7 @@ spec:
     args: ["-host=%s:80", %s]
 `, clientPod, clientNamespace, clientKSA, testClientImageAddr, cloudesf.Version(), clientContainer, address, testClientImageExtraArgs)
 		t.Logf("test client config:\n%s", yamlConfig)
-		t.ConfigKube().YAML(yamlConfig).ApplyOrFail(t, clientNamespace)
+		t.ConfigKube().YAML(clientNamespace, yamlConfig).ApplyOrFail(t)
 
 		// Wait the test client container finish.
 		retry.UntilSuccessOrFail(t, func() error {

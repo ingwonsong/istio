@@ -26,6 +26,6 @@ sed -i '/istio.io\/rev/d' "${MDP_MANIFEST_OUT}"
 sed -i 's/PROJECT_ID/{{ .PROJECT_ID }}/' "${MDP_MANIFEST_OUT}"
 
 # for release build only
-if [[ -d "${ISTIO_OUT}/release" ]];then
-  cp ${MDP_MANIFEST_OUT} "${ISTIO_OUT}/release/gen-mdp-manifest.yaml"
+if [[ -d "${TARGET_OUT}/release" ]];then
+  cp ${MDP_MANIFEST_OUT} "${TARGET_OUT}/release/gen-mdp-manifest.yaml"
 fi
