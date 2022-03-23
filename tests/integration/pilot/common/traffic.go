@@ -267,11 +267,7 @@ func RunAllTrafficTests(t framework.TestContext, i istio.Instance, apps *EchoDep
 	}
 	cases["dns"] = DNSTestCases(apps, i.Settings().EnableCNI)
 	for name, tts := range cases {
-		name := name
 		t.NewSubTest(name).Run(func(t framework.TestContext) {
-			if name == "gateway" {
-				t.Skip("https://b.corp.google.com/issues/175599359")
-			}
 			for _, tt := range tts {
 				if tt.workloadAgnostic {
 					tt.RunForApps(t, apps.All, apps.Namespace.Name())
