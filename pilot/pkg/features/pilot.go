@@ -391,9 +391,6 @@ var (
 	EnableDebugOnHTTP = env.RegisterBoolVar("ENABLE_DEBUG_ON_HTTP", true,
 		"If this is set to false, the debug interface will not be enabled, recommended for production").Get()
 
-	EnableAuthDebug = env.RegisterBoolVar("ENABLE_AUTH_DEBUG", false,
-		"If this is set to true, the debug endpoints will require same auth as XDS. Recommended for production").Get()
-
 	EnableUnsafeAdminEndpoints = env.RegisterBoolVar("UNSAFE_ENABLE_ADMIN_ENDPOINTS", false,
 		"If this is set to true, dangerous admin endpoints will be exposed on the debug interface. Not recommended for production.").Get()
 
@@ -562,12 +559,6 @@ var (
 		false,
 		"If enabled, pilot will allow any upstream cluster to be used with AUTO_PASSTHROUGH. "+
 			"This option is intended for backwards compatibility only and is not secure with untrusted downstreams; it will be removed in the future.").Get()
-
-	EnableInsecureKubeConfig = env.RegisterBoolVar(
-		"PILOT_ENABLE_INSECURE_MULTICLUSTER_KUBECONFIG",
-		false,
-		"If enabled, multicluster kubeconfig files will not be validated. "+
-			"This is insecure in environments where untrusted users have the ability to create multicluster secrets.").Get()
 
 	SharedMeshConfig = env.RegisterStringVar("SHARED_MESH_CONFIG", "",
 		"Additional config map to load for shared MeshConfig settings. The standard mesh config will take precedence.").Get()

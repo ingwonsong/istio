@@ -81,8 +81,8 @@ check-go-tag:
 
 # Generate integration test targets for kubernetes environment.
 test.integration.%.kube: | $(JUNIT_REPORT) check-go-tag
-	$(RUN_TEST) test -p 1 -vet=off ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/$(subst .,/,$*)/... | grep -v /multicluster/centralistio | grep -v multicluster/centralremotekubeconfig) -timeout 30m \
-	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
+	$(RUN_TEST) ./tests/integration/$(subst .,/,$*)/... -timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
 # Generate integration fuzz test targets for kubernetes environment.
