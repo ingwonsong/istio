@@ -353,7 +353,8 @@ gen: \
 	copy-templates \
 	gen-kustomize \
 	update-golden \
-	gen-mdp-manifests ## Update all generated code.
+	gen-mdp-manifests \
+	copy-addonmigration-manifest ## Update all generated code.
 
 gen-check: gen check-clean-repo
 
@@ -404,6 +405,8 @@ gen-kustomize:
 	helm3 template operator --namespace istio-operator manifests/charts/istio-operator \
 		--set hub=gcr.io/istio-testing --set tag=${VERSION} > manifests/charts/istio-operator/files/gen-operator.yaml
 
+copy-addonmigration-manifest:
+	./tools/packaging/knative/addonmigration/copy-manifest.sh
 #-----------------------------------------------------------------------------
 # Target: go build
 #-----------------------------------------------------------------------------

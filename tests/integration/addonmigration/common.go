@@ -30,6 +30,7 @@ import (
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/test/echo/check"
 	"istio.io/istio/pkg/test/echo/common/scheme"
+	istioEnv "istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/resource"
@@ -122,14 +123,14 @@ func checkConnectivity(t framework.TestContext, a echo.Instances, b echo.Instanc
 }
 
 func deployAutomigration(t framework.TestContext, channel, revision string) {
-	// replace with deploy migration job
 	cls, err := resource.SettingsFromCommandLine("addon")
 	if err != nil {
 		t.Fatalf("failed to get settings from CLI: %v", err)
 	}
+	manifestPath := istioEnv.IstioSrc + "/tools/packaging/knative/addonmigration/addon-migration-manifest.yaml"
 	cs := t.Clusters().Default()
 	t.ConfigIstio().
-		EvalFile(map[string]string{"HUB": cls.Image.Hub, "TAG": cls.Image.Tag, "MCP_CHANNEL": channel}, "testdata/migration_deployment.yaml").
+		EvalFile(map[string]string{"HUB": cls.Image.Hub, "TAG": cls.Image.Tag, "MCP_CHANNEL": channel}, manifestPath).
 		ApplyOrFail(t, "istio-system", resource.NoCleanup)
 	defer dumpMigrationJobPod(t)
 	_, err = kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(cs, "istio-system", "istio=addon-migration"))
