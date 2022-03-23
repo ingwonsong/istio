@@ -8,6 +8,7 @@ endif
 export AUTH_HEADER ?= Authorization: Bearer $(shell gcloud auth print-access-token)
 ISTIO_ENVOY_BASE_URL ?= https://storage.googleapis.com/asm-testing/istio/dev
 GOBUILDFLAGS := --tags="netgo,osusergo"
+CGO_ENABLED := 1
 
 # cloudesf specific overrides
 -include cloudesf/Makefile.cloudesf.version.mk
