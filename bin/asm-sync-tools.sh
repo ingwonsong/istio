@@ -48,7 +48,7 @@ function ci_gitconfig() {
 function sync() {
   pushd "${ISTIO_DIR}"
   git checkout "${UPSTREAM_BRANCH}"
-  git pull --ff-only "${UPSTREAM_REMOTE} ${UPSTREAM_BRANCH}"
+  git pull --ff-only "${UPSTREAM_REMOTE}" "${UPSTREAM_BRANCH}"
 
   git checkout "${BRANCH}"
   git checkout -b "${BRANCH}-merge-$(date +%F_%H-%M-%S)"
