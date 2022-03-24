@@ -18,18 +18,25 @@ import (
 	contextpkg "context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"gopkg.in/yaml.v3"
 	"istio.io/istio/pkg/test/framework/util"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+)
+
+const (
+	ImageAnnotationKey = "mesh.cloud.google.com/image"
 )
 
 func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error {
@@ -80,12 +87,29 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 		cluster := kube.GKEClusterSpecFromContext(context)
 
 		contextLogger.Println("Running installation using install script...")
+		// Running the test with offline mode because we need to test with custome images built on the fly.
+		// However, the annotation in the ControlPlaneRevision is not user-facing. Therefore, we need to
+		// do the patching here so we could test in CI while hiding the internal detail from the customers.
+		outputDir, err := ASMOutputDir(rev)
+		if err != nil {
+			return fmt.Errorf("MCP create output dir failed: %w", err)
+		}
 		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateAFCInstallEnvvars(c.settings)),
-			exec.WithAdditionalArgs(generateAFCInstallFlags(c.settings, cluster))); err != nil {
+			exec.WithAdditionalArgs(generateAFCBuildOfflineFlags(outputDir))); err != nil {
+			return fmt.Errorf("MCP build offline pacakge failed: %w", err)
+		}
+		// VPC-SC only tests production so no need to patch CPRs.
+		if !c.settings.FeaturesToTest.Has(string(resource.VPCSC)) {
+			if err := filepath.Walk(filepath.Join(outputDir, "asm", "control-plane-revision"), patchCPRWithImageWalkFn); err != nil {
+				return fmt.Errorf("MCP patch ControlPlaneRevision with custom image failed: %w", err)
+			}
+		}
+		if err := exec.Run(scriptPath,
+			exec.WithAdditionalEnvs(generateAFCInstallEnvvars(c.settings)),
+			exec.WithAdditionalArgs(generateAFCInstallFlags(c.settings, cluster, outputDir))); err != nil {
 			return fmt.Errorf("MCP installation via AFC failed: %w", err)
 		}
-
 		// Check if MCP is properly installed in VPCSC mode.
 		// Calling the following API (fetchControlPlane) requires the consumer project to have GOOGLE_INTERNAL tenant manager label.
 		if c.settings.FeaturesToTest.Has(string(resource.VPCSC)) {
@@ -145,7 +169,15 @@ EOF'`, context)); err != nil {
 	return nil
 }
 
-func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
+func generateAFCBuildOfflineFlags(outputDir string) []string {
+	return []string{
+		"build-offline-package",
+		"--output_dir", outputDir,
+		"--verbose",
+	}
+}
+
+func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec, outputDir string) []string {
 	installFlags := []string{
 		"install",
 		"--project_id", cluster.ProjectID,
@@ -161,6 +193,8 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--enable-all", // We can't use getInstallEnableFlags() since it apparently doesn't match what AFC expects
 		"--verbose",
 		"--ca", "mesh_ca",
+		"--output_dir", outputDir,
+		"--offline",
 	}
 	if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		installFlags = append(installFlags, "--use_vpcsc")
@@ -211,4 +245,75 @@ func generateAFCInstallEnvvars(settings *resource.Settings) []string {
 		}
 	}
 	return envvars
+}
+
+func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
+	// yaml.Node is the only way to preserve in-line kpt reference comments.
+	// Simply Marshal/Unmarshal will lose the kpt setters and fail the tests.
+	type Metadata struct {
+		Name        string    `yaml:"name"`
+		Namespace   string    `yaml:"namespace"`
+		Labels      yaml.Node `yaml:"labels,omitempty"`
+		Annotations yaml.Node `yaml:"annotations,omitempty"`
+	}
+	type ControlPlaneRevision struct {
+		APIVersion string    `yaml:"apiVersion"`
+		Kind       string    `yaml:"kind"`
+		Metadata   Metadata  `yaml:"metadata"`
+		Spec       yaml.Node `yaml:"spec"`
+		Status     yaml.Node `yaml:"status,omitempty"`
+	}
+
+	if info.IsDir() {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	// Read the ControlPlaneRevision and patch the annotation with the custom image.
+	cprBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var cpr ControlPlaneRevision
+	if err := yaml.Unmarshal(cprBytes, &cpr); err != nil {
+		return fmt.Errorf("unable to parse %s: %w", path, err)
+	}
+	// No annotation field, initialize it as a mapping node.
+	if len(cpr.Metadata.Annotations.Content) == 0 {
+		cpr.Metadata.Annotations = yaml.Node{Kind: yaml.MappingNode}
+	}
+	patched := false
+	cloudRunImage := fmt.Sprintf("%s/%s:%s", os.Getenv("HUB"), "cloudrun", os.Getenv("TAG"))
+	for i := 0; i < len(cpr.Metadata.Annotations.Content); i += 2 {
+		// Key/Value pairs are traversed in sequence like k1, v1, k2, v2...
+		if cpr.Metadata.Annotations.Content[i].Value == ImageAnnotationKey {
+			patched = true
+			cpr.Metadata.Annotations.Content[i+1].Value = cloudRunImage
+			break
+		}
+	}
+	// Key does not exist, adding the key/value pair.
+	if !patched {
+		cpr.Metadata.Annotations.Content = append(cpr.Metadata.Annotations.Content,
+			&yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: ImageAnnotationKey,
+			},
+			&yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: cloudRunImage,
+			})
+	}
+
+	// Replace the ControlPlaneRevision with patched annotation without changing the mode.
+	bytesToWrite, err := yaml.Marshal(cpr)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(path, bytesToWrite, info.Mode()); err != nil {
+		return err
+	}
+	return nil
 }
