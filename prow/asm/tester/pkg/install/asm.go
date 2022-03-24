@@ -165,18 +165,8 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 	// we just built, however, for installations of older releases, we leave
 	// these vars out.
 	if rev.Version == "" {
-		masterVars := map[string]string{
-			"_CI_ISTIOCTL_REL_PATH": filepath.Join(settings.RepoRootDir, istioctlPath),
-		}
-		if settings.InstallOverride.IsSet() {
-			masterVars["_CI_ASM_IMAGE_LOCATION"] = settings.InstallOverride.Hub
-			masterVars["_CI_ASM_IMAGE_TAG"] = settings.InstallOverride.Tag
-			masterVars["_CI_ASM_PKG_LOCATION"] = settings.InstallOverride.ASMImageBucket
-		} else {
-			masterVars["_CI_ASM_IMAGE_LOCATION"] = os.Getenv("HUB")
-			masterVars["_CI_ASM_IMAGE_TAG"] = os.Getenv("TAG")
-			masterVars["_CI_ASM_PKG_LOCATION"] = resource.DefaultASMImageBucket
-		}
+		masterVars := map[string]string{}
+		masterVars["_CI_ISTIOCTL_REL_PATH"] = filepath.Join(settings.RepoRootDir, istioctlPath)
 		if useASMCLI(settings, rev) {
 			masterVars["_CI_ASM_KPT_BRANCH"] = settings.NewtaroCommit
 		} else {
@@ -184,6 +174,18 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 		}
 		for k, v := range masterVars {
 			varMap[k] = v
+		}
+	}
+	// If we install revision from master or specified version not as revision.
+	if rev.Version == "" || rev.Name == "" {
+		if settings.InstallOverride.IsSet() {
+			varMap["_CI_ASM_IMAGE_LOCATION"] = settings.InstallOverride.Hub
+			varMap["_CI_ASM_IMAGE_TAG"] = settings.InstallOverride.Tag
+			varMap["_CI_ASM_PKG_LOCATION"] = settings.InstallOverride.ASMImageBucket
+		} else {
+			varMap["_CI_ASM_IMAGE_LOCATION"] = os.Getenv("HUB")
+			varMap["_CI_ASM_IMAGE_TAG"] = os.Getenv("TAG")
+			varMap["_CI_ASM_PKG_LOCATION"] = resource.DefaultASMImageBucket
 		}
 	}
 

@@ -29,9 +29,9 @@ const (
 // ReplaceWebhook creates a webhook with per-revision object selectors.
 // this is useful when performing compat testing with older ASM versions.
 func ReplaceWebhook(rev *revision.Config, contextName string) error {
-	// If no version specified we are at master and the webhooks
-	// have the desired behavior as is
-	if rev.Version == "" {
+	// If no version or name specified we are at master or install only one revision
+	// and the webhooks have the desired behavior as is.
+	if rev.Version == "" || rev.Name == "" {
 		return nil
 	}
 
