@@ -526,4 +526,4 @@ include tests/integration/tests.mk
 include common/Makefile.common.mk
 
 # Include ASM stuff
--include Makefile.asm.mk
+include Makefile.asm.mk
