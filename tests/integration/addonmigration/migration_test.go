@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/http/headers"
 	"istio.io/istio/pkg/test/env"
@@ -86,10 +85,10 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				WithConfig(util.EchoConfig("migration", migration14Namespace, false, nil)).
 				WithConfig(util.EchoConfig("migration", migration16Namespace, false, nil)).
 				BuildOrFail(t)
-			stable14 := match.And(match.ServiceName(model.NamespacedName{Name: "addon", Namespace: stable14Namespace.Name()})).GetMatches(echos)
-			migration14 := match.And(match.ServiceName(model.NamespacedName{Name: "migration", Namespace: migration14Namespace.Name()})).GetMatches(echos)
-			stable16 := match.And(match.ServiceName(model.NamespacedName{Name: "addon", Namespace: stable16Namespace.Name()})).GetMatches(echos)
-			migration16 := match.And(match.ServiceName(model.NamespacedName{Name: "migration", Namespace: migration16Namespace.Name()})).GetMatches(echos)
+			stable14 := match.And(match.ServiceName(echo.NamespacedName{Name: "addon", Namespace: stable14Namespace})).GetMatches(echos)
+			migration14 := match.And(match.ServiceName(echo.NamespacedName{Name: "migration", Namespace: migration14Namespace})).GetMatches(echos)
+			stable16 := match.And(match.ServiceName(echo.NamespacedName{Name: "addon", Namespace: stable16Namespace})).GetMatches(echos)
+			migration16 := match.And(match.ServiceName(echo.NamespacedName{Name: "migration", Namespace: migration16Namespace})).GetMatches(echos)
 
 			t.Log("starting traffic...")
 			selfCheck14 := traffic.NewGenerator(t, traffic.Config{

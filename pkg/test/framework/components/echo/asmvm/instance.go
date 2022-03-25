@@ -25,7 +25,6 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
-	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/test"
 	echotest "istio.io/istio/pkg/test/echo"
 	"istio.io/istio/pkg/test/framework/components/cluster"
@@ -143,7 +142,7 @@ func (i *instance) ID() resource.ID {
 	return i.id
 }
 
-func (i *instance) NamespacedName() model.NamespacedName {
+func (i *instance) NamespacedName() echo.NamespacedName {
 	return i.config.NamespacedName()
 }
 

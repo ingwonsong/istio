@@ -82,5 +82,3 @@ dockerx.$(1): docker
 endef
 $(foreach tgt,$(DOCKER_TARGETS),$(eval $(call DOCKER_COMMANDS,$(tgt))))
 ### End docker commands ###
-
-

@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
@@ -81,8 +80,8 @@ func setupApps(t resource.Context) error {
 		return err
 	}
 
-	PodA = match.ServiceName(model.NamespacedName{Name: PodASvc, Namespace: ns.Name()}).GetMatches(echos)
-	PodB = match.ServiceName(model.NamespacedName{Name: PodBSvc, Namespace: ns.Name()}).GetMatches(echos)
+	PodA = match.ServiceName(echo.NamespacedName{Name: PodASvc, Namespace: ns}).GetMatches(echos)
+	PodB = match.ServiceName(echo.NamespacedName{Name: PodBSvc, Namespace: ns}).GetMatches(echos)
 
 	return nil
 }
