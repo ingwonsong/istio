@@ -35,23 +35,7 @@ PROXY_HUB ?= grc.io/asm-staging-images
 GOTEMPLATE_REPLACE = sed -E 's/gotemplatereplace_(\w+?)/{{.\1}}/g'
 
 .PHONY: all-cloudrun
-all-cloudrun: $(TARGET_OUT_LINUX)/knative/telemetry-sd.yaml $(TARGET_OUT_LINUX)/knative/telemetry.yaml $(TARGET_OUT_LINUX)/knative/injection-template.yaml $(TARGET_OUT_LINUX)/knative/mutatingwebhook.yaml
-
-$(TARGET_OUT_LINUX)/knative/telemetry-sd.yaml: manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml tools/packaging/knative/values.telemetry-sd.yaml
-	mkdir -p $(TARGET_OUT_LINUX)/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml ${TARGET_OUT_LINUX}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml ${TARGET_OUT_LINUX}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml ${TARGET_OUT_LINUX}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${TARGET_OUT_LINUX}/knative/Chart.yaml
-	helm template $(TARGET_OUT_LINUX)/knative -f tools/packaging/knative/values.telemetry-sd.yaml | ${GOTEMPLATE_REPLACE} > $@
-
-$(TARGET_OUT_LINUX)/knative/telemetry.yaml: manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml
-	mkdir -p $(TARGET_OUT_LINUX)/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.11.yaml ${TARGET_OUT_LINUX}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.12.yaml ${TARGET_OUT_LINUX}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/templates/telemetryv2_1.13.yaml ${TARGET_OUT_LINUX}/knative/templates
-	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${TARGET_OUT_LINUX}/knative/Chart.yaml
-	helm template $(TARGET_OUT_LINUX)/knative -f tools/packaging/knative/values.telemetry.yaml | ${GOTEMPLATE_REPLACE} > $@
+all-cloudrun: $(TARGET_OUT_LINUX)/knative/injection-template.yaml $(TARGET_OUT_LINUX)/knative/mutatingwebhook.yaml
 
 $(TARGET_OUT_LINUX)/knative/injection-template.yaml: manifests/charts/istio-control/istio-discovery/files/injection-template.yaml
 	mkdir -p $(TARGET_OUT_LINUX)/knative

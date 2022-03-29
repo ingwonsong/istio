@@ -165,7 +165,6 @@ func checkIAM() error {
 const (
 	MeshTemplateFile      = "mesh_template.yaml"
 	ValuesTemplateFile    = "values_template.yaml"
-	TelemetrySDFile       = "telemetry-sd.yaml"
 	MutatingWebhookFile   = "mutatingwebhook.yaml"
 	CRDsFile              = "gen-istio-cluster.yaml"
 	InjectionTemplateFile = "config"
@@ -193,7 +192,7 @@ func GetMCPFile(name string) string {
 			return filepath.Join(toolsDir, name)
 		case CRDsFile:
 			return filepath.Join(manifestDir, name)
-		case MutatingWebhookFile, TelemetrySDFile:
+		case MutatingWebhookFile:
 			return filepath.Join(outDir, name)
 		default:
 			panic(fmt.Sprintf("file not found: %v", name))
@@ -202,7 +201,7 @@ func GetMCPFile(name string) string {
 	switch name {
 	case ValuesTemplateFile, InjectionTemplateFile, MutatingWebhookFile:
 		return filepath.Join(InjectDir, name)
-	case TelemetrySDFile, CRDsFile:
+	case CRDsFile:
 		return filepath.Join(ConfigDir, name)
 	case MeshTemplateFile:
 		return filepath.Join("/etc/istio/config", name)

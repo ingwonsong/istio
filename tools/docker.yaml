@@ -176,8 +176,6 @@ images:
   - tools/packaging/knative/mesh_template.yaml
   targets:
   - ${TARGET_OUT_LINUX}/pilot-discovery
-  - ${TARGET_OUT_LINUX}/knative/telemetry-sd.yaml
-  - ${TARGET_OUT_LINUX}/knative/telemetry.yaml
   - ${TARGET_OUT_LINUX}/knative/injection-template.yaml
   - ${TARGET_OUT_LINUX}/knative/mutatingwebhook.yaml
 
