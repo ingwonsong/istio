@@ -42,7 +42,7 @@ func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (s
 	if useASMCLI(settings, rev) {
 		scriptBranch := settings.NewtaroCommit
 		if rev != nil && rev.Version != "" {
-			scriptBranch = fmt.Sprintf("release-%s-asm", rev.Version)
+			scriptBranch = fmt.Sprintf("release-%s", rev.Version)
 		}
 		scriptBaseName = "asmcli"
 		scriptURL = fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, scriptBranch, scriptBaseName)
