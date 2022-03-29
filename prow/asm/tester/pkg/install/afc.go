@@ -27,6 +27,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"gopkg.in/yaml.v3"
+
 	"istio.io/istio/pkg/test/framework/util"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
@@ -148,7 +149,7 @@ data:
     accessLogFile: /dev/stdout
 kind: ConfigMap
 metadata:
-  name: asm
+  name: istio-asm-managed-rapid
   namespace: istio-system
 EOF'`, context)); err != nil {
 			return fmt.Errorf("error enabling access logging to help with debugging tests")

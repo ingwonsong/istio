@@ -93,7 +93,7 @@ data:
     accessLogFile: /dev/stdout
 kind: ConfigMap
 metadata:
-  name: asm
+  name: istio-asm-managed-rapid
   namespace: istio-system
 EOF'`, context)); err != nil {
 			return fmt.Errorf("error enabling access logging to help with debugging tests")

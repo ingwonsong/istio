@@ -132,8 +132,12 @@ func (c *installer) postInstall(rev *revision.Config) error {
 		if err := multiversion.ReplaceWebhook(rev, context); err != nil {
 			return err
 		}
-		if err := EnableAccessLogging(context); err != nil {
-			return err
+		if c.settings.ControlPlane != resource.Managed {
+			// for managed cases, we by default enable StackDriver logging. Enable access logs in this method
+			// will actually disable the SD logging. Instead, we configure them separately to avoid this issue.
+			if err := EnableAccessLogging(context); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -149,7 +153,9 @@ metadata:
   namespace: istio-system
 spec:
   accessLogging:
-  - disabled: false
+  - providers:
+    - name: envoy
+    disabled: false
 EOF'`, context)); err != nil {
 		// warn instead of error since some tests do not setup CRDs at all
 		log.Println("error enabling access logging to help with debugging tests")
