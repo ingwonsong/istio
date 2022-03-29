@@ -26,7 +26,8 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	protobuf "github.com/gogo/protobuf/types"
+	"google.golang.org/protobuf/types/known/structpb"
+	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -66,11 +67,11 @@ func appendWarning(warnings []string, node *operator.IstioOperatorSpec, path str
 		if defaultF && reflect.DeepEqual(defaultVal, v) {
 			return warnings
 		}
-		if cv, ok := v.(*protobuf.BoolValue); ok {
+		if cv, ok := v.(*wrappers.BoolValue); ok {
 			v = cv.GetValue()
 		}
-		if cv, ok := v.(*protobuf.Value); ok {
-			v = v1alpha1.AsInterface(cv)
+		if cv, ok := v.(*structpb.Value); ok {
+			v = cv.AsInterface()
 		}
 		switch reflect.TypeOf(v).Kind() {
 		case reflect.Struct, reflect.Map, reflect.Ptr:
@@ -131,9 +132,9 @@ func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string
 	var meshConfigFilename string
 	// First we will check mesh config. Users can set this, but they need to do it by configmap.
 	// A few settings doe nothing, so we warn about those.
-	if len(v1alpha1.AsMap(originalIop.Spec.MeshConfig)) > 0 {
+	if len(originalIop.Spec.MeshConfig.AsMap()) > 0 {
 		fmt.Fprintln(w, color.New(color.FgBlue).Sprint("\nMigrating MeshConfig settings..."))
-		cm, err := constructMeshConfigmap(v1alpha1.AsMap(originalIop.Spec.MeshConfig), revision, configDeleteList)
+		cm, err := constructMeshConfigmap(originalIop.Spec.MeshConfig.AsMap(), revision, configDeleteList)
 		if err != nil {
 			return err
 		}
@@ -227,7 +228,7 @@ func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string
 	if !handledDefaultGateway && hasEnabledGateway(profileIOP.Spec.GetComponents().GetIngressGateways()) {
 		gwIOP := extractGateway(originalIop.DeepCopy(), &operator.GatewaySpec{
 			Name:    "istio-ingressgateway",
-			Enabled: &protobuf.BoolValue{Value: true},
+			Enabled: &wrappers.BoolValue{Value: true},
 		}, "istio-ingressgateway", revision, configDeleteList)
 		if gwIOP != nil {
 			gateways++
@@ -321,7 +322,7 @@ func extractGateway(iop *v1alpha1.IstioOperator, gw *operator.GatewaySpec, gwNam
 		return nil
 	}
 	spec := iop.DeepCopy().Spec
-	values := v1alpha1.AsMap(spec.Values)
+	values := spec.Values.AsMap()
 
 	// Remove values we do not want the user to attempt to configure
 	for _, v := range configDeleteList {
@@ -353,8 +354,6 @@ func extractGateway(iop *v1alpha1.IstioOperator, gw *operator.GatewaySpec, gwNam
 	}
 
 	newIOP := &v1alpha1.IstioOperator{
-		Kind:       iop.Kind,
-		ApiVersion: iop.ApiVersion,
 		Spec: &operator.IstioOperatorSpec{
 			Profile:  "empty",
 			Revision: revision,
@@ -367,7 +366,7 @@ func extractGateway(iop *v1alpha1.IstioOperator, gw *operator.GatewaySpec, gwNam
 					K8S:       gw.K8S,
 				}},
 			},
-			Values: v1alpha1.MustNewStruct(values),
+			Values: util.MustStruct(values),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gw.Name,

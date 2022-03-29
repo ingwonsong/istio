@@ -19,32 +19,33 @@ import (
 	"os"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
 	"github.com/hashicorp/go-multierror"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 	"sigs.k8s.io/yaml"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	"istio.io/api/networking/v1alpha3"
-	"istio.io/istio/pilot/pkg/util/sets"
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/validation"
-	"istio.io/istio/pkg/util/gogoprotomarshal"
+	"istio.io/istio/pkg/util/protomarshal"
+	"istio.io/istio/pkg/util/sets"
 )
 
 // DefaultProxyConfig for individual proxies
-func DefaultProxyConfig() meshconfig.ProxyConfig {
+func DefaultProxyConfig() *meshconfig.ProxyConfig {
 	// TODO: include revision based on REVISION env
 	// TODO: set default namespace based on POD_NAMESPACE env
-	base := meshconfig.ProxyConfig{
+	base := &meshconfig.ProxyConfig{
 		ConfigPath:               constants.ConfigPathDir,
 		ClusterName:              &meshconfig.ProxyConfig_ServiceCluster{ServiceCluster: constants.ServiceClusterName},
-		DrainDuration:            types.DurationProto(45 * time.Second),
-		ParentShutdownDuration:   types.DurationProto(60 * time.Second),
-		TerminationDrainDuration: types.DurationProto(5 * time.Second),
+		DrainDuration:            durationpb.New(45 * time.Second),
+		ParentShutdownDuration:   durationpb.New(60 * time.Second),
+		TerminationDrainDuration: durationpb.New(5 * time.Second),
 		ProxyAdminPort:           15000,
-		Concurrency:              &types.Int32Value{Value: 2},
+		Concurrency:              &wrappers.Int32Value{Value: 2},
 		ControlPlaneAuthPolicy:   meshconfig.AuthenticationPolicy_MUTUAL_TLS,
 		DiscoveryAddress:         "istiod.istio-system.svc:15012",
 		Tracing: &meshconfig.Tracing{
@@ -89,27 +90,27 @@ func DefaultMeshConfig() *meshconfig.MeshConfig {
 		AccessLogEncoding:           meshconfig.MeshConfig_TEXT,
 		AccessLogFormat:             "",
 		EnableEnvoyAccessLogService: false,
-		ProtocolDetectionTimeout:    types.DurationProto(0),
+		ProtocolDetectionTimeout:    durationpb.New(0),
 		IngressService:              "istio-ingressgateway",
 		IngressControllerMode:       meshconfig.MeshConfig_STRICT,
 		IngressClass:                "istio",
 		TrustDomain:                 constants.DefaultKubernetesDomain,
 		TrustDomainAliases:          []string{},
-		EnableAutoMtls:              &types.BoolValue{Value: true},
+		EnableAutoMtls:              &wrappers.BoolValue{Value: true},
 		OutboundTrafficPolicy:       &meshconfig.MeshConfig_OutboundTrafficPolicy{Mode: meshconfig.MeshConfig_OutboundTrafficPolicy_ALLOW_ANY},
 		LocalityLbSetting: &v1alpha3.LocalityLoadBalancerSetting{
-			Enabled: &types.BoolValue{Value: true},
+			Enabled: &wrappers.BoolValue{Value: true},
 		},
 		Certificates:  []*meshconfig.Certificate{},
-		DefaultConfig: &proxyConfig,
+		DefaultConfig: proxyConfig,
 
 		RootNamespace:                  constants.IstioSystemNamespace,
 		ProxyListenPort:                15001,
-		ConnectTimeout:                 types.DurationProto(10 * time.Second),
+		ConnectTimeout:                 durationpb.New(10 * time.Second),
 		DefaultServiceExportTo:         []string{"*"},
 		DefaultVirtualServiceExportTo:  []string{"*"},
 		DefaultDestinationRuleExportTo: []string{"*"},
-		DnsRefreshRate:                 types.DurationProto(5 * time.Second), // 5 seconds is the default refresh rate used in Envoy
+		DnsRefreshRate:                 durationpb.New(5 * time.Second), // 5 seconds is the default refresh rate used in Envoy
 		ThriftConfig:                   &meshconfig.MeshConfig_ThriftConfig{},
 		ServiceSettings:                make([]*meshconfig.MeshConfig_ServiceSettings, 0),
 
@@ -157,7 +158,7 @@ func ApplyProxyConfig(yaml string, meshConfig *meshconfig.MeshConfig) (*meshconf
 
 func applyProxyConfig(yaml string, proxyConfig *meshconfig.ProxyConfig) (*meshconfig.ProxyConfig, error) {
 	origMetadata := proxyConfig.ProxyMetadata
-	if err := gogoprotomarshal.ApplyYAML(yaml, proxyConfig); err != nil {
+	if err := protomarshal.ApplyYAML(yaml, proxyConfig); err != nil {
 		return nil, fmt.Errorf("could not parse proxy config: %v", err)
 	}
 	newMetadata := proxyConfig.ProxyMetadata
@@ -198,9 +199,8 @@ func ApplyMeshConfig(yaml string, defaultConfig *meshconfig.MeshConfig) (*meshco
 	prevExtensionProviders := defaultConfig.ExtensionProviders
 	prevTrustDomainAliases := defaultConfig.TrustDomainAliases
 
-	defaultProxyConfig := DefaultProxyConfig()
-	defaultConfig.DefaultConfig = &defaultProxyConfig
-	if err := gogoprotomarshal.ApplyYAML(yaml, defaultConfig); err != nil {
+	defaultConfig.DefaultConfig = DefaultProxyConfig()
+	if err := protomarshal.ApplyYAML(yaml, defaultConfig); err != nil {
 		return nil, multierror.Prefix(err, "failed to convert to proto.")
 	}
 	defaultConfig.DefaultConfig = prevProxyConfig
@@ -228,7 +228,7 @@ func ApplyMeshConfig(yaml string, defaultConfig *meshconfig.MeshConfig) (*meshco
 		return nil, multierror.Prefix(err, "failed to extract default providers")
 	}
 	if dp != "" {
-		if err := gogoprotomarshal.ApplyYAML(dp, defaultConfig.DefaultProviders); err != nil {
+		if err := protomarshal.ApplyYAML(dp, defaultConfig.DefaultProviders); err != nil {
 			return nil, fmt.Errorf("could not parse default providers: %v", err)
 		}
 	}
@@ -249,7 +249,7 @@ func ApplyMeshConfig(yaml string, defaultConfig *meshconfig.MeshConfig) (*meshco
 		}
 	}
 
-	defaultConfig.TrustDomainAliases = sets.NewSet(append(defaultConfig.TrustDomainAliases, prevTrustDomainAliases...)...).SortedList()
+	defaultConfig.TrustDomainAliases = sets.NewWith(append(defaultConfig.TrustDomainAliases, prevTrustDomainAliases...)...).SortedList()
 
 	if err := validation.ValidateMeshConfig(defaultConfig); err != nil {
 		return nil, err
@@ -278,12 +278,12 @@ func ApplyMeshConfigDefaults(yaml string) (*meshconfig.MeshConfig, error) {
 }
 
 func DeepCopyMeshConfig(mc *meshconfig.MeshConfig) (*meshconfig.MeshConfig, error) {
-	j, err := gogoprotomarshal.ToJSON(mc)
+	j, err := protomarshal.ToJSON(mc)
 	if err != nil {
 		return nil, err
 	}
 	nmc := &meshconfig.MeshConfig{}
-	if err := gogoprotomarshal.ApplyJSON(j, nmc); err != nil {
+	if err := protomarshal.ApplyJSON(j, nmc); err != nil {
 		return nil, err
 	}
 	return nmc, nil
@@ -300,7 +300,7 @@ func EmptyMeshNetworks() meshconfig.MeshNetworks {
 // input YAML.
 func ParseMeshNetworks(yaml string) (*meshconfig.MeshNetworks, error) {
 	out := EmptyMeshNetworks()
-	if err := gogoprotomarshal.ApplyYAML(yaml, &out); err != nil {
+	if err := protomarshal.ApplyYAML(yaml, &out); err != nil {
 		return nil, multierror.Prefix(err, "failed to convert to proto.")
 	}
 

@@ -15,7 +15,7 @@
 package mesh
 
 import (
-	"github.com/gogo/protobuf/types"
+	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	"istio.io/api/networking/v1alpha3"
@@ -25,7 +25,7 @@ import (
 // This is used, rather than the local file mesh config, when we want users to be able to override settings.
 // The hierarchy is go defaults < users in-cluster mesh config < file mesh config.
 // Placing them here puts them at the lowest priority.
-func MCPDefaultProxyConfig(pc meshconfig.ProxyConfig) meshconfig.ProxyConfig {
+func MCPDefaultProxyConfig(pc *meshconfig.ProxyConfig) *meshconfig.ProxyConfig {
 	// No tracing configured by default
 	pc.Tracing = nil
 	return pc
@@ -34,9 +34,9 @@ func MCPDefaultProxyConfig(pc meshconfig.ProxyConfig) meshconfig.ProxyConfig {
 func MCPDefaultMeshConfig(mc *meshconfig.MeshConfig) *meshconfig.MeshConfig {
 	// Disable locality LB by default, but users can still turn it on
 	mc.LocalityLbSetting = &v1alpha3.LocalityLoadBalancerSetting{
-		Enabled: &types.BoolValue{Value: true},
+		Enabled: &wrappers.BoolValue{Value: true},
 	}
-	mc.EnablePrometheusMerge = &types.BoolValue{Value: true}
+	mc.EnablePrometheusMerge = &wrappers.BoolValue{Value: true}
 	mc.DefaultProviders = &meshconfig.MeshConfig_DefaultProviders{
 		// By default, we enable metrics and access logging for MCP
 		Metrics:       []string{"prometheus", "stackdriver"},

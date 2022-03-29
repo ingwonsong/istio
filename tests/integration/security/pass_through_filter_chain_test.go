@@ -23,7 +23,6 @@ import (
 	"os"
 	"testing"
 
-	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/http/headers"
 	echoClient "istio.io/istio/pkg/test/echo"
@@ -547,17 +546,17 @@ spec:
 
 			// TODO(slandow) replace this with built-in framework filters (blocked by https://github.com/istio/istio/pull/31565)
 			srcMatcher := match.Or(
-				match.ServiceName(model.NamespacedName{
+				match.ServiceName(echo.NamespacedName{
 					Name:      util.NakedSvc,
-					Namespace: ns.Name(),
+					Namespace: ns,
 				}),
-				match.ServiceName(model.NamespacedName{
+				match.ServiceName(echo.NamespacedName{
 					Name:      util.BSvc,
-					Namespace: ns.Name(),
+					Namespace: ns,
 				}),
-				match.ServiceName(model.NamespacedName{
+				match.ServiceName(echo.NamespacedName{
 					Name:      util.VMSvc,
-					Namespace: ns.Name(),
+					Namespace: ns,
 				}))
 			for _, tc := range cases {
 				t.NewSubTest(tc.name).Run(func(t framework.TestContext) {

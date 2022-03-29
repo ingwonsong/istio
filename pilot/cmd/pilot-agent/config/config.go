@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gogo/protobuf/types"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"istio.io/api/annotation"
 	meshconfig "istio.io/api/mesh/v1alpha1"
@@ -56,13 +56,13 @@ func ConstructProxyConfig(meshConfigFile, serviceCluster, proxyConfigEnv string,
 	}
 	proxyConfig := mesh.DefaultProxyConfig()
 	if meshConfig.DefaultConfig != nil {
-		proxyConfig = *meshConfig.DefaultConfig
+		proxyConfig = meshConfig.DefaultConfig
 	}
 
 	if concurrency != 0 {
 		// If --concurrency is explicitly set, we will use that. Otherwise, use source determined by
 		// proxy config.
-		proxyConfig.Concurrency = &types.Int32Value{Value: int32(concurrency)}
+		proxyConfig.Concurrency = &wrapperspb.Int32Value{Value: int32(concurrency)}
 	}
 	if x, ok := proxyConfig.GetClusterName().(*meshconfig.ProxyConfig_ServiceCluster); ok {
 		if x.ServiceCluster == "" {
@@ -79,10 +79,10 @@ func ConstructProxyConfig(meshConfigFile, serviceCluster, proxyConfigEnv string,
 			proxyConfig.StatsdUdpAddress = addr
 		}
 	}
-	if err := validation.ValidateMeshConfigProxyConfig(&proxyConfig); err != nil {
+	if err := validation.ValidateMeshConfigProxyConfig(proxyConfig); err != nil {
 		return nil, err
 	}
-	return applyAnnotations(&proxyConfig, annotations), nil
+	return applyAnnotations(proxyConfig, annotations), nil
 }
 
 // getMeshConfig gets the mesh config to use for proxy configuration
