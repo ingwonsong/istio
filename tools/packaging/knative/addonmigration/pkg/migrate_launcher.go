@@ -143,6 +143,7 @@ EOF'`
 		log.Errorf("Failed to migrate from addon to MCP: %v\n", err)
 		writeConfigMapAndReportMetrics(jobstate)
 	} else {
+		log.Info("Successfully migrated from addon to MCP\n")
 		writeConfigMapAndReportMetrics(SuccessState)
 		ReportMigrationDuration(time.Since(bt).Seconds())
 	}
@@ -163,6 +164,7 @@ func (m *migrationWorker) ExecuteRollbackMode() {
 		writeConfigMapAndReportMetrics(MigrationConfigErrorState)
 	} else {
 		writeConfigMapAndReportMetrics(RollbackedState)
+		log.Info("Successfully rolled back to addon\n")
 	}
 }
 

@@ -17,5 +17,6 @@
 ADDON_MIGRATION_MANIFEST="tools/packaging/knative/addonmigration/addon-migration-manifest.yaml"
 # for release build only
 if [[ -d "${ISTIO_OUT}/release" ]];then
+  sed -i '/SKIP_TARGET_CHECK/,+1 d' "${ADDON_MIGRATION_MANIFEST}"
   cp ${ADDON_MIGRATION_MANIFEST} "${ISTIO_OUT}/release/addon-migration-manifest.yaml"
 fi

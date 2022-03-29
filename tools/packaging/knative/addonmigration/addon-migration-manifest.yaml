@@ -6,22 +6,21 @@ metadata:
     addonmanager.kubernetes.io/mode: EnsureExists
     k8s-app: addon-migration
     release: addon-migration
+    istio: addon-migration
   name: istio-addon-migration-service-account
   namespace: istio-system
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
   labels:
     addonmanager.kubernetes.io/mode: EnsureExists
     k8s-app: addon-migration
     release: addon-migration
+    istio: addon-migration
   name: addon-migration
   namespace: istio-system
 spec:
-  selector:
-    matchLabels:
-      app: addon-migration
   template:
     metadata:
       annotations:
@@ -50,6 +49,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
       serviceAccountName: istio-addon-migration-service-account
+      restartPolicy: OnFailure
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -59,6 +59,7 @@ metadata:
     addonmanager.kubernetes.io/mode: EnsureExists
     k8s-app: addon-migration
     release: addon-migration
+    istio: addon-migration
 rules:
   - apiGroups: [""]
     resources: ["pods", "services", "endpoints"]
@@ -104,7 +105,7 @@ rules:
     verbs: ["create", "get", "update"]
   - apiGroups: ["mesh.cloud.google.com"]
     resources: ["controlplanerevisions"]
-    verbs: ["get", "list", "create", "watch"]
+    verbs: ["get", "list", "create", "watch", "patch"]
   - apiGroups: [ "networking.k8s.io" ]
     resources: [ "ingresses" ]
     verbs: [ "get", "list", "watch" ]
@@ -120,6 +121,7 @@ metadata:
     addonmanager.kubernetes.io/mode: EnsureExists
     k8s-app: addon-migration
     release: addon-migration
+    istio: addon-migration
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -138,6 +140,7 @@ metadata:
     addonmanager.kubernetes.io/mode: EnsureExists
     k8s-app: addon-migration
     release: addon-migration
+    istio: addon-migration
 rules:
   - apiGroups: [""]
     resources: ["serviceaccounts/token"]
@@ -153,6 +156,7 @@ metadata:
     addonmanager.kubernetes.io/mode: EnsureExists
     k8s-app: addon-migration
     release: addon-migration
+    istio: addon-migration
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

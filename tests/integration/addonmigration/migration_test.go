@@ -44,6 +44,10 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 		RequiresSingleCluster().
 		Features("security.migrationca.citadel-meshca").
 		Run(func(t framework.TestContext) {
+			_, err := kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(t.Clusters().Default(), "istio-system", "app=istiod"))
+			if err != nil {
+				t.Fatalf("1.6 istiod not ready: %v", err)
+			}
 			ingress := inst.IngressFor(t.Clusters().Default())
 			stable14Namespace := namespace.NewOrFail(t, t, namespace.Config{
 				Prefix:   "stable-14",

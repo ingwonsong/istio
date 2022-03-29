@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"istio.io/istio/pkg/bootstrap/platform"
-	"istio.io/istio/pkg/cmd"
 	migration "istio.io/istio/tools/packaging/knative/addonmigration/pkg"
 	"istio.io/pkg/log"
 )
@@ -90,9 +89,6 @@ func main() {
 			mw.ExecuteRollbackMode()
 		}
 	}
-	// We need to keep the process running because it is run as a deployment in the cluster
-	// The reason why deployment over a job is that job field template is immutable, but we need to update the target cluster list for each wave.
-	cmd.WaitSignal(make(chan struct{}))
 }
 
 func validateFlag(channel string) error {
