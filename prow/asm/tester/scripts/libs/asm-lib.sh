@@ -327,7 +327,7 @@ function baremetal::configure_external_ip() {
   local BM_ARTIFACTS_PATH_LOCAL
   BM_ARTIFACTS_PATH_LOCAL=${BM_KUBECONFIG%/*}
   local EXPANSION_IP
-  EXPANSION_IP="$(jq '.outputs.full_cluster.value.resources.networks.gce.ips."gce-vip-0"' "$BM_ARTIFACTS_PATH_LOCAL"/internal/terraform/terraform.tfstate)"
+  EXPANSION_IP="$(jq '.outputs.full_cluster.value.resources.networks.gce.ips."gce-vip-0"' "$BM_ARTIFACTS_PATH_LOCAL"/terraform.tfstate)"
   echo "----------Configuring external IP for expansion gw----------"
   kubectl patch svc istio-eastwestgateway -n istio-system \
     --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": '"${EXPANSION_IP}"'}]' \
