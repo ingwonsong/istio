@@ -14,7 +14,11 @@
 
 package resource
 
-import "k8s.io/apimachinery/pkg/util/sets"
+import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/util/sets"
+)
 
 // Settings is a struct that uses annotations from github.com/octago/sflags
 // to define all the user configurable Tester settings on the command line.
@@ -167,4 +171,69 @@ type RuntimeSettings struct {
 
 	// The commit ID of Newtaro repo to use asmcli to install ASM.
 	NewtaroCommit string `flag:"-"`
+}
+
+func (s *Settings) String() string {
+	result := ""
+	result += fmt.Sprintf("RepoRootDir:                      %v\n", s.RepoRootDir)
+	result += fmt.Sprintf("Kubeconfig:                       %v\n", s.Kubeconfig)
+	result += fmt.Sprintf("GCPProjects:                      %v\n", s.GCPProjects)
+	result += fmt.Sprintf("ClusterType:                      %v\n", s.ClusterType)
+	result += fmt.Sprintf("ClusterTopology:                  %v\n", s.ClusterTopology)
+	result += fmt.Sprintf("GKENetworkName:                   %v\n", s.GKENetworkName)
+	result += fmt.Sprintf("InstallOverride:                  %v\n", s.InstallOverride)
+	result += fmt.Sprintf("UseOnePlatform:                   %v\n", s.UseOnePlatform)
+	result += fmt.Sprintf("MulticloudOverrideEnvironProject: %v\n", s.MulticloudOverrideEnvironProject)
+	result += fmt.Sprintf("ASMVersion:                       %v\n", s.ASMVersion)
+	result += fmt.Sprintf("ClusterProxy:                     %v\n", s.ClusterProxy)
+	result += fmt.Sprintf("ClusterSSHUser:                   %v\n", s.ClusterSSHUser)
+	result += fmt.Sprintf("ClusterSSHKey:                    %v\n", s.ClusterSSHKey)
+	result += fmt.Sprintf("FeaturesToTest:                   %v\n", s.FeaturesToTest)
+	result += fmt.Sprintf("TempFeaturesToTest:               %v\n", s.TempFeaturesToTest)
+	result += fmt.Sprintf("ControlPlane:                     %v\n", s.ControlPlane)
+	result += fmt.Sprintf("UseASMCLI:                        %v\n", s.UseASMCLI)
+	result += fmt.Sprintf("CA:                               %v\n", s.CA)
+	result += fmt.Sprintf("WIP:                              %v\n", s.WIP)
+	result += fmt.Sprintf("RevisionConfig:                   %v\n", s.RevisionConfig)
+	result += fmt.Sprintf("TestTarget:                       %v\n", s.TestTarget)
+	result += fmt.Sprintf("DisabledTests:                    %v\n", s.DisabledTests)
+	result += fmt.Sprintf("TestStartEventPath:               %v\n", s.TestStartEventPath)
+	result += fmt.Sprintf("TestStartEventPort:               %v\n", s.TestStartEventPort)
+	result += fmt.Sprintf("InstallCloudESF:                  %v\n", s.InstallCloudESF)
+	result += fmt.Sprintf("\n**VMSettings**\n%v\n", s.VMSettings)
+	result += fmt.Sprintf("\n**MCPSettings**\n%v\n", s.MCPSettings)
+	result += fmt.Sprintf("\n**RuntimeSettings**\n%v\n", s.RuntimeSettings)
+	return result
+}
+
+func (s VMSettings) String() string {
+	result := ""
+	result += fmt.Sprintf("UseVMs:                              %v\n", s.UseVMs)
+	result += fmt.Sprintf("VMServiceProxyAgentGCSPath:          %v\n", s.VMServiceProxyAgentGCSPath)
+	result += fmt.Sprintf("VMServiceProxyAgentInstallerGCSPath: %v\n", s.VMServiceProxyAgentInstallerGCSPath)
+	result += fmt.Sprintf("VMServiceProxyAgentASMVersion:       %v\n", s.VMServiceProxyAgentASMVersion)
+	result += fmt.Sprintf("VMStaticConfigDir:                   %v\n", s.VMStaticConfigDir)
+	result += fmt.Sprintf("UseGCEVms:                           %v\n", s.UseGCEVMs)
+	result += fmt.Sprintf("VMImageFamily:                       %v\n", s.VMImageFamily)
+	result += fmt.Sprintf("VMImageProject:                      %v\n", s.VMImageProject)
+	return result
+}
+
+func (s MCPSettings) String() string {
+	result := ""
+	result += fmt.Sprintf("UseProdMeshConfigAPI: %v\n", s.UseProdMeshConfigAPI)
+	result += fmt.Sprintf("UseAFC:               %v\n", s.UseAFC)
+	return result
+}
+
+func (s RuntimeSettings) String() string {
+	result := ""
+	result += fmt.Sprintf("KubeContexts:          %v\n", s.KubeContexts)
+	result += fmt.Sprintf("ConfigDir:             %v\n", s.ConfigDir)
+	result += fmt.Sprintf("ClusterGCPProjects:    %v\n", s.ClusterGCPProjects)
+	result += fmt.Sprintf("GCRProject:            %v\n", s.GCRProject)
+	result += fmt.Sprintf("TrustableSourceRanges: %v\n", s.TrustableSourceRanges)
+	result += fmt.Sprintf("ScriptaroCommit:       %v\n", s.ScriptaroCommit)
+	result += fmt.Sprintf("NewtaroCommit:         %v\n", s.NewtaroCommit)
+	return result
 }

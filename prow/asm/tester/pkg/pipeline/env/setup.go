@@ -70,8 +70,8 @@ func Setup(settings *resource.Settings) error {
 		return err
 	}
 
-	log.Printf("Running with %q CA, %q Workload Identity Pool, %q and --vm=%t control plane.", settings.CA, settings.WIP, settings.ControlPlane, settings.UseVMs)
-
+	log.Println("ASM Test Framework Settings:")
+	log.Print(settings)
 	return nil
 }
 
