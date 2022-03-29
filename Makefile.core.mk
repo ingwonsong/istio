@@ -253,7 +253,6 @@ AGENT_BINARIES:=./pilot/cmd/pilot-agent
 STANDARD_BINARIES:=./istioctl/cmd/istioctl \
   ./pilot/cmd/pilot-discovery \
   ./pilot/cmd/mcputils \
-  ./security/tools/vaultclient \
   ./pkg/test/echo/cmd/client \
   ./pkg/test/echo/cmd/server \
   ./operator/cmd/operator \
@@ -267,7 +266,7 @@ STANDARD_BINARIES:=./istioctl/cmd/istioctl \
 BINARIES:=$(STANDARD_BINARIES) $(AGENT_BINARIES)
 
 # List of binaries included in releases
-RELEASE_BINARIES:=pilot-discovery pilot-agent istioctl bug-report vaultclient
+RELEASE_BINARIES:=pilot-discovery pilot-agent istioctl bug-report
 
 .PHONY: build
 build: depend ## Builds all go binaries.

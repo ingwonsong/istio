@@ -179,11 +179,6 @@ images:
   - ${TARGET_OUT_LINUX}/knative/injection-template.yaml
   - ${TARGET_OUT_LINUX}/knative/mutatingwebhook.yaml
 
-- name: vaultclient
-  dockerfile: security/docker/Dockerfile.vaultclient
-  targets:
-  - ${TARGET_OUT_LINUX}/vaultclient
-
 - name: addon-migration
   dockerfile: tools/packaging/knative/addonmigration/Dockerfile.addon-migration
   files:

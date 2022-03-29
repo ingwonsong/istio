@@ -96,7 +96,6 @@ func TestBinarySizes(t *testing.T) {
 		// TODO(https://github.com/kubernetes/kubernetes/issues/101384) bump this down a bit?
 		"pilot-discovery": {60, 130},
 		"bug-report":      {60, 120},
-		"vaultclient":     {30, 70},
 	}
 
 	runBinariesTest(t, func(t *testing.T, name string) {

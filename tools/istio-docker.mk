@@ -22,7 +22,7 @@ DOCKER_TARGETS ?= docker.pilot docker.proxyv2 docker.app docker.app_sidecar_ubun
 docker.app_sidecar_ubuntu_bionic docker.app_sidecar_ubuntu_focal docker.app_sidecar_debian_9 \
 docker.app_sidecar_debian_10 docker.app_sidecar_centos_8 docker.app_sidecar_centos_7 \
 docker.mdp \
-docker.istioctl docker.operator docker.install-cni docker.cloudrun docker.vaultclient \
+docker.istioctl docker.operator docker.install-cni docker.cloudrun \
 docker.addon-migration docker.cloudesf docker.mcputils \
 
 ### Docker commands ###
