@@ -29,6 +29,7 @@ const (
 	OnPrem   ClusterType = "gke-on-prem"
 	// TODO: update to "gke-on-aws"
 	GKEOnAWS              ClusterType = "aws"
+	GKEOnAzure            ClusterType = "azure"
 	EKS                   ClusterType = "eks"
 	AKS                   ClusterType = "aks"
 	BareMetal             ClusterType = "bare-metal"

@@ -23,6 +23,7 @@ var (
 	GKEOnGCPWithAnthosPrivateMode = addCluster("apm")
 	GKEOnPrem                     = addCluster("gke-on-prem")
 	GKEOnAWS                      = addCluster("aws")
+	GKEOnAzure                    = addCluster("azure")
 	GKEOnEKS                      = addCluster("eks")
 	GKEOnAKS                      = addCluster("aks")
 	GKEOnBareMetal                = addCluster("bare-metal")

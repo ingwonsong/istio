@@ -90,8 +90,8 @@ func ReconcileAndValidateSettings(settings *Settings) error {
 	if settings.TestTarget == "" {
 		errs = append(errs, errors.New("--test-target must be set"))
 	}
-	if settings.UseOnePlatform && settings.ClusterType != GKEOnAWS {
-		errs = append(errs, errors.New("--use-oneplatform can only be used with GKE on AWS"))
+	if settings.UseOnePlatform && settings.ClusterType != GKEOnAWS && settings.ClusterType != GKEOnAzure {
+		errs = append(errs, errors.New("--use-oneplatform can only be used with GKE on AWS or GKE on Azure"))
 	}
 
 	return multierr.Combine(errs...)

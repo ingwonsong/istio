@@ -239,6 +239,8 @@ func fixClusterConfigs(settings *resource.Settings) error {
 		err = fixBareMetal(settings)
 	case resource.GKEOnAWS:
 		err = fixAWS(settings)
+	case resource.GKEOnAzure:
+		err = fixAzure(settings)
 	case resource.APM:
 		err = fixAPM(settings)
 	case resource.HybridGKEAndBareMetal:
@@ -569,6 +571,26 @@ func fixAWS(settings *resource.Settings) error {
 		}); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Fix azure cluster configs that are created by Tailorbird:
+func fixAzure(settings *resource.Settings) error {
+	// Azure should use one platform.
+	if !settings.UseOnePlatform {
+		return errors.New("GKEOnAzure should use OnePlatform!")
+	}
+
+	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
+		clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
+		scriptRelPath:        ".deployer/tunnel.sh",
+		regexMatcher:         `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
+		sshKeyRelPath:        ".deployer/id_rsa",
+	}); err != nil {
+		return err
 	}
 
 	return nil
