@@ -56,7 +56,7 @@
               "autoMapping": true,
               "convertGrpcStatus": true,
               "ignoredQueryParameters": [
-                "api_key",
+                "$key",
                 "key"
               ],
               "matchUnregisteredCustomVerb": true,
@@ -64,7 +64,8 @@
               "protoDescriptor": "/etc/istio/proxy/apikey_grpc_asm_e2e_config_descriptor",
               "queryParamUnescapePlus": true,
               "services": [
-                "google.example.apikeys.v1.ApiKeys"
+                "google.example.apikeys.v1.ApiKeys",
+                "google.discovery.Discovery"
               ]
             }
           }
@@ -89,7 +90,7 @@
         "patch": {
           "operation": "INSERT_BEFORE",
           "value": {
-            "name": "com.google.espv2.filters.http.service_control_v2",
+            "name": "com.google.service_control_v2_filter",
             "typedConfig": {
               "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
               "typeUrl": "type.googleapis.com/net.envoy.proto.service_control_v2.FilterConfig",
@@ -160,6 +161,20 @@
                       }
                     ],
                     "operationName": "google.example.apikeys.v1.ApiKeys.DeleteApiKey",
+                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                  },
+                  {
+                    "apiName": "google.discovery.Discovery",
+                    "apiVersion": "v1",
+                    "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
+                    "operationName": "google.discovery.Discovery.GetDiscovery",
+                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                  },
+                  {
+                    "apiName": "google.discovery.Discovery",
+                    "apiVersion": "v1",
+                    "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
+                    "operationName": "google.discovery.Discovery.GetDiscoveryRest",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   }
                 ],

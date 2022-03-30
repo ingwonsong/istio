@@ -19,6 +19,160 @@
           {
             "headers": {
               ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "regex": "^/\\$discovery/[^\\/:]+\\/?$"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
                 "exact": "POST"
               }
             },
@@ -273,7 +427,7 @@
               }
             },
             "uri": {
-              "regex": "^/v1/projects/[^\\/]+/apiKeys\\/?$"
+              "regex": "^/v1/projects/[^\\/:]+/apiKeys\\/?$"
             }
           }
         ],
@@ -298,7 +452,7 @@
               }
             },
             "uri": {
-              "regex": "^/v1/projects/[^\\/]+/apiKeys\\/?$"
+              "regex": "^/v1/projects/[^\\/:]+/apiKeys\\/?$"
             }
           }
         ],
@@ -323,7 +477,7 @@
               }
             },
             "uri": {
-              "regex": "^/v1/projects/[^\\/]+/apiKeys/[^\\/]+\\/?$"
+              "regex": "^/v1/projects/[^\\/:]+/apiKeys/[^\\/:]+\\/?$"
             }
           }
         ],
@@ -348,7 +502,7 @@
               }
             },
             "uri": {
-              "regex": "^/v1/projects/[^\\/]+/apiKeys/[^\\/]+\\/?$"
+              "regex": "^/v1/projects/[^\\/:]+/apiKeys/[^\\/:]+\\/?$"
             }
           }
         ],
@@ -373,7 +527,7 @@
               }
             },
             "uri": {
-              "regex": "^/v1/projects/[^\\/]+/apiKeys/[^\\/]+\\/?$"
+              "regex": "^/v1/projects/[^\\/:]+/apiKeys/[^\\/:]+\\/?$"
             }
           }
         ],

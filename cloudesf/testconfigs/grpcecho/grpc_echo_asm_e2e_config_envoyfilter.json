@@ -56,7 +56,7 @@
               "autoMapping": true,
               "convertGrpcStatus": true,
               "ignoredQueryParameters": [
-                "api_key",
+                "$key",
                 "key"
               ],
               "matchUnregisteredCustomVerb": true,
@@ -64,7 +64,8 @@
               "protoDescriptor": "/etc/istio/proxy/grpc_echo_asm_e2e_config_descriptor",
               "queryParamUnescapePlus": true,
               "services": [
-                "test.grpc.Test"
+                "test.grpc.Test",
+                "google.discovery.Discovery"
               ]
             }
           }
@@ -89,7 +90,7 @@
         "patch": {
           "operation": "INSERT_BEFORE",
           "value": {
-            "name": "com.google.espv2.filters.http.service_control_v2",
+            "name": "com.google.service_control_v2_filter",
             "typedConfig": {
               "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
               "typeUrl": "type.googleapis.com/net.envoy.proto.service_control_v2.FilterConfig",
@@ -124,6 +125,18 @@
                     "apiName": "test.grpc.Test",
                     "apiVersion": "v1",
                     "operationName": "test.grpc.Test.EchoReport",
+                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                  },
+                  {
+                    "apiName": "google.discovery.Discovery",
+                    "apiVersion": "v1",
+                    "operationName": "google.discovery.Discovery.GetDiscovery",
+                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                  },
+                  {
+                    "apiName": "google.discovery.Discovery",
+                    "apiVersion": "v1",
+                    "operationName": "google.discovery.Discovery.GetDiscoveryRest",
                     "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
                   }
                 ],

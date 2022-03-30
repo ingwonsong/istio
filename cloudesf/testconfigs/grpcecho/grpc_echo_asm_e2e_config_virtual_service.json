@@ -19,6 +19,72 @@
           {
             "headers": {
               ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "exact": "/$discovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "GET"
+              }
+            },
+            "uri": {
+              "regex": "^/\\$discovery/[^\\/:]+\\/?$"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
                 "exact": "POST"
               }
             },
@@ -160,6 +226,94 @@
               "port": {
                 "number": 8080
               }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscovery/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscovery",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.discovery.Discovery/GetDiscoveryRest/"
+            }
+          }
+        ],
+        "name": "google.discovery.Discovery.GetDiscoveryRest",
+        "route": [
+          {
+            "destination": {
+              "host": "discovery.default.svc.cluster.local"
             }
           }
         ]
