@@ -5,6 +5,7 @@ metadata:
   name: tairan-baremetal-hybrid-rookery
   namespace: tailorbird-users
 spec:
+  ttlSeconds: 10800 # 3 hours
   gcpProjects:
   - managedAccounts:
     - email: baremetal-dev@tairan-asm-multi-cloud-dev.iam.gserviceaccount.com
