@@ -29,7 +29,7 @@ import (
 
 const (
 	istioctlPath = "out/linux_amd64/istioctl"
-	basePath = "manifests/charts/base/files/gen-istio-cluster.yaml"
+	basePath     = "manifests/charts/base/files/gen-istio-cluster.yaml"
 
 	// Envvar consts
 	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"
@@ -44,7 +44,7 @@ func (c *installer) install(r *revision.Config) error {
 		case resource.GKEOnGCP:
 			log.Println("🏄 performing ASM installation")
 			return c.installASM(r)
-		case resource.HybridGKEAndBareMetal:
+		case resource.HybridGKEAndBareMetal, resource.HybridGKEAndEKS:
 			log.Println("🏄 performing ASM installation on hybrid clusters")
 			return c.installASMOnHybridClusters(r)
 		default:

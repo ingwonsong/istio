@@ -205,7 +205,7 @@ func (d *Instance) installTools() error {
 		}
 	}
 
-	if d.cfg.Cluster == types.GKEOnEKS {
+	if d.cfg.Cluster == types.GKEOnEKS || d.cfg.Cluster == types.HybridGKEAndEKS {
 		if err := exec.Run("bash -c '" + installawsIamAuthenticatorCmd + "'"); err != nil {
 			return fmt.Errorf("error installing aws-iam-authenticator for testing with eks")
 		}

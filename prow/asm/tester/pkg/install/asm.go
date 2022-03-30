@@ -309,7 +309,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	// Other random options
 	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		installFlags = append(installFlags, "--option", "cni-gke-autopilot")
-	} else if settings.ClusterType != resource.HybridGKEAndBareMetal {
+	} else if settings.ClusterType != resource.HybridGKEAndBareMetal && settings.ClusterType != resource.HybridGKEAndEKS {
 		installFlags = append(installFlags, "--option", "cni-gcp")
 	}
 	if settings.ClusterTopology == resource.MultiProject {
@@ -325,14 +325,23 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 // generateASMCreateMeshFlags returns the flags required when running the asmcli
 // script to register clusters and install remote secrets
 func generateASMCreateMeshFlags(settings *resource.Settings) []string {
-	contexts := settings.KubeContexts
-	var createMeshFlags []string
-	createMeshFlags = append(createMeshFlags, "create-mesh", kube.GKEClusterSpecFromContext(contexts[0]).ProjectID)
 
-	for _, context := range contexts {
-		cluster := kube.GKEClusterSpecFromContext(context)
-		createMeshFlags = append(createMeshFlags, fmt.Sprintf("%s/%s/%s",
-			cluster.ProjectID, cluster.Location, cluster.Name))
+	var createMeshFlags []string
+	if settings.ClusterType == resource.HybridGKEAndEKS {
+		createMeshFlags = append(createMeshFlags, "create-mesh", onPremFleetProject)
+		kubeconfigs := filepath.SplitList(settings.Kubeconfig)
+		for _, kubeconfig := range kubeconfigs {
+			createMeshFlags = append(createMeshFlags, kubeconfig)
+		}
+	} else {
+		contexts := settings.KubeContexts
+		createMeshFlags = append(createMeshFlags, "create-mesh", kube.GKEClusterSpecFromContext(contexts[0]).ProjectID)
+
+		for _, context := range contexts {
+			cluster := kube.GKEClusterSpecFromContext(context)
+			createMeshFlags = append(createMeshFlags, fmt.Sprintf("%s/%s/%s",
+				cluster.ProjectID, cluster.Location, cluster.Name))
+		}
 	}
 
 	createMeshFlags = append(createMeshFlags, "--verbose")

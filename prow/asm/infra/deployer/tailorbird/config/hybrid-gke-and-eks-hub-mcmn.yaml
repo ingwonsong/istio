@@ -1,0 +1,47 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-gcp-eks-hybrid-rookery01
+  namespace: tailorbird-users
+spec:
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      creationTimestamp: null
+      name: asm-ci-gcp-eks-hybrid-knest01
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          creationTimestamp: null
+          name: asm-ci-gcp-eks-hybrid-gcp-cluster01
+        spec:
+          distribution: gke
+          provider: gcp
+          provisionerArgs:
+            pluginSpecYaml: |
+              pluginOptions:
+                # note: this currently leaves orphan firewall rules, needs some sort of janitor
+                skipNetworkTeardowns: true
+              projectOptions:
+                projects: tairan-asm-multi-cloud-dev
+              networkOptions:
+                network: default
+              clusterOptions:
+                clusters: asm-ci-gcp-eks-hybrid-gcp-cluster01
+                regions: us-central1
+                gcloudExtraFlags: --enable-ip-alias --subnetwork=default
+                workloadIdentityEnabled: true
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-gcp-eks-hybrid-eks-cluster01
+        spec:
+          provider: aws
+          distribution: eks
+          provisionerArgs:
+            kubernetesVersion: "1.21"
+            username: asm-svc-acct
+            compressArtifacts: "true"

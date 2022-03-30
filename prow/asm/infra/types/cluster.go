@@ -27,6 +27,7 @@ var (
 	GKEOnAKS                      = addCluster("aks")
 	GKEOnBareMetal                = addCluster("bare-metal")
 	HybridGKEAndGKEOnBareMetal    = addCluster("hybrid-gke-and-bare-metal")
+	HybridGKEAndEKS               = addCluster("hybrid-gke-and-eks")
 
 	SupportedClusters []Cluster
 )

@@ -46,7 +46,9 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 		// Set the _CI_ENVIRON_PROJECT_NUMBER as the project where fleet is registered
 		// TODO(chizhg): use the same project for all multicloud.
 		environProject := proxiedClusterFleetProject
-		if c.settings.ClusterType == resource.OnPrem || c.settings.ClusterType == resource.HybridGKEAndBareMetal {
+		if c.settings.ClusterType == resource.OnPrem ||
+			c.settings.ClusterType == resource.HybridGKEAndBareMetal ||
+			c.settings.ClusterType == resource.HybridGKEAndEKS {
 			environProject = onPremFleetProject
 		}
 		if c.settings.MulticloudOverrideEnvironProject {
@@ -119,9 +121,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			// TODO(samnaser) should we use `asmcli create-mesh`?
 			if c.settings.ClusterType == resource.OnPrem {
 				return createRemoteSecretsMulticloud(c.settings, kubeconfigs)
-			}
-
-			if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
+			} else if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
 				return exec.Dispatch(
 					c.settings.RepoRootDir,
 					"configure_remote_secrets_for_gcp_baremetal_hybrid",
@@ -130,6 +130,8 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 						fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
 					}),
 				)
+			} else if c.settings.ClusterType == resource.HybridGKEAndEKS {
+				return createRemoteSecrets(c.settings, rev, scriptPath)
 			}
 		}
 

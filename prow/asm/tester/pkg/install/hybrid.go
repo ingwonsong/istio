@@ -54,10 +54,16 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 		kubeconfigLogger.Println("Performing ASM installation...")
 		kubeconfigLogger.Println("Running installation using install script...")
 
-		networkID := "network-bm"
+		networkID := ""
 		clusterID := ""
-		if isBMCluster(kubeconfig) {
-			clusterID = "cluster-bm"
+		if isBMCluster(kubeconfig) || isEKSCluster(kubeconfig) {
+			if isBMCluster(kubeconfig) {
+				networkID = "network-bm"
+				clusterID = "cluster-bm"
+			} else if isEKSCluster(kubeconfig) {
+				networkID = "network-eks"
+				clusterID = "cluster-eks"
+			}
 			additionalFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
 				kubeconfig, environProject)
 			if err != nil {
@@ -77,7 +83,11 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 			}
 		} else {
 			clusterID = "cluster-gcp"
-			networkID = "tairan-asm-multi-cloud-dev-cluster-net"
+			if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
+				networkID = "tairan-asm-multi-cloud-dev-cluster-net"
+			} else if c.settings.ClusterType == resource.HybridGKEAndEKS {
+				networkID = "tairan-asm-multi-cloud-dev-default"
+			}
 			gkeContext := ""
 			for _, context := range c.settings.KubeContexts {
 				if strings.Contains(context, "gke") {
@@ -117,10 +127,16 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 				fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
 			}),
 		)
+	} else if c.settings.ClusterType == resource.HybridGKEAndEKS {
+		return createRemoteSecrets(c.settings, rev, scriptPath)
 	}
 	return nil
 }
 
 func isBMCluster(kubeconfig string) bool {
 	return strings.HasSuffix(kubeconfig, "artifacts/kubeconfig")
+}
+
+func isEKSCluster(kubeconfig string) bool {
+	return strings.HasSuffix(kubeconfig, "kubeconfig.yaml")
 }

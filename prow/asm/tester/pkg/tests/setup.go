@@ -141,6 +141,12 @@ func genTopologyFile(settings *resource.Settings) error {
 			} else {
 				clusterName = "cluster-gcp"
 			}
+		} else if settings.ClusterType == resource.HybridGKEAndEKS {
+			if isEKSCluster(kubeconfig) {
+				clusterName = "cluster-eks"
+			} else {
+				clusterName = "cluster-gcp"
+			}
 		} else {
 			if len(settings.ClusterProxy) > 1 {
 				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
@@ -189,6 +195,12 @@ func genTopologyFile(settings *resource.Settings) error {
 				} else {
 					networkID = "tairan-asm-multi-cloud-dev-cluster-net"
 				}
+			} else if settings.ClusterType == resource.HybridGKEAndEKS {
+				if isEKSCluster(kubeconfig) {
+					networkID = "network-eks"
+				} else {
+					networkID = "tairan-asm-multi-cloud-dev-cluster-net"
+				}
 			}
 			cc += fmt.Sprintf("\n  network: %s", networkID)
 		}
@@ -202,4 +214,8 @@ func genTopologyFile(settings *resource.Settings) error {
 
 func isBMCluster(kubeconfig string) bool {
 	return strings.HasSuffix(kubeconfig, "artifacts/kubeconfig")
+}
+
+func isEKSCluster(kubeconfig string) bool {
+	return strings.HasSuffix(kubeconfig, "kubeconfig.yaml")
 }

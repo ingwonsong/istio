@@ -34,6 +34,7 @@ const (
 	BareMetal             ClusterType = "bare-metal"
 	APM                   ClusterType = "apm"
 	HybridGKEAndBareMetal ClusterType = "hybrid-gke-and-bare-metal"
+	HybridGKEAndEKS       ClusterType = "hybrid-gke-and-eks"
 )
 
 // Set converts the value string to ClusterType
