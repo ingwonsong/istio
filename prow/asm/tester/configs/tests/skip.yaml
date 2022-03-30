@@ -411,6 +411,63 @@ tests:
         - TestDescribe
         buganizerID: 208485368
 
+  # Unmanaged CP + azure
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: azure
+    targets:
+      # security/ tests
+      - names:
+          - TestStrictMTLS
+        reason: MeshCA does not support ECDSA
+      - names:
+          - TestAuthorization_Custom
+        reason: requires mesh config
+      - names:
+          - TestSingleTlsGateway*
+          - TestSingleMTLSGateway*
+          - TestTlsGatewaysWithQUIC/quic*
+          - TestMtlsGatewaysWithQUIC/quic*
+          - TestTlsGateways
+          - TestMtlsGateways
+        buganizerID: 200846058
+
+      # telemetry/ tests
+      - names:
+          - TestCanonicalServices
+        buganizerID: 203557135
+      - names:
+          - TestStackdriver
+          - TestStackdriverAudit
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro installation
+      - names:
+          - TestTelemetryAPITCPStats
+        buganizerID: 205336277
+
+      # networking/ tests
+      - names:
+        - TestCustomGateway/helm
+        - TestAddToAndRemoveFromMesh
+        - TestRevisionedUpgrade
+        - TestServiceExports/exported/0/create
+        - TestRevisionCommand
+        - TestRevisionTags
+        - TestMultiRevision
+        - TestUninstallByRevision
+        - TestUninstallWithSetFlag
+        - TestTraffic/dns
+        - TestXdsVersion
+        - TestXdsProxyStatus
+        - TestMultiVersionRevision
+        buganizerID: 187722953
+      - names:
+        - TestTraffic/jwt-claim-route
+        reason: Temporary disable until mesh agent upgraded to 1.11.2
+      - names:
+        - TestDescribe
+        buganizerID: 208485368
+
   # Unmanaged CP + EKS (don't confuse with regular AWS)
   - selectors:
       control_plane: unmanaged
