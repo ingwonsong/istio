@@ -141,13 +141,13 @@ function register_clusters_in_hub() {
     # if the cluster is in the Hub host project
     if [[ "${USE_ASMCLI}" != "true" ]]; then
       if [[ "${PROJECT_ID}" == "${GKEHUB_PROJECT_ID}" ]]; then
-        gcloud beta container hub memberships register "${CLUSTER_NAME}" --project="${PROJECT_ID}" \
+        gcloud beta container hub memberships register "${CLUSTER_NAME}_${PROJECT_ID}" --project="${PROJECT_ID}" \
           --gke-cluster="${CLUSTER_LOCATION}"/"${CLUSTER_NAME}" \
           --enable-workload-identity \
           --quiet
       # if the cluster is in the connect project
       else
-        gcloud beta container hub memberships register "${CLUSTER_NAME}" --project="${GKEHUB_PROJECT_ID}" \
+        gcloud beta container hub memberships register "${CLUSTER_NAME}_${PROJECT_ID}" --project="${GKEHUB_PROJECT_ID}" \
           --gke-uri=https://container.googleapis.com/v1/projects/"${PROJECT_ID}"/locations/"${CLUSTER_LOCATION}"/clusters/"${CLUSTER_NAME}" \
           --enable-workload-identity \
           --quiet
