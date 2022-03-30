@@ -1,7 +1,6 @@
-63cb74a22e5cb2d7d45e80f006bb83901b65f5f8
+6143273d68ed4c0e480560a6e3b34734c50fd512
 ========================================
-Xinnan Wen
-Mon Mar 21 16:41:33 2022 -0700
+Clayton Pence
+Tue Mar 29 23:55:18 2022 +0000
 
-sync migrate addon script: check existence of control plane (#1154)
-
+Update release script
