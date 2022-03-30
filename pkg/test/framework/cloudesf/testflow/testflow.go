@@ -307,7 +307,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		}
 
 		t.Logf("Deploying Cloud ESF based ingress gateway.")
-		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t)
+		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t, resource.Wait, resource.NoCleanup)
 
 		// Get the ingress address.
 		address, _ := i.CustomIngressFor(t.Clusters().Default(), "istio-ingressgateway", "ingressgateway").HTTPAddress()
