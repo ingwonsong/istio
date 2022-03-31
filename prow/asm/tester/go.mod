@@ -5,7 +5,6 @@ go 1.16
 require (
 	github.com/google/go-cmp v0.5.7
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hashicorp/go-version v1.4.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/octago/sflags v0.3.1-0.20210726012706-20f2a9c31dfc
 	github.com/pkg/errors v0.9.1

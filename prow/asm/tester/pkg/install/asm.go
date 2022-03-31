@@ -65,14 +65,6 @@ func (c *installer) installASM(rev *revision.Config) error {
 		cluster := kube.GKEClusterSpecFromContext(context)
 		var trustedGCPProjects string
 
-		// Create the istio-system ns before running the install_asm script.
-		// TODO(chizhg): remove this line after install_asm script can create it.
-		if err := exec.Run(fmt.Sprintf("bash -c "+
-			"\"kubectl create namespace istio-system --dry-run=client -o yaml "+
-			"| kubectl apply -f - --context=%s \"", context)); err != nil {
-			return fmt.Errorf("failed to create istio-system namespace: %w", err)
-		}
-
 		// Override CA with CA from revision
 		// clunky but works
 		ca := c.settings.CA
@@ -122,7 +114,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 		// Install Gateway
 		// If this is Cloud ESF based, don't install gateway here. The customized
 		// Cloud ESF gateway will be installed in each test.
-		if useASMCLI(c.settings, rev) && !c.settings.InstallCloudESF {
+		if !c.settings.InstallCloudESF {
 			if err := c.installIngressGateway(c.settings, rev, context, "", i); err != nil {
 				return err
 			}
@@ -169,11 +161,7 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 		masterVars["_CI_ISTIOCTL_REL_PATH"] = filepath.Join(settings.RepoRootDir, istioctlPath)
 		// Use CRDs from our branch instead of the KPT branch
 		masterVars["_CI_BASE_REL_PATH"] = filepath.Join(settings.RepoRootDir, basePath)
-		if useASMCLI(settings, rev) {
-			masterVars["_CI_ASM_KPT_BRANCH"] = settings.NewtaroCommit
-		} else {
-			masterVars["_CI_ASM_KPT_BRANCH"] = settings.ScriptaroCommit
-		}
+		masterVars["_CI_ASM_KPT_BRANCH"] = settings.NewtaroCommit
 		for k, v := range masterVars {
 			varMap[k] = v
 		}
@@ -225,13 +213,8 @@ func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config)
 // generateASMInstallFlags returns the flags required when running the install
 // script to install ASM.
 func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, pkgPath string, cluster *kube.GKEClusterSpec) []string {
-	var installFlags []string
-	if useASMCLI(settings, rev) {
-		installFlags = append(installFlags, "install")
-		installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
-	} else {
-		installFlags = append(installFlags, "--mode", "install")
-	}
+	installFlags := []string{"install"}
+	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
 
 	installFlags = append(installFlags,
 		"--project_id", cluster.ProjectID,

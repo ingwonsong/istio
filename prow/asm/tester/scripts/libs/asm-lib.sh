@@ -86,11 +86,9 @@ function build_istioctl() {
 
 # Register the clusters into the Hub of the Hub host project.
 # Parameters: $1 - Hub host project
-#             $2 - Value of --use-asmcli flag
-#             $3 - array of k8s contexts
+#             $2 - array of k8s contexts
 function register_clusters_in_hub() {
   local GKEHUB_PROJECT_ID=$1; shift
-  local USE_ASMCLI=$1; shift
   local CONTEXTS=("${@}")
   local ENVIRON_PROJECT_NUMBER
   ENVIRON_PROJECT_NUMBER=$(gcloud projects describe "${GKEHUB_PROJECT_ID}" --format="value(projectNumber)")
@@ -135,24 +133,6 @@ function register_clusters_in_hub() {
     # Sleep 2 mins to wait for the IAM binding to take into effect.
     # TODO(chizhg,tairan): remove the sleep after http://b/190864991 is fixed.
     sleep 2m
-    # This is the user guide for registering clusters within Hub
-    # https://cloud.devsite.corp.google.com/service-mesh/docs/register-cluster
-    # Verify two ways of Hub registration
-    # if the cluster is in the Hub host project
-    if [[ "${USE_ASMCLI}" != "true" ]]; then
-      if [[ "${PROJECT_ID}" == "${GKEHUB_PROJECT_ID}" ]]; then
-        gcloud beta container hub memberships register "${CLUSTER_NAME}_${PROJECT_ID}" --project="${PROJECT_ID}" \
-          --gke-cluster="${CLUSTER_LOCATION}"/"${CLUSTER_NAME}" \
-          --enable-workload-identity \
-          --quiet
-      # if the cluster is in the connect project
-      else
-        gcloud beta container hub memberships register "${CLUSTER_NAME}_${PROJECT_ID}" --project="${GKEHUB_PROJECT_ID}" \
-          --gke-uri=https://container.googleapis.com/v1/projects/"${PROJECT_ID}"/locations/"${CLUSTER_LOCATION}"/clusters/"${CLUSTER_NAME}" \
-          --enable-workload-identity \
-          --quiet
-      fi
-    fi
   done
   echo "These are the Hub Memberships within Host project ${GKEHUB_PROJECT_ID}"
   gcloud beta container hub memberships list --project="${GKEHUB_PROJECT_ID}"
@@ -382,93 +362,6 @@ spec:
    app: istiod
    istio.io/rev: ${1}
 EOF
-}
-
-function install_asm_on_proxied_clusters() {
-  local MESH_ID="test-mesh"
-  for i in "${!MC_CONFIGS[@]}"; do
-    if [[ "${CA}" == "MESHCA" ]]; then
-      local IDENTITY_PROVIDER
-      local IDENTITY
-      local HUB_MEMBERSHIP_ID
-      IDENTITY_PROVIDER="$(kubectl --kubeconfig="${MC_CONFIGS[$i]}" get memberships.hub.gke.io membership -o=jsonpath='{.spec.identity_provider}')"
-      IDENTITY="$(echo "${IDENTITY_PROVIDER}" | sed 's/^https:\/\/gkehub.googleapis.com\/projects\/\(.*\)\/locations\/global\/memberships\/\(.*\)$/\1 \2/g')"
-      read -r ENVIRON_PROJECT_ID HUB_MEMBERSHIP_ID <<EOF
-${IDENTITY}
-EOF
-      local ENVIRON_PROJECT_NUMBER
-      ENVIRON_PROJECT_NUMBER=$(env -u HTTPS_PROXY gcloud projects describe "${ENVIRON_PROJECT_ID}" --format="value(projectNumber)")
-      local PROJECT_ID="${ENVIRON_PROJECT_ID}"
-      local CLUSTER_NAME="${HUB_MEMBERSHIP_ID}"
-      local CLUSTER_LOCATION="us-central1-a"
-      local MESH_ID="proj-${ENVIRON_PROJECT_NUMBER}"
-
-      env -u HTTPS_PROXY kpt pkg get https://github.com/GoogleCloudPlatform/anthos-service-mesh-packages.git/asm@master tmp
-      kpt cfg set tmp gcloud.compute.network "network${i}"
-      kpt cfg set tmp gcloud.core.project "${PROJECT_ID}"
-      kpt cfg set tmp gcloud.project.environProjectNumber "${ENVIRON_PROJECT_NUMBER}"
-      kpt cfg set tmp gcloud.container.cluster "${CLUSTER_NAME}"
-      kpt cfg set tmp gcloud.compute.location "${CLUSTER_LOCATION}"
-      kpt cfg set tmp anthos.servicemesh.rev "${ASM_REVISION_LABEL}"
-      kpt cfg set tmp anthos.servicemesh.tag "${TAG}"
-      kpt cfg set tmp anthos.servicemesh.hub "${HUB}"
-      kpt cfg set tmp anthos.servicemesh.hubTrustDomain "${ENVIRON_PROJECT_ID}.svc.id.goog"
-      kpt cfg set tmp anthos.servicemesh.hub-idp-url "${IDENTITY_PROVIDER}"
-
-      cat > "tmp/debug-overlay.yaml" <<EOF
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-spec:
-  values:
-    global:
-      proxy:
-        logLevel: debug
-        componentLogLevel: "misc:debug,rbac:debug"
-    pilot:
-      env:
-        UNSAFE_ENABLE_ADMIN_ENDPOINTS: true
-        PILOT_REMOTE_CLUSTER_TIMEOUT: 15s
-  meshConfig:
-    accessLogFile: /dev/stdout
-EOF
-
-      echo "----------Istio Operator YAML and Hub Overlay YAML----------"
-      cat "tmp/istio/istio-operator.yaml"
-      cat "tmp/istio/options/hub-meshca.yaml"
-      cat "tmp/debug-overlay.yaml"
-
-      echo "----------Installing ASM----------"
-      istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f "tmp/istio/istio-operator.yaml" -f "tmp/istio/options/hub-meshca.yaml" -f "tmp/debug-overlay.yaml" --revision="${ASM_REVISION_LABEL}"
-    else
-      install_certs "${MC_CONFIGS[$i]}"
-      echo "----------Installing ASM----------"
-      cat <<EOF | istioctl install -y --kubeconfig="${MC_CONFIGS[$i]}" -f -
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-spec:
-  profile: asm-multicloud
-  revision: ${ASM_REVISION_LABEL}
-  hub: ${HUB}
-  tag: ${TAG}
-  values:
-    global:
-      proxy:
-        logLevel: debug
-        componentLogLevel: "misc:debug,rbac:debug"
-      meshID: ${MESH_ID}
-      multiCluster:
-        clusterName: cluster${i}
-      network: network${i}
-    pilot:
-      env:
-        UNSAFE_ENABLE_ADMIN_ENDPOINTS: true
-        PILOT_REMOTE_CLUSTER_TIMEOUT: 15s
-  meshConfig:
-    accessLogFile: /dev/stdout
-EOF
-    fi
-    configure_validating_webhook "${ASM_REVISION_LABEL}" "${MC_CONFIGS[$i]}"
-  done
 }
 
 #1: add/remove IAM policy binding

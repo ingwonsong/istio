@@ -28,13 +28,13 @@ type ASMPipelineTester struct {
 
 // Ensure ASMPipelineTester implements the interfaces
 var _ types.BasePipelineTester = (*ASMPipelineTester)(nil)
-var _ types.LifecycleEnv = (*ASMPipelineTester)(nil)
-var _ types.LifecycleTests = (*ASMPipelineTester)(nil)
+
+var (
+	_ types.LifecycleEnv   = (*ASMPipelineTester)(nil)
+	_ types.LifecycleTests = (*ASMPipelineTester)(nil)
+)
 
 func (apt *ASMPipelineTester) SetupEnv() error {
-	if apt.InstallCloudESF {
-		apt.UseASMCLI = true
-	}
 	return env.Setup(&apt.Settings)
 }
 

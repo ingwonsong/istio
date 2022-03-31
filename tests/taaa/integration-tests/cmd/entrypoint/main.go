@@ -23,6 +23,7 @@ import (
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/magetools"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_integration"
+
 	pkgexec "istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
@@ -30,17 +31,14 @@ import (
 	"istio.io/istio/tests/taaa/test-artifact/internal"
 )
 
-var (
-	testerSetting = &resource.Settings{
-		RepoRootDir:  internal.RepoCopyRoot,
-		UseASMCLI:    true,
-		ClusterType:  resource.GKEOnGCP,
-		ControlPlane: resource.Unmanaged,
-		CA:           resource.MeshCA,
-		WIP:          resource.GKEWorkloadIdentityPool,
-		TestTarget:   "test.integration.asm.networking",
-	}
-)
+var testerSetting = &resource.Settings{
+	RepoRootDir:  internal.RepoCopyRoot,
+	ClusterType:  resource.GKEOnGCP,
+	ControlPlane: resource.Unmanaged,
+	CA:           resource.MeshCA,
+	WIP:          resource.GKEWorkloadIdentityPool,
+	TestTarget:   "test.integration.asm.networking",
+}
 
 // Creates the JUnit to store the result and error of installing ASM on each cluster.
 func createCmdJUnit(errorOutput string, cmdRunErr error) {
@@ -62,7 +60,7 @@ func createCmdJUnit(errorOutput string, cmdRunErr error) {
 `
 
 	// Make output directory if it doesn't exist.
-	if err := os.MkdirAll(entrypoint.OutputDirectory, 0755); err != nil {
+	if err := os.MkdirAll(entrypoint.OutputDirectory, 0o755); err != nil {
 		log.Fatalf("Failed to find or create output directory, error: %s\n", err)
 	}
 
@@ -86,7 +84,7 @@ func createCmdJUnit(errorOutput string, cmdRunErr error) {
 	// Now create the and write the xml contents to the file.
 	xmlPath := filepath.Join(entrypoint.OutputDirectory, "junit_cluster_asm_install.xml")
 
-	outputFileWriter, err := os.OpenFile(xmlPath, os.O_RDWR|os.O_CREATE, 0755)
+	outputFileWriter, err := os.OpenFile(xmlPath, os.O_RDWR|os.O_CREATE, 0o755)
 	if err != nil {
 		log.Fatalf("cannot open file %q, got error %v", xmlPath, err)
 	}

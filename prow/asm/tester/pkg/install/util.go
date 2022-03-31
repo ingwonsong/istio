@@ -24,8 +24,6 @@ import (
 	"regexp"
 	"strings"
 
-	version "github.com/hashicorp/go-version"
-
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
@@ -38,23 +36,12 @@ const scriptRepoBase = "https://raw.githubusercontent.com/GoogleCloudPlatform/an
 var enableOptionsArgs = []string{}
 
 func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (string, error) {
-	var scriptURL, scriptBaseName string
-	if useASMCLI(settings, rev) {
-		scriptBranch := settings.NewtaroCommit
-		if rev != nil && rev.Version != "" {
-			scriptBranch = fmt.Sprintf("release-%s", rev.Version)
-		}
-		scriptBaseName = "asmcli"
-		scriptURL = fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, scriptBranch, scriptBaseName)
-	} else {
-		scriptBranch := settings.ScriptaroCommit
-		if rev != nil && rev.Version != "" {
-			scriptBranch = fmt.Sprintf("release-%s-asm", rev.Version)
-		}
-		scriptBaseName = "asmcli"
-		scriptBaseName = "install_asm"
-		scriptURL = fmt.Sprintf("%s/%s/scripts/asm-installer/%s", scriptRepoBase, scriptBranch, scriptBaseName)
+	scriptBranch := settings.NewtaroCommit
+	if rev != nil && rev.Version != "" {
+		scriptBranch = fmt.Sprintf("release-%s", rev.Version)
 	}
+	scriptBaseName := "asmcli"
+	scriptURL := fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, scriptBranch, scriptBaseName)
 
 	log.Printf("Downloading script from %s...", scriptURL)
 	resp, err := http.Get(scriptURL)
@@ -120,7 +107,7 @@ func getInstallEnableFlags() []string {
 // createRemoteSecrets creates remote secrets for each cluster to each other cluster
 func createRemoteSecrets(settings *resource.Settings, rev *revision.Config, scriptPath string) error {
 	// VPC-SC mode should not use create-mesh since it does not handle private IPs
-	if useASMCLI(settings, rev) && !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
+	if !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		return exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateASMInstallEnvvars(settings, rev, "")), // trustProjects is not used here
 			exec.WithAdditionalArgs(generateASMCreateMeshFlags(settings)))
@@ -320,12 +307,9 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		var istiodSvcAccount string
 		if rev.Name != "" {
 			istiodSvcAccount = fmt.Sprintf("istiod-%s", rev.Name)
-		} else if useASMCLI(settings, rev) {
+		} else {
 			// asmcli install uses _CI_NO_REVISION or the "default" revision so no need for suffix
 			istiodSvcAccount = "istiod"
-		} else {
-			// only the bash based install will use the auto-generated revision
-			istiodSvcAccount = fmt.Sprintf("istiod-%s", revision.RevisionLabel())
 		}
 		serviceAccts := []string{
 			"default",
@@ -360,19 +344,4 @@ EOF'`,
 	}
 
 	return nil
-}
-
-func useASMCLI(settings *resource.Settings, rev *revision.Config) bool {
-	if rev != nil && rev.Version != "" {
-		// since 1.11 is the first release to have asmcli and not have install_asm, make sure that
-		// we use an installation script that exists.
-		v111, _ := version.NewVersion("1.11")
-		v, err := version.NewVersion(rev.Version)
-		if err != nil {
-			log.Printf("Failed to parse %q as version, defaulting to UseASMCLI=%t", rev.Version, settings.UseASMCLI)
-			return settings.UseASMCLI
-		}
-		return v.GreaterThanOrEqual(v111)
-	}
-	return settings.UseASMCLI
 }

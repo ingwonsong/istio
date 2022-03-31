@@ -34,10 +34,9 @@ import (
 )
 
 const (
-	SharedGCPProject      = "istio-prow-build"
-	configDir             = "prow/asm/tester/configs"
-	scriptaroCommitConfig = "scriptaro/commit"
-	newtaroCommitConfig   = "newtaro/commit"
+	SharedGCPProject    = "istio-prow-build"
+	configDir           = "prow/asm/tester/configs"
+	newtaroCommitConfig = "newtaro/commit"
 )
 
 func Setup(settings *resource.Settings) error {
@@ -115,24 +114,12 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 	}
 	settings.GCRProject = gcrProjectID
 
-	f := filepath.Join(settings.ConfigDir, scriptaroCommitConfig)
+	f := filepath.Join(settings.ConfigDir, newtaroCommitConfig)
 	bytes, err := ioutil.ReadFile(f)
-	if err != nil {
-		return fmt.Errorf("error reading the Scriptaro commit config file: %w", err)
-	}
-	settings.ScriptaroCommit = strings.Split(string(bytes), "\n")[0]
-
-	f = filepath.Join(settings.ConfigDir, newtaroCommitConfig)
-	bytes, err = ioutil.ReadFile(f)
 	if err != nil {
 		return fmt.Errorf("error reading the Newtaro commit config file: %w", err)
 	}
 	settings.NewtaroCommit = strings.Split(string(bytes), "\n")[0]
-
-	// TODO: UseASMCLI = true for all jobs
-	if settings.ClusterType == resource.GKEOnAWS && !settings.UseOnePlatform {
-		settings.UseASMCLI = false
-	}
 
 	return nil
 }

@@ -35,117 +35,106 @@ const (
 )
 
 func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
-	if c.settings.UseASMCLI {
-		kubeconfigs := filepath.SplitList(c.settings.Kubeconfig)
-		log.Println("Downloading ASM script for the installation...")
-		scriptPath, err := downloadInstallScript(c.settings, rev)
-		if err != nil {
-			return fmt.Errorf("failed to download the install script: %w", err)
-		}
-
-		// Set the _CI_ENVIRON_PROJECT_NUMBER as the project where fleet is registered
-		// TODO(chizhg): use the same project for all multicloud.
-		environProject := proxiedClusterFleetProject
-		if c.settings.ClusterType == resource.OnPrem ||
-			c.settings.ClusterType == resource.HybridGKEAndBareMetal ||
-			c.settings.ClusterType == resource.HybridGKEAndEKS {
-			environProject = onPremFleetProject
-		}
-		if c.settings.MulticloudOverrideEnvironProject {
-			environProject = c.settings.GCPProjects[0]
-		}
-		environProjectNumber, err := gcp.GetProjectNumber(environProject)
-		if err != nil {
-			return fmt.Errorf("failed to read environ number: %w", err)
-		}
-		os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
-
-		// users are required to pass this as well for AKS; the ux may change in the future
-		if c.settings.ClusterType == resource.AKS {
-			os.Setenv("HUB_REGISTRATION_EXTRA_FLAGS", "--has-private-issuer")
-		}
-
-		for i, kubeconfig := range kubeconfigs {
-			kubeconfigLogger := log.New(os.Stdout,
-				fmt.Sprintf("[kubeconfig: %s] ", kubeconfig), log.Ldate|log.Ltime)
-			kubeconfigLogger.Println("Performing ASM installation...")
-			kubeconfigLogger.Println("Running installation using install script...")
-
-			networkID := "network" + strconv.Itoa(i)
-			clusterID := "cluster" + strconv.Itoa(i)
-			additionalFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
-				kubeconfig, environProject)
-			if err != nil {
-				return fmt.Errorf("error generating multicloud install flags: %w", err)
-			}
-			additionalFlags = append(additionalFlags, "--network_id", networkID)
-
-			additionalEnvVars := generateASMInstallEnvvars(c.settings, rev, "")
-			if i < len(c.settings.ClusterProxy) && c.settings.ClusterProxy[i] != "" {
-				additionalEnvVars = append(additionalEnvVars, "HTTPS_PROXY="+c.settings.ClusterProxy[i])
-			}
-
-			if err := exec.Run(scriptPath,
-				exec.WithAdditionalEnvs(additionalEnvVars),
-				exec.WithAdditionalArgs(additionalFlags)); err != nil {
-				return fmt.Errorf("ASM installation using script failed: %w", err)
-			}
-
-			if err := c.installIngressGateway(c.settings, rev, "", kubeconfig, i); err != nil {
-				return err
-			}
-			if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
-				return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)
-			}
-			// Do not configure external IP for single cluster
-			// BM single cluster creation does not provide VIP IP by default
-			if len(kubeconfigs) > 1 {
-				if err := configureExternalIP(c.settings, kubeconfig, i); err != nil {
-					return fmt.Errorf("failed to configure external IP for the cluster: %w", err)
-				}
-			}
-		}
-
-		if len(kubeconfigs) > 1 {
-			if c.settings.ClusterType == resource.BareMetal {
-				return exec.Dispatch(
-					c.settings.RepoRootDir,
-					"configure_remote_secrets_for_baremetal",
-					nil,
-					exec.WithAdditionalEnvs([]string{
-						fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
-					}),
-				)
-			}
-
-			// TODO(samnaser) should we use `asmcli create-mesh`?
-			if c.settings.ClusterType == resource.OnPrem {
-				return createRemoteSecretsMulticloud(c.settings, kubeconfigs)
-			} else if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
-				return exec.Dispatch(
-					c.settings.RepoRootDir,
-					"configure_remote_secrets_for_gcp_baremetal_hybrid",
-					nil,
-					exec.WithAdditionalEnvs([]string{
-						fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
-					}),
-				)
-			} else if c.settings.ClusterType == resource.HybridGKEAndEKS {
-				return createRemoteSecrets(c.settings, rev, scriptPath)
-			}
-		}
-
-		return nil
-	} else {
-		return exec.Dispatch(
-			c.settings.RepoRootDir,
-			"install_asm_on_proxied_clusters",
-			nil,
-			exec.WithAdditionalEnvs([]string{
-				fmt.Sprintf("HTTPS_PROXY=%s", c.settings.ClusterProxy[0]),
-			}),
-		)
+	kubeconfigs := filepath.SplitList(c.settings.Kubeconfig)
+	log.Println("Downloading ASM script for the installation...")
+	scriptPath, err := downloadInstallScript(c.settings, rev)
+	if err != nil {
+		return fmt.Errorf("failed to download the install script: %w", err)
 	}
+
+	// Set the _CI_ENVIRON_PROJECT_NUMBER as the project where fleet is registered
+	// TODO(chizhg): use the same project for all multicloud.
+	environProject := proxiedClusterFleetProject
+	if c.settings.ClusterType == resource.OnPrem ||
+		c.settings.ClusterType == resource.HybridGKEAndBareMetal ||
+		c.settings.ClusterType == resource.HybridGKEAndEKS {
+		environProject = onPremFleetProject
+	}
+	if c.settings.MulticloudOverrideEnvironProject {
+		environProject = c.settings.GCPProjects[0]
+	}
+	environProjectNumber, err := gcp.GetProjectNumber(environProject)
+	if err != nil {
+		return fmt.Errorf("failed to read environ number: %w", err)
+	}
+	os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
+
+	// users are required to pass this as well for AKS; the ux may change in the future
+	if c.settings.ClusterType == resource.AKS {
+		os.Setenv("HUB_REGISTRATION_EXTRA_FLAGS", "--has-private-issuer")
+	}
+
+	for i, kubeconfig := range kubeconfigs {
+		kubeconfigLogger := log.New(os.Stdout,
+			fmt.Sprintf("[kubeconfig: %s] ", kubeconfig), log.Ldate|log.Ltime)
+		kubeconfigLogger.Println("Performing ASM installation...")
+		kubeconfigLogger.Println("Running installation using install script...")
+
+		networkID := "network" + strconv.Itoa(i)
+		clusterID := "cluster" + strconv.Itoa(i)
+		additionalFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
+			kubeconfig, environProject)
+		if err != nil {
+			return fmt.Errorf("error generating multicloud install flags: %w", err)
+		}
+		additionalFlags = append(additionalFlags, "--network_id", networkID)
+
+		additionalEnvVars := generateASMInstallEnvvars(c.settings, rev, "")
+		if i < len(c.settings.ClusterProxy) && c.settings.ClusterProxy[i] != "" {
+			additionalEnvVars = append(additionalEnvVars, "HTTPS_PROXY="+c.settings.ClusterProxy[i])
+		}
+
+		if err := exec.Run(scriptPath,
+			exec.WithAdditionalEnvs(additionalEnvVars),
+			exec.WithAdditionalArgs(additionalFlags)); err != nil {
+			return fmt.Errorf("ASM installation using script failed: %w", err)
+		}
+
+		if err := c.installIngressGateway(c.settings, rev, "", kubeconfig, i); err != nil {
+			return err
+		}
+		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
+			return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)
+		}
+		// Do not configure external IP for single cluster
+		// BM single cluster creation does not provide VIP IP by default
+		if len(kubeconfigs) > 1 {
+			if err := configureExternalIP(c.settings, kubeconfig, i); err != nil {
+				return fmt.Errorf("failed to configure external IP for the cluster: %w", err)
+			}
+		}
+	}
+
+	if len(kubeconfigs) > 1 {
+		if c.settings.ClusterType == resource.BareMetal {
+			return exec.Dispatch(
+				c.settings.RepoRootDir,
+				"configure_remote_secrets_for_baremetal",
+				nil,
+				exec.WithAdditionalEnvs([]string{
+					fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
+				}),
+			)
+		}
+
+		// TODO(samnaser) should we use `asmcli create-mesh`?
+		if c.settings.ClusterType == resource.OnPrem {
+			return createRemoteSecretsMulticloud(c.settings, kubeconfigs)
+		} else if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
+			return exec.Dispatch(
+				c.settings.RepoRootDir,
+				"configure_remote_secrets_for_gcp_baremetal_hybrid",
+				nil,
+				exec.WithAdditionalEnvs([]string{
+					fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
+				}),
+			)
+		} else if c.settings.ClusterType == resource.HybridGKEAndEKS {
+			return createRemoteSecrets(c.settings, rev, scriptPath)
+		}
+	}
+
+	return nil
 }
 
 // generateASMMultiCloudInstallFlags returns the flags required when running the install
@@ -205,9 +194,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 		return nil, fmt.Errorf("unsupported CA type for multicloud installation: %s", ca)
 	}
 
-	if useASMCLI(settings, rev) {
-		installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
-	}
+	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
 
 	return installFlags, nil
 }

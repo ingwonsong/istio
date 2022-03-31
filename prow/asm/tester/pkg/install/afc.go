@@ -44,9 +44,6 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 	contexts := c.settings.KubeContexts
 
 	log.Println("Downloading ASM script for the installation...")
-	if !useASMCLI(c.settings, rev) {
-		return fmt.Errorf("asmcli must be used for afc: %t", useASMCLI(c.settings, rev))
-	}
 	scriptPath, err := downloadInstallScript(c.settings, nil)
 	if err != nil {
 		return fmt.Errorf("failed to download the install script: %w", err)

@@ -46,11 +46,6 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 
 	// multicloud settings
 	if settings.ClusterType != resource.GKEOnGCP {
-		if !settings.UseASMCLI {
-			testFlags = append(testFlags,
-				fmt.Sprintf("--istio.test.revision=%s", revision.RevisionLabel()))
-		}
-
 		// going from 20s to 100s for the total retry timeout (all attempts)
 		testFlags = append(testFlags, "--istio.test.echo.callTimeout=100s")
 		// going from 5s to 30s for individual ForwardEchoRequests (bounds total all calls in req.Count)

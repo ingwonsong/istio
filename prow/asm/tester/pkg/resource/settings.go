@@ -73,7 +73,8 @@ type Settings struct {
 	ControlPlane ControlPlaneType `flag:"control-plane" desc:"Type of the control plane, can be one of UNMANAGED or MANAGED."`
 
 	// Use asmcli as the installation script.
-	UseASMCLI bool `flag:"use-asmcli" desc:"Use asmcli as the installation script."`
+	// Deprecated: flag left only to ensure old tests do not fail when using --use-asmcli
+	DeprecatedUseASMCLI bool `flag:"use-asmcli" desc:"Use asmcli as the installation script."`
 
 	// Certificate Authority to use, can be one of CITADEL, MESHCA or PRIVATECA
 	CA CAType `flag:"ca" desc:"Certificate Authority to use, can be one of CITADEL, MESHCA or PRIVATECA."`
@@ -166,9 +167,6 @@ type RuntimeSettings struct {
 	// The source ranges that are trustable when creating/updating firewall rules.
 	TrustableSourceRanges string `flag:"-"`
 
-	// The commit ID of Scriptaro repo to use install_asm to install ASM.
-	ScriptaroCommit string `flag:"-"`
-
 	// The commit ID of Newtaro repo to use asmcli to install ASM.
 	NewtaroCommit string `flag:"-"`
 }
@@ -191,7 +189,6 @@ func (s *Settings) String() string {
 	result += fmt.Sprintf("FeaturesToTest:                   %v\n", s.FeaturesToTest)
 	result += fmt.Sprintf("TempFeaturesToTest:               %v\n", s.TempFeaturesToTest)
 	result += fmt.Sprintf("ControlPlane:                     %v\n", s.ControlPlane)
-	result += fmt.Sprintf("UseASMCLI:                        %v\n", s.UseASMCLI)
 	result += fmt.Sprintf("CA:                               %v\n", s.CA)
 	result += fmt.Sprintf("WIP:                              %v\n", s.WIP)
 	result += fmt.Sprintf("RevisionConfig:                   %v\n", s.RevisionConfig)
@@ -233,7 +230,6 @@ func (s RuntimeSettings) String() string {
 	result += fmt.Sprintf("ClusterGCPProjects:    %v\n", s.ClusterGCPProjects)
 	result += fmt.Sprintf("GCRProject:            %v\n", s.GCRProject)
 	result += fmt.Sprintf("TrustableSourceRanges: %v\n", s.TrustableSourceRanges)
-	result += fmt.Sprintf("ScriptaroCommit:       %v\n", s.ScriptaroCommit)
 	result += fmt.Sprintf("NewtaroCommit:         %v\n", s.NewtaroCommit)
 	return result
 }

@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
@@ -96,7 +95,6 @@ func (c *installer) preInstall(rev *revision.Config) error {
 			"register_clusters_in_hub",
 			[]string{
 				c.settings.GCRProject,
-				strconv.FormatBool(c.settings.UseASMCLI),
 				strings.Join(c.settings.KubeContexts, " "),
 			}); err != nil {
 			return err

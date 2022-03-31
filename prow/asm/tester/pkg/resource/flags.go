@@ -41,8 +41,6 @@ func BindFlags(settings *Settings) *pflag.FlagSet {
 	settings.VMServiceProxyAgentASMVersion = "1.10.0"
 	settings.VMImageFamily = "debian-10"
 	settings.VMImageProject = "debian-cloud"
-	// Installation script default to `asmcli`
-	settings.UseASMCLI = true
 
 	flags := pflag.NewFlagSet("asm pipeline tester", pflag.ExitOnError)
 	err := gpflag.ParseTo(settings, flags)

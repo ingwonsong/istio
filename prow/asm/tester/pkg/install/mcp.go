@@ -30,9 +30,6 @@ import (
 )
 
 func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
-	if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
-		c.settings.UseASMCLI = true
-	}
 	contexts := c.settings.KubeContexts
 
 	log.Println("Downloading ASM script for the installation...")
@@ -116,13 +113,8 @@ EOF'`, context)); err != nil {
 }
 
 func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
-	var installFlags []string
-	if settings.UseASMCLI {
-		installFlags = append(installFlags, "install")
-		installFlags = append(installFlags, "--legacy")
-	} else {
-		installFlags = append(installFlags, "--mode", "install")
-	}
+	installFlags := []string{"install"}
+	installFlags = append(installFlags, "--legacy")
 
 	ca := settings.CA
 	caFlags := []string{}
@@ -150,9 +142,7 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--verbose")
 	installFlags = append(installFlags, caFlags...)
 
-	if settings.UseASMCLI {
-		installFlags = append(installFlags, "--fleet_id", settings.GCRProject)
-	}
+	installFlags = append(installFlags, "--fleet_id", settings.GCRProject)
 
 	if settings.FeaturesToTest.Has(string(resource.CNI)) || settings.FeaturesToTest.Has(string(resource.Addon)) {
 		// Addon always will use CNI
@@ -195,10 +185,6 @@ func generateMCPInstallEnvvars(settings *resource.Settings) []string {
 			)
 		}
 	}
-	if settings.UseASMCLI {
-		envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.NewtaroCommit)
-	} else {
-		envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.ScriptaroCommit)
-	}
+	envvars = append(envvars, "_CI_ASM_KPT_BRANCH="+settings.NewtaroCommit)
 	return envvars
 }
