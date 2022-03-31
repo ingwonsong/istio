@@ -20,7 +20,7 @@ spec:
               provider: azure
               distribution: gke
               provisionerArgs:
-                region: centralus
+                region: westus2
                 nodeCount: "6"
-                kubernetesVersion: 1.21.5-gke.2800
+                kubernetesVersion: 1.22.8-gke.200
                 username: asm-svc-acct
