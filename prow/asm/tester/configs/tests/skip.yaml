@@ -139,15 +139,10 @@ tests:
       - names:
           - TestTraffic/serverfirst/auto-tcp-server.*
           - TestCustomGateway
-          - TestMultiVersionRevision
           - TestAddToAndRemoveFromMesh
           - TestGateway
-          - TestRevisionedUpgrade
           - TestVMRegistrationLifecycle
           - TestValidation
-          - TestRevision*
-          - TestMultiRevision
-          - TestUninstall*
           - TestServiceExports*
           - TestTraffic/dns
           - TestIngress/update-class-not-istio
@@ -214,15 +209,10 @@ tests:
     - names:
       - TestTraffic/serverfirst/auto-tcp-server.*
       - TestCustomGateway
-      - TestMultiVersionRevision
       - TestAddToAndRemoveFromMesh
       - TestGateway
-      - TestRevisionedUpgrade
       - TestVMRegistrationLifecycle
       - TestValidation
-      - TestRevision*
-      - TestMultiRevision
-      - TestUninstall*
       - TestServiceExports*
       - TestTraffic/dns
       - TestIngress/update-class-not-istio
@@ -340,13 +330,7 @@ tests:
         - TestCustomGateway/helm
         - TestAddToAndRemoveFromMesh
         - TestIngress
-        - TestRevisionedUpgrade
         - TestServiceExports/exported/0/create
-        - TestRevisionCommand
-        - TestRevisionTags
-        - TestMultiRevision
-        - TestUninstallByRevision
-        - TestUninstallWithSetFlag
         - TestTraffic/dns
         - TestTraffic/consistent-hash
         buganizerID: 191913525
@@ -392,17 +376,10 @@ tests:
       - names:
         - TestCustomGateway/helm
         - TestAddToAndRemoveFromMesh
-        - TestRevisionedUpgrade
         - TestServiceExports/exported/0/create
-        - TestRevisionCommand
-        - TestRevisionTags
-        - TestMultiRevision
-        - TestUninstallByRevision
-        - TestUninstallWithSetFlag
         - TestTraffic/dns
         - TestXdsVersion
         - TestXdsProxyStatus
-        - TestMultiVersionRevision
         buganizerID: 187722953
       - names:
         - TestTraffic/jwt-claim-route
@@ -497,17 +474,10 @@ tests:
       - names:
         - TestCustomGateway/helm
         - TestAddToAndRemoveFromMesh
-        - TestRevisionedUpgrade
         - TestServiceExports/exported/0/create
-        - TestRevisionCommand
-        - TestRevisionTags
-        - TestMultiRevision
-        - TestUninstallByRevision
-        - TestUninstallWithSetFlag
         - TestTraffic/dns
         - TestXdsVersion
         - TestXdsProxyStatus
-        - TestMultiVersionRevision
         buganizerID: 187722953
 
   # Unmanaged CP + AKS
@@ -539,17 +509,10 @@ tests:
       - names:
         - TestCustomGateway/helm
         - TestAddToAndRemoveFromMesh
-        - TestRevisionedUpgrade
         - TestServiceExports/exported/0/create
-        - TestRevisionCommand
-        - TestRevisionTags
-        - TestMultiRevision
-        - TestUninstallByRevision
-        - TestUninstallWithSetFlag
         - TestTraffic/dns
         - TestXdsVersion
         - TestXdsProxyStatus
-        - TestMultiVersionRevision
         buganizerID: 187722953
 
   # Unmanaged CP, cluster topology = mc, feature = VPC_SC
@@ -643,9 +606,6 @@ tests:
           - TestAnalysisWritesStatus
         reason: requires custom installation
       - names:
-          - TestVmOSPost
-        reason: broken pending oss pr
-      - names:
           - TestVMRegistrationLifecycle
         reason: attempts to interact with istiod directly
       - names:
@@ -655,9 +615,6 @@ tests:
       - names:
           - TestAddToAndRemoveFromMesh
         reason: test doesn't respect --istio.test.revision istio.test.revision
-      - names:
-          - TestRevisionedUpgrade
-        reason: OSS CP upgrade not supported with MCP
       - names:
           - TestRemoteClusters
         buganizerID: 194713967
