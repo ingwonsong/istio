@@ -1,0 +1,52 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+ # !!!IMPORTANT!!!! READ BELOW
+ # Use names that are unique and easily identifiable
+ # To see list of currently running rookeries:
+ # kubectl get rookeries -n tailorbird-users
+ # To view existing knests:
+ # kubectl get knests -n tailorbird-users
+ # To view existing clusters:
+ # kubectl get clusters.sut.tailorbird.io -n tailorbird-users
+ # e.g., use your Google username as prefix.
+ # !!!IMPORTANT!!!! READ ABOVE
+ name: asm-ci-onprem-sc
+ namespace: tailorbird-users
+spec:
+ ttlSeconds: 10800 # 3 hours
+ knests:
+ - apiVersion: sut.tailorbird.io/v1alpha1
+   kind: Knest
+   metadata:
+     name: asm-ci-onprem-sc-knest
+   spec:
+     clusters:
+     - apiVersion: sut.tailorbird.io/v1alpha1
+       kind: Cluster
+       metadata:
+         name: asm-ci-onprem-sc-cluster
+       spec:
+         provider: vsphere
+         distribution: gke
+         provisionerArgs:
+           username: prowuser
+           workerNumNodes: "4"
+           {{- if .Version }}
+           gkectlVersion: "{{ .Version }}"
+           {{- end }}
+           {{- if .VersionPrefix }}
+           gkectlVersionPrefix: "{{ .VersionPrefix }}"
+           releaseMode: "true"
+           useStagingBucket: "true"
+           {{- end }}
+           gkectlConfigSeedVersion: "v1"
+           vipNetwork: "fe"
+           gkeConnectProject: "tairan-asm-multi-cloud-dev"
+           herculesEnvTtl: "4h"
+           # GKE connect version has to be specified when using a non-prod GKE hub endpoint.
+           # It may not required anymore once b/202282595 is closed. Note that before the bug
+           # lands, we have to update the GKE connect version every ~2 month because of the
+           # GKE connect support window:
+           # google3/configs/production/cdpush/cloud-gkehub/staging/connect_agent_release.gcl.
+           userExtraConfig: internal.overrideGKEHubEndpoint=staging,internal.overrideGKEConnectVersion=20220318-01-00
