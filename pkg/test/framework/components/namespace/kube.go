@@ -265,7 +265,9 @@ func createNamespaceLabels(ctx resource.Context, cfg *Config) map[string]string 
 		// do not add namespace labels when running compatibility tests since
 		// this disables the necessary object selectors
 		if !ctx.Settings().Compatibility {
-			if cfg.Revision != "" {
+			if ctx.Settings().UseDefaultInjectionLabels {
+				l["istio-injection"] = "enabled"
+			} else if cfg.Revision != "" {
 				l[label.IoIstioRev.Name] = cfg.Revision
 			} else {
 				l["istio-injection"] = "enabled"

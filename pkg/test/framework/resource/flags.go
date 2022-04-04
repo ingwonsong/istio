@@ -159,6 +159,9 @@ func init() {
 
 	flag.Var(&settingsFromCommandLine.Revisions, "istio.test.revisions", "Istio CP revisions available to the test framework and their corresponding versions.")
 
+	flag.BoolVar(&settingsFromCommandLine.UseDefaultInjectionLabels, "istio.test.useDefaultInjectionLabels", settingsFromCommandLine.UseDefaultInjectionLabels,
+		"If set, will use default injection labels for workload injection.")
+
 	flag.StringVar(&settingsFromCommandLine.Image.Hub, "istio.test.hub", settingsFromCommandLine.Image.Hub,
 		"Container registry hub to use")
 	flag.StringVar(&settingsFromCommandLine.Image.Tag, "istio.test.tag", settingsFromCommandLine.Image.Tag,

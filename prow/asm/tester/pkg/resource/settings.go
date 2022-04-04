@@ -100,6 +100,10 @@ type Settings struct {
 	// Whether to install CloudESF as ingress gateway.
 	InstallCloudESF bool `flag:"install-cloudesf" desc:"Whether to install CloudESF as ingress gateway."`
 
+	// UseDefaultInjectionLabels determines whether to use the "istio-injection=enabled" and
+	// "sidecar.istio.io/inject" labels for workload injection
+	UseDefaultInjectionLabels bool `flag:"use-default-injection-labels" desc:"If set uses default injection labels for workload injection."`
+
 	VMSettings
 
 	MCPSettings
@@ -197,6 +201,7 @@ func (s *Settings) String() string {
 	result += fmt.Sprintf("TestStartEventPath:               %v\n", s.TestStartEventPath)
 	result += fmt.Sprintf("TestStartEventPort:               %v\n", s.TestStartEventPort)
 	result += fmt.Sprintf("InstallCloudESF:                  %v\n", s.InstallCloudESF)
+	result += fmt.Sprintf("UseDefaultInjectionLabels:        %v\n", s.UseDefaultInjectionLabels)
 	result += fmt.Sprintf("\n**VMSettings**\n%v\n", s.VMSettings)
 	result += fmt.Sprintf("\n**MCPSettings**\n%v\n", s.MCPSettings)
 	result += fmt.Sprintf("\n**RuntimeSettings**\n%v\n", s.RuntimeSettings)

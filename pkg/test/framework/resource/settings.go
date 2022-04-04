@@ -150,6 +150,10 @@ type Settings struct {
 
 	// Image settings
 	Image ImageSettings
+
+	// UseDefaultInjectionLabels determines whether to use the "istio-injection=enabled" and
+	// "sidecar.istio.io/inject" labels for workload injection
+	UseDefaultInjectionLabels bool
 }
 
 func (s Settings) Skip(class string) bool {
