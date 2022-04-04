@@ -13,10 +13,11 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+set -x
 
 ADDON_MIGRATION_MANIFEST="tools/packaging/knative/addonmigration/addon-migration-manifest.yaml"
 # for release build only
-if [[ -d "${ISTIO_OUT}/release" ]];then
+if [[ -d "${TARGET_OUT}/release" ]];then
   sed -i '/SKIP_TARGET_CHECK/,+1 d' "${ADDON_MIGRATION_MANIFEST}"
-  cp ${ADDON_MIGRATION_MANIFEST} "${ISTIO_OUT}/release/addon-migration-manifest.yaml"
+  cp ${ADDON_MIGRATION_MANIFEST} "${TARGET_OUT}/release/addon-migration-manifest.yaml"
 fi
