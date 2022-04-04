@@ -21,9 +21,6 @@ ARG TARGETARCH
 COPY ${TARGETARCH:-amd64}/istioctl /usr/local/bin/istioctl
 COPY ${TARGETARCH:-amd64}/addonmigration $WD/addon-migration
 COPY migrate-addon.sh $WD/migrate-addon
-COPY migration_cluster_list $WD/migration_cluster_list
-# this source is optional
-# COPY *rollback_cluster_list $WD/rollback_cluster_list
 
 WORKDIR $WD
 ENTRYPOINT ["./addon-migration"]

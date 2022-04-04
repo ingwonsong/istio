@@ -184,7 +184,6 @@ images:
   files:
   # add rollback_cluster_list.yaml when needed
   - tools/packaging/knative/migrate-addon.sh
-  - tools/packaging/knative/addonmigration/migration_cluster_list
   targets:
   - ${TARGET_OUT_LINUX}/addonmigration
   - ${TARGET_OUT_LINUX}/istioctl

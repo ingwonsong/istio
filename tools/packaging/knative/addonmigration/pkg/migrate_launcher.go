@@ -15,13 +15,7 @@
 package migration
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"strings"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -32,25 +26,11 @@ import (
 )
 
 const (
-	// when cluster is in migrationTarget, it would be migrated from addon to MCP
-	migrationTargetPath = "migration_cluster_list"
-	// when cluster is in rollbackTarget, it would be rollback to addon
-	rollbackTargetPath = "rollback_cluster_list"
 	// defaultRevisionName is the revision name for regular channel
 	defaultRevisionName = "asm-managed"
 	regularChannel      = "regular"
-	// skipTargetCheckEnv is used in test environment to skip target cluster verification
-	skipTargetCheckEnv = "SKIP_TARGET_CHECK"
-	retryTimeOut       = time.Minute * 10
-	retryDelay         = time.Minute * 1
-)
-
-// targetClusterMap stores migration target in a map, cluster key is the hash of `projectNumber/clusterName/clusterLocation`
-type targetClusterMap map[string]bool
-
-var (
-	migrationTargetMap targetClusterMap
-	rollbackTargetMap  targetClusterMap
+	retryTimeOut        = time.Minute * 10
+	retryDelay          = time.Minute * 1
 )
 
 // scriptArgs includes the args passed into the underlying migrate_addon.sh
@@ -64,30 +44,9 @@ type migrationWorker struct {
 	scriptArgs scriptArgs
 }
 
-func initTargetClusterList(filepath string, tm targetClusterMap) {
-	dat, err := ioutil.ReadFile(filepath)
-	if err != nil {
-		// rollbackTarget is optional
-		if filepath == rollbackTargetPath {
-			return
-		}
-		log.Fatalf("Failed to read target cluster list file: %s,  %v", filepath, err)
-	}
-	lines := strings.Split(string(dat), "\n")
-	for _, cHash := range lines {
-		if !strings.HasPrefix(cHash, "#") {
-			tm[cHash] = true
-		}
-	}
-}
-
 // NewMigrationWorker creates new worker for the migration job
 // nolint: golint
 func NewMigrationWorker(kubeClient *kubernetes.Clientset, command, channel string) *migrationWorker {
-	migrationTargetMap = make(targetClusterMap)
-	rollbackTargetMap = make(targetClusterMap)
-	initTargetClusterList(migrationTargetPath, migrationTargetMap)
-	initTargetClusterList(rollbackTargetPath, rollbackTargetMap)
 	return &migrationWorker{
 		kubeClient: kubeClient,
 		scriptArgs: scriptArgs{
@@ -183,23 +142,4 @@ EOF'`
 	if res, err := shell.Execute(true, fmt.Sprintf(template, string(state))); err != nil {
 		log.Errorf("Failed to update migration state configmap, result: %s, err: %v", res, err)
 	}
-}
-
-// CheckIfTargetCluster checks whether cluster is target migration and target rollback target.
-func (m *migrationWorker) CheckIfTargetCluster(projectNumber, clusterName, clusterLocation string) (bool, bool) {
-	if os.Getenv(skipTargetCheckEnv) == "true" {
-		log.Info("Skip target cluster check in testing environment, default to execute migration mode")
-		return true, false
-	}
-	// cluster key is defined as the hash of `projectNumber/clusterName/clusterLocation` to uniquely define a cluster
-	key := path.Join(projectNumber, clusterName, clusterLocation)
-	sha := sha256.Sum256([]byte(key))
-	shas := hex.EncodeToString(sha[:])
-	if _, ok := migrationTargetMap[shas]; ok {
-		return true, false
-	}
-	if _, ok := rollbackTargetMap[shas]; ok {
-		return false, true
-	}
-	return false, false
 }

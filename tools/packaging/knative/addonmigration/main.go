@@ -47,6 +47,8 @@ const (
 	migrationSuccessStatus = "SUCCESS"
 	// used in previous migration guide
 	migrationCompleteStatus = "COMPLETE"
+	migrateMode             = "migrate"
+	rollbackMode            = "rollback"
 )
 
 func main() {
@@ -54,8 +56,10 @@ func main() {
 	command := flag.String("command", runallFlag, "command to be run for migrate_addon.sh, support value: run_all, rollback_all")
 	// channel is the channel value for MCP
 	channel := flag.String("mcp_channel", "", "channel for MCP, support value: rapid, regular, stable")
+	// mode is the execution mode, can be either migrate or rollback
+	mode := flag.String("mode", migrateMode, "execution mode of the migration script, support value: migrate, rollback")
 	flag.Parse()
-	if err := validateFlag(*channel); err != nil {
+	if err := validateFlag(*channel, *mode); err != nil {
 		log.Fatalf("Failed to verify flag: %v", err)
 	}
 	if *channel != regularChannel {
@@ -80,10 +84,7 @@ func main() {
 		}
 		view.RegisterExporter(exporter)
 		migration.ReportMigrationState(migration.PendingState)
-		mt, rt := mw.CheckIfTargetCluster(projectNumber, clusterName, location)
-		if !mt && !rt {
-			log.Infof("Skip execution because current cluster is not a target of migration or rollback")
-		} else if mt {
+		if *mode == migrateMode {
 			mw.ExecuteMigrationMode()
 		} else {
 			mw.ExecuteRollbackMode()
@@ -91,12 +92,18 @@ func main() {
 	}
 }
 
-func validateFlag(channel string) error {
+func validateFlag(channel, mode string) error {
 	switch channel {
 	case rapidChannel, regularChannel, stableChannel:
-		return nil
+		break
 	default:
 		return fmt.Errorf("invalid mcp channel: %s", channel)
+	}
+	switch mode {
+	case migrateMode, rollbackMode:
+		return nil
+	default:
+		return fmt.Errorf("invalid execution mode: %s", mode)
 	}
 }
 
