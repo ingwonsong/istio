@@ -565,7 +565,11 @@ spec:
 				t.NewSubTestf("from %s", ingr.Cluster().StableName()).Run(func(t framework.TestContext) {
 					for _, c := range cases {
 						c := c
-						if (os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "hybrid-gke-and-bare-metal") &&
+
+						// The ingress address is private and connected via proxy. This ingress test uses fake host headers but the proxy used
+						// in the middle treated those hosts as real targeted hosts and tries to resolve which results in 404.
+						// This setup modified /etc/hosts file on the host and would force the resolution to be the private ingress address.
+						if (os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "hybrid-gke-and-bare-metal" || os.Getenv("CLUSTER_TYPE") == "azure") &&
 							len(c.call.HTTP.Headers["Host"]) > 0 && len(ingr.Cluster().SSHUser()) > 0 {
 							authn.SetupEtcHostsFile(ingr, c.call.HTTP.Headers["Host"][0])
 						}
@@ -706,7 +710,7 @@ spec:
 				c := c
 				updatedIngress := fmt.Sprintf(ingressConfigTemplate, updateIngressName, c.ingressClass, c.path, c.path, c.path)
 				t.ConfigIstio().YAML(apps.Namespace.Name(), updatedIngress).ApplyOrFail(t)
-				if (os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "hybrid-gke-and-bare-metal") &&
+				if (os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "hybrid-gke-and-bare-metal" || os.Getenv("CLUSTER_TYPE") == "azure") &&
 					len(c.call.HTTP.Headers["Host"]) > 0 && len(defaultIngress.Cluster().SSHUser()) > 0 {
 					authn.SetupEtcHostsFile(defaultIngress, c.call.HTTP.Headers["Host"][0])
 				}

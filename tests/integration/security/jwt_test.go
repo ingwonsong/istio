@@ -586,7 +586,15 @@ func TestIngressRequestAuthentication(t *testing.T) {
 							}
 
 							c.customizeCall(&opts)
-							if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" || os.Getenv("CLUSTER_TYPE") == "hybrid-gke-and-bare-metal" {
+
+							// The ingress address is private and connected via proxy.
+							// This ingress test uses fake host headers but the proxy used
+							// in the middle treated those hosts as real targeted hosts and
+							// tries to resolve which results in 404.
+							// This setup modified /etc/hosts file on the host and
+							// would force the resolution to be the private ingress address.
+							if os.Getenv("CLUSTER_TYPE") == "bare-metal" || os.Getenv("CLUSTER_TYPE") == "apm" ||
+								os.Getenv("CLUSTER_TYPE") == "hybrid-gke-and-bare-metal" || os.Getenv("CLUSTER_TYPE") == "azure" {
 								// Request will be sent to host in the host header with HTTP proxy
 								// Modify the /etc/hosts file on the bootstrap VM to direct the request to ingress gateway
 								if len(ingr.Cluster().SSHKey()) > 0 {
