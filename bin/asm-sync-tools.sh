@@ -61,7 +61,7 @@ function sync() {
 
 function fix_proxy() {
   pushd "${ISTIO_DIR}"
-  ISTIO_DEP_SHA="$(git show "${UPSTREAM_BRANCH}:istio.deps" | grep PROXY_REPO_SHA -A 4 | grep lastStableSHA | cut -f 4 -d '"' )"
+  ISTIO_DEP_SHA="$(git show "origin/${UPSTREAM_BRANCH}:istio.deps" | grep PROXY_REPO_SHA -A 4 | grep lastStableSHA | cut -f 4 -d '"' )"
 
   # find latest proxy sha that has corresponding envoy binary pushed to gcs.
   PROXY_SHA=""
