@@ -179,7 +179,7 @@ func injectEnvVars(settings *resource.Settings) error {
 	} else {
 		envVars["TAG"] = "BUILD_ID_" + getBuildID()
 		var hub string
-		if settings.ControlPlane == resource.Unmanaged {
+		if settings.ControlPlane != resource.Managed {
 			hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, getBuildID())
 		} else {
 			// Don't change this to a publicly-accessible repo, otherwise we could

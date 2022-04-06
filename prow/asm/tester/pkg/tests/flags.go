@@ -117,7 +117,7 @@ func generateTestSelect(settings *resource.Settings) string {
 	)
 
 	testSelect := ""
-	if settings.ControlPlane == resource.Unmanaged {
+	if settings.ControlPlane != resource.Managed {
 		// TODO(nmittler): remove this once we no longer run the multicluster tests.
 		//if settings.TestTarget == mcPresubmitTarget {
 		//	testSelect = "+multicluster"

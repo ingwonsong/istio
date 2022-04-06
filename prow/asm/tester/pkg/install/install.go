@@ -58,6 +58,9 @@ func (c *installer) install(r *revision.Config) error {
 			log.Println("🏄 performing ASM MCP installation")
 			return c.installASMManagedControlPlane(r)
 		}
+	} else if c.settings.ControlPlane == resource.ManagedLocal {
+		log.Println("🏄 performing ASM MLCP installation")
+		return c.installASMManagedLocalControlPlane(r)
 	}
 
 	return fmt.Errorf("unsupported installation for ASM %q on Platform %q", c.settings.ControlPlane, c.settings.ClusterType)
@@ -66,7 +69,7 @@ func (c *installer) install(r *revision.Config) error {
 // preInstall contains all steps required before performing the direct install
 func (c *installer) preInstall(rev *revision.Config) error {
 	if !c.settings.InstallOverride.IsSet() {
-		if c.settings.ControlPlane == resource.Unmanaged {
+		if c.settings.ControlPlane != resource.Managed {
 			if err := exec.Dispatch(c.settings.RepoRootDir,
 				"prepare_images", nil); err != nil {
 				return err

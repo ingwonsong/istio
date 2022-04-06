@@ -73,11 +73,12 @@ func (ct *ClusterToplology) Type() string { return "cluster_topology" }
 type ControlPlaneType string
 
 const (
-	Unmanaged ControlPlaneType = "UNMANAGED"
-	Managed   ControlPlaneType = "MANAGED"
+	Unmanaged    ControlPlaneType = "UNMANAGED"
+	Managed      ControlPlaneType = "MANAGED"
+	ManagedLocal ControlPlaneType = "MANAGED_LOCAL"
 )
 
-var validControlPlaneTypes = sets.NewString(string(Unmanaged), string(Managed))
+var validControlPlaneTypes = sets.NewString(string(Unmanaged), string(Managed), string(ManagedLocal))
 
 // Set converts the value string to ControlPlaneType
 func (cpt *ControlPlaneType) Set(value string) error {

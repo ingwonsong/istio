@@ -256,14 +256,13 @@ function configure_remote_secrets_for_gcp_baremetal_hybrid() {
   kubectl apply --kubeconfig="${GCP_CONFIG}" -f "secret-bm"
 }
 
-# on-prem specific fucntion to configure external ips for the gateways
+# on-prem specific fucntion to configure external ips for the ingress gateway
 # Parameters:
 # $1    kubeconfig
-function onprem::configure_external_ip() {
+function onprem::configure_ingress_ip() {
   local HERC_ENV_ID
   HERC_ENV_ID=$(echo "$1" | rev | cut -d '/' -f 2 | rev)
   local INGRESS_ID=\"lb-test-ip\"
-  local EXPANSION_ID=\"expansion-ip\"
   local INGRESS_IP
 
   echo "Installing herc CLI..."
@@ -271,6 +270,24 @@ function onprem::configure_external_ip() {
 
   INGRESS_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
     jq -r ".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.${INGRESS_ID}.ip_address")
+
+  # Inject the external IP for Ingress GW
+  echo "----------Configuring external IP for ingress gw----------"
+  kubectl patch svc istio-ingressgateway -n istio-system \
+    --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": "'"${INGRESS_IP}"'"}]' \
+    --kubeconfig="$1"
+}
+
+# on-prem specific fucntion to configure external ips for the expansion gateway
+# Parameters:
+# $1    kubeconfig
+function onprem::configure_expansion_ip() {
+  local HERC_ENV_ID
+  HERC_ENV_ID=$(echo "$1" | rev | cut -d '/' -f 2 | rev)
+  local EXPANSION_ID=\"expansion-ip\"
+
+  echo "Installing herc CLI..."
+  gsutil cp "gs://anthos-hercules-public-artifacts/herc/latest/herc" "/usr/local/bin/" && chmod 755 "/usr/local/bin/herc"
 
   # Request additional external IP for expansion gw
   local HERC_PARENT
@@ -288,11 +305,7 @@ function onprem::configure_external_ip() {
     echo "Using ${EXPANSION_IP} as the expansion IP"
   fi
 
-  # Inject the external IPs for GWs
-  echo "----------Configuring external IP for ingress gw----------"
-  kubectl patch svc istio-ingressgateway -n istio-system \
-    --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": "'"${INGRESS_IP}"'"}]' \
-    --kubeconfig="$1"
+  # Inject the external IP for expansion GW
   echo "----------Configuring external IP for expansion gw----------"
   kubectl patch svc istio-eastwestgateway -n istio-system \
     --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": "'"${EXPANSION_IP}"'"}]' \

@@ -212,7 +212,7 @@ func createRemoteSecretsMulticloud(settings *resource.Settings, kubeconfigs []st
 }
 
 func setupPermissions(settings *resource.Settings, rev *revision.Config) error {
-	if settings.ControlPlane == resource.Unmanaged {
+	if settings.ControlPlane != resource.Managed {
 		if settings.ClusterType == resource.GKEOnGCP {
 			log.Print("Set permissions to allow the Pods on the GKE clusters to pull images...")
 			return setGcpPermissions(settings)

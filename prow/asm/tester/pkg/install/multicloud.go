@@ -30,6 +30,7 @@ import (
 )
 
 const (
+	// Use personal test project since there is no project pool for multi-cloud.
 	onPremFleetProject         = "tairan-asm-multi-cloud-dev"
 	proxiedClusterFleetProject = "tailorbird"
 )
@@ -255,7 +256,13 @@ func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int
 		return nil
 	} else if settings.ClusterType == resource.OnPrem { // Patch onprem
 		const herculesLab = "atl_shared"
-		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_external_ip",
+		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_ingress_ip",
+			[]string{kubeconfig},
+			exec.WithAdditionalEnvs(
+				[]string{fmt.Sprintf("HERCULES_CLI_LAB=%s", herculesLab)})); err != nil {
+			return err
+		}
+		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_expansion_ip",
 			[]string{kubeconfig},
 			exec.WithAdditionalEnvs(
 				[]string{fmt.Sprintf("HERCULES_CLI_LAB=%s", herculesLab)})); err != nil {

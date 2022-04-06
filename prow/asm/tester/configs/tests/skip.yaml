@@ -763,6 +763,89 @@ tests:
       reason: Unknown
       buganizerID: 195128010
 
+  # Managed local CP skips all tests that are skipped by unmanaged
+  - selectors:
+      control_plane: managed_local
+    targets:
+    - names:
+        - TestProxyStatus
+        - TestWait
+        - TestVersion
+      reason: istioctl does not work
+    - names:
+        - TestReachability/beta-mtls.*/headless.*
+      buganizerID: 192372862
+    - names:
+        - TestAnalysisWritesStatus
+        - TestRequestAuthentication/.*/valid-token-forward-remote-jwks
+      reason: require custom installation
+    - names:
+        - TestDashboard
+      reason: relies on istiod in cluster
+    - names:
+        - TestCustomizeMetrics
+      reason: relies on istiod in cluster
+      buganizerID: 177606974
+    - names:
+        - TestStackdriverAudit
+      buganizerID: 183508169
+    - names:
+        - TestAuthorization_IngressGateway
+      reason: unknown
+    - names:
+        - TestAuthorization_EgressGateway
+        - TestSimpleTlsOrigination
+        - TestMutualTlsOrigination
+      reason: relies on egress gateway deployed to cluster
+    - names:
+        - TestClusterLocal/cross_cluster
+      buganizerID: 189899338
+    - names:
+        - TestTraffic/virtualservice/shifting-*
+      buganizerID: 189899340
+    - names:
+        - TestRemoteClusters
+      buganizerID: 194713967
+    - names:
+      - TestJWTHTTPS
+      buganizerID: 215175941
+
+  # Managed local CP + GKE_ON_PREM skips all tests that
+  # are skipped by Umanaged local CP + GKE_ON_PREM
+  - selectors:
+      control_plane: managed_local
+      cluster_type: gke-on-prem
+    targets:
+    # pilot/ tests
+    - names:
+        - TestXFFGateway
+      buganizerID: 201558623
+    - names:
+      - TestCustomGateway/helm
+      - TestBadWasmRemoteLoad
+      - TestStackdriver*
+      buganizerID: 202282289
+    - names:
+      - TestTraffic/dns/.*
+      buganizerID: 191802552
+    - names:
+      - TestReachability/beta-mtls.*/.*/.*headless.*
+      - TestReachability/no-peer.*/.*/.*headless.*
+      buganizerID: 197235650
+    # This test is skipped in MCP
+    - names:
+        - TestValidation
+        - TestWebhook
+      buganizerID: 170404545
+    # This test is skipped in MCP and other multicloud envs
+    - names:
+        - TestAddToAndRemoveFromMesh
+      reason: test doesn't respect --istio.test.revision
+    # This test is skipped in a few multcloud envs.
+    - names:
+      - TestDescribe
+      buganizerID: 208485368
+
 packages:
 
   # skip endpointslice package
@@ -785,9 +868,48 @@ packages:
           - /telemetry/stats/prometheus/wasm
         buganizerID: 184312874
 
+ # Managed local CP skips all tests that are skipped by unmanaged.
+  - selectors:
+      control_plane: managed_local
+    targets:
+      - names:
+          - /pilot/cni
+          - /security/ca_migration
+        reason: not supported
+      - names:
+          - /telemetry/stats/prometheus/nullvm
+          - /telemetry/stats/prometheus/wasm
+        buganizerID: 184312874
+
   # MCP single cluster tests skips the following packages.
   - selectors:
       control_plane: managed
+      cluster_topology: sc
+    targets:
+      - names:
+          - /multicluster
+          - /helm
+          - /operator
+          - /pilot/cni
+          - /pilot/revisions
+          - /pilot/revisioncmd
+          - /telemetry/stackdriver/vm
+          - /telemetry/stats/prometheus/customizemetrics
+          - /telemetry/stats/prometheus/wasm
+        reason: not supported
+      - names:
+          - /pilot/mcs
+        buganizerID: 183429870
+      - names:
+          - /mdp/controller
+        reason: requires setup of CNI and multiversion of CP
+      - names:
+          - /mdp/installation
+        reason: tests meant for asmcli install in VPC-SC environment
+
+  # MLCP single cluster tests skips the following packages.
+  - selectors:
+      control_plane: managed_local
       cluster_topology: sc
     targets:
       - names:

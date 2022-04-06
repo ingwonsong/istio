@@ -23,12 +23,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"gopkg.in/yaml.v3"
 
 	"istio.io/istio/pkg/test/framework/util"
+	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
@@ -39,6 +41,61 @@ import (
 const (
 	ImageAnnotationKey = "mesh.cloud.google.com/image"
 )
+
+// Since asmcli will be deprecated in the future, MLCP will be not be installed
+// via asmcli anymore.
+func (c *installer) installASMManagedLocalControlPlane(rev *revision.Config) error {
+	contexts := c.settings.KubeContexts
+	kubeconfigs := filepath.SplitList(c.settings.Kubeconfig)
+
+	// Use staging environment for testing.
+	if err := exec.Run("gcloud config set api_endpoint_overrides/gkehub https://staging-gkehub.sandbox.googleapis.com/"); err != nil {
+		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
+	}
+
+	if err := exec.Run(fmt.Sprintf("gcloud container hub mesh enable --project=%s", onPremFleetProject)); err != nil {
+		return fmt.Errorf("error enabling hub mesh feature: %w", err)
+	}
+
+	for i, context := range contexts {
+		if err := retry.UntilSuccess(func() error {
+			return exec.Run(fmt.Sprintf("kubectl get crd/controlplanerevisions.mesh.cloud.google.com --context=%s", context))
+		}, retry.Timeout(time.Second*600), retry.Delay(time.Second*10)); err != nil {
+			return fmt.Errorf("error waiting for ControlPlaneRevision CRD: %w", err)
+		}
+
+		if err := exec.Run(fmt.Sprintf(`bash -c 'cat <<EOF | kubectl apply --context=%s -f -
+apiVersion: mesh.cloud.google.com/v1alpha1
+kind: ControlPlaneRevision
+metadata:
+  name: asm-managed-rapid
+  namespace: istio-system
+spec:
+  type: managed_local
+  channel: rapid
+EOF'`, context)); err != nil {
+			return fmt.Errorf("error creating Control Plane Revision CR")
+		}
+
+		if err := exec.Run(fmt.Sprintf("kubectl -n istio-system wait controlplanerevision asm-managed-rapid --for condition=reconciled --timeout=600s --context=%s", context)); err != nil {
+			return fmt.Errorf("error waiting for ControlPlaneRevision CR: %w", err)
+		}
+
+		// Install Gateway
+		if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
+			return fmt.Errorf("error installing injected-gateway: %w", err)
+		}
+
+		if err := exec.Dispatch(c.settings.RepoRootDir, "onprem::configure_ingress_ip",
+			[]string{kubeconfigs[i]},
+			exec.WithAdditionalEnvs(
+				[]string{"HERCULES_CLI_LAB=atl_shared"})); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error {
 	contexts := c.settings.KubeContexts

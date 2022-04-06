@@ -69,8 +69,8 @@ type Settings struct {
 	FeaturesToTest     sets.String
 	TempFeaturesToTest []string `flag:"feature" desc:"Feature to test for this test flow."`
 
-	// UNMANAGED or MANAGED
-	ControlPlane ControlPlaneType `flag:"control-plane" desc:"Type of the control plane, can be one of UNMANAGED or MANAGED."`
+	// UNMANAGED, MANAGED, or MANAGED_LOCAL
+	ControlPlane ControlPlaneType `flag:"control-plane" desc:"Type of the control plane, can be one of UNMANAGED, MANAGED or MANAGED_LOCAL."`
 
 	// Use asmcli as the installation script.
 	// Deprecated: flag left only to ensure old tests do not fail when using --use-asmcli

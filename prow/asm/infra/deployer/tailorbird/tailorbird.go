@@ -101,23 +101,13 @@ func (d *Instance) Run() error {
 	// than 8-hour to avoid exceeding quota
 	// See http://b/195998781#comment10
 	if string(d.cfg.Cluster) == string(types.GKEOnPrem) {
-		log.Printf("Cleaning up stale hub memberships in the project %s", onPremHubDevProject)
-		hms, err := exec.Output("gcloud container hub memberships list --format='value(name)' --filter='updateTime<-P8H' --project=" +
-			onPremHubDevProject)
-		if err != nil {
-			return err
+		hubEnvs := []string{
+			"https://staging-gkehub.sandbox.googleapis.com/",
+			"https://gkehub.googleapis.com/",
 		}
-
-		for _, hm := range strings.Split(strings.TrimSpace(string(hms)), "\n") {
-			if strings.TrimSpace(hm) == "" {
-				// hm may be empty
-				continue
-			}
-			if err := exec.Run(fmt.Sprintf("gcloud container hub memberships delete %s --quiet --project=%s",
-				hm, onPremHubDevProject)); err != nil {
-				// Error may be expected and should not cause the program to return, e.g., other test instances
-				// may also be cleaning up, which causes an error when deleting a membership that has been deleted.
-				log.Printf("Cleaning up %s returns an err: %v", hm, err)
+		for _, v := range hubEnvs {
+			if err := cleanMembership(v); err != nil {
+				return err
 			}
 		}
 	}
@@ -141,6 +131,37 @@ func (d *Instance) Run() error {
 	// Run the deployer
 	cmd := fmt.Sprintf("kubetest2 %s", strings.Join(flags, " "))
 	return exec.Run(cmd, exec.WithWorkingDir(d.cfg.RepoRootDir))
+}
+
+func cleanMembership(hubEnv string) error {
+	if err := exec.Run(fmt.Sprintf("gcloud config set api_endpoint_overrides/gkehub %s", hubEnv)); err != nil {
+		return fmt.Errorf("error setting gke hub endpoint to %s: %w", hubEnv, err)
+	}
+
+	log.Printf("Cleaning up stale hub memberships in the project %s", onPremHubDevProject)
+	hms, err := exec.Output(fmt.Sprintf("gcloud container hub memberships list --format='value(name)' --filter='updateTime<-P8H' --project=%s", onPremHubDevProject))
+	if err != nil {
+		return err
+	}
+
+	for _, hm := range strings.Split(strings.TrimSpace(string(hms)), "\n") {
+		if strings.TrimSpace(hm) == "" {
+			// hm may be empty
+			continue
+		}
+		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships delete %s --quiet --project=%s",
+			hm, onPremHubDevProject)); err != nil {
+			// Error may be expected and should not cause the program to return, e.g., other test instances
+			// may also be cleaning up, which causes an error when deleting a membership that has been deleted.
+			log.Printf("Cleaning up %s returns an err: %v", hm, err)
+		}
+	}
+
+	if err := exec.Run("gcloud config unset api_endpoint_overrides/gkehub"); err != nil {
+		return fmt.Errorf("error unsetting gke hub endpoint: %w", err)
+	}
+
+	return nil
 }
 
 func (d *Instance) flags() ([]string, error) {
