@@ -214,6 +214,49 @@ EOF'`, context)); err != nil {
 			return fmt.Errorf("error installing injected-gateway: %w", err)
 		}
 
+		if c.settings.FeaturesToTest.Has(string(resource.Autopilot)) {
+			// b/203609464
+			// Autopilot does not provide control on node, and new cluster only provides a very small node pool,
+			// which will take time to scale up during test runs and lead to test timeout.
+			// As a short term workaround, we warm up the cluster by deploying bunch of dummy workloads before running the test.
+			contextLogger.Println("Warm up Autopilot cluster by deploying dummy workloads")
+			if err := exec.Run(fmt.Sprintf("bash -c "+
+				"\"kubectl --context=%s create deployment warmup --image=nginx --replicas=100 & sleep 10s\"", context)); err != nil {
+				return fmt.Errorf("failed to deploy warm up workloads: %w", err)
+			}
+			// wait for all workloads at default namespace to be ready.
+			if err := exec.Run(fmt.Sprintf("bash -c "+
+				"\"kubectl --context=%s wait --for=condition=Ready pods --all --timeout=40m\"", context)); err != nil {
+				return fmt.Errorf("failed to wait for dummy workload to be ready: %w", err)
+			}
+
+			// Wait for 5 minutes before we start checking the cluster status.
+			time.Sleep(time.Minute * 5)
+
+			// Wait for the Master VM to complete resize.
+			for {
+				getStatusCmd := fmt.Sprintf("gcloud container clusters describe %s"+
+					" --project %s --region %s --format \"value(status)\"",
+					cluster.Name, cluster.ProjectID, cluster.Location)
+				clusterStatus, err := exec.RunWithOutput(getStatusCmd)
+				if err != nil {
+					return fmt.Errorf("failed to wait for cluster to complete reconciling: %w", err)
+				}
+				if strings.TrimSpace(clusterStatus) == "RUNNING" {
+					break
+				}
+				// Master VM resizing will normally take ~30min.
+				time.Sleep(time.Minute * 10)
+			}
+
+			// Delete the warmup workloads after the master VM got resized.
+			// This is okay because the master VM won't shrink.
+			if err := exec.Run(fmt.Sprintf("bash -c "+
+				"\"kubectl --context=%s delete deployment warmup \"", context)); err != nil {
+				return fmt.Errorf("failed to delete warm up workloads: %w", err)
+			}
+		}
+
 		contextLogger.Println("Done installing MCP via AFC...")
 	}
 
