@@ -89,9 +89,7 @@ func appendWarning(warnings []string, node *operator.IstioOperatorSpec, path str
 // runMcpCheck runs the mcp migration check
 func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string) error {
 	switch revision {
-	case "asm-managed", "asm-managed-stable":
-		return fmt.Errorf(`currently only "asm-managed-rapid" --revision is supported (have: %q)`, revision)
-	case "asm-managed-rapid":
+	case "asm-managed", "asm-managed-stable", "asm-managed-rapid":
 	default:
 		return fmt.Errorf("unknown revision: %v", revision)
 	}
