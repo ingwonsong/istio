@@ -31,6 +31,7 @@ var (
 	ownerLabel            = monitoring.MustCreateLabel("owner")
 	stateLabel            = monitoring.MustCreateLabel("state")
 	revisionLabel         = monitoring.MustCreateLabel("revision")
+	cacheNameLabel        = monitoring.MustCreateLabel("cache_name")
 
 	proxyPercentageTarget = monitoring.NewGauge(
 		"proxy_percentage_targets",
@@ -48,6 +49,13 @@ var (
 		"reconcile_loops_count",
 		"Count of the MDP controller reconcile loops",
 		monitoring.WithLabels(resultLabel, revisionLabel),
+		monitoring.WithInt64Values(),
+	)
+
+	rebuildCacheCount = monitoring.NewSum(
+		"rebuild_cache_count",
+		"Count of the pod cache rebuild events",
+		monitoring.WithLabels(cacheNameLabel),
 		monitoring.WithInt64Values(),
 	)
 	upgradedProxiesCount = monitoring.NewSum(

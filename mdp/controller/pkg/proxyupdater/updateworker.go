@@ -135,6 +135,10 @@ func (u *UpdateWorkerImpl) processNextWorkItem(ctx context.Context) bool {
 	if err := u.upgrader.PerformUpgrade(ctx, r); err != nil {
 		metrics.ReportUpgradedProxiesCount(item.FromVer, u.ExpectedVersion, string(errors.ReasonForError(err)), u.revision)
 		scope.Warnf("Failed to upgrade pod %s/%s: %v", r.Namespace, r.Name, err)
+		if errors.IsNotFound(err) {
+			u.podCache.RemovePodByName(u.revision, r.Namespace, item.FromVer, r.Name)
+			u.podCache.MarkDirty()
+		}
 		u.mu.Lock()
 		defer u.mu.Unlock()
 		// TODO: emit telemetry on error code here
@@ -169,7 +173,7 @@ func (u *UpdateWorkerImpl) processNextWorkItem(ctx context.Context) bool {
 		defer u.mu.Unlock()
 		u.queue.Forget(obj)
 		u.Inqueue.Delete(obj)
-		u.podCache.RemovePodByName(u.revision, r.Namespace, "", r.Name)
+		u.podCache.RemovePodByName(u.revision, r.Namespace, item.FromVer, r.Name)
 		u.FailingPods.Delete(obj)
 	}
 	return true

@@ -136,6 +136,8 @@ type ReadPodCache interface {
 	// GetPodsInRevisionOutOfVersion returns pods that are enabled in the specified revision, but are not running
 	// the specified proxy version.  This will be used to choose pods for upgrading.
 	GetPodsInRevisionOutOfVersion(rev, version string) set.Set
+	// MarkDirty indicates that the cache needs to be rebuilt, and may not represent the actual cluster state.
+	MarkDirty()
 }
 
 type WritePodCache interface {
@@ -224,6 +226,7 @@ func (p *podCache) maybeRebuildCache(ctx context.Context) {
 			log.Errorf("encountered error rebuilding cache, results will be stale: %s", err)
 			return
 		}
+		metrics.ReportRebuildCacheCount("pod")
 		for _, pod := range pods {
 			tempCache.AddPod(pod)
 		}
@@ -334,8 +337,8 @@ func (p *podCache) RemovePodByName(rev, namespace, version, podname string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	nsmap, ok := p.state[rev]
-	// TODO: telemetry on cache miss, maybe rebuild cache
 	if !ok {
+		p.MarkDirty()
 		return
 	}
 	pvmap, ok := nsmap[namespace]

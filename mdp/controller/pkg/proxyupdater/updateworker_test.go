@@ -96,6 +96,9 @@ func (f *FakePodCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Se
 	return f.pods
 }
 
+func (f *FakePodCache) MarkDirty() {
+}
+
 func TestUpdateWorker(t *testing.T) {
 	const failme = "pod-8"
 	failnsn := types.NamespacedName{

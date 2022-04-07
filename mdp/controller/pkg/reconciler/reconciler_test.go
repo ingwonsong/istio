@@ -61,6 +61,8 @@ func (f FakePodCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Set
 	panic("implement me")
 }
 
+func (f FakePodCache) MarkDirty() {}
+
 type FakeUpgradeWorker struct {
 	upgradeCount int
 }

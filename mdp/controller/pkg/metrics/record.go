@@ -73,6 +73,13 @@ func ReportReconcileLoopCount(result ReconcileLoopResult, revision string) {
 		Increment()
 }
 
+// ReportReconcileLoopCount reports reconcile_loops_count metric
+func ReportRebuildCacheCount(cacheName string) {
+	rebuildCacheCount.
+		With(revisionLabel.Value(cacheName)).
+		Increment()
+}
+
 // ReportReconcileState reports reconcile_state metric
 func ReportReconcileState(revision string, state v1alpha1.DataPlaneState) {
 	// For a revision there is only one possible state.
