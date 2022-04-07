@@ -89,6 +89,8 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		// Autopilot could start repairing itself as it sees more workloads
 		// which takes more time for the pods to become ready
 		testFlags = append(testFlags, "--istio.test.echo.readinessTimeout=40m")
+		testFlags = append(testFlags, "--istio.test.echo.callTimeout=40m")
+		testFlags = append(testFlags, "--istio.test.echo.requestTimeout=40m")
 	}
 
 	// Need to pass the revisions and versions to test framework if specified
