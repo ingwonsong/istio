@@ -313,6 +313,7 @@ tests:
       buganizerID: 203557135
     - names:
       - TestTelemetryAPITCPStats
+      - TestTelemetryAPIStats
       buganizerID: 205336277
 
   # Unmanaged CP + apm
@@ -370,6 +371,7 @@ tests:
         reason: Stackdriver is not enabled with ASM Distro installation
       - names:
           - TestTelemetryAPITCPStats
+          - TestTelemetryAPIStats
         buganizerID: 205336277
 
       # networking/ tests
@@ -420,6 +422,7 @@ tests:
         reason: Stackdriver is not enabled with ASM Distro installation
       - names:
           - TestTelemetryAPITCPStats
+          - TestTelemetryAPIStats
         buganizerID: 205336277
 
       # networking/ tests
@@ -469,6 +472,7 @@ tests:
         reason: Stackdriver is not enabled with ASM Distro installation
       - names:
         - TestTelemetryAPITCPStats
+        - TestTelemetryAPIStats
         buganizerID: 205336277
       # networking/ tests
       - names:
@@ -504,6 +508,7 @@ tests:
         reason: Stackdriver is not enabled with ASM Distro installation
       - names:
         - TestTelemetryAPITCPStats
+        - TestTelemetryAPIStats
         buganizerID: 205336277
       # networking/ tests
       - names:
