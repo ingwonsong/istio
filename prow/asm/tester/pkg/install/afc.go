@@ -252,14 +252,9 @@ func warmupAutopilotCluster(context string) error {
 		"\"kubectl --context=%s create deployment warmup --image=nginx --replicas=50 & sleep 30s\"", context)); err != nil {
 		return fmt.Errorf("failed to deploy warm up workloads: %w", err)
 	}
-	// wait for all workloads at default namespace to be ready.
-	if err := exec.Run(fmt.Sprintf("bash -c "+
-		"\"kubectl --context=%s wait --for=condition=Ready pods --all --timeout=20m\"", context)); err != nil {
-		return fmt.Errorf("failed to wait for dummy workload to be ready: %w", err)
-	}
 
-	// Wait for 5 minutes before we start checking the cluster status.
-	time.Sleep(time.Minute * 5)
+	// Wait for 20 minutes before we start checking the cluster status.
+	time.Sleep(time.Minute * 20)
 
 	// Wait for the Master VM to complete resize.
 	for {
