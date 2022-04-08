@@ -148,6 +148,12 @@ func generateTestSelect(settings *resource.Settings) string {
 		//	}
 		//}
 	}
+	if !settings.FeaturesToTest.Has(string(resource.CompositeGateway)) {
+		if testSelect != "" {
+			testSelect += ","
+		}
+		testSelect += "-compositegateway"
+	}
 
 	return testSelect
 }

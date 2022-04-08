@@ -27,13 +27,17 @@ const (
 
 	// UserAuth indicates that the test requires ASM User Auth Installation.
 	UserAuth Instance = "userauth"
+
+	// CompositeGateway indicates that the test requires Composite Gateway setup.
+	CompositeGateway Instance = "compositegateway"
 )
 
 var all = NewSet(
 	Postsubmit,
 	CustomSetup,
 	IPv4,
-	UserAuth)
+	UserAuth,
+	CompositeGateway)
 
 // Find the label with the given name
 func Find(name string) (Instance, bool) {

@@ -29,6 +29,7 @@ import (
 	"istio.io/istio/prow/asm/infra/deployer/common"
 	"istio.io/istio/prow/asm/infra/exec"
 	"istio.io/istio/prow/asm/infra/types"
+	"istio.io/istio/pkg/test/env"
 )
 
 const (
@@ -156,6 +157,8 @@ func (d *Instance) flags() ([]string, error) {
 		case types.ContainerNetworkInterface:
 		case types.Autopilot:
 		case types.CasCertTemplate:
+		case types.CompositeGateway:
+			err = featureCompositeGatewaySetup(d.cfg.GCPProjects)
 		default:
 			err = fmt.Errorf("feature %q is not supported", feat)
 		}
@@ -263,6 +266,19 @@ func (d *Instance) multiClusterFlags(releaseChannel types.ReleaseChannel) ([]str
 		"--version="+d.getClusterVersion())
 
 	return flags, nil
+}
+
+// featureCompositeGatewaySetup prepares the self-signed certificate for GCLB.
+func featureCompositeGatewaySetup(gcpProjects []string) error {
+	// Without deletion, the create command will fail with already exists error.
+	exec.Run("gcloud compute ssl-certificates delete self-signed-cert-for-test --quiet")
+	if err := exec.Run(fmt.Sprintf(`gcloud compute ssl-certificates create self-signed-cert-for-test \
+  --certificate=%s/tests/integration/pilot/testdata/cert.pem \
+  --private-key=%s/tests/integration/pilot/testdata/key.pem \
+  --global --project %s`, env.IstioSrc, env.IstioSrc, gcpProjects[0])); err != nil {
+		return err
+	}
+	return nil
 }
 
 // featureVPCSCPresetup runs the presetup for VPC Service Control and returns the extra kubetest2 flags for creating the clusters,

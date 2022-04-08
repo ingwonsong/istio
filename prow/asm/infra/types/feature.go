@@ -27,6 +27,7 @@ var (
 	ContainerNetworkInterface        = addFeature("CNI")
 	Autopilot                        = addFeature("AUTOPILOT")
 	CasCertTemplate                  = addFeature("CAS_CERT_TEMPLATE")
+	CompositeGateway                 = addFeature("COMPOSITE_GATEWAY")
 
 	SupportedFeatures []Feature
 )
