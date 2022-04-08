@@ -105,6 +105,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		}
 	}
 
+	if settings.UseDefaultInjectionLabels {
+		testFlags = append(testFlags, "--istio.test.useDefaultInjectionLabels=true")
+	}
+
 	return testFlags, nil
 }
 
