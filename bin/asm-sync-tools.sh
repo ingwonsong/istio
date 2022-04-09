@@ -67,8 +67,8 @@ function fix_proxy() {
   PROXY_SHA=""
   pushd "${PROXY_DIR}"
   git fetch origin
-  git checkout "origin/${BRANCH}"
-  git reset --hard "origin/${BRANCH}"
+  git checkout "origin/${UPSTREAM_BRANCH}"
+  git reset --hard "origin/${UPSTREAM_BRANCH}"
   COMMIT="$(git rev-parse HEAD)"
   if gsutil stat "gs://asm-testing/istio/dev/envoy-alpha-${COMMIT}.tar.gz"; then
     PROXY_SHA="${COMMIT}"
@@ -114,7 +114,7 @@ function dispatch() {
     ci-config)
       ci_gitconfig "$@"
       ;;
-    default)
+    *)
       echo "No such function '$*' -- see targets in 'dispatch'."
       ;;
   esac
@@ -130,7 +130,7 @@ case "$(basename "$0")" in
   asm-go-tidy.sh)
     dispatch go-tidy "$@"
     ;;
-  default)
+  *)
     dispatch "$@"
     ;;
 esac
