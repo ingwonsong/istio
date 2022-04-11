@@ -1,0 +1,14 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-safe-pattern
+spec:
+  selector:
+    matchLabels:
+      app: fakegateway # violation: hosts or notHosts should only be used in ingress gateway which has label "istio: ingressgateway"
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        notMethods: ["GET"] # violation: ALLOW action should only use positive matching
+        hosts: ["test.com"] # violation: hosts or notHosts should contain <host-name> and <host-name>:* value pairs 

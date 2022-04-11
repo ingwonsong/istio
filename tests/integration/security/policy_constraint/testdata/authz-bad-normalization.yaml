@@ -1,0 +1,19 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-normalization
+spec:
+  selector:
+    matchLabels:
+      app: httpbin
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: ["get"] # violation: methods or notMethods must be uppercase
+        paths: ["/test\\/foo"] # violation: paths or notPaths contain at least one unnormalized value: [\, //, /./, /../]
+  - when:
+    - key: source.ip
+      values: ["10.1.2.3", "10.2.0.0/16"]
+    - key: request.headers[User-Ag ent] # violation: rules-when-request.header must not contain white spaces
+      values: ["Mozilla/*"]

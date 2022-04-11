@@ -138,7 +138,7 @@ require (
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
-	github.com/go-errors/errors v1.0.1 // indirect
+	github.com/go-errors/errors v1.0.2-0.20180813162953-d98b870cc4e0 // indirect
 	github.com/go-kit/log v0.1.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
@@ -246,6 +246,7 @@ require (
 	cloud.google.com/go/container v0.1.0
 	cloud.google.com/go/profiler v0.1.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
+	github.com/GoogleCloudPlatform/cloud-foundation-toolkit/infra/blueprint-test v0.0.0-20220307174545-727d5c1b1faf
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/tebeka/selenium v0.9.9
 	github.com/thalescpl-io/k8s-kms-plugin v0.5.1-0.20200921230108-72051fb36f12 // Latest release doesn't include required APIs
@@ -255,8 +256,13 @@ require (
 	cloud.google.com/go/iam v0.1.1 // indirect
 	cloud.google.com/go/monitoring v1.1.0 // indirect
 	cloud.google.com/go/trace v1.0.0 // indirect
-	github.com/aws/aws-sdk-go v1.37.0 // indirect
+	github.com/aws/aws-sdk-go v1.38.28 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/gruntwork-io/terratest v0.35.6 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/mitchellh/go-testing-interface v1.14.2-0.20210217184823-a52172cd2f64 // indirect
+	github.com/tidwall/gjson v1.10.2 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 )

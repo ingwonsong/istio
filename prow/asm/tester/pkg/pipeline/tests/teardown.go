@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+	"istio.io/istio/prow/asm/tester/pkg/tests/policyconstraint"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
 )
 
@@ -27,6 +28,10 @@ func Teardown(settings *resource.Settings) error {
 
 	if settings.ControlPlane == resource.Unmanaged && settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 		return userauth.Teardown(settings)
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.PolicyConstraint)) {
+		return policyconstraint.Teardown(settings)
 	}
 
 	// Unset the proxy if the tests are run on proxied clusters.

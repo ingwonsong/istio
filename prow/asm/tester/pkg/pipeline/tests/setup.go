@@ -20,6 +20,7 @@ import (
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests"
+	"istio.io/istio/prow/asm/tester/pkg/tests/policyconstraint"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
 	"istio.io/istio/prow/asm/tester/pkg/tests/vm"
 )
@@ -34,6 +35,13 @@ func Setup(settings *resource.Settings) error {
 	if settings.ControlPlane == resource.Unmanaged && settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 		log.Printf("Start running the test setup for UserAuth test")
 		if err := userauth.Setup(settings); err != nil {
+			return err
+		}
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.PolicyConstraint)) {
+		log.Printf("Start running the test setup for PolicyController test")
+		if err := policyconstraint.Setup(settings); err != nil {
 			return err
 		}
 	}

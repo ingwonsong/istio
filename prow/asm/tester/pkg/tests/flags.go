@@ -137,6 +137,9 @@ func generateTestSelect(settings *resource.Settings) string {
 		if settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 			testSelect = "+userauth"
 		}
+		if settings.FeaturesToTest.Has(string(resource.PolicyConstraint)) {
+			testSelect = "+policyconstraint"
+		}
 	} else if settings.ControlPlane == resource.Managed {
 		testSelect = "-customsetup"
 		if settings.TestTarget == migrationTarget {

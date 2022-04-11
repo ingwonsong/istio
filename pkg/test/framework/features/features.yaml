@@ -145,6 +145,8 @@ features:
     fuzz:
       authorization:
       jwt:
+    acm:
+      policy-constraint:
   # features which allow extending or deep integrations with istio and other products
   extensibility:
     wasm:

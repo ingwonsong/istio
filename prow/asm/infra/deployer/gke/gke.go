@@ -24,12 +24,12 @@ import (
 	"strings"
 	"time"
 
+	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/prow/asm/infra/boskos"
 	"istio.io/istio/prow/asm/infra/config"
 	"istio.io/istio/prow/asm/infra/deployer/common"
 	"istio.io/istio/prow/asm/infra/exec"
 	"istio.io/istio/prow/asm/infra/types"
-	"istio.io/istio/pkg/test/env"
 )
 
 const (
@@ -157,6 +157,7 @@ func (d *Instance) flags() ([]string, error) {
 		case types.ContainerNetworkInterface:
 		case types.Autopilot:
 		case types.CasCertTemplate:
+		case types.PolicyConstraint:
 		case types.CompositeGateway:
 			err = featureCompositeGatewaySetup(d.cfg.GCPProjects)
 		default:

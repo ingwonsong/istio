@@ -38,8 +38,6 @@ spec:
         args:
         - "--mcp_channel={{ .MCP_CHANNEL }}"
         env:
-        - name: "SKIP_TARGET_CHECK"
-          value: "true"
         - name: POD_NAME
           valueFrom:
             fieldRef:

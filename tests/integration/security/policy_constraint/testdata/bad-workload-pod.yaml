@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sleep
+  labels:
+    app: sleep
+    istio: ingressgateway # violation: The label istio: ingressgateway can only be used on istio ingressgateway pods.
+  annotations:
+    sidecar.istio.io/inject: "false" # violation: The annotation sidecar.istio.io/inject: false should not be applied on workload pods
+spec:
+  containers:
+  - name: sleep
+    image: curlimages/curl
+  - name: istio-proxy
+    image: gcr.io/gke-release/asm/proxyv2:release
+    ports:
+    - containerPort: 15090
+      name: http-envoy-prom
+      protocol: TCP

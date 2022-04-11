@@ -157,6 +157,7 @@ const (
 	Autopilot                        Feature = "AUTOPILOT"
 	CasCertTemplate                  Feature = "CAS_CERT_TEMPLATE"
 	CompositeGateway                 Feature = "COMPOSITE_GATEWAY"
+	PolicyConstraint                 Feature = "POLICY_CONSTRAINT"
 )
 
 var validFeatureTypes = sets.NewString(
@@ -169,7 +170,8 @@ var validFeatureTypes = sets.NewString(
 	string(CNI),
 	string(Autopilot),
 	string(CasCertTemplate),
-	string(CompositeGateway))
+	string(CompositeGateway),
+	string(PolicyConstraint))
 
 // Set converts the value string to FeatureType
 func (f *Feature) Set(value string) error {

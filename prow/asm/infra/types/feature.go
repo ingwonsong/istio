@@ -28,6 +28,7 @@ var (
 	Autopilot                        = addFeature("AUTOPILOT")
 	CasCertTemplate                  = addFeature("CAS_CERT_TEMPLATE")
 	CompositeGateway                 = addFeature("COMPOSITE_GATEWAY")
+	PolicyConstraint                 = addFeature("POLICY_CONSTRAINT")
 
 	SupportedFeatures []Feature
 )

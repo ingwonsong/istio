@@ -397,3 +397,20 @@ function amend_privateca_iam() {
       --role "roles/privateca.templateUser" --quiet &> /dev/null
   fi
 }
+
+# helper script to build ACM policy constraint templates and deploy templates and bundle
+# $1: ACM policy contoller repository path
+# $2: bundle name
+function deploy_constraint_templates_and_bundle() {
+  pushd "$1" || exit
+  make acm-library
+
+  bash <(curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh") "4.5.4"
+  # apply the templates to the cluster
+  ./kustomize build .output/constraint_templates | kubectl apply -f -
+  kubectl apply -f bundles/"$2"
+
+  kubectl get constrainttemplates
+  kubectl get constraints
+  popd || exit
+}

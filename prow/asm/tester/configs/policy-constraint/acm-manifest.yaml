@@ -1,0 +1,11 @@
+applySpecVersion: 1
+spec:
+  configSync:
+    enabled: false
+  policyController:
+    auditIntervalSeconds: 10
+    enabled: true
+    exemptableNamespaces: []
+    logDeniesEnabled: true
+    referentialRulesEnabled: true
+    templateLibraryInstalled: true

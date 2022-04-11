@@ -1,0 +1,7 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: mesh-default-deny
+  namespace: istio-system
+spec:
+  action: ALLOW

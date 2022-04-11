@@ -1,0 +1,15 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: bad-strict-mtls
+spec:
+  selector:
+    matchLabels:
+      app: bar
+  mtls:
+    mode: PERMISSIVE # violation: mtls mode can only be set to UNSET or STRICT
+  portLevelMtls:
+    "80":
+      mode: DISABLE # violation: port <80> has invalid mtls mode <DISABLE>, it can only be set to UNSET or STRICT
+    "443":
+      mode: STRICT

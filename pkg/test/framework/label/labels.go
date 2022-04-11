@@ -30,6 +30,9 @@ const (
 
 	// CompositeGateway indicates that the test requires Composite Gateway setup.
 	CompositeGateway Instance = "compositegateway"
+
+	// PolicyConstaint indicates that the test requires ACM Policy Controller Installation.
+	PolicyConstaint Instance = "policyconstraint"
 )
 
 var all = NewSet(
@@ -37,7 +40,8 @@ var all = NewSet(
 	CustomSetup,
 	IPv4,
 	UserAuth,
-	CompositeGateway)
+	CompositeGateway,
+	PolicyConstaint)
 
 // Find the label with the given name
 func Find(name string) (Instance, bool) {
