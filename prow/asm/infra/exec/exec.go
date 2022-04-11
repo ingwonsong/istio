@@ -73,6 +73,13 @@ func Run(rawCommand string, options ...Option) error {
 	return cmd.Run()
 }
 
+// Runf will format the command according to a format specifier and then run it.
+// It will wait until the command is finished.
+func Runf(format string, a ...interface{}) error {
+	rawCommand := fmt.Sprintf(format, a)
+	return Run(rawCommand)
+}
+
 // RunMultiple will run the commands with the given options and stop if there is an error.
 // It will wait until the command is finished.
 func RunMultiple(rawCommands []string, options ...Option) error {

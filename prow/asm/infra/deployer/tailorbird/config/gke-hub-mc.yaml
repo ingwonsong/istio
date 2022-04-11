@@ -1,0 +1,51 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-gke-hub-mc
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 10800 # 3 hours
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-ci-gke-hub-mc-knest
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-gke-hub-mc-cluster
+        spec:
+          provider: gcp
+          distribution: gke
+          provisionerArgs:
+            pluginSpecYaml: |
+              projectOptions:
+                {{- if .IsBoskosProjectRequired }}
+                boskosResourceType:{{ range $type := .BoskosResourceType }}
+                - {{ $type }}{{ end }}
+                boskosProjectsRequested:{{ range $number := .BoskosProjectsRequested }}
+                - {{ $number }}{{ end }}
+                boskosLocation: http://middleware-operators-boskos.middleware-operators.svc.cluster.local.
+                {{- else }}
+                projects: "{{ .ProjectName }}"
+                {{- end }}
+              networkOptions:
+                network: "{{ .NetworkName }}"
+                privateClusterAccessLevel: "{{ .PrivateClusterAccessLevel }}"
+                privateClusterMasterIPRanges: "{{ .PrivateClusterMasterIPRanges }}"
+                subnetworkRanges: "{{ .SubnetworkRanges }}"
+              clusterOptions:
+                clusters: "{{ .ClusterName }}"
+                regions: "us-central1,us-west1,us-east1"
+                clusterVersion: "{{ .Version }}"
+                releaseChannel: "{{ .ReleaseChannel }}"
+                environment: "{{ .Environment }}"
+                machineType: "e2-standard-4"
+                numNodes: 2
+                workloadIdentityEnabled: true
+                autopilot: {{ .IsAutoPilot }}
+                retryableErrorPatterns: "{{ .ErrorPatterns }}"
+                gcloudCommandGroup: "{{ .GcloudCommandGroup }}"
+                gcloudExtraFlags: "{{ .GcloudExtraFlags }}"

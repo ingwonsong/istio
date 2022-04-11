@@ -29,7 +29,11 @@ type Instance interface {
 
 // New creates a new instance of the deployer Instance.
 func New(cfg config.Instance) Instance {
-	if cfg.Cluster == types.GKEOnGCP || cfg.Cluster == types.GKEOnGCPWithAutoPilot {
+	// GKE-on-GCP single-cluster with VPC feature and
+	// other topologies still need to be migrated to Tailorbird
+	if (cfg.Cluster == types.GKEOnGCP && cfg.Topology != types.SingleCluster) ||
+		(cfg.Cluster == types.GKEOnGCP && cfg.Topology == types.SingleCluster && cfg.Features.Has(string(types.VPCServiceControls))) ||
+		cfg.Cluster == types.GKEOnGCPWithAutoPilot {
 		return gke.NewInstance(cfg)
 	}
 	return tailorbird.NewInstance(cfg)

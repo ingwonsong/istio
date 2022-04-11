@@ -60,6 +60,7 @@ type Instance struct {
 	Topology              types.Topology
 	WIP                   types.WIP
 	ReleaseChannel        types.ReleaseChannel
+	Environment           types.Environment
 	Features              sets.String
 	Rookery               string
 }
@@ -104,6 +105,7 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 		"--cluster-type="+string(c.Cluster),
 		"--cluster-topology="+string(c.Topology),
 		"--wip="+string(c.WIP),
+		"--environment="+string(c.Environment),
 		"--feature="+strings.Join(c.Features.List(), ","))
 	if c.UseOnePlatform {
 		testerFlags = append(testerFlags, "--use-oneplatform")

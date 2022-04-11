@@ -74,6 +74,9 @@ func main() {
 	flag.StringVar(&cfg.GCSBucket, "gcs-bucket", cfg.GCSBucket,
 		"the GCS bucket to be used for the platform (optional). Supported values vary per platform")
 	flag.BoolVar(&cfg.IsCloudESFTest, "is-cloudesf-test", cfg.IsCloudESFTest, "whether it is the test using CloudESF as ingress gateway")
+	flag.StringSliceVar(&cfg.GCPProjects, "gcp-projects", cfg.GCPProjects, "the GCP projects used for creating GKE clusters (optional)")
+	flag.StringVar((*string)(&cfg.Environment), "environment", string(cfg.Environment),
+		fmt.Sprintf("Container API endpoint to use (optional). Can be one of %v", types.SupportedEnvironments))
 	flag.Parse()
 	cfg.Features = sets.NewString(features...)
 	cfg.UpgradeClusterVersion = upgradeVersions

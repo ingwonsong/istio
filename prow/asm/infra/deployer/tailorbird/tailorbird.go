@@ -52,6 +52,18 @@ const (
 
 	// the host HUB project for testing with on-prem
 	onPremHubDevProject = "tairan-asm-multi-cloud-dev"
+	// GKE
+	retryableErrorPatterns = ".*does not have enough resources available to fulfill.*" +
+		",.*only \\\\d+ nodes out of \\\\d+ have registered; this is likely due to Nodes failing to start correctly.*" +
+		",.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*"
+
+	commonBoskosResource             = "gke-project"
+	vpcSCBoskosResource              = "vpc-sc-gke-project"
+	vpcSCSharedVPCHostBoskosResource = "vpc-sc-shared-vpc-host-gke-project"
+	vpcSCSharedVPCSVCBoskosResource  = "vpc-sc-shared-vpc-svc-gke-project"
+	sharedVPCHostBoskosResource      = "shared-vpc-host-gke-project"
+	sharedVPCSVCBoskosResource       = "shared-vpc-svc-gke-project"
+	networkName                      = "prow-test-network"
 )
 
 var (
@@ -70,6 +82,27 @@ func NewInstance(cfg config.Instance) *Instance {
 
 type Instance struct {
 	cfg config.Instance
+}
+
+type TemplateParameters struct {
+	GCSBucket                    string
+	Version                      string
+	VersionPrefix                string
+	ProjectName                  string
+	ErrorPatterns                string
+	ClusterName                  string
+	BoskosResourceType           []string
+	GcloudCommandGroup           string
+	GcloudExtraFlags             string
+	NetworkName                  string
+	PrivateClusterAccessLevel    string
+	PrivateClusterMasterIPRanges string
+	SubnetworkRanges             string
+	BoskosProjectsRequested      []int
+	IsAutoPilot                  bool
+	IsBoskosProjectRequired      bool
+	ReleaseChannel               types.ReleaseChannel
+	Environment                  types.Environment
 }
 
 // Exported types to support unmarshalling rookery Yaml
@@ -211,6 +244,11 @@ func (d *Instance) installTools() error {
 		return fmt.Errorf("error installing kubetest2-tailorbird: %w", err)
 	}
 
+	// Install gke-gcloud-auth-plugin
+	if err := exec.Run("gcloud components install gke-gcloud-auth-plugin --quiet"); err != nil {
+		return fmt.Errorf("error installing gke-gcloud-auth-plugin: %w", err)
+	}
+
 	// GKE-on-AWS needs terraform for generation of kubeconfigs
 	// TODO(chizhg): remove the terraform installation after b/171729099 is solved.
 	if d.cfg.Cluster == types.GKEOnAWS {
@@ -265,6 +303,8 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 			version = "aws-1.7.1-gke.1"
 		case types.GKEOnGCPWithAnthosPrivateMode:
 			version = "1.8.0-pre.1"
+		case types.GKEOnGCP:
+			version = "latest"
 		default:
 			version = "latest"
 		}
@@ -288,6 +328,141 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 		}
 	}
 	return
+}
+
+func (d *Instance) getReleaseChannel() types.ReleaseChannel {
+	if d.cfg.ReleaseChannel != "" {
+		return d.cfg.ReleaseChannel
+	}
+	return types.None
+}
+
+func (d *Instance) getEnvironment() types.Environment {
+	if d.cfg.Environment != "" {
+		return d.cfg.Environment
+	}
+	// default env is Prod
+	return types.Prod
+}
+
+func (d *Instance) applySingleClusterParameters(template *TemplateParameters) {
+	template.ClusterName = "prow-test"
+	template.BoskosProjectsRequested = []int{1}
+	template.BoskosResourceType = []string{commonBoskosResource}
+	template.GcloudExtraFlags += " --enable-network-policy"
+
+	// Testing with VPC-SC requires a different project type.
+	if d.cfg.Features.Has(string(types.VPCServiceControls)) {
+		template.BoskosResourceType = []string{vpcSCBoskosResource}
+	}
+
+	if d.cfg.Features.Has(string(types.PrivateClusterUnrestrictedAccess)) {
+		template.PrivateClusterAccessLevel = "unrestricted"
+		template.PrivateClusterMasterIPRanges = "172.16.0.32/28,173.16.0.32/28,174.16.0.32/28"
+	} else if d.cfg.Features.Has(string(types.PrivateClusterLimitedAccess)) {
+		template.PrivateClusterAccessLevel = "limited"
+		template.PrivateClusterMasterIPRanges = "172.16.0.32/28,173.16.0.32/28,174.16.0.32/28"
+	} else if d.cfg.Features.Has(string(types.PrivateClusterNoAccess)) {
+		template.PrivateClusterAccessLevel = "no"
+		template.PrivateClusterMasterIPRanges = "172.16.0.32/28,173.16.0.32/28,174.16.0.32/28"
+	}
+}
+
+func (d *Instance) applyMultiClusterParameters(template *TemplateParameters) {
+	template.ClusterName = "prow-test1,prow-test2"
+	template.BoskosProjectsRequested = []int{1}
+	template.BoskosResourceType = []string{commonBoskosResource}
+
+	// Testing with VPC-SC requires a different project type.
+	if d.cfg.Features.Has(string(types.VPCServiceControls)) {
+		template.BoskosResourceType = []string{vpcSCBoskosResource}
+	}
+}
+
+func (d *Instance) applyMultiProjectMultiClusterParameters(template *TemplateParameters) {
+	template.ClusterName = "prow-test1:1,prow-test2:2"
+	template.BoskosProjectsRequested = []int{1, 2}
+	template.BoskosResourceType = []string{sharedVPCHostBoskosResource, sharedVPCSVCBoskosResource}
+
+	// Testing with VPC-SC requires a different project type.
+	if d.cfg.Features.Has(string(types.VPCServiceControls)) {
+		template.BoskosResourceType = []string{vpcSCSharedVPCHostBoskosResource, vpcSCSharedVPCSVCBoskosResource}
+	}
+
+	template.SubnetworkRanges = "172.16.4.0/22 172.16.16.0/20 172.20.0.0/14," +
+		"10.0.4.0/22 10.0.32.0/20 10.4.0.0/14,173.16.4.0/22 173.16.16.0/20 173.20.0.0/14," +
+		"11.0.4.0/22 11.0.32.0/20 11.4.0.0/14,174.16.4.0/22 174.16.16.0/20 174.20.0.0/14," +
+		"12.0.4.0/22 12.0.32.0/20 12.4.0.0/14"
+}
+
+func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error {
+	template.ErrorPatterns = retryableErrorPatterns
+	template.NetworkName = networkName
+	template.ReleaseChannel = d.getReleaseChannel()
+	template.Environment = d.getEnvironment()
+	template.GcloudExtraFlags = d.cfg.GcloudExtraFlags
+	template.GcloudCommandGroup = "beta"
+	template.IsAutoPilot = false
+	// Only acquire the GCP project from Boskos if it's running in CI.
+	template.IsBoskosProjectRequired = common.IsRunningOnCI()
+
+	if len(d.cfg.GCPProjects) > 0 {
+		template.ProjectName = d.cfg.GCPProjects[0]
+	}
+	if d.cfg.Features.Has(string(types.Autopilot)) {
+		template.IsAutoPilot = true
+	}
+	if d.cfg.Features.Has(string(types.Addon)) {
+		template.GcloudExtraFlags += " --addons=Istio"
+	}
+
+	var err error
+	for f := range d.cfg.Features {
+		feat := types.Feature(f)
+		switch feat {
+		case types.VPCServiceControls:
+			err = featureVPCSCParameters(d.cfg.Topology, template)
+		case types.UserAuth:
+		case types.Addon:
+		case types.PrivateClusterUnrestrictedAccess:
+		case types.PrivateClusterLimitedAccess:
+		case types.PrivateClusterNoAccess:
+		case types.ContainerNetworkInterface:
+		case types.Autopilot:
+		case types.CasCertTemplate:
+		default:
+			err = fmt.Errorf("feature %q is not supported", feat)
+		}
+	}
+	if err != nil {
+		return err
+	}
+	switch d.cfg.Topology {
+	case types.SingleCluster:
+		d.applySingleClusterParameters(template)
+	case types.MultiCluster:
+		d.applyMultiClusterParameters(template)
+	case types.MultiProject:
+		d.applyMultiProjectMultiClusterParameters(template)
+	default:
+		return fmt.Errorf("cluster topology %q is not supported", d.cfg.Topology)
+	}
+	return nil
+}
+
+// featureVPCSCParameters returns the extra parameters for creating the clusters
+func featureVPCSCParameters(topology types.Topology, template *TemplateParameters) error {
+	template.PrivateClusterAccessLevel = "limited"
+
+	switch topology {
+	case types.SingleCluster:
+		template.PrivateClusterMasterIPRanges = "172.16.0.32/28,173.16.0.32/28,174.16.0.32/28"
+	case types.MultiCluster, types.MultiProject:
+		template.PrivateClusterMasterIPRanges = "173.16.0.32/28,172.16.0.32/28,174.16.0.32/28,175.16.0.32/28,176.16.0.32/28,177.16.0.32/28"
+	default:
+		return fmt.Errorf("topology %v for VPCSC is unsupported", topology)
+	}
+	return nil
 }
 
 // rookeryFile returns the full path for the rookery config file.
@@ -325,16 +500,17 @@ func (d *Instance) rookeryFile() (string, error) {
 
 	// Struct providing template parameters for the YAML.
 	version, versionPrefix := d.getVersionAndPrefix()
-	rep := struct {
-		GCSBucket     string
-		Version       string
-		VersionPrefix string
-	}{
+	rep := TemplateParameters{
 		GCSBucket:     d.getGCSBucket(),
 		Version:       version,
 		VersionPrefix: versionPrefix,
 	}
 
+	if d.cfg.Cluster == types.GKEOnGCP {
+		if err := d.getGkeTopologyParameters(&rep); err != nil {
+			return "", fmt.Errorf("error getting GKE parameters values: %w", err)
+		}
+	}
 	// Execute the template and store the result in the temp file.
 	if err := tmpl.Execute(tmpFile, rep); err != nil {
 		return "", fmt.Errorf("error executing the Tailorbird rookery template: %w", err)
@@ -381,6 +557,8 @@ func platformName(cluster string) string {
 		platform = "gke-on-aws"
 	case types.GKEOnEKS:
 		platform = "gke-on-eks"
+	case types.GKEOnGCP:
+		platform = "gke-on-gcp"
 	}
 	return platform
 }

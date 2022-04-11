@@ -104,6 +104,9 @@ type Settings struct {
 	// "sidecar.istio.io/inject" labels for workload injection
 	UseDefaultInjectionLabels bool `flag:"use-default-injection-labels" desc:"If set uses default injection labels for workload injection."`
 
+	// Environment determines the Container API endpoint to use, can be one of test, staging, staging2 or prod
+	Environment string `flag:"environment" desc:"Container API endpoint to use, one of 'test', 'staging', 'staging2', 'prod'"`
+
 	VMSettings
 
 	MCPSettings

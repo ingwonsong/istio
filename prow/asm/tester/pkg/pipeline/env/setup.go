@@ -37,6 +37,13 @@ const (
 	SharedGCPProject    = "istio-prow-build"
 	configDir           = "prow/asm/tester/configs"
 	newtaroCommitConfig = "newtaro/commit"
+
+	// Envvar consts
+	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"
+	testEndpoint              = "https://test-container.sandbox.googleapis.com/"
+	stagingEndpoint           = "https://staging-container.sandbox.googleapis.com/"
+	staging2Endpoint          = "https://staging2-container.sandbox.googleapis.com/"
+	prodEndpoint              = "https://container.googleapis.com/"
 )
 
 func Setup(settings *resource.Settings) error {
@@ -49,6 +56,12 @@ func Setup(settings *resource.Settings) error {
 
 	// Populate the settings that will be used during runtime.
 	if err := populateRuntimeSettings(settings); err != nil {
+		return err
+	}
+
+	// Set the CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER to be able to access
+	// the cluster for test/staging/staging2 envs
+	if err := setCloudAPIEndpointEnvVariable(settings); err != nil {
 		return err
 	}
 
@@ -108,6 +121,10 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 		settings.ClusterGCPProjects = projectIDs
 		// If it's using the gke clusters, use the first available project to hold the images.
 		gcrProjectID = settings.ClusterGCPProjects[0]
+		// If GCP projects have not been set, use the Cluster projects
+		if len(settings.GCPProjects[0]) == 0 {
+			settings.GCPProjects = settings.ClusterGCPProjects
+		}
 	} else {
 		// Otherwise use the shared GCP project to hold these images.
 		gcrProjectID = SharedGCPProject
@@ -120,6 +137,21 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 		return fmt.Errorf("error reading the Newtaro commit config file: %w", err)
 	}
 	settings.NewtaroCommit = strings.Split(string(bytes), "\n")[0]
+
+	return nil
+}
+
+func setCloudAPIEndpointEnvVariable(settings *resource.Settings) error {
+	switch settings.Environment {
+	case "test":
+		return os.Setenv(cloudAPIEndpointOverrides, testEndpoint)
+	case "staging":
+		return os.Setenv(cloudAPIEndpointOverrides, stagingEndpoint)
+	case "staging2":
+		return os.Setenv(cloudAPIEndpointOverrides, staging2Endpoint)
+	case "prod":
+		return os.Setenv(cloudAPIEndpointOverrides, prodEndpoint)
+	}
 
 	return nil
 }
