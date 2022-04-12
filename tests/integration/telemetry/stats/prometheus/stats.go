@@ -109,10 +109,7 @@ func TestStatsFilter(t *testing.T, feature features.Feature) {
 							return err
 						}
 						c := cltInstance.Config().Cluster
-						sourceCluster := "Kubernetes"
-						if len(t.AllClusters()) > 1 {
-							sourceCluster = c.Name()
-						}
+						sourceCluster := c.Name()
 						sourceQuery, destinationQuery, appQuery := buildQuery(sourceCluster)
 						prom := GetPromInstance()
 						// Query client side metrics
@@ -185,10 +182,7 @@ func TestStatsTCPFilter(t *testing.T, feature features.Feature) {
 							return err
 						}
 						c := cltInstance.Config().Cluster
-						sourceCluster := "Kubernetes"
-						if len(t.AllClusters()) > 1 {
-							sourceCluster = c.Name()
-						}
+						sourceCluster := c.Name()
 						destinationQuery := buildTCPQuery(sourceCluster)
 						if _, err := GetPromInstance().Query(c, destinationQuery); err != nil {
 							util.PromDiff(t, promInst, c, destinationQuery)

@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -133,20 +132,6 @@ func genTopologyFile(settings *resource.Settings) error {
 		if settings.ClusterType == resource.GKEOnGCP {
 			cs := kube.GKEClusterSpecFromContext(settings.KubeContexts[i])
 			clusterName = fmt.Sprintf("cn-%s-%s-%s", cs.ProjectID, cs.Location, cs.Name)
-		} else if settings.ClusterType == resource.BareMetal {
-			clusterName = "cluster" + strconv.Itoa(i)
-		} else if settings.ClusterType == resource.HybridGKEAndBareMetal {
-			if isBMCluster(kubeconfig) {
-				clusterName = "cluster-bm"
-			} else {
-				clusterName = "cluster-gcp"
-			}
-		} else if settings.ClusterType == resource.HybridGKEAndEKS {
-			if isEKSCluster(kubeconfig) {
-				clusterName = "cluster-eks"
-			} else {
-				clusterName = "cluster-gcp"
-			}
 		} else {
 			if len(settings.ClusterProxy) > 1 {
 				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
