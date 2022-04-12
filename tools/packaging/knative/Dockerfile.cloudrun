@@ -3,7 +3,7 @@ ARG BASE_VERSION=latest
 
 # Pinned SHA from `latest` tag. Cannot use gcr.io/istio-release/distroless as we are dynamically linking boringssl
 # The image comes from https://github.com/istio/distroless/tree/iptables/libc
-FROM gcr.io/istio-release/distroless/libc@sha256:587d6efb82ad1da004e9c886a7851ad3c51a25e2e730b77c86dbe6154221a171
+FROM gcr.io/istio-release/distroless/libc@sha256:42b4a0aad0ee0f83a94fb7e437518be8725eea6ed224073bfdf0604b620406ee
 
 # The libc distroless image runs as non-root, but our image expects root.
 # We could probably get it running as non-root, but for now just override it back to root.
