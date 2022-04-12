@@ -430,6 +430,8 @@ func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error 
 		case types.ContainerNetworkInterface:
 		case types.Autopilot:
 		case types.CasCertTemplate:
+		case types.PolicyConstraint:
+		case types.CompositeGateway:
 		default:
 			err = fmt.Errorf("feature %q is not supported", feat)
 		}

@@ -32,7 +32,7 @@ func New(cfg config.Instance) Instance {
 	// GKE-on-GCP single-cluster with VPC feature and
 	// other topologies still need to be migrated to Tailorbird
 	if (cfg.Cluster == types.GKEOnGCP && cfg.Topology != types.SingleCluster) ||
-		(cfg.Cluster == types.GKEOnGCP && cfg.Topology == types.SingleCluster && cfg.Features.Has(string(types.VPCServiceControls))) ||
+		(cfg.Cluster == types.GKEOnGCP && (cfg.Features.Has(string(types.VPCServiceControls)) || cfg.Features.Has(string(types.CompositeGateway)))) ||
 		cfg.Cluster == types.GKEOnGCPWithAutoPilot {
 		return gke.NewInstance(cfg)
 	}
