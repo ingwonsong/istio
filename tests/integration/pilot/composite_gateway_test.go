@@ -122,7 +122,7 @@ spec:
 							return fmt.Errorf("expected Istio Gateway status %q, got %q", metav1.ConditionTrue, s)
 						}
 						return nil
-					}, retry.Delay(5*time.Second), retry.Timeout(5*time.Minute))
+					}, retry.Delay(5*time.Second), retry.Timeout(10*time.Minute))
 				})
 				t.NewSubTest("HTTP").Run(func(t framework.TestContext) {
 					apps.B[0].CallOrFail(t, echo.CallOptions{
