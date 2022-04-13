@@ -349,7 +349,6 @@ func (d *Instance) applySingleClusterParameters(template *TemplateParameters) {
 	template.ClusterName = "prow-test"
 	template.BoskosProjectsRequested = []int{1}
 	template.BoskosResourceType = []string{commonBoskosResource}
-	template.GcloudExtraFlags += " --enable-network-policy"
 
 	// Testing with VPC-SC requires a different project type.
 	if d.cfg.Features.Has(string(types.VPCServiceControls)) {
@@ -409,9 +408,13 @@ func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error 
 	if len(d.cfg.GCPProjects) > 0 {
 		template.ProjectName = d.cfg.GCPProjects[0]
 	}
+
 	if d.cfg.Features.Has(string(types.Autopilot)) {
 		template.IsAutoPilot = true
+	} else {
+		template.GcloudExtraFlags += " --enable-network-policy"
 	}
+
 	if d.cfg.Features.Has(string(types.Addon)) {
 		template.GcloudExtraFlags += " --addons=Istio"
 	}
