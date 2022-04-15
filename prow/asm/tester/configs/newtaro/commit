@@ -1,6 +1,7 @@
-6143273d68ed4c0e480560a6e3b34734c50fd512
+fd646d5be460b5586836c6044fe8ca238d7d75e3
 ========================================
-Clayton Pence
-Tue Mar 29 23:55:18 2022 +0000
+Clay
+Wed Apr 13 13:41:28 2022 -0700
 
-Update release script
+Print opts pulled from env vars (#1176)
+
