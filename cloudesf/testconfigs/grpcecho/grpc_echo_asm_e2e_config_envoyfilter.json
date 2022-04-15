@@ -101,6 +101,11 @@
                   "targetUri": "servicecontrol.googleapis.com:443"
                 },
                 "generatedHeaderPrefix": "X-Endpoint-",
+                "imdsUri": {
+                  "cluster": "metadata-cluster",
+                  "timeout": "30s",
+                  "uri": "http://169.254.169.254"
+                },
                 "reportBatchConfig": {},
                 "requirements": [
                   {
@@ -151,12 +156,7 @@
                     "serviceConfigId": "latest",
                     "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
                   }
-                ],
-                "zoneUri": {
-                  "cluster": "metadata-cluster",
-                  "timeout": "30s",
-                  "uri": "http://169.254.169.254/computeMetadata/v1/instance/zone"
-                }
+                ]
               }
             }
           }
