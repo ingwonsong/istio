@@ -622,6 +622,10 @@ tests:
         - TestTlsGatewaysWithQUIC/quic
         - TestMtlsGatewaysWithQUIC/quic
         reason: Experemental code. Not supported by GKE
+      - names:
+        - TestGatewayConformance
+        buganizerID: 229786939
+        reason: Requires Default label, not yet supported.
 
       # telemetry/ tests
       - names:
@@ -667,7 +671,9 @@ tests:
         reason: http://b/193076663
       - names:
         - TestAuthorization_EgressGateway/to_a/.*/deny.*
+        - TestAuthorization_EgressGateway/to_a/deny.*
         - TestAuthorization_EgressGateway/to_vm/.*/deny.*
+        - TestAuthorization_EgressGateway/to_vm/deny.*
         reason: http://b/193077583
       - names:
           - TestStrictMTLS

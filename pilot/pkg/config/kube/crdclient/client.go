@@ -48,7 +48,7 @@ import (
 	//  import OIDC cluster authentication plugin, e.g. for Tectonic
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/cache"
-	gatewayapiclient "sigs.k8s.io/gateway-api/pkg/client/clientset/gateway/versioned"
+	gatewayapiclient "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
 	"istio.io/istio/pilot/pkg/features"
@@ -100,9 +100,9 @@ type Client struct {
 	crdMetadataInformer cache.SharedIndexInformer
 }
 
-var _ model.ConfigStoreCache = &Client{}
+var _ model.ConfigStoreController = &Client{}
 
-func New(client kube.Client, revision, domainSuffix string) (model.ConfigStoreCache, error) {
+func New(client kube.Client, revision, domainSuffix string) (model.ConfigStoreController, error) {
 	schemas := collections.Pilot
 	if features.EnableGatewayAPI {
 		schemas = collections.PilotGatewayAPI
@@ -112,6 +112,7 @@ func New(client kube.Client, revision, domainSuffix string) (model.ConfigStoreCa
 
 var crdWatches = map[config.GroupVersionKind]*waiter{
 	gvk.KubernetesGateway: newWaiter(),
+	gvk.GatewayClass:      newWaiter(),
 }
 
 type waiter struct {
@@ -143,7 +144,7 @@ func WaitForCRD(k config.GroupVersionKind, stop <-chan struct{}) bool {
 	}
 }
 
-func NewForSchemas(ctx context.Context, client kube.Client, revision, domainSuffix string, schemas collection.Schemas) (model.ConfigStoreCache, error) {
+func NewForSchemas(ctx context.Context, client kube.Client, revision, domainSuffix string, schemas collection.Schemas) (model.ConfigStoreController, error) {
 	schemasByCRDName := map[string]collection.Schema{}
 	for _, s := range schemas.All() {
 		// From the spec: "Its name MUST be in the format <.spec.name>.<.spec.group>."

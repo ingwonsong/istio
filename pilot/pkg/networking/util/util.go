@@ -134,6 +134,9 @@ var ALPNDownstreamWithMxc = []string{"istio-peer-exchange", "h2", "http/1.1"}
 // ALPNDownstream advertises that Proxy is going to talk http2 or http 1.1.
 var ALPNDownstream = []string{"h2", "http/1.1"}
 
+// RegexEngine is the default google RE2 regex engine.
+var RegexEngine = &matcher.RegexMatcher_GoogleRe2{GoogleRe2: &matcher.RegexMatcher_GoogleRE2{}}
+
 func getMaxCidrPrefix(addr string) uint32 {
 	ip := net.ParseIP(addr)
 	if ip.To4() == nil {
@@ -242,6 +245,12 @@ func SortVirtualHosts(hosts []*route.VirtualHost) {
 	sort.SliceStable(hosts, func(i, j int) bool {
 		return hosts[i].Name < hosts[j].Name
 	})
+}
+
+// IsIstioVersionGE114 checks whether the given Istio version is greater than or equals 1.14.
+func IsIstioVersionGE114(version *model.IstioVersion) bool {
+	return version == nil ||
+		version.Compare(&model.IstioVersion{Major: 1, Minor: 14, Patch: -1}) >= 0
 }
 
 func IsProtocolSniffingEnabledForPort(port *model.Port) bool {
@@ -585,6 +594,37 @@ func StringToPrefixMatch(in []string) []*matcher.StringMatcher {
 		})
 	}
 	return res
+}
+
+func ConvertToEnvoyMatches(in []*networking.StringMatch) []*matcher.StringMatcher {
+	res := make([]*matcher.StringMatcher, 0, len(in))
+
+	for _, im := range in {
+		if em := ConvertToEnvoyMatch(im); em != nil {
+			res = append(res, em)
+		}
+	}
+
+	return res
+}
+
+func ConvertToEnvoyMatch(in *networking.StringMatch) *matcher.StringMatcher {
+	switch m := in.MatchType.(type) {
+	case *networking.StringMatch_Exact:
+		return &matcher.StringMatcher{MatchPattern: &matcher.StringMatcher_Exact{Exact: m.Exact}}
+	case *networking.StringMatch_Prefix:
+		return &matcher.StringMatcher{MatchPattern: &matcher.StringMatcher_Prefix{Prefix: m.Prefix}}
+	case *networking.StringMatch_Regex:
+		return &matcher.StringMatcher{
+			MatchPattern: &matcher.StringMatcher_SafeRegex{
+				SafeRegex: &matcher.RegexMatcher{
+					EngineType: RegexEngine,
+					Regex:      m.Regex,
+				},
+			},
+		}
+	}
+	return nil
 }
 
 func StringSliceEqual(a, b []string) bool {

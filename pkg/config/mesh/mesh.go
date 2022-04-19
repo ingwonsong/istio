@@ -110,9 +110,14 @@ func DefaultMeshConfig() *meshconfig.MeshConfig {
 		DefaultServiceExportTo:         []string{"*"},
 		DefaultVirtualServiceExportTo:  []string{"*"},
 		DefaultDestinationRuleExportTo: []string{"*"},
-		DnsRefreshRate:                 durationpb.New(5 * time.Second), // 5 seconds is the default refresh rate used in Envoy
-		ThriftConfig:                   &meshconfig.MeshConfig_ThriftConfig{},
-		ServiceSettings:                make([]*meshconfig.MeshConfig_ServiceSettings, 0),
+		// DnsRefreshRate is only used when DNS requests fail (NXDOMAIN or SERVFAIL). For success, the TTL
+		// will be used.
+		// https://datatracker.ietf.org/doc/html/rfc2308#section-3 defines how negative DNS results should handle TTLs,
+		// but Envoy does not respect this (https://github.com/envoyproxy/envoy/issues/20885).
+		// To counter this, we bump up the default to 60s to avoid overloading DNS servers.
+		DnsRefreshRate:  durationpb.New(60 * time.Second),
+		ThriftConfig:    &meshconfig.MeshConfig_ThriftConfig{},
+		ServiceSettings: make([]*meshconfig.MeshConfig_ServiceSettings, 0),
 
 		DefaultProviders: &meshconfig.MeshConfig_DefaultProviders{},
 		ExtensionProviders: []*meshconfig.MeshConfig_ExtensionProvider{
@@ -249,7 +254,7 @@ func ApplyMeshConfig(yaml string, defaultConfig *meshconfig.MeshConfig) (*meshco
 		}
 	}
 
-	defaultConfig.TrustDomainAliases = sets.NewWith(append(defaultConfig.TrustDomainAliases, prevTrustDomainAliases...)...).SortedList()
+	defaultConfig.TrustDomainAliases = sets.New(append(defaultConfig.TrustDomainAliases, prevTrustDomainAliases...)...).SortedList()
 
 	if err := validation.ValidateMeshConfig(defaultConfig); err != nil {
 		return nil, err

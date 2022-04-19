@@ -45,7 +45,7 @@ type migrationWorker struct {
 }
 
 // NewMigrationWorker creates new worker for the migration job
-// nolint: golint
+// nolint: golint, revive
 func NewMigrationWorker(kubeClient *kubernetes.Clientset, command, channel string) *migrationWorker {
 	return &migrationWorker{
 		kubeClient: kubeClient,

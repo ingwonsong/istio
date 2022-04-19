@@ -55,8 +55,8 @@ import (
 
 func setupTest(t *testing.T) (
 	*kubecontroller.Controller,
-	*serviceentry.ServiceEntryStore,
-	model.ConfigStoreCache,
+	*serviceentry.Controller,
+	model.ConfigStoreController,
 	kubernetes.Interface,
 	*xds.FakeXdsUpdater) {
 	t.Helper()
@@ -86,7 +86,7 @@ func setupTest(t *testing.T) (
 	go configController.Run(stop)
 
 	istioStore := model.MakeIstioStore(configController)
-	se := serviceentry.NewServiceDiscovery(configController, istioStore, xdsUpdater)
+	se := serviceentry.NewController(configController, istioStore, xdsUpdater)
 	client.RunAndWait(stop)
 
 	kc.AppendWorkloadHandler(se.WorkloadInstanceHandler)

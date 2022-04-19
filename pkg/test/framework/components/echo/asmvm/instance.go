@@ -138,6 +138,11 @@ type instance struct {
 	echoInstalled map[uint64]bool
 }
 
+func (i *instance) WithWorkloads(wl ...echo.Workload) echo.Instance {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (i *instance) ID() resource.ID {
 	return i.id
 }
@@ -199,11 +204,11 @@ func (i *instance) defaultClient() (*echotest.Client, error) {
 	return i.workloads[0].(*workload).Client, nil
 }
 
-func (i *instance) Call(opts echo.CallOptions) (echotest.Responses, error) {
-	return common.ForwardEcho(i.Config().Service, i.defaultClient, &opts)
+func (i *instance) Call(opts echo.CallOptions) (echo.CallResult, error) {
+	return common.ForwardEcho(i.Config().Service, i, opts, i.defaultClient)
 }
 
-func (i *instance) CallOrFail(t test.Failer, opts echo.CallOptions) echotest.Responses {
+func (i *instance) CallOrFail(t test.Failer, opts echo.CallOptions) echo.CallResult {
 	t.Helper()
 	res, err := i.Call(opts)
 	if err != nil {

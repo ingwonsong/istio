@@ -467,7 +467,7 @@ func hasConflict(root, leaf *networking.HTTPMatchRequest) bool {
 		if len(root.Gateways) < len(leaf.Gateways) {
 			return true
 		}
-		rootGateway := sets.NewWith(root.Gateways...)
+		rootGateway := sets.New(root.Gateways...)
 		for _, gw := range leaf.Gateways {
 			if !rootGateway.Contains(gw) {
 				return true
@@ -524,6 +524,13 @@ func isRootVs(vs *networking.VirtualService) bool {
 		}
 	}
 	return false
+}
+
+// UseIngressSemantics determines which logic we should use for VirtualService
+// This allows ingress and VS to both be represented by VirtualService, but have different
+// semantics.
+func UseIngressSemantics(cfg config.Config) bool {
+	return cfg.Annotations[constants.InternalRouteSemantics] == constants.RouteSemanticsIngress
 }
 
 // UseGatewaySemantics determines which logic we should use for VirtualService

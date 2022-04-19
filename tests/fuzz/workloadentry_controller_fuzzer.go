@@ -77,6 +77,9 @@ func FuzzWE(data []byte) int {
 	if err != nil {
 		return 0
 	}
+	if !proxyValid(proxy) {
+		return 0
+	}
 
 	store := memory.NewController(memory.Make(collections.All))
 	c := workloadentry.NewController(store, "", keepalive.Infinity)
@@ -106,7 +109,7 @@ func FuzzWE(data []byte) int {
 }
 
 // Helper function to create a store.
-func createStore(store model.ConfigStoreCache, cfg config.Config) error {
+func createStore(store model.ConfigStoreController, cfg config.Config) error {
 	if _, err := store.Create(cfg); err != nil {
 		return err
 	}

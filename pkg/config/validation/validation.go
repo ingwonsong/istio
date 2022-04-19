@@ -65,7 +65,9 @@ import (
 
 // Constants for duration fields
 const (
+	// nolint: revive
 	connectTimeoutMax = time.Second * 30
+	// nolint: revive
 	connectTimeoutMin = time.Millisecond
 
 	drainTimeMax          = time.Hour
@@ -647,10 +649,13 @@ var ValidateDestinationRule = registerValidateFunc("ValidateDestinationRule",
 		if !ok {
 			return nil, fmt.Errorf("cannot cast to destination rule")
 		}
-
 		v := Validation{}
 		if features.EnableDestinationRuleInheritance {
 			if rule.Host == "" {
+				if rule.GetWorkloadSelector() != nil {
+					v = appendValidation(v,
+						fmt.Errorf("mesh/namespace destination rule cannot have workloadSelector configured"))
+				}
 				if len(rule.Subsets) != 0 {
 					v = appendValidation(v,
 						fmt.Errorf("mesh/namespace destination rule cannot have subsets"))
@@ -679,12 +684,15 @@ var ValidateDestinationRule = registerValidateFunc("ValidateDestinationRule",
 			}
 			v = appendValidation(v, validateSubset(subset))
 		}
+		v = appendValidation(v,
+			validateExportTo(cfg.Namespace, rule.ExportTo, false, rule.GetWorkloadSelector() != nil))
 
-		v = appendValidation(v, validateExportTo(cfg.Namespace, rule.ExportTo, false))
+		v = appendValidation(v, validateWorkloadSelector(rule.GetWorkloadSelector()))
+
 		return v.Unwrap()
 	})
 
-func validateExportTo(namespace string, exportTo []string, isServiceEntry bool) (errs error) {
+func validateExportTo(namespace string, exportTo []string, isServiceEntry bool, isDestinationRuleWithSelector bool) (errs error) {
 	if len(exportTo) > 0 {
 		// Make sure there are no duplicates
 		exportToSet := sets.New()
@@ -714,6 +722,17 @@ func validateExportTo(namespace string, exportTo []string, isServiceEntry bool) 
 						exportToSet.Insert(key)
 					}
 				}
+			}
+		}
+
+		// Make sure workloadSelector based destination rule does not use exportTo other than current namespace
+		if isDestinationRuleWithSelector && !exportToSet.IsEmpty() {
+			if exportToSet.Contains(namespace) {
+				if len(exportToSet) > 1 {
+					errs = appendErrors(errs, fmt.Errorf("destination rule with workload selector cannot have multiple entries in exportTo"))
+				}
+			} else {
+				errs = appendErrors(errs, fmt.Errorf("destination rule with workload selector cannot have exportTo beyond current namespace"))
 			}
 		}
 
@@ -1073,7 +1092,6 @@ var ValidateSidecar = registerValidateFunc("ValidateSidecar",
 				}
 				errs = appendValidation(errs, validateTLSOptions(i.Tls))
 			}
-
 		}
 
 		portMap = make(map[uint32]struct{})
@@ -1156,7 +1174,6 @@ var ValidateSidecar = registerValidateFunc("ValidateSidecar",
 					errs = appendValidation(errs, WrapWarning(fmt.Errorf("`*/*` host select all resources, no other hosts can be added")))
 				}
 			}
-
 		}
 
 		errs = appendValidation(errs, validateSidecarOutboundTrafficPolicy(rule.OutboundTrafficPolicy))
@@ -1628,6 +1645,32 @@ func validateServiceSettings(config *meshconfig.MeshConfig) (errs error) {
 	return
 }
 
+func validatePrivateKeyProvider(pkpConf *meshconfig.PrivateKeyProvider) error {
+	var errs error
+	if pkpConf.GetProvider() == nil {
+		errs = multierror.Append(errs, errors.New("private key provider confguration is required"))
+	}
+
+	switch pkpConf.GetProvider().(type) {
+	case *meshconfig.PrivateKeyProvider_Cryptomb:
+		cryptomb := pkpConf.GetCryptomb()
+		if cryptomb == nil {
+			errs = multierror.Append(errs, errors.New("cryptomb confguration is required"))
+		} else {
+			pollDelay := cryptomb.GetPollDelay()
+			if pollDelay == nil {
+				errs = multierror.Append(errs, errors.New("pollDelay is required"))
+			} else if pollDelay.GetSeconds() == 0 && pollDelay.GetNanos() == 0 {
+				errs = multierror.Append(errs, errors.New("pollDelay must be non zero"))
+			}
+		}
+	default:
+		errs = multierror.Append(errs, errors.New("unknown private key provider"))
+	}
+
+	return errs
+}
+
 // ValidateMeshConfigProxyConfig checks that the mesh config is well-formed
 func ValidateMeshConfigProxyConfig(config *meshconfig.ProxyConfig) (errs error) {
 	if config.ConfigPath == "" {
@@ -1729,6 +1772,12 @@ func ValidateMeshConfigProxyConfig(config *meshconfig.ProxyConfig) (errs error) 
 
 	if err := ValidatePort(int(config.StatusPort)); err != nil {
 		errs = multierror.Append(errs, multierror.Prefix(err, "invalid status port:"))
+	}
+
+	if pkpConf := config.GetPrivateKeyProvider(); pkpConf != nil {
+		if err := validatePrivateKeyProvider(pkpConf); err != nil {
+			errs = multierror.Append(errs, multierror.Prefix(err, "invalid private key provider confguration:"))
+		}
 	}
 
 	return
@@ -2098,7 +2147,7 @@ var ValidateVirtualService = registerValidateFunc("ValidateVirtualService",
 			errs = appendValidation(errs, validateTCPRoute(tcpRoute))
 		}
 
-		errs = appendValidation(errs, validateExportTo(cfg.Namespace, virtualService.ExportTo, false))
+		errs = appendValidation(errs, validateExportTo(cfg.Namespace, virtualService.ExportTo, false, false))
 
 		warnUnused := func(ruleno, reason string) {
 			errs = appendValidation(errs, WrapWarning(&AnalysisAwareError{
@@ -2310,9 +2359,8 @@ func analyzeUnreachableHTTPRules(routes []*networking.HTTPRoute,
 				duplicateMatches++
 				// no need to handle for totally duplicated match rules
 				continue
-			} else {
-				matchesEncountered[asJSON(match)] = rulen
 			}
+			matchesEncountered[asJSON(match)] = rulen
 			// build the match rules into struct OverlappingMatchValidationForHTTPRoute based on current match
 			matchHTTPRoute := genMatchHTTPRoutes(route, match, rulen, matchn)
 			if matchHTTPRoute != nil {
@@ -2436,7 +2484,6 @@ func routeName(route interface{}, routen int) string {
 		if r.Name != "" {
 			return fmt.Sprintf("%q", r.Name)
 		}
-
 		// TCP and TLS routes have no names
 	}
 
@@ -2449,7 +2496,6 @@ func requestName(match interface{}, matchn int) string {
 		if mr != nil && mr.Name != "" {
 			return fmt.Sprintf("%q", mr.Name)
 		}
-
 		// TCP and TLS matches have no names
 	}
 
@@ -3111,7 +3157,6 @@ var ValidateServiceEntry = registerValidateFunc("ValidateServiceEntry",
 					}
 				}
 				errs = appendValidation(errs, labels.Instance(endpoint.Labels).Validate())
-
 			}
 			if unixEndpoint && len(serviceEntry.Ports) != 1 {
 				errs = appendValidation(errs, errors.New("exactly 1 service port required for unix endpoints"))
@@ -3180,7 +3225,7 @@ var ValidateServiceEntry = registerValidateFunc("ValidateServiceEntry",
 			}
 		}
 
-		errs = appendValidation(errs, validateExportTo(cfg.Namespace, serviceEntry.ExportTo, true))
+		errs = appendValidation(errs, validateExportTo(cfg.Namespace, serviceEntry.ExportTo, true, false))
 		return errs.Unwrap()
 	})
 

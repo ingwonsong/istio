@@ -103,7 +103,7 @@ type WebhookController struct {
 // GetAsmK8sSigner: Get the signerName and approval logic for (only) ASM based on GKE version
 func GetAsmK8sSigner(k8sClient kubelib.Client) (string, bool, error) {
 	var err error
-	var serverVersion *version.Info = nil
+	var serverVersion *version.Info
 
 	// retry since this is critical code
 	for retries := 0; retries < versionRetryCount; retries++ {
@@ -249,9 +249,8 @@ func (wc *WebhookController) upsertSecret(secretName, dnsName, secretNamespace s
 				log.Infof("Istio secret \"%s\" in namespace \"%s\" already exists", secretName, secretNamespace)
 			}
 			break
-		} else {
-			log.Warnf("failed to create secret in attempt %v/%v, (error: %s)", i+1, secretCreationRetry, err)
 		}
+		log.Warnf("failed to create secret in attempt %v/%v, (error: %s)", i+1, secretCreationRetry, err)
 		time.Sleep(time.Second)
 	}
 

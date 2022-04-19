@@ -167,16 +167,14 @@ func (i *instance) createWorkloadGroup(ctx resource.Context) error {
 
 var (
 	projects = map[echo.VMDistro]string{
-		echo.Debian9:  "debian-cloud",
-		echo.Debian10: "debian-cloud",
-		echo.Centos7:  "centos-cloud",
-		echo.Centos8:  "centos-cloud",
+		echo.Debian11:    "debian-cloud",
+		echo.Centos7:     "centos-cloud",
+		echo.Rockylinux8: "centos-cloud",
 	}
 	distros = map[echo.VMDistro]string{
-		echo.Debian9:  "debian-9",
-		echo.Debian10: "debian-10",
-		echo.Centos7:  "centos-7",
-		echo.Centos8:  "centos-8",
+		echo.Debian11:    "debian-9",
+		echo.Centos7:     "centos-7",
+		echo.Rockylinux8: "centos-8",
 	}
 )
 

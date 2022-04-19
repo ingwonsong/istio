@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -58,7 +59,8 @@ type Target struct {
 type Args struct {
 	Push            bool
 	Save            bool
-	BuildxEnabled   bool
+	Builder         string
+	KindLoad        bool
 	NoClobber       bool
 	NoCache         bool
 	Targets         []string
@@ -75,6 +77,24 @@ type Args struct {
 	Plan BuildPlan
 }
 
+func (a Args) String() string {
+	var b strings.Builder
+	b.WriteString("Push:          " + fmt.Sprint(a.Push) + "\n")
+	b.WriteString("Save:          " + fmt.Sprint(a.Save) + "\n")
+	b.WriteString("NoClobber:     " + fmt.Sprint(a.NoClobber) + "\n")
+	b.WriteString("NoCache:       " + fmt.Sprint(a.NoCache) + "\n")
+	b.WriteString("Targets:       " + fmt.Sprint(a.Targets) + "\n")
+	b.WriteString("Variants:      " + fmt.Sprint(a.Variants) + "\n")
+	b.WriteString("Architectures: " + fmt.Sprint(a.Architectures) + "\n")
+	b.WriteString("BaseVersion:   " + fmt.Sprint(a.BaseVersion) + "\n")
+	b.WriteString("ProxyVersion:  " + fmt.Sprint(a.ProxyVersion) + "\n")
+	b.WriteString("IstioVersion:  " + fmt.Sprint(a.IstioVersion) + "\n")
+	b.WriteString("Tags:          " + fmt.Sprint(a.Tags) + "\n")
+	b.WriteString("Hubs:          " + fmt.Sprint(a.Hubs) + "\n")
+	b.WriteString("Builder:       " + fmt.Sprint(a.Builder) + "\n")
+	return b.String()
+}
+
 type ImagePlan struct {
 	// Name of the image. For example, "pilot"
 	Name string `json:"name"`
@@ -84,6 +104,8 @@ type ImagePlan struct {
 	Files []string `json:"files"`
 	// Targets list make targets that are ran and then copied into the image
 	Targets []string `json:"targets"`
+	// Base indicates if this is a base image or not
+	Base bool `json:"base"`
 }
 
 func (p ImagePlan) Dependencies() []string {
@@ -128,24 +150,17 @@ const (
 	DistrolessVariant = "distroless"
 )
 
+const (
+	CraneBuilder  = "crane"
+	DockerBuilder = "docker"
+)
+
 func DefaultArgs() Args {
 	// By default, we build all targets
-	// TODO find from plan
-	targets := []string{
-		"pilot",
-		"proxyv2",
-		"app",
-		"istioctl",
-		"operator",
-		"install-cni",
-
-		"app_sidecar_ubuntu_xenial",
-		"app_sidecar_ubuntu_bionic",
-		"app_sidecar_ubuntu_focal",
-		"app_sidecar_debian_9",
-		"app_sidecar_debian_10",
-		"app_sidecar_centos_8",
-		"app_sidecar_centos_7",
+	var targets []string
+	_, nonBaseImages, err := ReadPlanTargets()
+	if err == nil {
+		targets = nonBaseImages
 	}
 	if legacy, f := os.LookupEnv("DOCKER_TARGETS"); f {
 		// Allow env var config. It is a string separated list like "docker.pilot docker.proxy"
@@ -170,7 +185,7 @@ func DefaultArgs() Args {
 	if os.Getenv("INCLUDE_UNTAGGED_DEFAULT") == "true" {
 		// This legacy env var was to workaround the old build logic not being very smart
 		// In the new builder, we automagically detect this. So just insert the 'default' variant
-		cur := sets.NewWith(variants...)
+		cur := sets.New(variants...)
 		cur.Insert(DefaultVariant)
 		variants = cur.SortedList()
 	}
@@ -189,10 +204,15 @@ func DefaultArgs() Args {
 		tag = strings.Split(tags, " ")
 	}
 
+	builder := DockerBuilder
+	if b, f := os.LookupEnv("ISTIO_DOCKER_BUILDER"); f {
+		builder = b
+	}
+
 	return Args{
-		Push:    false,
-		Save:    false,
-		NoCache: false, BuildxEnabled: true,
+		Push:            false,
+		Save:            false,
+		NoCache:         false,
 		Hubs:            hub,
 		Tags:            tag,
 		BaseVersion:     fetchBaseVersion(),
@@ -201,13 +221,14 @@ func DefaultArgs() Args {
 		Architectures:   arch,
 		Targets:         targets,
 		Variants:        variants,
+		Builder:         builder,
 		CloudEFSVersion: env.GetString("CLOUDESF_VERSION", "latest"),
 	}
 }
 
 var (
-	args    = DefaultArgs()
-	version = false
+	globalArgs = DefaultArgs()
+	version    = false
 )
 
 var baseVersionRegexp = regexp.MustCompile(`BASE_VERSION \?= (.*)`)

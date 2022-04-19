@@ -54,12 +54,10 @@ type VMDistro = string
 
 const (
 	UbuntuXenial VMDistro = "UbuntuXenial"
-	UbuntuFocal  VMDistro = "UbuntuFocal"
-	UbuntuBionic VMDistro = "UbuntuBionic"
-	Debian9      VMDistro = "Debian9"
-	Debian10     VMDistro = "Debian10"
+	UbuntuJammy  VMDistro = "UbuntuJammy"
+	Debian11     VMDistro = "Debian9"
 	Centos7      VMDistro = "Centos7"
-	Centos8      VMDistro = "Centos8"
+	Rockylinux8  VMDistro = "Centos8"
 
 	// DefaultVMDistro is intentionally different in ASM; making it "" means we prefer the env vars
 	DefaultVMDistro = ""

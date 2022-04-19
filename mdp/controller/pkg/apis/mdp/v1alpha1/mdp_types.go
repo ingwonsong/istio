@@ -82,7 +82,7 @@ const (
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:subresource:status
 type DataPlaneControl struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Spec              DataPlaneControlSpec   `json:"spec,omitempty"`
 	Status            DataPlaneControlStatus `json:"status,omitempty"`
@@ -91,7 +91,7 @@ type DataPlaneControl struct {
 // DataPlaneControlList contains a list of DataPlaneControls
 // +kubebuilder:object:root=true
 type DataPlaneControlList struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []DataPlaneControl `json:"items"`
 }

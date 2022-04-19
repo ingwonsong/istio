@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	k8s "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
+	"istio.io/istio/pilot/pkg/config/kube/crdclient"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/model/credentials"
@@ -50,7 +51,7 @@ var (
 )
 
 // Controller defines the controller for the gateway-api. The controller acts a bit different from most.
-// Rather than watching the CRs directly, we depend on the existing model.ConfigStoreCache which
+// Rather than watching the CRs directly, we depend on the existing model.ConfigStoreController which
 // already watches all CRs. When there are updates, a new PushContext will be computed, which will eventually
 // call Controller.Recompute(). Once this happens, we will inspect the current state of the world, and transform
 // gateway-api types into Istio types (Gateway/VirtualService). Future calls to Get/List will return these
@@ -61,7 +62,7 @@ type Controller struct {
 	// client for accessing Kubernetes
 	client kube.Client
 	// cache provides access to the underlying gateway-configs
-	cache model.ConfigStoreCache
+	cache model.ConfigStoreController
 
 	// Gateway-api types reference namespace labels directly, so we need access to these
 	namespaceLister   listerv1.NamespaceLister
@@ -83,7 +84,7 @@ type Controller struct {
 
 var _ model.GatewayController = &Controller{}
 
-func NewController(client kube.Client, c model.ConfigStoreCache, options controller.Options) *Controller {
+func NewController(client kube.Client, c model.ConfigStoreController, options controller.Options) *Controller {
 	var ctl *status.Controller
 
 	nsInformer := client.KubeInformer().Core().V1().Namespaces().Informer()
@@ -271,6 +272,13 @@ func (c *Controller) RegisterEventHandler(typ config.GroupVersionKind, handler m
 }
 
 func (c *Controller) Run(stop <-chan struct{}) {
+	go func() {
+		if crdclient.WaitForCRD(gvk.GatewayClass, stop) {
+			gcc := NewClassController(c.client)
+			c.client.RunAndWait(stop)
+			gcc.Run(stop)
+		}
+	}()
 	cache.WaitForCacheSync(stop, c.namespaceInformer.HasSynced)
 }
 
@@ -304,7 +312,7 @@ func (c *Controller) SecretAllowed(resourceName string, namespace string) bool {
 func (c *Controller) namespaceEvent(oldObj interface{}, newObj interface{}) {
 	// First, find all the label keys on the old/new namespace. We include NamespaceNameLabel
 	// since we have special logic to always allow this on namespace.
-	touchedNamespaceLabels := sets.NewWith(NamespaceNameLabel)
+	touchedNamespaceLabels := sets.New(NamespaceNameLabel)
 	touchedNamespaceLabels.InsertAll(getLabelKeys(oldObj)...)
 	touchedNamespaceLabels.InsertAll(getLabelKeys(newObj)...)
 

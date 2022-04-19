@@ -495,6 +495,7 @@ func TestValidateMeshConfigProxyConfig(t *testing.T) {
 		ControlPlaneAuthPolicy: meshconfig.AuthenticationPolicy_MUTUAL_TLS,
 		Tracing:                nil,
 		StatusPort:             15020,
+		PrivateKeyProvider:     nil,
 	}
 
 	modify := func(config *meshconfig.ProxyConfig, fieldSetter func(*meshconfig.ProxyConfig)) *meshconfig.ProxyConfig {
@@ -809,6 +810,64 @@ func TestValidateMeshConfigProxyConfig(t *testing.T) {
 				},
 			),
 			isValid: false,
+		},
+		{
+			name: "private key provider with empty provider",
+			in: modify(valid,
+				func(c *meshconfig.ProxyConfig) {
+					c.PrivateKeyProvider = &meshconfig.PrivateKeyProvider{}
+				},
+			),
+			isValid: false,
+		},
+		{
+			name: "private key provider with cryptomb without poll_delay",
+			in: modify(valid,
+				func(c *meshconfig.ProxyConfig) {
+					c.PrivateKeyProvider = &meshconfig.PrivateKeyProvider{
+						Provider: &meshconfig.PrivateKeyProvider_Cryptomb{
+							Cryptomb: &meshconfig.PrivateKeyProvider_CryptoMb{},
+						},
+					}
+				},
+			),
+			isValid: false,
+		},
+		{
+			name: "private key provider with cryptomb zero poll_delay",
+			in: modify(valid,
+				func(c *meshconfig.ProxyConfig) {
+					c.PrivateKeyProvider = &meshconfig.PrivateKeyProvider{
+						Provider: &meshconfig.PrivateKeyProvider_Cryptomb{
+							Cryptomb: &meshconfig.PrivateKeyProvider_CryptoMb{
+								PollDelay: &durationpb.Duration{
+									Seconds: 0,
+									Nanos:   0,
+								},
+							},
+						},
+					}
+				},
+			),
+			isValid: false,
+		},
+		{
+			name: "private key provider with cryptomb",
+			in: modify(valid,
+				func(c *meshconfig.ProxyConfig) {
+					c.PrivateKeyProvider = &meshconfig.PrivateKeyProvider{
+						Provider: &meshconfig.PrivateKeyProvider_Cryptomb{
+							Cryptomb: &meshconfig.PrivateKeyProvider_CryptoMb{
+								PollDelay: &durationpb.Duration{
+									Seconds: 0,
+									Nanos:   10000,
+								},
+							},
+						},
+					}
+				},
+			),
+			isValid: true,
 		},
 	}
 	for _, c := range cases {
@@ -2101,6 +2160,16 @@ func TestValidateDestinationWithInheritance(t *testing.T) {
 				},
 			},
 			ExportTo: []string{"ns1", "ns2"},
+		}, valid: false},
+		{name: "empty host with workloadSelector", in: &networking.DestinationRule{
+			TrafficPolicy: &networking.TrafficPolicy{
+				Tls: &networking.ClientTLSSettings{
+					Mode: networking.ClientTLSSettings_SIMPLE,
+				},
+			},
+			WorkloadSelector: &api.WorkloadSelector{
+				MatchLabels: map[string]string{"app": "app1"},
+			},
 		}, valid: false},
 		{name: "global rule with portLevelSettings", in: &networking.DestinationRule{
 			TrafficPolicy: &networking.TrafficPolicy{
@@ -6804,11 +6873,12 @@ func TestValidateMeshNetworks(t *testing.T) {
 
 func Test_validateExportTo(t *testing.T) {
 	tests := []struct {
-		name           string
-		namespace      string
-		exportTo       []string
-		isServiceEntry bool
-		wantErr        bool
+		name                          string
+		namespace                     string
+		exportTo                      []string
+		isDestinationRuleWithSelector bool
+		isServiceEntry                bool
+		wantErr                       bool
 	}{
 		{
 			name:      "empty exportTo is okay",
@@ -6890,10 +6960,42 @@ func Test_validateExportTo(t *testing.T) {
 			isServiceEntry: true,
 			wantErr:        true,
 		},
+		{
+			name:                          "destination rule with workloadselector cannot have exportTo (*)",
+			namespace:                     "ns5",
+			exportTo:                      []string{"*"},
+			isServiceEntry:                false,
+			isDestinationRuleWithSelector: true,
+			wantErr:                       true,
+		},
+		{
+			name:                          "destination rule with workloadselector can have only exportTo (.)",
+			namespace:                     "ns5",
+			exportTo:                      []string{"."},
+			isServiceEntry:                false,
+			isDestinationRuleWithSelector: true,
+			wantErr:                       false,
+		},
+		{
+			name:                          "destination rule with workloadselector cannot have another ns in exportTo (.)",
+			namespace:                     "ns5",
+			exportTo:                      []string{"somens"},
+			isServiceEntry:                false,
+			isDestinationRuleWithSelector: true,
+			wantErr:                       true,
+		},
+		{
+			name:                          "destination rule with workloadselector cannot have another ns in addition to own ns in exportTo (.)",
+			namespace:                     "ns5",
+			exportTo:                      []string{".", "somens"},
+			isServiceEntry:                false,
+			isDestinationRuleWithSelector: true,
+			wantErr:                       true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := validateExportTo(tt.namespace, tt.exportTo, tt.isServiceEntry); (err != nil) != tt.wantErr {
+			if err := validateExportTo(tt.namespace, tt.exportTo, tt.isServiceEntry, tt.isDestinationRuleWithSelector); (err != nil) != tt.wantErr {
 				t.Errorf("validateExportTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
