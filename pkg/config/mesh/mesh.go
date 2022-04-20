@@ -228,6 +228,9 @@ func ApplyMeshConfig(yaml string, defaultConfig *meshconfig.MeshConfig) (*meshco
 	}
 
 	defaultConfig.DefaultProviders = prevDefaultProvider
+	if asm.IsCloudRun() {
+		amendLogging(defaultConfig, raw)
+	}
 	dp, err := extractYamlField("defaultProviders", raw)
 	if err != nil {
 		return nil, multierror.Prefix(err, "failed to extract default providers")
