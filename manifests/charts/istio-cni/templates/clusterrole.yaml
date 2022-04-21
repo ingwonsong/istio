@@ -84,12 +84,29 @@ rules:
   - apps
   - extensions
   resources:
-  - daemonsets
-  - deployments
-  - deployments/finalizers
-  - ingresses
   - replicasets
-  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - "coordination.k8s.io"
+  resources:
+  - leases
+  verbs:
+  - "*"
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
   verbs:
   - get
   - list
@@ -98,24 +115,6 @@ rules:
   - ""
   resources:
   - configmaps
-  - namespaces
-  verbs:
-  - '*'
-- apiGroups:
-  - "coordination.k8s.io"
-  resources:
-  - leases
-  verbs:
-  - "*"
-- apiGroups:
-    - admissionregistration.k8s.io
-  resources:
-    - mutatingwebhookconfigurations
-  verbs:
-    - '*'
-- apiGroups:
-  - ""
-  resources:
   - pods
   - pods/eviction
   verbs:
