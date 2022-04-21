@@ -37,7 +37,7 @@ spec:
                 privateClusterMasterIPRanges: "{{ .PrivateClusterMasterIPRanges }}"
                 subnetworkRanges: "{{ .SubnetworkRanges }}"
               clusterOptions:
-                clusters: "{{ .ClusterName }}"
+                clusters: "{{ (index .ClusterNames 0) }}"
                 regions: "us-central1,us-west1,us-east1"
                 clusterVersion: "{{ .Version }}"
                 releaseChannel: "{{ .ReleaseChannel }}"

@@ -12,40 +12,50 @@ spec:
       name: asm-ci-gke-mc-knest
     spec:
       clusters:
+      {{ $data := . -}}
+      {{- range $index,$clusterName := .ClusterNames }}
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
         metadata:
-          name: asm-ci-gke-mc-cluster
+          name: asm-ci-gke-mc-cluster-{{ $index }}
         spec:
           provider: gcp
           distribution: gke
           provisionerArgs:
             pluginSpecYaml: |
+              {{- if eq $index 0 }}
+              pluginOptions:
+                primaryID: "{{ $data.PrimaryID }}"
               projectOptions:
-                {{- if .IsBoskosProjectRequired }}
-                boskosResourceType:{{ range $type := .BoskosResourceType }}
+                {{- if $data.IsBoskosProjectRequired }}
+                boskosResourceType:{{ range $type := $data.BoskosResourceType }}
                 - {{ $type }}{{ end }}
-                boskosProjectsRequested:{{ range $number := .BoskosProjectsRequested }}
+                boskosProjectsRequested:{{ range $number := $data.BoskosProjectsRequested }}
                 - {{ $number }}{{ end }}
                 boskosLocation: http://middleware-operators-boskos.middleware-operators.svc.cluster.local.
                 {{- else }}
-                projects: "{{ .ProjectName }}"
+                projects: "{{ $data.ProjectName }}"
                 {{- end }}
+              {{- else }}
+              pluginOptions:
+                primarySelector: "{{ $data.PrimaryID }}"
+              {{- end }}
               networkOptions:
-                network: "{{ .NetworkName }}"
-                privateClusterAccessLevel: "{{ .PrivateClusterAccessLevel }}"
-                privateClusterMasterIPRanges: "{{ .PrivateClusterMasterIPRanges }}"
-                subnetworkRanges: "{{ .SubnetworkRanges }}"
+                network: "{{ $data.NetworkName }}"
+                privateClusterAccessLevel: "{{ $data.PrivateClusterAccessLevel }}"
+                privateClusterMasterIPRanges: "{{ $data.PrivateClusterMasterIPRanges }}"
+                subnetworkRanges: "{{ $data.SubnetworkRanges }}"
               clusterOptions:
-                clusters: "{{ .ClusterName }}"
+                clusters: "{{ $clusterName }}"
                 regions: "us-central1,us-west1,us-east1"
-                clusterVersion: "{{ .Version }}"
-                releaseChannel: "{{ .ReleaseChannel }}"
-                environment: "{{ .Environment }}"
+                clusterVersion: "{{ $data.Version }}"
+                releaseChannel: "{{ $data.ReleaseChannel }}"
+                environment: "{{ $data.Environment }}"
                 machineType: "e2-standard-4"
                 numNodes: 2
                 workloadIdentityEnabled: true
-                autopilot: {{ .IsAutoPilot }}
-                retryableErrorPatterns: "{{ .ErrorPatterns }}"
-                gcloudCommandGroup: "{{ .GcloudCommandGroup }}"
-                gcloudExtraFlags: "{{ .GcloudExtraFlags }}"
+                autopilot: {{ $data.IsAutoPilot }}
+                retryableErrorPatterns: "{{ $data.ErrorPatterns }}"
+                gcloudCommandGroup: "{{ $data.GcloudCommandGroup }}"
+                gcloudExtraFlags: "{{ $data.GcloudExtraFlags }}"
+      {{- end }}

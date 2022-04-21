@@ -282,6 +282,11 @@ func fixGKE(settings *resource.Settings) error {
 		return err
 	}
 
+	// Set cloud project and billing/project required by tests that update CloudSDK
+	if err = setCloudSDKProject(settings.GCPProjects[0]); err != nil {
+		return err
+	}
+
 	// Add firewall rules to enable multi-cluster communication
 	if err := addFirewallRules(settings); err != nil {
 		return err
@@ -719,6 +724,22 @@ func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloud
 		bootstrapHostSSHKey, bootstrapHostSSHUser)
 	if err := exec.RunMultiple([]string{sshCmd1, sshCmd2, sshCmd3, sshCmd4, sshCmd5, sshCmd6}); err != nil {
 		return fmt.Errorf("error running the commands to increase proxy's max connection setup: %w", err)
+	}
+
+	return nil
+}
+
+func setCloudSDKProject(project string) error {
+	cmd := fmt.Sprintf("gcloud config set project %s", project)
+	log.Printf("Running: %s", cmd)
+	if err := exec.Run(cmd); err != nil {
+		return fmt.Errorf("failed to set project in gcloud config: %w", err)
+	}
+
+	cmd = fmt.Sprintf("gcloud config set billing/quota_project %s", project)
+	log.Printf("Running: %s", cmd)
+	if err := exec.Run(cmd); err != nil {
+		return fmt.Errorf("failed to set billing/quota_project in gcloud config: %w", err)
 	}
 
 	return nil

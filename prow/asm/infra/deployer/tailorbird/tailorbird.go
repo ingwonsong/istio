@@ -25,6 +25,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v2"
 
 	"istio.io/istio/prow/asm/infra/config"
@@ -90,7 +91,7 @@ type TemplateParameters struct {
 	VersionPrefix                string
 	ProjectName                  string
 	ErrorPatterns                string
-	ClusterName                  string
+	ClusterNames                 []string
 	BoskosResourceType           []string
 	GcloudCommandGroup           string
 	GcloudExtraFlags             string
@@ -98,6 +99,7 @@ type TemplateParameters struct {
 	PrivateClusterAccessLevel    string
 	PrivateClusterMasterIPRanges string
 	SubnetworkRanges             string
+	PrimaryID                    string
 	BoskosProjectsRequested      []int
 	IsAutoPilot                  bool
 	IsBoskosProjectRequired      bool
@@ -346,7 +348,7 @@ func (d *Instance) getEnvironment() types.Environment {
 }
 
 func (d *Instance) applySingleClusterParameters(template *TemplateParameters) {
-	template.ClusterName = "prow-test"
+	template.ClusterNames = []string{"prow-test"}
 	template.BoskosProjectsRequested = []int{1}
 	template.BoskosResourceType = []string{commonBoskosResource}
 
@@ -368,7 +370,8 @@ func (d *Instance) applySingleClusterParameters(template *TemplateParameters) {
 }
 
 func (d *Instance) applyMultiClusterParameters(template *TemplateParameters) {
-	template.ClusterName = "prow-test1,prow-test2"
+	template.ClusterNames = []string{"prow-test1", "prow-test2"}
+	template.PrimaryID = fmt.Sprintf("cluster-id-%s", uuid.New().String())
 	template.BoskosProjectsRequested = []int{1}
 	template.BoskosResourceType = []string{commonBoskosResource}
 
@@ -379,7 +382,8 @@ func (d *Instance) applyMultiClusterParameters(template *TemplateParameters) {
 }
 
 func (d *Instance) applyMultiProjectMultiClusterParameters(template *TemplateParameters) {
-	template.ClusterName = "prow-test1:1,prow-test2:2"
+	template.ClusterNames = []string{"prow-test1:1", "prow-test2:2"}
+	template.PrimaryID = fmt.Sprintf("cluster-id-%s", uuid.New().String())
 	template.BoskosProjectsRequested = []int{1, 2}
 	template.BoskosResourceType = []string{sharedVPCHostBoskosResource, sharedVPCSVCBoskosResource}
 
