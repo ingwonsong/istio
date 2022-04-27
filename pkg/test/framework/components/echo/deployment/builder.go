@@ -40,6 +40,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/pkg/test/scopes"
 	"istio.io/istio/pkg/util/sets"
 )
@@ -330,7 +331,7 @@ func (b builder) deployServices() (err error) {
 		cfg.YAML(ns, svcYaml)
 	}
 
-	return cfg.Apply(resource.NoCleanup)
+	return cfg.Apply(apply.NoCleanup)
 }
 
 func (b builder) deployInstances() (instances echo.Instances, err error) {

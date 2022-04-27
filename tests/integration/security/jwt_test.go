@@ -33,6 +33,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/label"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/tests/common/jwt"
 	"istio.io/istio/tests/integration/security/util"
 	"istio.io/istio/tests/integration/security/util/authn"
@@ -66,7 +67,7 @@ func TestRequestAuthentication(t *testing.T) {
 									"Namespace": ns.Name(),
 									"dst":       to.Config().Service,
 								}
-								return t.ConfigIstio().EvalFile(ns.Name(), args, policy).Apply(resource.Wait)
+								return t.ConfigIstio().EvalFile(ns.Name(), args, policy).Apply(apply.Wait)
 							}
 							return nil
 						}).
@@ -400,7 +401,7 @@ func TestIngressRequestAuthentication(t *testing.T) {
 			t.ConfigIstio().EvalFile(newRootNS(t).Name(), map[string]string{
 				"Namespace":     ns.Name(),
 				"RootNamespace": istio.GetOrFail(t, t).Settings().SystemNamespace,
-			}, "testdata/requestauthn/global-jwt.yaml.tmpl").ApplyOrFail(t, resource.Wait)
+			}, "testdata/requestauthn/global-jwt.yaml.tmpl").ApplyOrFail(t, apply.Wait)
 
 			type testCase struct {
 				name          string
@@ -416,7 +417,7 @@ func TestIngressRequestAuthentication(t *testing.T) {
 									"Namespace": ns.Name(),
 									"dst":       to.Config().Service,
 								}
-								return t.ConfigIstio().EvalFile(ns.Name(), args, policy).Apply(resource.Wait)
+								return t.ConfigIstio().EvalFile(ns.Name(), args, policy).Apply(apply.Wait)
 							}
 							return nil
 						}).

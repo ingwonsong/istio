@@ -33,7 +33,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/check"
 	"istio.io/istio/pkg/test/framework/label"
-	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/pkg/test/util/retry"
 )
 
@@ -46,10 +46,10 @@ func TestCompositeGateway(t *testing.T) {
 			// TODO(b/223442146): GKE Gateway Controller requires both v1alpha1 and v1alpha2
 			// CRD in order to use v1alpha2 Gateway. In the future, Gateway CRDs will be automatically
 			// installed by GKE.
-			if err := t.ConfigIstio().File("", "testdata/gateway-api-crd.yaml").Apply(resource.NoCleanup); err != nil && !apierrors.IsAlreadyExists(err) {
+			if err := t.ConfigIstio().File("", "testdata/gateway-api-crd.yaml").Apply(apply.NoCleanup); err != nil && !apierrors.IsAlreadyExists(err) {
 				t.Fatal(err)
 			}
-			if err := t.ConfigIstio().File("", "testdata/gateway-api-v1alpha1-crd.yaml").Apply(resource.NoCleanup); err != nil && !apierrors.IsAlreadyExists(err) {
+			if err := t.ConfigIstio().File("", "testdata/gateway-api-v1alpha1-crd.yaml").Apply(apply.NoCleanup); err != nil && !apierrors.IsAlreadyExists(err) {
 				t.Fatal(err)
 			}
 			gwName := "composite-gateway"

@@ -30,6 +30,7 @@ import (
 	echoClient "istio.io/istio/pkg/test/echo"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/framework"
+	"istio.io/istio/pkg/test/framework/components/authz"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/check"
 	"istio.io/istio/pkg/test/framework/components/echo/deployment"
@@ -37,8 +38,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/label"
-	"istio.io/istio/pkg/test/framework/resource"
-	"istio.io/istio/pkg/test/kube"
+	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/tests/common/jwt"
 	"istio.io/istio/tests/integration/security/util"
 	"istio.io/istio/tests/integration/security/util/scheck"
@@ -57,19 +57,19 @@ func TestAuthorization_mTLS(t *testing.T) {
 			if os.Getenv("CLUSTER_TYPE") == "gke-on-prem" {
 				time.Sleep(time.Minute * 5)
 			}
-			b := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.B)
-			vm := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.VM)
+			b := match.Namespace(apps.Namespace1).GetMatches(apps.B)
+			vm := match.Namespace(apps.Namespace1).GetMatches(apps.VM)
 			for _, to := range []echo.Instances{b, vm} {
 				to := to
 				t.ConfigIstio().EvalFile(apps.Namespace1.Name(), map[string]string{
 					"Namespace":  apps.Namespace1.Name(),
 					"Namespace2": apps.Namespace2.Name(),
 					"dst":        to.Config().Service,
-				}, "testdata/authz/v1beta1-mtls.yaml.tmpl").ApplyOrFail(t, resource.Wait)
+				}, "testdata/authz/v1beta1-mtls.yaml.tmpl").ApplyOrFail(t, apply.Wait)
 				callCount := util.CallsPerCluster * to.WorkloadsOrFail(t).Len()
 				for _, cluster := range t.Clusters() {
-					a := match.And(match.Cluster(cluster), match.Namespace(apps.Namespace1.Name())).GetMatches(apps.A)
-					c := match.And(match.Cluster(cluster), match.Namespace(apps.Namespace2.Name())).GetMatches(apps.C)
+					a := match.And(match.Cluster(cluster), match.Namespace(apps.Namespace1)).GetMatches(apps.A)
+					c := match.And(match.Cluster(cluster), match.Namespace(apps.Namespace2)).GetMatches(apps.C)
 					if len(a) == 0 || len(c) == 0 {
 						continue
 					}
@@ -90,7 +90,7 @@ func TestAuthorization_mTLS(t *testing.T) {
 								if expectAllowed {
 									opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 								} else {
-									opts.Check = scheck.RBACFailure(&opts)
+									opts.Check = check.Forbidden(protocol.HTTP)
 								}
 
 								name := newRbacTestName("", expectAllowed, from, &opts)
@@ -123,18 +123,19 @@ func TestAuthorization_JWT(t *testing.T) {
 		Features("security.authorization.jwt-token").
 		Run(func(t framework.TestContext) {
 			ns := apps.Namespace1
-			b := match.Namespace(ns.Name()).GetMatches(apps.B)
-			c := match.Namespace(ns.Name()).GetMatches(apps.C)
-			vm := match.Namespace(ns.Name()).GetMatches(apps.VM)
+			b := match.Namespace(ns).GetMatches(apps.B)
+			c := match.Namespace(ns).GetMatches(apps.C)
+			vm := match.Namespace(ns).GetMatches(apps.VM)
 			for _, dst := range []echo.Instances{b, vm} {
 				args := map[string]string{
 					"Namespace":  apps.Namespace1.Name(),
 					"Namespace2": apps.Namespace2.Name(),
 					"dst":        dst[0].Config().Service,
 				}
-				t.ConfigIstio().EvalFile(ns.Name(), args, "testdata/authz/v1beta1-jwt.yaml.tmpl").ApplyOrFail(t, resource.Wait)
+				t.ConfigIstio().EvalFile(ns.Name(), args, "testdata/authz/v1beta1-jwt.yaml.tmpl").
+					ApplyOrFail(t, apply.Wait)
 				for _, srcCluster := range t.Clusters() {
-					a := match.And(match.Cluster(srcCluster), match.Namespace(ns.Name())).GetMatches(apps.A)
+					a := match.And(match.Cluster(srcCluster), match.Namespace(ns)).GetMatches(apps.A)
 					if len(a) == 0 {
 						continue
 					}
@@ -157,7 +158,7 @@ func TestAuthorization_JWT(t *testing.T) {
 								if expectAllowed {
 									opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 								} else {
-									opts.Check = scheck.RBACFailure(&opts)
+									opts.Check = check.Forbidden(protocol.HTTP)
 								}
 
 								name := newRbacTestName(namePrefix, expectAllowed, from, &opts)
@@ -224,10 +225,10 @@ func TestAuthorization_WorkloadSelector(t *testing.T) {
 	framework.NewTest(t).
 		Features("security.authorization.workload-selector").
 		Run(func(t framework.TestContext) {
-			bInNS1 := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.B)
-			vmInNS1 := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.VM)
-			cInNS1 := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.C)
-			cInNS2 := match.Namespace(apps.Namespace2.Name()).GetMatches(apps.C)
+			bInNS1 := match.Namespace(apps.Namespace1).GetMatches(apps.B)
+			vmInNS1 := match.Namespace(apps.Namespace1).GetMatches(apps.VM)
+			cInNS1 := match.Namespace(apps.Namespace1).GetMatches(apps.C)
+			cInNS2 := match.Namespace(apps.Namespace2).GetMatches(apps.C)
 			ns1 := apps.Namespace1
 			ns2 := apps.Namespace2
 			rootns := newRootNS(t)
@@ -249,7 +250,7 @@ func TestAuthorization_WorkloadSelector(t *testing.T) {
 					if expectAllowed {
 						opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 					} else {
-						opts.Check = scheck.RBACFailure(&opts)
+						opts.Check = check.Forbidden(protocol.HTTP)
 					}
 
 					name := newRbacTestName(namePrefix, expectAllowed, from, &opts)
@@ -261,7 +262,7 @@ func TestAuthorization_WorkloadSelector(t *testing.T) {
 			}
 
 			for _, srcCluster := range t.Clusters() {
-				a := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace1.Name())).GetMatches(apps.A)
+				a := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace1)).GetMatches(apps.A)
 				if len(a) == 0 {
 					continue
 				}
@@ -274,7 +275,7 @@ func TestAuthorization_WorkloadSelector(t *testing.T) {
 							"RootNamespace": rootns.Name(),
 							"b":             util.BSvc,
 							"c":             util.CSvc,
-						}, filename).ApplyOrFail(t, resource.Wait)
+						}, filename).ApplyOrFail(t, apply.Wait)
 					}
 					applyPolicy("testdata/authz/v1beta1-workload-ns1.yaml.tmpl", ns1)
 					applyPolicy("testdata/authz/v1beta1-workload-ns2.yaml.tmpl", ns2)
@@ -320,7 +321,7 @@ func TestAuthorization_WorkloadSelector(t *testing.T) {
 							"RootNamespace": rootns.Name(),
 							"b":             util.VMSvc, // This is the only difference from standard args.
 							"c":             util.CSvc,
-						}, filename).ApplyOrFail(t, resource.Wait)
+						}, filename).ApplyOrFail(t, apply.Wait)
 					}
 					applyPolicy("testdata/authz/v1beta1-workload-ns1.yaml.tmpl", ns1)
 					applyPolicy("testdata/authz/v1beta1-workload-ns2.yaml.tmpl", ns2)
@@ -354,9 +355,9 @@ func TestAuthorization_Deny(t *testing.T) {
 			}
 			ns := apps.Namespace1
 			rootns := newRootNS(t)
-			b := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.B)
-			c := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.C)
-			vm := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.VM)
+			b := match.Namespace(apps.Namespace1).GetMatches(apps.B)
+			c := match.Namespace(apps.Namespace1).GetMatches(apps.C)
+			vm := match.Namespace(apps.Namespace1).GetMatches(apps.VM)
 
 			applyPolicy := func(filename string, ns namespace.Instance) {
 				t.ConfigIstio().EvalFile(ns.Name(), map[string]string{
@@ -365,12 +366,12 @@ func TestAuthorization_Deny(t *testing.T) {
 					"b":             b[0].Config().Service,
 					"c":             c[0].Config().Service,
 					"vm":            vm[0].Config().Service,
-				}, filename).ApplyOrFail(t, resource.Wait)
+				}, filename).ApplyOrFail(t, apply.Wait)
 			}
 			applyPolicy("testdata/authz/v1beta1-deny.yaml.tmpl", ns)
 			applyPolicy("testdata/authz/v1beta1-deny-ns-root.yaml.tmpl", rootns)
 			for _, srcCluster := range t.Clusters() {
-				a := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace1.Name())).GetMatches(apps.A)
+				a := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace1)).GetMatches(apps.A)
 				if len(a) == 0 {
 					continue
 				}
@@ -392,7 +393,7 @@ func TestAuthorization_Deny(t *testing.T) {
 							if expectAllowed {
 								opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 							} else {
-								opts.Check = scheck.RBACFailure(&opts)
+								opts.Check = check.Forbidden(protocol.HTTP)
 							}
 
 							name := newRbacTestName("", expectAllowed, from, &opts)
@@ -446,10 +447,10 @@ func TestAuthorization_NegativeMatch(t *testing.T) {
 		Run(func(t framework.TestContext) {
 			ns := apps.Namespace1
 			ns2 := apps.Namespace2
-			b := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.B)
-			c := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.C)
-			d := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.D)
-			vm := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.VM)
+			b := match.Namespace(apps.Namespace1).GetMatches(apps.B)
+			c := match.Namespace(apps.Namespace1).GetMatches(apps.C)
+			d := match.Namespace(apps.Namespace1).GetMatches(apps.D)
+			vm := match.Namespace(apps.Namespace1).GetMatches(apps.VM)
 			t.ConfigIstio().EvalFile("", map[string]string{
 				"Namespace":  ns.Name(),
 				"Namespace2": ns2.Name(),
@@ -469,8 +470,8 @@ func TestAuthorization_NegativeMatch(t *testing.T) {
 			reqNotPortParam := request{method: "GET", port: "http-8091"}
 			reqNotHostParam := request{method: "GET", port: "http", host: "deny.com"}
 			for _, srcCluster := range t.Clusters() {
-				a := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace1.Name())).GetMatches(apps.A)
-				bInNS2 := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace2.Name())).GetMatches(apps.B)
+				a := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace1)).GetMatches(apps.A)
+				bInNS2 := match.And(match.Cluster(srcCluster), match.Namespace(apps.Namespace2)).GetMatches(apps.B)
 				if len(a) == 0 || len(bInNS2) == 0 {
 					continue
 				}
@@ -494,7 +495,7 @@ func TestAuthorization_NegativeMatch(t *testing.T) {
 							if expectAllowed {
 								opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 							} else {
-								opts.Check = scheck.RBACFailure(&opts)
+								opts.Check = check.Forbidden(protocol.HTTP)
 							}
 
 							name := newRbacTestName("", expectAllowed, from, &opts)
@@ -573,11 +574,11 @@ func TestAuthorization_IngressGateway(t *testing.T) {
 		Run(func(t framework.TestContext) {
 			ns := apps.Namespace1
 			rootns := newRootNS(t)
-			b := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.B)
+			b := match.Namespace(apps.Namespace1).GetMatches(apps.B)
 			// Gateways on VMs are not supported yet. This test verifies that security
 			// policies at gateways are useful for managing accessibility to services
 			// running on a VM.
-			vm := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.VM)
+			vm := match.Namespace(apps.Namespace1).GetMatches(apps.VM)
 			for _, dst := range []echo.Instances{b, vm} {
 				t.NewSubTestf("to %s/", dst[0].Config().Service).Run(func(t framework.TestContext) {
 					t.ConfigIstio().EvalFile("", map[string]string{
@@ -803,9 +804,9 @@ func TestAuthorization_EgressGateway(t *testing.T) {
 		Run(func(t framework.TestContext) {
 			ns := apps.Namespace1
 			rootns := newRootNS(t)
-			a := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.A)
-			vm := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.VM)
-			c := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.C)
+			a := match.Namespace(apps.Namespace1).GetMatches(apps.A)
+			vm := match.Namespace(apps.Namespace1).GetMatches(apps.VM)
+			c := match.Namespace(apps.Namespace1).GetMatches(apps.C)
 			// Gateways on VMs are not supported yet. This test verifies that security
 			// policies at gateways are useful for managing accessibility to external
 			// services running on a VM.
@@ -931,12 +932,7 @@ func TestAuthorization_EgressGateway(t *testing.T) {
 								Check: check.And(
 									check.NoError(),
 									check.Status(tc.code),
-									check.Each(func(r echoClient.Response) error {
-										if !strings.Contains(r.RawContent, tc.body) {
-											return fmt.Errorf("want %q in body but not found: %s", tc.body, r.RawContent)
-										}
-										return nil
-									})),
+									check.BodyContains(tc.body)),
 							})
 						})
 					}
@@ -962,10 +958,11 @@ func TestAuthorization_TCP(t *testing.T) {
 							Path: "/data",
 						},
 					}
+					opts.FillDefaultsOrFail(t)
 					if expectAllowed {
 						opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 					} else {
-						opts.Check = scheck.RBACFailure(&opts)
+						opts.Check = check.Forbidden(opts.Port.Protocol)
 					}
 
 					name := newRbacTestName("", expectAllowed, from, &opts)
@@ -978,12 +975,12 @@ func TestAuthorization_TCP(t *testing.T) {
 
 			ns := apps.Namespace1
 			ns2 := apps.Namespace2
-			a := match.Namespace(ns.Name()).GetMatches(apps.A)
-			b := match.Namespace(ns.Name()).GetMatches(apps.B)
-			c := match.Namespace(ns.Name()).GetMatches(apps.C)
-			eInNS2 := match.Namespace(ns2.Name()).GetMatches(apps.E)
-			d := match.Namespace(ns.Name()).GetMatches(apps.D)
-			e := match.Namespace(ns.Name()).GetMatches(apps.E)
+			a := match.Namespace(ns).GetMatches(apps.A)
+			b := match.Namespace(ns).GetMatches(apps.B)
+			c := match.Namespace(ns).GetMatches(apps.C)
+			eInNS2 := match.Namespace(ns2).GetMatches(apps.E)
+			d := match.Namespace(ns).GetMatches(apps.D)
+			e := match.Namespace(ns).GetMatches(apps.E)
 			t.NewSubTest("non-vms").
 				Run(func(t framework.TestContext) {
 					t.ConfigIstio().EvalFile("", map[string]string{
@@ -1047,7 +1044,7 @@ func TestAuthorization_TCP(t *testing.T) {
 					}
 				})
 			// TODO(JimmyCYJ): support multiple VMs and apply different security policies to each VM.
-			vm := match.Namespace(ns.Name()).GetMatches(apps.VM)
+			vm := match.Namespace(ns).GetMatches(apps.VM)
 			t.NewSubTest("vms").
 				Run(func(t framework.TestContext) {
 					t.ConfigIstio().EvalFile("", map[string]string{
@@ -1092,13 +1089,13 @@ func TestAuthorization_Conditions(t *testing.T) {
 			nsB := apps.Namespace2
 			nsC := apps.Namespace3
 
-			c := match.Namespace(nsC.Name()).GetMatches(apps.C)
-			vm := match.Namespace(nsA.Name()).GetMatches(apps.VM)
+			c := match.Namespace(nsC).GetMatches(apps.C)
+			vm := match.Namespace(nsA).GetMatches(apps.VM)
 			for _, to := range []echo.Instances{c, vm} {
 				to := to
-				for _, a := range match.Namespace(nsA.Name()).GetMatches(apps.A) {
+				for _, a := range match.Namespace(nsA).GetMatches(apps.A) {
 					a := a
-					bs := match.And(match.Cluster(a.Config().Cluster), match.Namespace(nsB.Name())).GetMatches(apps.B)
+					bs := match.And(match.Cluster(a.Config().Cluster), match.Namespace(nsB)).GetMatches(apps.B)
 					if len(bs) < 1 {
 						t.Skip()
 					}
@@ -1106,28 +1103,21 @@ func TestAuthorization_Conditions(t *testing.T) {
 					t.NewSubTestf("from %s to %s in %s",
 						a.Config().Cluster.StableName(), to.Config().Service, to.Config().Cluster.StableName()).
 						Run(func(t framework.TestContext) {
-							addresses := func(to echo.Target) string {
-								var out []string
-								for _, w := range to.WorkloadsOrFail(t) {
-									out = append(out, "\""+w.Address()+"\"")
-								}
-								return strings.Join(out, ",")
-							}
-
-							args := map[string]string{
+							args := map[string]interface{}{
 								"NamespaceA": nsA.Name(),
 								"NamespaceB": nsB.Name(),
 								"NamespaceC": to.Config().Namespace.Name(),
 								"cSet":       to.Config().Service,
-								"ipA":        addresses(a),
-								"ipB":        addresses(b),
-								"ipC":        addresses(to),
+								"ipA":        a.WorkloadsOrFail(t).Addresses(),
+								"ipB":        b.WorkloadsOrFail(t).Addresses(),
+								"ipC":        to.WorkloadsOrFail(t).Addresses(),
 								"portC":      "8090",
 								"a":          util.ASvc,
 								"b":          util.BSvc,
 							}
 
-							t.ConfigIstio().EvalFile("", args, "testdata/authz/v1beta1-conditions.yaml.tmpl").ApplyOrFail(t)
+							t.ConfigIstio().EvalFile("", args, "testdata/authz/v1beta1-conditions.yaml.tmpl").
+								ApplyOrFail(t)
 							callCount := util.CallsPerCluster * to.WorkloadsOrFail(t).Len()
 							newTestCase := func(from echo.Instance, path string, headers http.Header, expectAllowed bool) func(t framework.TestContext) {
 								return func(t framework.TestContext) {
@@ -1145,7 +1135,7 @@ func TestAuthorization_Conditions(t *testing.T) {
 									if expectAllowed {
 										opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 									} else {
-										opts.Check = scheck.RBACFailure(&opts)
+										opts.Check = check.Forbidden(protocol.HTTP)
 									}
 
 									name := newRbacTestName("", expectAllowed, from, &opts)
@@ -1226,11 +1216,11 @@ func TestAuthorization_GRPC(t *testing.T) {
 		Features("security.authorization.grpc-protocol").
 		Run(func(t framework.TestContext) {
 			ns := apps.Namespace1
-			a := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.A)
-			b := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.B)
-			c := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.C)
-			d := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.D)
-			vm := match.Namespace(apps.Namespace1.Name()).GetMatches(apps.VM)
+			a := match.Namespace(apps.Namespace1).GetMatches(apps.A)
+			b := match.Namespace(apps.Namespace1).GetMatches(apps.B)
+			c := match.Namespace(apps.Namespace1).GetMatches(apps.C)
+			d := match.Namespace(apps.Namespace1).GetMatches(apps.D)
+			vm := match.Namespace(apps.Namespace1).GetMatches(apps.VM)
 			for _, a := range []echo.Instances{a, vm} {
 				for _, b := range []echo.Instances{b, vm} {
 					if a[0].Config().Service == b[0].Config().Service {
@@ -1245,7 +1235,7 @@ func TestAuthorization_GRPC(t *testing.T) {
 								"c":         c[0].Config().Service,
 								"d":         d[0].Config().Service,
 							}
-							t.ConfigIstio().EvalFile(ns.Name(), args, "testdata/authz/v1beta1-grpc.yaml.tmpl").ApplyOrFail(t, resource.Wait)
+							t.ConfigIstio().EvalFile(ns.Name(), args, "testdata/authz/v1beta1-grpc.yaml.tmpl").ApplyOrFail(t, apply.Wait)
 							newTestCase := func(from echo.Instance, to echo.Target, expectAllowed bool) func(t framework.TestContext) {
 								return func(t framework.TestContext) {
 									opts := echo.CallOptions{
@@ -1257,7 +1247,7 @@ func TestAuthorization_GRPC(t *testing.T) {
 									if expectAllowed {
 										opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 									} else {
-										opts.Check = scheck.RBACFailure(&opts)
+										opts.Check = check.Forbidden(protocol.GRPC)
 									}
 
 									name := newRbacTestName("", expectAllowed, from, &opts)
@@ -1289,11 +1279,11 @@ func TestAuthorization_Path(t *testing.T) {
 		Features("security.authorization.path-normalization").
 		Run(func(t framework.TestContext) {
 			ns := apps.Namespace1
-			a := match.Namespace(ns.Name()).GetMatches(apps.A)
-			vm := match.Namespace(ns.Name()).GetMatches(apps.VM)
+			a := match.Namespace(ns).GetMatches(apps.A)
+			vm := match.Namespace(ns).GetMatches(apps.VM)
 			for _, a := range []echo.Instances{a, vm} {
 				for _, srcCluster := range t.Clusters() {
-					b := match.And(match.Cluster(srcCluster), match.Namespace(ns.Name())).GetMatches(apps.B)
+					b := match.And(match.Cluster(srcCluster), match.Namespace(ns)).GetMatches(apps.B)
 					if len(b) == 0 {
 						continue
 					}
@@ -1303,7 +1293,7 @@ func TestAuthorization_Path(t *testing.T) {
 							"Namespace": ns.Name(),
 							"a":         a[0].Config().Service,
 						}
-						t.ConfigIstio().EvalFile(ns.Name(), args, "testdata/authz/v1beta1-path.yaml.tmpl").ApplyOrFail(t, resource.Wait)
+						t.ConfigIstio().EvalFile(ns.Name(), args, "testdata/authz/v1beta1-path.yaml.tmpl").ApplyOrFail(t, apply.Wait)
 
 						newTestCase := func(from echo.Instance, to echo.Target, path string, expectAllowed bool) func(t framework.TestContext) {
 							callCount := util.CallsPerCluster * to.WorkloadsOrFail(t).Len()
@@ -1321,7 +1311,7 @@ func TestAuthorization_Path(t *testing.T) {
 								if expectAllowed {
 									opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 								} else {
-									opts.Check = scheck.RBACFailure(&opts)
+									opts.Check = check.Forbidden(protocol.HTTP)
 								}
 
 								name := newRbacTestName("", expectAllowed, from, &opts)
@@ -1359,11 +1349,11 @@ func TestAuthorization_Audit(t *testing.T) {
 	framework.NewTest(t).
 		Run(func(t framework.TestContext) {
 			ns := apps.Namespace1
-			a := match.Namespace(ns.Name()).GetMatches(apps.A)
-			b := match.Namespace(ns.Name()).GetMatches(apps.B)
-			c := match.Namespace(ns.Name()).GetMatches(apps.C)
-			d := match.Namespace(ns.Name()).GetMatches(apps.D)
-			vm := match.Namespace(ns.Name()).GetMatches(apps.VM)
+			a := match.Namespace(ns).GetMatches(apps.A)
+			b := match.Namespace(ns).GetMatches(apps.B)
+			c := match.Namespace(ns).GetMatches(apps.C)
+			d := match.Namespace(ns).GetMatches(apps.D)
+			vm := match.Namespace(ns).GetMatches(apps.VM)
 
 			policy := func(filename string) func(t framework.TestContext) {
 				return func(t framework.TestContext) {
@@ -1373,7 +1363,7 @@ func TestAuthorization_Audit(t *testing.T) {
 						"d":             d[0].Config().Service,
 						"Namespace":     ns.Name(),
 						"RootNamespace": istio.GetOrFail(t, t).Settings().SystemNamespace,
-					}, filename).ApplyOrFail(t, resource.Wait)
+					}, filename).ApplyOrFail(t, apply.Wait)
 				}
 			}
 
@@ -1382,7 +1372,7 @@ func TestAuthorization_Audit(t *testing.T) {
 					t.ConfigIstio().EvalFile(ns.Name(), map[string]string{
 						"Namespace": ns.Name(),
 						"dst":       vm[0].Config().Service,
-					}, filename).ApplyOrFail(t, resource.Wait)
+					}, filename).ApplyOrFail(t, apply.Wait)
 				}
 			}
 
@@ -1401,7 +1391,7 @@ func TestAuthorization_Audit(t *testing.T) {
 					if expectAllowed {
 						opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 					} else {
-						opts.Check = scheck.RBACFailure(&opts)
+						opts.Check = check.Forbidden(protocol.HTTP)
 					}
 
 					name := newRbacTestName("", expectAllowed, from, &opts)
@@ -1456,53 +1446,36 @@ func TestAuthorization_Custom(t *testing.T) {
 				Prefix: "v1beta1-custom",
 				Inject: true,
 			})
+
+			// Start the authz server.
+			authzServer := authz.NewOrFail(t, ns)
+
+			// Also configure local access to the authz servers deployed in the echo pods.
+			localAuthzServer := authz.NewLocalOrFail(t, ns)
+
+			// Create the template args.
 			args := map[string]string{
 				"Namespace":     ns.Name(),
 				"RootNamespace": istio.GetOrFail(t, t).Settings().SystemNamespace,
 			}
-
-			// Deploy and wait for the ext-authz server to be ready.
-			t.ConfigIstio().EvalFile(ns.Name(), args, "../../../samples/extauthz/ext-authz.yaml").ApplyOrFail(t)
-			if _, _, err := kube.WaitUntilServiceEndpointsAreReady(t.Clusters().Default(), ns.Name(), "ext-authz"); err != nil {
-				t.Fatalf("Wait for ext-authz server failed: %v", err)
+			for _, p := range authzServer.Providers() {
+				switch p.API() {
+				case authz.HTTP:
+					args["HTTPProviderName"] = p.Name()
+				case authz.GRPC:
+					args["GRPCProviderName"] = p.Name()
+				}
 			}
-			// Update the mesh config extension provider for the ext-authz service.
-			extService := fmt.Sprintf("ext-authz.%s.svc.cluster.local", ns.Name())
-			extServiceWithNs := fmt.Sprintf("%s/%s", ns.Name(), extService)
-			istio.PatchMeshConfig(t, ist.Settings().SystemNamespace, t.Clusters(), fmt.Sprintf(`
-extensionProviders:
-- name: "ext-authz-http"
-  envoyExtAuthzHttp:
-    service: %q
-    port: 8000
-    pathPrefix: "/check"
-    headersToUpstreamOnAllow: ["x-ext-authz-*"]
-    headersToDownstreamOnDeny: ["x-ext-authz-*"]
-    includeRequestHeadersInCheck: ["x-ext-authz"]
-    includeAdditionalHeadersInCheck:
-      x-ext-authz-additional-header-new: additional-header-new-value
-      x-ext-authz-additional-header-override: additional-header-override-value
-- name: "ext-authz-grpc"
-  envoyExtAuthzGrpc:
-    service: %q
-    port: 9000
-- name: "ext-authz-http-local"
-  envoyExtAuthzHttp:
-    service: ext-authz-http.local
-    port: 8000
-    pathPrefix: "/check"
-    headersToUpstreamOnAllow: ["x-ext-authz-*"]
-    headersToDownstreamOnDeny: ["x-ext-authz-*"]
-    includeRequestHeadersInCheck: ["x-ext-authz"]
-    includeAdditionalHeadersInCheck:
-      x-ext-authz-additional-header-new: additional-header-new-value
-      x-ext-authz-additional-header-override: additional-header-override-value
-- name: "ext-authz-grpc-local"
-  envoyExtAuthzGrpc:
-    service: ext-authz-grpc.local
-    port: 9000`, extService, extServiceWithNs))
-
-			t.ConfigIstio().EvalFile("", args, "testdata/authz/v1beta1-custom.yaml.tmpl").ApplyOrFail(t)
+			for _, p := range localAuthzServer.Providers() {
+				switch p.API() {
+				case authz.HTTP:
+					args["LocalHTTPProviderName"] = p.Name()
+				case authz.GRPC:
+					args["LocalGRPCProviderName"] = p.Name()
+				}
+			}
+			t.ConfigIstio().EvalFile("", args, "testdata/authz/v1beta1-custom.yaml.tmpl").
+				ApplyOrFail(t)
 			ports := []echo.Port{
 				{
 					Name:         "tcp-8092",
@@ -1553,10 +1526,11 @@ extensionProviders:
 							Headers: headers,
 						},
 					}
+					opts.FillDefaultsOrFail(t)
 					if expectAllowed {
 						opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 					} else {
-						opts.Check = scheck.RBACFailure(&opts)
+						opts.Check = check.Forbidden(opts.Port.Protocol)
 					}
 					opts.Check = check.And(opts.Check, checker)
 
@@ -1653,7 +1627,7 @@ extensionProviders:
 						if expectAllowed {
 							opts.Check = check.And(check.OK(), scheck.ReachedClusters(t.AllClusters(), &opts))
 						} else {
-							opts.Check = scheck.RBACFailure(&opts)
+							opts.Check = check.Forbidden(protocol.HTTP)
 						}
 						opts.Check = check.And(opts.Check, checker)
 
