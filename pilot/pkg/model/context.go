@@ -143,7 +143,7 @@ func (e *Environment) Version() string {
 func (e *Environment) Init() {
 	// Use a default DomainSuffix, if none was provided.
 	if len(e.DomainSuffix) == 0 {
-		e.DomainSuffix = constants.DefaultKubernetesDomain
+		e.DomainSuffix = constants.DefaultClusterLocalDomain
 	}
 
 	// Create the cluster-local service registry.
@@ -622,10 +622,6 @@ type NodeMetadata struct {
 	// OutboundListenerExactBalance sets connection balance config to use exact_balance for outbound
 	// redirected tcp listeners. This does not change the virtualOutbound listener.
 	OutboundListenerExactBalance StringBool `json:"OUTBOUND_LISTENER_EXACT_BALANCE,omitempty"`
-
-	// RedisOpTimeout specifies the operation timeout for the Redis proxy filter, in duration format (10s).
-	// If not set, default timeout is 5s.
-	RedisOpTimeout string `json:"REDIS_OP_TIMEOUT,omitempty"`
 
 	// Contains a copy of the raw metadata. This is needed to lookup arbitrary values.
 	// If a value is known ahead of time it should be added to the struct rather than reading from here,
