@@ -30,6 +30,7 @@ import (
 	"istio.io/istio/pkg/test/framework/cloudesf"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/pkg/test/shell"
 	"istio.io/istio/pkg/test/util/retry"
 )
@@ -307,7 +308,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		}
 
 		t.Logf("Deploying Cloud ESF based ingress gateway.")
-		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t, resource.Wait, resource.NoCleanup)
+		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t, apply.Wait, apply.NoCleanup)
 
 		// Get the ingress address.
 		address, _ := i.CustomIngressFor(t.Clusters().Default(), "istio-ingressgateway", "ingressgateway").HTTPAddress()

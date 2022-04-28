@@ -292,3 +292,23 @@ func (i *instance) Scale(replicas int) error {
 	// TODO stubbing this method here so that OSS can add it to echo.Instance without breaking asm compilation
 	panic("TODO implement Scale for GCE VMs/MIG")
 }
+
+func (i *instance) ServiceName() string {
+	return i.Config().Service
+}
+
+func (i *instance) NamespaceName() string {
+	return i.Config().NamespaceName()
+}
+
+func (i *instance) ServiceAccountName() string {
+	return i.Config().ServiceAccountName()
+}
+
+func (i *instance) ClusterLocalFQDN() string {
+	return i.Config().ClusterLocalFQDN()
+}
+
+func (i *instance) ClusterSetLocalFQDN() string {
+	return i.Config().ClusterSetLocalFQDN()
+}

@@ -34,6 +34,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/check"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/pkg/test/kube"
 	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/pkg/log"
@@ -131,7 +132,7 @@ func deployAutomigration(t framework.TestContext, channel, revision string) {
 	cs := t.Clusters().Default()
 	t.ConfigIstio().
 		EvalFile("istio-system", map[string]string{"HUB": cls.Image.Hub, "TAG": cls.Image.Tag, "MCP_CHANNEL": channel}, manifestPath).
-		ApplyOrFail(t, resource.NoCleanup)
+		ApplyOrFail(t, apply.NoCleanup)
 	defer dumpMigrationJobPod(t)
 	_, err = kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(cs, "istio-system", "istio=addon-migration"))
 	if err != nil {
