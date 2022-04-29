@@ -27,7 +27,10 @@
         "patch": {
           "operation": "INSERT_BEFORE",
           "value": {
-            "name": "envoy.filters.http.grpc_web"
+            "name": "envoy.filters.http.grpc_web",
+            "typedConfig": {
+              "@type": "type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb"
+            }
           }
         }
       },
@@ -63,6 +66,10 @@
               "printOptions": {},
               "protoDescriptor": "/etc/istio/proxy/grpc_echo_asm_e2e_config_descriptor",
               "queryParamUnescapePlus": true,
+              "requestValidationOptions": {
+                "rejectUnknownMethod": true,
+                "rejectUnknownQueryParameters": true
+              },
               "services": [
                 "test.grpc.Test",
                 "google.discovery.Discovery"
