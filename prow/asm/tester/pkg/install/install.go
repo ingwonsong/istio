@@ -51,13 +51,16 @@ func (c *installer) install(r *revision.Config) error {
 			return c.installASMOnMulticloudClusters(r)
 		}
 	} else if c.settings.ControlPlane == resource.Managed {
+		if c.settings.UseAutoCPManagement {
+			log.Println("🏄 performing ASM MCP installation with auto CP management")
+			return c.installAutomaticManagedControlPlane(r)
+		}
 		if c.settings.UseAFC {
 			log.Println("🏄 performing ASM MCP installation via AFC")
 			return c.installASMManagedControlPlaneAFC(r)
-		} else {
-			log.Println("🏄 performing ASM MCP installation")
-			return c.installASMManagedControlPlane(r)
 		}
+		log.Println("🏄 performing ASM MCP installation")
+		return c.installASMManagedControlPlane(r)
 	} else if c.settings.ControlPlane == resource.ManagedLocal {
 		log.Println("🏄 performing ASM MLCP installation")
 		return c.installASMManagedLocalControlPlane(r)

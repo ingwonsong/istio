@@ -104,6 +104,10 @@ type Settings struct {
 	// "sidecar.istio.io/inject" labels for workload injection
 	UseDefaultInjectionLabels bool `flag:"use-default-injection-labels" desc:"If set uses default injection labels for workload injection."`
 
+	// UseAutoCPManagement determines whether to use automatic control plane management to deploy a managed control plane.
+	// This option should only be used when ControlPlane is MANAGED or MANAGED_LOCAL.
+	UseAutoCPManagement bool `flag:"use-auto-cp-management" desc:"If set uses automatic control plane management to deploy a managed control plane."`
+
 	// Environment determines the Container API endpoint to use, can be one of test, staging, staging2 or prod
 	Environment string `flag:"environment" desc:"Container API endpoint to use, one of 'test', 'staging', 'staging2', 'prod'"`
 
@@ -205,6 +209,7 @@ func (s *Settings) String() string {
 	result += fmt.Sprintf("TestStartEventPort:               %v\n", s.TestStartEventPort)
 	result += fmt.Sprintf("InstallCloudESF:                  %v\n", s.InstallCloudESF)
 	result += fmt.Sprintf("UseDefaultInjectionLabels:        %v\n", s.UseDefaultInjectionLabels)
+	result += fmt.Sprintf("UseAutoCPManagement:              %v\n", s.UseAutoCPManagement)
 	result += fmt.Sprintf("\n**VMSettings**\n%v\n", s.VMSettings)
 	result += fmt.Sprintf("\n**MCPSettings**\n%v\n", s.MCPSettings)
 	result += fmt.Sprintf("\n**RuntimeSettings**\n%v\n", s.RuntimeSettings)

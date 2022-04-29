@@ -30,13 +30,19 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	testFlags := []string{"--istio.test.kube.deploy=false"}
 	if settings.ControlPlane != resource.Unmanaged {
 		if !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
-			testFlags = append(testFlags,
-				// install_asm will install the image to all three channels.
-				// So all the revision labels should work.
-				// However, AFC currently only installs one rapid. Change the test
-				// revision to rapid to work with both cases.
-				"--istio.test.revision=asm-managed-rapid",
-				"--istio.test.skipDelta")
+			testFlags = append(testFlags, "--istio.test.skipDelta")
+			if settings.UseAutoCPManagement {
+				// Auto CP management determines the MCP channel from the GKE release channel.
+				testFlags = append(testFlags,
+					"--istio.test.revision=asm-managed")
+			} else {
+				testFlags = append(testFlags,
+					// install_asm will install the image to all three channels.
+					// So all the revision labels should work.
+					// However, AFC currently only installs one rapid. Change the test
+					// revision to rapid to work with both cases.
+					"--istio.test.revision=asm-managed-rapid")
+			}
 		} else {
 			testFlags = append(testFlags,
 				// TODO(b/208667932) VPC-SC does not run using latest config

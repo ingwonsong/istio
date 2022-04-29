@@ -98,6 +98,101 @@ EOF'`, context)); err != nil {
 	return nil
 }
 
+func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) error {
+	// Use staging environment for testing.
+	if err := exec.Run("gcloud config set api_endpoint_overrides/gkehub https://staging-gkehub.sandbox.googleapis.com/"); err != nil {
+		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
+	}
+
+	// Use the first project as the fleet project.
+	fleetProject := c.settings.GCPProjects[0]
+	projectNumber, err := gcp.GetProjectNumber(fleetProject)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve GCP project number for %s: %w", fleetProject, err)
+	}
+	if err := exec.Run(fmt.Sprintf("gcloud services enable mesh.googleapis.com --project=%s", fleetProject)); err != nil {
+		return fmt.Errorf("error enabling mesh.googleapis.com service for project %s: %w", fleetProject, err)
+	}
+	if err := exec.Run(fmt.Sprintf("gcloud container hub mesh enable --project=%s", fleetProject)); err != nil {
+		return fmt.Errorf("error enabling hub mesh feature for project %s: %w", fleetProject, err)
+	}
+
+	// Setup to be run per-cluster:
+	//  (1) Label each cluster with mesh_id
+	//  (2) Register the membership
+	//  (3) Enable automatic CP management for the membership
+	for _, context := range c.settings.KubeContexts {
+		cluster := kube.GKEClusterSpecFromContext(context)
+		log.Printf("Enabling automatic control plane management for cluster %s in project %s...",
+			cluster.Name, cluster.ProjectID)
+
+		if err := exec.Run(fmt.Sprintf("gcloud container clusters update %s --update-labels mesh_id=proj-%s --project %s --region %s",
+			cluster.Name, projectNumber, cluster.ProjectID, cluster.Location)); err != nil {
+		}
+		if err := exec.Run(fmt.Sprintf(`gcloud container hub memberships register membership-%s \
+		--gke-uri=%s --enable-workload-identity --project %s`,
+			cluster.Name, gkeURI(cluster), fleetProject)); err != nil {
+			return fmt.Errorf("failed registering cluster %s to fleet: %w", cluster.Name, err)
+		}
+		// TODO(samnaser) update to be --memberships once gcloud change lands.
+		if err := exec.Run(fmt.Sprintf(`gcloud alpha container hub mesh update \
+		--control-plane automatic --membership membership-%s --project %s`,
+			cluster.Name, fleetProject)); err != nil {
+			return fmt.Errorf("failed enabling automatic CP management for cluster %s: %w", cluster.Name, err)
+		}
+	}
+
+	// Wait for the state to be active. Should be similar to:
+	// membershipSpecs:
+	// 	 projects/746296320118/locations/global/memberships/demo-cluster-1:
+	//     mesh:
+	//       controlPlane: AUTOMATIC
+	// membershipStates:
+	// 	 projects/746296320118/locations/global/memberships/demo-cluster-1:
+	//     servicemesh:
+	//       controlPlaneManagement:
+	//         details:
+	// 	         - code: REVISION_READY
+	//             details: 'Ready: asm-managed'
+	//     state: ACTIVE
+	//       state:
+	//         description: 'Revision(s) ready for use: asm-managed.'
+	if err := retry.UntilSuccess(func() error {
+		featureState, err := exec.RunWithOutput(fmt.Sprintf("gcloud alpha container hub mesh describe --project %s",
+			fleetProject))
+		if err != nil {
+			return fmt.Errorf("failed to read feature state: %w", err)
+		}
+		log.Printf("Dumping feature state:\n%s", featureState)
+		revisionsReady := strings.Count(featureState, "REVISION_READY")
+		if revisionsReady != len(c.settings.KubeContexts) {
+			return fmt.Errorf("want %d ready revisions, got %d",
+				len(c.settings.KubeContexts), revisionsReady)
+		}
+		return nil
+	}, retry.Timeout(time.Second*600), retry.Delay(time.Second*25)); err != nil {
+		return fmt.Errorf("error waiting for revision readiness in feature state: %w", err)
+	}
+
+	// After auto-CP is ready, install ingress gateways.
+	for _, context := range c.settings.KubeContexts {
+		// Use default injection, since auto-CP revision name depends on cluster channel.
+		if err := exec.Run("kubectl label namespace istio-system istio-injection=enabled istio.io/rev- --overwrite --context=" + context); err != nil {
+			return fmt.Errorf("error labeling namespace: %w", err)
+		}
+		// Install Gateway
+		if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
+			return fmt.Errorf("error installing injected-gateway: %w", err)
+		}
+	}
+
+	if err := createRemoteSecretsManaged(c.settings); err != nil {
+		return fmt.Errorf("failed to enable managed multicluster: %w", err)
+	}
+
+	return nil
+}
+
 func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error {
 	contexts := c.settings.KubeContexts
 
@@ -428,4 +523,9 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 		return err
 	}
 	return nil
+}
+
+func gkeURI(spec *kube.GKEClusterSpec) string {
+	format := "https://container.googleapis.com/v1/projects/%s/locations/%s/clusters/%s"
+	return fmt.Sprintf(format, spec.ProjectID, spec.Location, spec.Name)
 }
