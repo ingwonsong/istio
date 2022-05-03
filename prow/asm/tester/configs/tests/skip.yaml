@@ -157,6 +157,7 @@ tests:
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
         buganizerID: 199551889
+        reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
       - names:
           - TestStrictMTLS
         reason: MeshCA does not support ECDSA
@@ -235,6 +236,7 @@ tests:
       - TestTlsGatewaysWithQUIC/quic*
       - TestMtlsGatewaysWithQUIC/quic*
       buganizerID: 199551889
+      reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
     - names:
       - TestStrictMTLS
       reason: MeshCA does not support ECDSA
@@ -295,6 +297,7 @@ tests:
       - TestTlsGatewaysWithQUIC/quic*
       - TestMtlsGatewaysWithQUIC/quic*
       buganizerID: 199551889
+      reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
     - names:
       - TestStrictMTLS
       reason: MeshCA does not support ECDSA
@@ -358,6 +361,7 @@ tests:
           - TestTlsGateways
           - TestMtlsGateways
         buganizerID: 200846058
+        reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
 
       # telemetry/ tests
       - names:
@@ -395,55 +399,27 @@ tests:
     targets:
       # security/ tests
       - names:
-          - TestStrictMTLS
-        reason: MeshCA does not support ECDSA
-      - names:
-          - TestAuthorization_Custom
-        reason: requires mesh config
-      - names:
-          - TestSingleTlsGateway*
-          - TestSingleMTLSGateway*
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
-          - TestTlsGateways
-          - TestMtlsGateways
-        buganizerID: 200846058
+        buganizerID: 230904931
+        reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
 
       # telemetry/ tests
-      - names:
-          - TestCanonicalServices
-        buganizerID: 203557135
       - names:
           - TestStackdriver
           - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
-      - names:
-          - TestTelemetryAPITCPStats
-        buganizerID: 205336277
 
       # networking/ tests
       - names:
         - TestCustomGateway/helm
         - TestAddToAndRemoveFromMesh
-        - TestRevisionedUpgrade
-        - TestServiceExports/exported/0/create
-        - TestRevisionCommand
-        - TestRevisionTags
-        - TestMultiRevision
-        - TestUninstallByRevision
-        - TestUninstallWithSetFlag
         - TestTraffic/dns
-        - TestXdsVersion
-        - TestXdsProxyStatus
-        - TestMultiVersionRevision
-        buganizerID: 187722953
+        buganizerID: 230795812
       - names:
         - TestTraffic/jwt-claim-route
         reason: Temporary disable until mesh agent upgraded to 1.11.2
-      - names:
-        - TestDescribe
-        buganizerID: 208485368
 
   # Unmanaged CP + EKS (don't confuse with regular AWS)
   - selectors:
@@ -495,7 +471,8 @@ tests:
       - names:
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
-        reason: Experemental code.
+        buganizerID: 230904931
+        reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
       # telemetry/ tests
       - names:
           - TestStackdriver
@@ -619,8 +596,8 @@ tests:
           - TestRemoteClusters
         buganizerID: 194713967
       - names:
-        - TestTlsGatewaysWithQUIC/quic
-        - TestMtlsGatewaysWithQUIC/quic
+          - TestTlsGatewaysWithQUIC/quic
+          - TestMtlsGatewaysWithQUIC/quic
         reason: Experemental code. Not supported by GKE
       - names:
         - TestGatewayConformance
