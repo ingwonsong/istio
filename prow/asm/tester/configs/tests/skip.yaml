@@ -659,9 +659,6 @@ tests:
       - names:
           - TestCNI19Upgrade
         reason: no longer needed
-      - names:
-        - TestJWTHTTPS
-        buganizerID: 215175941
 
       # security/ tests
       - names:
