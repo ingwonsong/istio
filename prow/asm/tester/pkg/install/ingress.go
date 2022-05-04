@@ -41,6 +41,15 @@ func gatewayDir(rev *revision.Config) (string, error) {
 }
 
 func (c *installer) installIngressGateway(settings *resource.Settings, rev *revision.Config, context, kubeconfig string, idx int) error {
+	// enabling NetworkAttachmentDefinition to gatewayNamespace for openshift cluster
+	if settings.ClusterType == resource.Openshift {
+		yaml := filepath.Join(settings.ConfigDir, "openshift_ns_modification.yaml")
+		cmd1 := fmt.Sprintf("kubectl apply -f %s -n %s", yaml, gatewayNamespace)
+		if err := exec.Run(cmd1); err != nil {
+			return fmt.Errorf("unable to enable NetworkAttachmentDefinition for gateway namespace: %w", err)
+		}
+	}
+
 	// TODO(samnaser) this prevents us from deploying ingresses for older versions. Long-term we should come up with
 	// a better approach here.
 	if rev != nil && rev.Version != "" && rev.Name != "" {

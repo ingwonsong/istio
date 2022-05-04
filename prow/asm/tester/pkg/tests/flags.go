@@ -99,6 +99,11 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		testFlags = append(testFlags, "--istio.test.echo.requestTimeout=40m")
 	}
 
+	// openshift doesn't support TProxy mode
+	if settings.ClusterType == resource.Openshift {
+		testFlags = append(testFlags, "--istio.test.skipTProxy=true")
+	}
+
 	// Need to pass the revisions and versions to test framework if specified
 	if settings.RevisionConfig != "" {
 		revisionConfigPath := filepath.Join(settings.RepoRootDir, resource.ConfigDirPath, "revision-deployer", settings.RevisionConfig)

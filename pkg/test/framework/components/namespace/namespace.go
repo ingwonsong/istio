@@ -15,8 +15,14 @@
 package namespace
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"istio.io/istio/pkg/test"
+	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/shell"
 )
 
 // Config contains configuration information about the namespace instance
@@ -100,5 +106,38 @@ func overwriteRevisionIfEmpty(nsConfig *Config, revision string) {
 	// Allow setting revision explicitly to `default` to avoid configuration overwrite
 	if nsConfig.Revision == "default" {
 		nsConfig.Revision = ""
+	}
+}
+
+// customization for platform support on namespace based on differnet platforms
+func CustomizationForPlatformSuppport(ns Instance) {
+	if os.Getenv("CLUSTER_TYPE") == "openshift" {
+		if os.Getenv("OS_CLI") != "1" {
+			cmd1 := "wget https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz"
+			_, err := shell.Execute(false, cmd1)
+			if err != nil {
+				panic(fmt.Sprintf("unable to install oc %s", err))
+			}
+			cmd2 := "tar -xvf oc.tar.gz"
+			_, err = shell.Execute(false, cmd2)
+			if err != nil {
+				panic(fmt.Sprintf("unable to extract oc %s", err))
+			}
+			path := os.Getenv("PATH")
+			os.Setenv("PATH", fmt.Sprintf("/oc:%s", path))
+			os.Setenv("OS_CLI", "1")
+		}
+		cmd3 := fmt.Sprintf("oc adm policy add-scc-to-group anyuid system:serviceaccounts:%s", ns.Name())
+		_, err := shell.Execute(false, cmd3)
+		if err != nil {
+			panic(fmt.Sprintf("error enabling the user id 1337 on application namespaces %s with error %s", ns.Name(), err))
+		}
+		yaml := filepath.Join(env.IstioSrc, "prow/asm/tester/configs", "openshift_ns_modification.yaml")
+		cmd4 := fmt.Sprintf("kubectl apply -f %s -n %s", yaml, ns.Name())
+		_, err = shell.Execute(false,
+			cmd4)
+		if err != nil {
+			panic(fmt.Sprintf("unable to fullfil the network attachment requirement for namespace %s with error %s", ns.Name(), err))
+		}
 	}
 }

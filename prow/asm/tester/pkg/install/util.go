@@ -286,6 +286,26 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 			return fmt.Errorf("error at 'kubectl create secret ...': %w", err)
 		}
 
+		// Create the secret in kube-system that can be used to pull images from GCR.
+		if settings.ClusterType == resource.Openshift {
+			err = exec.Run(
+				fmt.Sprintf(
+					"bash -c 'kubectl create secret -n kube-system docker-registry %s "+
+						"--docker-server=https://gcr.io "+
+						"--docker-username=_json_key "+
+						"--docker-email=\"$(gcloud config get-value account)\" "+
+						"--docker-password=\"$(cat %s)\" "+
+						"--kubeconfig=%s'",
+					secretName,
+					cred,
+					config,
+				),
+			)
+			if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
+				return fmt.Errorf("error at 'kubectl create secret ...': %w", err)
+			}
+		}
+
 		// Save secret data once (to be passed into the test framework),
 		// deleting the line that contains 'namespace'.
 		if i == 0 {
@@ -334,6 +354,26 @@ imagePullSecrets:
 EOF'`,
 					config,
 					serviceAcct,
+					secretName,
+				),
+			)
+			if err != nil {
+				return fmt.Errorf("error at 'kubectl apply ...': %s", err)
+			}
+		}
+		if settings.ClusterType == resource.Openshift {
+			err = exec.Run(
+				fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --kubeconfig=%s apply -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: %s
+  namespace: kube-system
+imagePullSecrets:
+- name: %s
+EOF'`,
+					config,
+					"istio-cni",
 					secretName,
 				),
 			)

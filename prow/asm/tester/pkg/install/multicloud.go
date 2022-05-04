@@ -78,6 +78,11 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 		if err != nil {
 			return fmt.Errorf("error generating multicloud install flags: %w", err)
 		}
+		// set the custom option for openshift cluster
+		if c.settings.ClusterType == resource.Openshift {
+			additionalFlags = append(additionalFlags, "--option", "openshift")
+		}
+
 		additionalFlags = append(additionalFlags, "--network_id", networkID)
 
 		additionalEnvVars := generateASMInstallEnvvars(c.settings, rev, "")
@@ -93,6 +98,13 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 
 		if err := c.installIngressGateway(c.settings, rev, "", kubeconfig, i); err != nil {
 			return err
+		}
+		// enable uid for ingress gateway in openshift
+		if c.settings.ClusterType == resource.Openshift {
+			cmd := "./oc -n istio-system expose svc/istio-ingressgateway --port=http2"
+			if err := exec.Run(cmd); err != nil {
+				return fmt.Errorf("error enabling the uid for ingress gateway: %w", err)
+			}
 		}
 		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
 			return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)

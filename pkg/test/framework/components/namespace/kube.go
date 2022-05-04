@@ -318,7 +318,9 @@ func newKube(ctx resource.Context, nsConfig *Config) (Instance, error) {
 	if err := g.Wait().ErrorOrNil(); err != nil {
 		return nil, err
 	}
-
+	mu.Lock()
+	CustomizationForPlatformSuppport(n)
+	mu.Unlock()
 	return n, nil
 }
 

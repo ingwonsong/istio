@@ -36,6 +36,7 @@ const (
 	APM                   ClusterType = "apm"
 	HybridGKEAndBareMetal ClusterType = "hybrid-gke-and-bare-metal"
 	HybridGKEAndEKS       ClusterType = "hybrid-gke-and-eks"
+	Openshift             ClusterType = "openshift"
 )
 
 // Set converts the value string to ClusterType

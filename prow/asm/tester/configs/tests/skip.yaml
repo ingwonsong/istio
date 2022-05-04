@@ -492,6 +492,28 @@ tests:
         - TestXdsProxyStatus
         buganizerID: 187722953
 
+  # Unmanaged CP + Openshift
+  - selectors:
+      control_plane: unmanaged
+      cluster_type: openshift
+    targets:
+      # security/ tests
+      - names:
+          - TestTlsGatewaysWithQUIC/quic*
+          - TestMtlsGatewaysWithQUIC/quic*
+      # networking/ tests
+      - names:
+        - TestTcpProbe
+        - TestAddToAndRemoveFromMesh
+        - TestCustomGateway/minimal
+        - TestCustomGateway/helm
+        - TestCustomGateway/helm-simple
+        - TestXFFGateway
+        - TestGatewayConformance
+      # telemetry/ tests
+      - names:
+        - TestStackdriver
+
   # Unmanaged CP, cluster topology = mc, feature = VPC_SC
   # Keep the skipped test cases same as unmanaged cp, mp
   - selectors:

@@ -1,0 +1,42 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  # !!!IMPORTANT!!!! READ BELOW
+  # Use names that are unique and easily identifiable
+  # To see list of currently running rookeries:
+  # kubectl get rookeries -n tailorbird-users
+  # e.g., use your Google username as prefix.
+  # !!!IMPORTANT!!!! READ ABOVE
+  name: asm-ci-openshift-sc
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 10800 # 3 hours
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-ci-openshift-sc-knest
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          # !!!IMPORTANT!!!! READ BELOW
+          # Use names that are unique and easily identifiable
+          # To see list of currently running clusters:
+          # kubectl get clusters -n tailorbird-users
+          # e.g., use your Google username as prefix.
+          # !!!IMPORTANT!!!! READ ABOVE
+          name: asm-ci-openshift-sc-cluster
+          namespace: tailorbird-users
+        spec:
+          provider: aws # gcp not yet supported
+          distribution: openshift
+          provisionerArgs:
+            username: asm-svc-acct
+            region: us-east-2
+            installerVersion: 4.7.11 # must be a valid 4.x release of OCP or OKD.
+            nodeCount: 6
+            #    baseDomain: # (Optional, defaults to aws.openshift.ceplabs.dev for AWS) DNS zone to use for the cluster. Must preexist in the project/account with resolvable DNS.
+            #    nodeCount: # (Optional, defaults to 3) Number of worker nodes. This must be a quoted string.
+            #    nodeType: # (Optional) Machine type to use for worker nodes.

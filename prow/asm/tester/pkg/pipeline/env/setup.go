@@ -264,6 +264,8 @@ func fixClusterConfigs(settings *resource.Settings) error {
 		err = fixAPM(settings)
 	case resource.HybridGKEAndBareMetal:
 		err = fixHybridGKEAndBareMetal(settings)
+	case resource.Openshift:
+		err = fixOpenshift(settings)
 	}
 
 	kubeContexts, kubeContextErr := kube.Contexts(settings.Kubeconfig)
@@ -534,6 +536,32 @@ func fixBareMetal(settings *resource.Settings) error {
 			sshKeyRelPath:        "id_rsa",
 		}); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// Fix openshift cluster configs that are created by Tailorbird:
+// 1. Keep only the auth/kubeconfig entries in the KUBECONFIG for openshift
+// by removing any others entries.
+func fixOpenshift(settings *resource.Settings) error {
+	err := filterKubeconfigFiles(settings, func(name string) bool {
+		return strings.HasSuffix(name, "auth/kubeconfig")
+	})
+	if err != nil {
+		return err
+	}
+	config := filepath.SplitList(settings.Kubeconfig)[0]
+	if config != "" {
+		os.Setenv("KUBECONFIG", config)
+		yaml := filepath.Join(settings.ConfigDir, "gcc_openshift.yaml")
+		cmd1 := "wget https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz"
+		cmd2 := "tar -xvf oc.tar.gz"
+		cmd3 := fmt.Sprintf("./oc create -f %s", yaml)
+		cmd4 := "./oc adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system"
+		os.Setenv("PRIVATE_ISSUER", "1")
+		if err := exec.RunMultiple([]string{cmd1, cmd2, cmd3, cmd4}); err != nil {
+			return fmt.Errorf("error running the commands to setup openshift cluster requirement: %w", err)
 		}
 	}
 	return nil
