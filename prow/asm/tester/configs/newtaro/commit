@@ -1,2 +1,7 @@
-cf0dd0237aed046c74bf76cd8c6ecf26de4bdf63
+e6c917613cde0fe1457a415bde32ea13feace1e1
+========================================
+Kazuki Yamazaki
+Tue Apr 26 02:48:33 2022 +0900
+
+Fix remote secret name for GKE. (#1184)
 
