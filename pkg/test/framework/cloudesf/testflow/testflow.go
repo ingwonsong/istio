@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	kubeApiCore "k8s.io/api/core/v1"
@@ -142,6 +143,8 @@ spec:
           value: standard
         - name: ENABLE_CLOUD_ESF
           value: "true"
+        - name: ISTIO_BOOTSTRAP_OVERRIDE
+          value: /etc/istio/custom-bootstrap/custom_bootstrap.json
         image: {{ .gatewayImage }}
         imagePullPolicy: Always
         name: istio-proxy
@@ -183,6 +186,9 @@ spec:
           readOnly: true
         - mountPath: /etc/istio/proxy
           name: istio-envoy
+        - mountPath: /etc/istio/custom-bootstrap
+          name: custom-bootstrap-volume
+          readOnly: true
       securityContext:
         fsGroup: 1337
         runAsGroup: 1337
@@ -201,6 +207,11 @@ spec:
           secretName: istio-ingressgateway-ca-certs
       - name: istio-envoy
         emptyDir: {}
+      - configMap:
+          name: istio-custom-bootstrap-config
+          defaultMode: 420
+          optional: false
+        name: custom-bootstrap-volume
 ---
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
@@ -288,6 +299,10 @@ spec:
   type: LoadBalancer`
 )
 
+func isCustomBootstrap(path string) bool {
+	return strings.Contains(path, "custom_bootstrap.json")
+}
+
 func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageAddr,
 	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs string) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
@@ -295,7 +310,15 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		for _, configPath := range cloudESFConfigs {
 			retry.UntilSuccessOrFail(t, func() error {
 				t.Logf("deploy config %s", configPath)
-				if err := t.Clusters().Default().ApplyYAMLFiles("", configPath); err != nil {
+				namespace := ""
+
+				// The custom bootstrap config is a ConfigMap, and it should be deployed to the
+				// same namespace as the custom ingress gateway. It can be deployed in any namespace
+				// you want, and in this test it is `istio-system`.
+				if isCustomBootstrap(configPath) {
+					namespace = "istio-system"
+				}
+				if err := t.Clusters().Default().ApplyYAMLFiles(namespace, configPath); err != nil {
 					return fmt.Errorf("fail to deploy CloudESF config %s: %v", configPath, err)
 				}
 				return nil
