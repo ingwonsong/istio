@@ -111,6 +111,9 @@ type Settings struct {
 	// Environment determines the Container API endpoint to use, can be one of test, staging, staging2 or prod
 	Environment string `flag:"environment" desc:"Container API endpoint to use, one of 'test', 'staging', 'staging2', 'prod'"`
 
+	// UseStackDriver if true, a server-side stackdriver component will be installed. This is useful for off-GCP.
+	UseStackDriver bool `flag:"use-stackdriver" desc:"If set installs a server-side StackDriver component. Useful for off-GCP."`
+
 	VMSettings
 
 	MCPSettings
@@ -210,6 +213,7 @@ func (s *Settings) String() string {
 	result += fmt.Sprintf("InstallCloudESF:                  %v\n", s.InstallCloudESF)
 	result += fmt.Sprintf("UseDefaultInjectionLabels:        %v\n", s.UseDefaultInjectionLabels)
 	result += fmt.Sprintf("UseAutoCPManagement:              %v\n", s.UseAutoCPManagement)
+	result += fmt.Sprintf("UseStackDriver:                   %v\n", s.UseStackDriver)
 	result += fmt.Sprintf("\n**VMSettings**\n%v\n", s.VMSettings)
 	result += fmt.Sprintf("\n**MCPSettings**\n%v\n", s.MCPSettings)
 	result += fmt.Sprintf("\n**RuntimeSettings**\n%v\n", s.RuntimeSettings)

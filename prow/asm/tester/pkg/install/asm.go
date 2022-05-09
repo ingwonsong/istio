@@ -301,6 +301,9 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if settings.UseVMs {
 		installFlags = append(installFlags, "--option", "vm")
 	}
+	if settings.UseStackDriver {
+		installFlags = append(installFlags, "--option", "stackdriver")
+	}
 
 	return installFlags
 }

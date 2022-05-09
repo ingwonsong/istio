@@ -52,6 +52,13 @@ test.integration.asm.telemetry: | $(JUNIT_REPORT)
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
+# Custom test target for ASM telemetry tests using a real stackdriver backend.
+.PHONY: test.integration.asm.telemetry.realstackdriver
+test.integration.asm.telemetry.realstackdriver: | $(JUNIT_REPORT)
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/telemetry/stackdriver/api/... | grep -v "${DISABLED_PACKAGES}") -timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --istio.test.telemetry.useRealStackdriver=true --log_output_level=tf:debug \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+
 # Custom test target for ASM security.
 .PHONY: test.integration.asm.security
 test.integration.asm.security: | $(JUNIT_REPORT)
