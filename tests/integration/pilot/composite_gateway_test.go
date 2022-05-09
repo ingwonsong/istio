@@ -124,17 +124,22 @@ spec:
 						return nil
 					}, retry.Delay(5*time.Second), retry.Timeout(10*time.Minute))
 				})
-				t.NewSubTest("HTTP").Run(func(t framework.TestContext) {
-					apps.B[0].CallOrFail(t, echo.CallOptions{
-						Port:    echo.Port{ServicePort: 80},
-						Scheme:  scheme.HTTP,
-						Address: fmt.Sprintf("asm-gw-istio-%s.%s.svc.cluster.local", gwName, "istio-system"),
-						Check:   check.OK(),
-						Retry: echo.Retry{
-							Options: []retry.Option{retry.Timeout(time.Minute)},
-						},
+				for _, port := range []int{80, 443} {
+					t.NewSubTest(fmt.Sprintf("HTTPS-%d", port)).Run(func(t framework.TestContext) {
+						apps.B[0].CallOrFail(t, echo.CallOptions{
+							Port:   echo.Port{ServicePort: port},
+							Scheme: scheme.HTTPS,
+							TLS: echo.TLS{
+								InsecureSkipVerify: true,
+							},
+							Address: fmt.Sprintf("asm-gw-istio-%s.%s.svc.cluster.local", gwName, "istio-system"),
+							Check:   check.OK(),
+							Retry: echo.Retry{
+								Options: []retry.Option{retry.Timeout(2 * time.Minute)},
+							},
+						})
 					})
-				})
+				}
 			})
 			t.NewSubTest("GKE").Run(func(t framework.TestContext) {
 				var gw *gatewayv1alpha2.Gateway
