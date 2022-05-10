@@ -68,7 +68,7 @@ spec:
                 network: cluster-net
               clusterOptions:
                 clusters: test-cluster-tairan-hybrid-01
-                regions: us-central1
+                regions: us-west1
                 gcloudExtraFlags: --enable-ip-alias --subnetwork=cluster-internal-01
                 workloadIdentityEnabled: true
         status: {}

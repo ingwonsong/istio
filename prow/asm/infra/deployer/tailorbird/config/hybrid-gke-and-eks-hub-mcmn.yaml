@@ -32,7 +32,7 @@ spec:
                 network: default
               clusterOptions:
                 clusters: asm-ci-gcp-eks-hybrid-gcp-cluster01
-                regions: us-central1
+                regions: us-west1
                 gcloudExtraFlags: --enable-ip-alias --subnetwork=default
                 workloadIdentityEnabled: true
       - apiVersion: sut.tailorbird.io/v1alpha1
