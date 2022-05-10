@@ -355,10 +355,10 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 
 		// Create test client namespace.
 		defer func() {
-			_ = t.Clusters().Default().CoreV1().Namespaces().Delete(context.TODO(), clientNamespace, metav1.DeleteOptions{})
+			_ = t.Clusters().Default().Kube().CoreV1().Namespaces().Delete(context.TODO(), clientNamespace, metav1.DeleteOptions{})
 		}()
 
-		if _, err := t.Clusters().Default().CoreV1().Namespaces().Create(context.TODO(), &kubeApiCore.Namespace{
+		if _, err := t.Clusters().Default().Kube().CoreV1().Namespaces().Create(context.TODO(), &kubeApiCore.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: clientNamespace},
 		}, metav1.CreateOptions{}); err != nil {
 			t.Fatalf("fail to create test client namespace(%s)  , err: %v", clientNamespace, err)

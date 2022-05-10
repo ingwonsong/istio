@@ -151,6 +151,9 @@ type Settings struct {
 	// Image settings
 	Image ImageSettings
 
+	// EchoImage is the app image to be used by echo deployments.
+	EchoImage string
+
 	// UseDefaultInjectionLabels determines whether to use the "istio-injection=enabled" and
 	// "sidecar.istio.io/inject" labels for workload injection
 	UseDefaultInjectionLabels bool

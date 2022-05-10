@@ -309,7 +309,7 @@ func setupInjectEnvironment(client kubelib.Client) {
 }
 
 func createSystemNamespace(client kubelib.Client) error {
-	_, err := client.CoreV1().Namespaces().Get(context.Background(), constants.IstioSystemNamespace, metav1.GetOptions{})
+	_, err := client.Kube().CoreV1().Namespaces().Get(context.Background(), constants.IstioSystemNamespace, metav1.GetOptions{})
 	if kerrors.IsNotFound(err) {
 		log.Infof("namespace %q not found, creating it now", constants.IstioSystemNamespace)
 		ns := &corev1.Namespace{
@@ -317,7 +317,7 @@ func createSystemNamespace(client kubelib.Client) error {
 				Name: constants.IstioSystemNamespace,
 			},
 		}
-		_, err := client.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+		_, err := client.Kube().CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
 		return mcpinit.IgnoreConflict(err)
 	}
 	return err
@@ -399,10 +399,10 @@ func createOrSetWebhook(client kubelib.Client, mwh string) error {
 		return err
 	}
 
-	_, err := client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), mwc.Name, metav1.GetOptions{})
+	_, err := client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), mwc.Name, metav1.GetOptions{})
 	if kerrors.IsNotFound(err) {
 		log.Infof("mutating webhook not found, creating it now")
-		_, err := client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), mwc, metav1.CreateOptions{})
+		_, err := client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), mwc, metav1.CreateOptions{})
 		return mcpinit.IgnoreConflict(err)
 	}
 	if err != nil {
@@ -416,7 +416,7 @@ func createOrSetWebhook(client kubelib.Client, mwh string) error {
 // Returns true if the configmap had to be created.
 //         false if the configmap exists.
 func createConfigmap(client kubelib.Client, name string, data map[string]string, update bool) (bool, error) {
-	cmAPI := client.CoreV1().ConfigMaps(constants.IstioSystemNamespace)
+	cmAPI := client.Kube().CoreV1().ConfigMaps(constants.IstioSystemNamespace)
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -453,7 +453,7 @@ func getCniEnabled(options AsmOptions, client kubelib.Client) (bool, error) {
 	switch options.CNI {
 	case CheckOption:
 		// If we are in check mode, look to see if there is any CNI pods. If there is, we will enable CNI
-		pl, err := client.CoreV1().Pods(constants.KubeSystemNamespace).List(context.Background(), metav1.ListOptions{
+		pl, err := client.Kube().CoreV1().Pods(constants.KubeSystemNamespace).List(context.Background(), metav1.ListOptions{
 			LabelSelector: "k8s-app=istio-cni-node",
 			Limit:         1,
 		})
@@ -481,7 +481,7 @@ func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
 	var cm *corev1.ConfigMap
 	var err error
 	for attempts := 0; attempts < 50; attempts++ {
-		cm, err = client.CoreV1().ConfigMaps(constants.IstioSystemNamespace).Get(context.Background(), "asm-options", metav1.GetOptions{})
+		cm, err = client.Kube().CoreV1().ConfigMaps(constants.IstioSystemNamespace).Get(context.Background(), "asm-options", metav1.GetOptions{})
 		if err == nil {
 			break
 		}

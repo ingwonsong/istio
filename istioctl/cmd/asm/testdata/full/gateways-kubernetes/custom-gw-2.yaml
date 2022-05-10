@@ -1,6 +1,6 @@
 # Resources for IngressGateways component
 
-apiVersion: autoscaling/v2beta1
+apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
   name: custom-gw-2
@@ -20,10 +20,12 @@ spec:
     kind: Deployment
     name: custom-gw-2
   metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        targetAverageUtilization: 80
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
 ---
 
 

@@ -186,7 +186,7 @@ func hasAnyMCPWebhooks(ctx context.Context, client kubelib.Client) bool {
 		"istiod-asm-managed-stable",
 	}
 	for _, name := range webhooks {
-		_, err := client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, name, metav1.GetOptions{})
+		_, err := client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			log.Warnf("Could not access mutating webhook %s: %v", name, err)
 			continue
@@ -245,7 +245,7 @@ func (s *server) installCRDs(req *http.Request) (string, *httpError) {
 }
 
 func (s *server) fetchWebhookURLForMigration(ctx context.Context, client kubelib.Client, revision string) (string, error) {
-	cmAPI := client.CoreV1().ConfigMaps(constants.IstioSystemNamespace)
+	cmAPI := client.Kube().CoreV1().ConfigMaps(constants.IstioSystemNamespace)
 	name := fmt.Sprintf("env-%s", revision)
 	cm, err := cmAPI.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -267,7 +267,7 @@ func (s *server) fetchWebhookURLForMigration(ctx context.Context, client kubelib
 }
 
 func (s *server) getAndUpdateWebhook(ctx context.Context, client kubelib.Client, revision string) error {
-	mwh, err := client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, fmt.Sprintf("istiod-%s", revision), metav1.GetOptions{})
+	mwh, err := client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, fmt.Sprintf("istiod-%s", revision), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (s *server) getAndUpdateWebhook(ctx context.Context, client kubelib.Client,
 		webhook := &mwh.Webhooks[i]
 		webhook.ClientConfig.URL = &webhookURL
 	}
-	_, err = client.AdmissionregistrationV1().MutatingWebhookConfigurations().Update(ctx, mwh, metav1.UpdateOptions{})
+	_, err = client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Update(ctx, mwh, metav1.UpdateOptions{})
 	return err
 }
 

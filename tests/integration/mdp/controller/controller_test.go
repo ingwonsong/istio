@@ -218,7 +218,7 @@ func updateNamespace(t framework.TestContext, instance namespace.Instance, newRe
 func getIstiodVersion(t framework.TestContext, cs cluster.Cluster, revision string) (hub, version string) {
 	ls := fmt.Sprintf("istio.io/rev=%s", revision)
 	istiodPods, err := cs.
-		CoreV1().Pods("istio-system").
+		Kube().CoreV1().Pods("istio-system").
 		List(context.Background(), kubeApiMeta.ListOptions{LabelSelector: ls})
 	if err != nil {
 		t.Fatalf("failed to get istiod pods: %v for revision: %v", err, revision)
@@ -237,9 +237,9 @@ func getIstiodVersion(t framework.TestContext, cs cluster.Cluster, revision stri
 
 func verifyFailureEventsAndLabels(t framework.TestContext, cs cluster.Cluster, involvedObj, nsName string) {
 	retryFunc := func() error {
-		fs := cs.CoreV1().Events(nsName).GetFieldSelector(&involvedObj, &nsName, nil, nil)
+		fs := cs.Kube().CoreV1().Events(nsName).GetFieldSelector(&involvedObj, &nsName, nil, nil)
 		t.Logf("checking events and labels for pod: %v/%v", nsName, involvedObj)
-		events, err := cs.CoreV1().Events(nsName).List(context.Background(), kubeApiMeta.ListOptions{FieldSelector: fs.String()})
+		events, err := cs.Kube().CoreV1().Events(nsName).List(context.Background(), kubeApiMeta.ListOptions{FieldSelector: fs.String()})
 		if err != nil {
 			return fmt.Errorf("failed to list possible upgrade failure events: %v", err)
 		}
@@ -254,7 +254,7 @@ func verifyFailureEventsAndLabels(t framework.TestContext, cs cluster.Cluster, i
 		if !vfEvent {
 			return fmt.Errorf("failed to find expected upgrade failure events")
 		}
-		pd, err := cs.CoreV1().Pods(nsName).Get(context.Background(), involvedObj, kubeApiMeta.GetOptions{})
+		pd, err := cs.Kube().CoreV1().Pods(nsName).Get(context.Background(), involvedObj, kubeApiMeta.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get pdb restricted workload")
 		}
@@ -283,7 +283,7 @@ func verifyProxyVersion(t framework.TestContext, cs cluster.Cluster,
 	targetPodsSelection := fmt.Sprintf("app in (%s,%s,%s)", workload1, workload2, workloadPDB)
 	retryFunc := func() error {
 		allWorkloadPods, err := cs.
-			CoreV1().Pods("").
+			Kube().CoreV1().Pods("").
 			List(context.Background(), kubeApiMeta.ListOptions{LabelSelector: targetPodsSelection})
 		if allWorkloadPods == nil || err != nil {
 			return fmt.Errorf("error listing mdp managed pods: %v", err)
@@ -327,7 +327,7 @@ func verifyPodStatus(t framework.TestContext, cs cluster.Cluster) {
 	targetPodsSelection := fmt.Sprintf("app in (%s,%s)", workload1, workload2)
 	retryFunc := func() error {
 		allWorkloadPods, err := cs.
-			CoreV1().Pods("").
+			Kube().CoreV1().Pods("").
 			List(context.Background(), kubeApiMeta.ListOptions{LabelSelector: targetPodsSelection})
 		if allWorkloadPods == nil || err != nil {
 			return fmt.Errorf("error listing pods: %v", err)

@@ -67,7 +67,7 @@ func TestMisconfiguration(t *testing.T) {
 
 			// Get clients
 			cluster := ctx.Clusters().Default()
-			secretClient = cluster.CoreV1().Secrets(userAuthNS)
+			secretClient = cluster.Kube().CoreV1().Secrets(userAuthNS)
 			oauthSecret, err := secretClient.Get(context.TODO(), secretName, metav1.GetOptions{})
 			if err != nil {
 				t.Fatalf("failed getting oauth secret: %v", err)

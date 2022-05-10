@@ -140,7 +140,7 @@ func deployAutomigration(t framework.TestContext, channel, revision string) {
 	}
 
 	// check the configMap for success status to make sure auto migration is done
-	verifyMigrationStateCM(t, cs, migrationSuccessState, revision)
+	verifyMigrationStateCM(t, cs.Kube(), migrationSuccessState, revision)
 }
 
 type loggingWriter struct{}

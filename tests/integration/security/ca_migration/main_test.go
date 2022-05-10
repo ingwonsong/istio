@@ -161,17 +161,17 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 				t.Fatalf("unable to retrieve istio-system namespace: %v", err)
 			}
 			// Remove trust roots of Istio CA
-			err = cluster.CoreV1().Secrets(systemNs.Name()).Delete(context.TODO(), "istio-ca-secret", metav1.DeleteOptions{})
+			err = cluster.Kube().CoreV1().Secrets(systemNs.Name()).Delete(context.TODO(), "istio-ca-secret", metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				t.Fatalf("unable to delete secret %v from the cluster. Encountered error: %v", "istio-ca-secret", err)
 			}
-			err = cluster.CoreV1().Secrets(systemNs.Name()).Delete(context.TODO(), "cacerts", metav1.DeleteOptions{})
+			err = cluster.Kube().CoreV1().Secrets(systemNs.Name()).Delete(context.TODO(), "cacerts", metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				t.Fatalf("unable to delete secret %v from the cluster. Encountered error: %v", "cacerts", err)
 			}
 
 			// Restart MeshCa Control plane to handle removal of trust roots
-			deploymentsClient := cluster.AppsV1().Deployments(systemNs.Name())
+			deploymentsClient := cluster.Kube().AppsV1().Deployments(systemNs.Name())
 			meshcaDeployment, err := deploymentsClient.Get(context.TODO(), fmt.Sprintf("istiod-%s", MeshCARevision), metav1.GetOptions{})
 			if err != nil {
 				t.Fatalf("unable to retrieve meshca control plane deployment: %v", err)

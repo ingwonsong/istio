@@ -1,6 +1,6 @@
 # Resources for EgressGateways component
 
-apiVersion: autoscaling/v2beta1
+apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
   labels:
@@ -17,7 +17,9 @@ spec:
   metrics:
   - resource:
       name: cpu
-      targetAverageUtilization: 80
+      target:
+        averageUtilization: 80
+        type: Utilization
     type: Resource
   minReplicas: 1
   scaleTargetRef:

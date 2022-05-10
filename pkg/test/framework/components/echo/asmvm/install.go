@@ -409,7 +409,7 @@ func (i *instance) fetchInstances() (map[string]*compute.Instance, error) {
 }
 
 func getClusterIP(config echo.Config) (string, error) {
-	svc, err := config.Cluster.Primary().CoreV1().
+	svc, err := config.Cluster.Primary().Kube().CoreV1().
 		Services(config.Namespace.Name()).Get(context.TODO(), config.Service, metav1.GetOptions{})
 	if err != nil {
 		return "", err
