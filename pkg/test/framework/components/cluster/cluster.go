@@ -86,4 +86,8 @@ type Cluster interface {
 
 	// SSHKey returns the ssh key to connect to the bootstrap VM of Baremetal/AWS cluster
 	SSHKey() string
+
+	// Metadata returns the value for a given metadata key for the cluster.
+	// If the key is not found in the cluster metadata, an empty string is returned.
+	MetadataValue(key string) string
 }
