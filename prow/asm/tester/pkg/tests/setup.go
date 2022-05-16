@@ -158,6 +158,13 @@ func genTopologyFile(settings *resource.Settings) error {
   kind: Kubernetes
   meta:
     kubeconfig: %s`, clusterName, kubeconfig)
+
+		// associate the project for the cluster in the metadata for the config
+		if settings.ClusterType == resource.GKEOnGCP {
+			proj := kube.GKEClusterSpecFromContext(settings.KubeContexts[i]).ProjectID
+			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", proj)
+		}
+
 		// Disable using simulated Pod-based "VMs" when testing real VMs
 		if settings.UseGCEVMs || settings.VMStaticConfigDir != "" {
 			cc += "\n    fakeVM: false"
@@ -167,6 +174,7 @@ func genTopologyFile(settings *resource.Settings) error {
 			cc += fmt.Sprintf("\n    sshkey: %s", settings.ClusterSSHKey[i])
 			cc += fmt.Sprintf("\n  httpProxy: %s", settings.ClusterProxy[i])
 		}
+
 		// Add network name for multicloud cluster config.
 		// TODO(landow): only set this if we actually installed using it
 		// TODO (cont): consider storing the cluster.Topology (the model we're generating here) in the resource.Settings
