@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
+	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -33,8 +34,14 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 			testFlags = append(testFlags, "--istio.test.skipDelta")
 			if settings.UseAutoCPManagement {
 				// Auto CP management determines the MCP channel from the GKE release channel.
+				// Assume if there are multiple clusters, the channels are the same.
+				revisionLabel := "asm-managed"
+				channel, err := kube.GKEClusterChannelFromContext(settings.KubeContexts[0])
+				if err == nil && channel != "" && channel != "REGULAR" {
+					revisionLabel += "-" + strings.ToLower(channel)
+				}
 				testFlags = append(testFlags,
-					"--istio.test.revision=asm-managed")
+					"--istio.test.revision="+revisionLabel)
 			} else {
 				testFlags = append(testFlags,
 					// install_asm will install the image to all three channels.

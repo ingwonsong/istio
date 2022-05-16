@@ -14,7 +14,12 @@
 
 package kube
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	"istio.io/istio/prow/asm/tester/pkg/exec"
+)
 
 type GKEClusterSpec struct {
 	Name      string
@@ -47,4 +52,16 @@ func GKEClusterSpecFromContext(kubeContext string) *GKEClusterSpec {
 		}
 	}
 	return nil
+}
+
+// GKEClusterChannelFromContext retrieves the release channel for a given GKE cluster.
+func GKEClusterChannelFromContext(kubeContext string) (string, error) {
+	spec := GKEClusterSpecFromContext(kubeContext)
+	cmd := fmt.Sprintf("gcloud container clusters describe %s --region %s --project %s "+
+		"--format \"value(releaseChannel.channel)\"", spec.Name, spec.Location, spec.ProjectID)
+	channel, err := exec.RunWithOutput(cmd)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(channel), nil
 }
