@@ -1,7 +1,7 @@
-e6c917613cde0fe1457a415bde32ea13feace1e1
+ff9b627ccfed3427390008845be06298d4b20d92
 ========================================
-Kazuki Yamazaki
-Tue Apr 26 02:48:33 2022 +0900
+Clay
+Mon May 16 15:18:41 2022 -0700
 
-Fix remote secret name for GKE. (#1184)
+Fix kpt branch logic (#1200)
 
