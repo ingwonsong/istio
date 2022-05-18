@@ -101,6 +101,7 @@ type TemplateParameters struct {
 	SubnetworkRanges             string
 	PrimaryID                    string
 	BoskosProjectsRequested      []int
+	WorkloadIdentityEnabled      bool
 	IsAutoPilot                  bool
 	IsBoskosProjectRequired      bool
 	ReleaseChannel               types.ReleaseChannel
@@ -405,12 +406,20 @@ func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error 
 	template.Environment = d.getEnvironment()
 	template.GcloudExtraFlags = d.cfg.GcloudExtraFlags
 	template.GcloudCommandGroup = "beta"
+	template.WorkloadIdentityEnabled = true
 	template.IsAutoPilot = false
 	// Only acquire the GCP project from Boskos if it's running in CI.
 	template.IsBoskosProjectRequired = common.IsRunningOnCI()
 
 	if len(d.cfg.GCPProjects) > 0 {
 		template.ProjectName = d.cfg.GCPProjects[0]
+	}
+
+	if d.cfg.Features.Has(string(types.ClusterWIOnly)) {
+		// Setting it false doesn't mean GKE Workload Identity won't be used.
+		// The cluster will be created without GKE WI but asmcli will update the cluster.
+		// This is to test ASM is still functional on clusters without the **node** GKE WI.
+		template.WorkloadIdentityEnabled = false
 	}
 
 	if d.cfg.Features.Has(string(types.Autopilot)) {

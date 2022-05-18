@@ -53,7 +53,7 @@ spec:
                 environment: "{{ $data.Environment }}"
                 machineType: "e2-standard-4"
                 numNodes: 2
-                workloadIdentityEnabled: true
+                workloadIdentityEnabled: {{ $data.WorkloadIdentityEnabled }}
                 autopilot: {{ $data.IsAutoPilot }}
                 retryableErrorPatterns: "{{ $data.ErrorPatterns }}"
                 gcloudCommandGroup: "{{ $data.GcloudCommandGroup }}"

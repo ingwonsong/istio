@@ -57,7 +57,6 @@ var (
 		"--num-nodes=2",
 		"--region=us-central1,us-west1,us-east1",
 		"--network=" + networkName,
-		"--enable-workload-identity",
 		"--ignore-gcp-ssh-key=true",
 		"-v=2",
 		"--gcp-service-account=" + os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"),
@@ -155,6 +154,7 @@ func (d *Instance) flags() ([]string, error) {
 		case types.PrivateClusterLimitedAccess:
 		case types.PrivateClusterNoAccess:
 		case types.ContainerNetworkInterface:
+		case types.ClusterWIOnly:
 		case types.Autopilot:
 		case types.CasCertTemplate:
 		case types.PolicyConstraint:
@@ -184,8 +184,16 @@ func (d *Instance) getTopologyFlags(releaseChannel types.ReleaseChannel) ([]stri
 }
 
 func (d *Instance) getExtraDeployerFlags() []string {
+	extraFlags := []string{
+		"--gcloud-command-group=beta",
+	}
 	if d.cfg.Features.Has(string(types.Autopilot)) {
-		return []string{"--autopilot=true", "--gcloud-command-group=beta"}
+		return append(extraFlags, "--autopilot=true")
+	}
+
+	// Only skip this flag if Cluster Workload Identity Only feature is set.
+	if !d.cfg.Features.Has(string(types.ClusterWIOnly)) {
+		extraFlags = append(extraFlags, "--enable-workload-identity")
 	}
 
 	addonFlag := ""
@@ -197,7 +205,7 @@ func (d *Instance) getExtraDeployerFlags() []string {
 	}
 
 	// kubetest2's `create-command` flag will make its `gcloud-extra-flags` skipped so append those flags into `create-command` directly.
-	return []string{"--gcloud-command-group=beta", fmt.Sprintf("--gcloud-extra-flags='--enable-network-policy%s'", addonFlag)}
+	return append(extraFlags, fmt.Sprintf("--gcloud-extra-flags='--enable-network-policy%s'", addonFlag))
 }
 
 func (d *Instance) getClusterVersion() string {

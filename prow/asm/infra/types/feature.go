@@ -25,6 +25,7 @@ var (
 	PrivateClusterLimitedAccess      = addFeature("PRIVATE_CLUSTER_LIMITED_ACCESS")
 	PrivateClusterNoAccess           = addFeature("PRIVATE_CLUSTER_NO_ACCESS")
 	ContainerNetworkInterface        = addFeature("CNI")
+	ClusterWIOnly                    = addFeature("CLUSTER_WI_ONLY")
 	Autopilot                        = addFeature("AUTOPILOT")
 	CasCertTemplate                  = addFeature("CAS_CERT_TEMPLATE")
 	CompositeGateway                 = addFeature("COMPOSITE_GATEWAY")
