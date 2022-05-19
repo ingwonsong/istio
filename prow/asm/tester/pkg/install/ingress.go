@@ -139,6 +139,10 @@ func listIngressFiles(kubectlFlags []string, rev *revision.Config) ([]string, er
 			if strings.Contains(f.Name(), "serviceaccount") {
 				continue
 			}
+			// TODO(iamwen) remove this part when we test on 1.23+ clusters
+			if strings.Contains(f.Name(), "autoscalingv2") {
+				continue
+			}
 			gatewayManifests = append(gatewayManifests, filepath.Join(gwDir, f.Name()))
 		}
 	} else if err != nil {
