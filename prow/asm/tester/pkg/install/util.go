@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
@@ -383,5 +384,73 @@ EOF'`,
 		}
 	}
 
+	return nil
+}
+
+func warmupAutopilotCluster(context string) error {
+	cluster := kube.GKEClusterSpecFromContext(context)
+	// b/203609464
+	// Autopilot does not provide control on node, and new cluster only provides a very small node pool,
+	// which will take time to scale up during test runs and lead to test timeout.
+	// As a short term workaround, we warm up the cluster by deploying bunch of dummy workloads before running the test.
+	if err := exec.Run(
+		fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --context=%s apply -f -
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: overprovisioning
+value: -10
+globalDefault: false
+description: "Priority class used for overprovisioning."
+EOF'`, context)); err != nil {
+		return fmt.Errorf("failed to create PriorityClass for context %q: %w", context, err)
+	}
+
+	if err := exec.Run(
+		fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --context=%s apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: warmup
+  labels:
+    app: nginx
+spec:
+  replicas: 50
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      priorityClassName: overprovisioning
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+EOF'`, context)); err != nil {
+		return fmt.Errorf("failed to deploy warm up workloads for context %q: %w", context, err)
+	}
+
+	// Wait for 20 minutes before we start checking the cluster status.
+	time.Sleep(time.Minute * 20)
+
+	// Wait for the Master VM to complete resize.
+	for {
+		getStatusCmd := fmt.Sprintf("gcloud container clusters describe %s"+
+			" --project %s --region %s --format \"value(status)\"",
+			cluster.Name, cluster.ProjectID, cluster.Location)
+		clusterStatus, err := exec.RunWithOutput(getStatusCmd)
+		if err != nil {
+			return fmt.Errorf("failed to wait for cluster to complete reconciling: %w", err)
+		}
+		if strings.TrimSpace(clusterStatus) == "RUNNING" {
+			break
+		}
+		// Master VM resizing will normally take ~30min.
+		time.Sleep(time.Minute * 5)
+	}
 	return nil
 }

@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/install/multiversion"
@@ -122,6 +123,24 @@ func (c *installer) preInstall(rev *revision.Config) error {
 		return err
 	}
 	os.Setenv("ASM_REVISION_LABEL", revision.RevisionLabel())
+
+	// Autopilot clusters require over-provisioning at first to avoid scaling too frequently during tests.
+	if c.settings.FeaturesToTest.Has(string(resource.Autopilot)) {
+		var wg sync.WaitGroup
+		for _, context := range c.settings.KubeContexts {
+			contextLogger := log.New(os.Stdout,
+				fmt.Sprintf("[kubeContext: %s] ", context), log.Ldate|log.Ltime)
+			contextLogger.Println("Warm up Autopilot cluster by deploying dummy workloads")
+			wg.Add(1)
+			go func(context string) {
+				defer wg.Done()
+				if err := warmupAutopilotCluster(context); err != nil {
+					contextLogger.Println(err)
+				}
+			}(context)
+		}
+		wg.Wait()
+	}
 	return nil
 }
 
