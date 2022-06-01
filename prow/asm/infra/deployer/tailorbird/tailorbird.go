@@ -444,6 +444,7 @@ func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error 
 		case types.PrivateClusterLimitedAccess:
 		case types.PrivateClusterNoAccess:
 		case types.ContainerNetworkInterface:
+		case types.ClusterWIOnly:
 		case types.Autopilot:
 		case types.CasCertTemplate:
 		case types.PolicyConstraint:
