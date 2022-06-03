@@ -80,10 +80,11 @@ func main() {
 		mw := migration.NewMigrationWorker(clientSet, *command, *channel)
 		exporter, err := mw.InitializeMonitoring(clusterName, location)
 		if err != nil {
-			log.Fatalf("Failed to setup monitoring: %v", err)
+			log.Errorf("Failed to setup monitoring: %v", err)
+		} else {
+			view.RegisterExporter(exporter)
+			migration.ReportMigrationState(migration.PendingState)
 		}
-		view.RegisterExporter(exporter)
-		migration.ReportMigrationState(migration.PendingState)
 		if *mode == migrateMode {
 			mw.ExecuteMigrationMode()
 		} else {
