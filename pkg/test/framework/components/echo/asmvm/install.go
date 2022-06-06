@@ -114,10 +114,7 @@ spec:
 `
 
 func (i *instance) generateConfig() error {
-	params, err := kube.TemplateParams(i.config, nil)
-	if err != nil {
-		return err
-	}
+	params := kube.ServiceParams(i.config)
 	params["serviceAccount"] = i.serviceAccount()
 	// if the VMs are on a specific network use that
 	params["network"] = i.cluster.NetworkName()
@@ -127,7 +124,9 @@ func (i *instance) generateConfig() error {
 	}
 
 	if i.dir == "" {
-		if i.dir, err = i.ctx.CreateDirectory(i.resourceName()); err != nil {
+		var err error
+		i.dir, err = i.ctx.CreateDirectory(i.resourceName())
+		if err != nil {
 			return err
 		}
 	}

@@ -80,7 +80,8 @@ type MDPUpdateRateLimiter interface {
 // RateLimiting Queues, AddRateLimited() is designed for use when no failure is present, and AddFailed is used after
 // a failure.
 func NewMDPRateLimitingQueueWithSpeedLimit(limit rate.Limit, burst int, speedLimit workqueue.RateLimiter,
-	failureLimiter workqueue.RateLimiter) MDPUpdateRateLimiter {
+	failureLimiter workqueue.RateLimiter,
+) MDPUpdateRateLimiter {
 	l := rate.NewLimiter(limit, burst)
 	bucketltr := &workqueue.BucketRateLimiter{Limiter: l}
 	maxSuccess := workqueue.NewMaxOfRateLimiter(bucketltr, speedLimit)

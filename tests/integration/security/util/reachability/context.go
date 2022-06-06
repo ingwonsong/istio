@@ -110,10 +110,6 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 			continue
 		}
 		t.NewSubTest(testName).Run(func(t framework.TestContext) {
-			if c.SkippedForMulticluster && t.Clusters().IsMulticluster() {
-				t.Skip("https://github.com/istio/istio/issues/37307")
-			}
-
 			// Apply the policy.
 			cfg := t.ConfigIstio().File(c.Namespace.Name(), filepath.Join("./testdata", c.ConfigFile))
 			retry.UntilSuccessOrFail(t, func() error {
@@ -162,12 +158,6 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 								}
 							}
 
-							callCount := 1
-							if len(toClusters) > 1 {
-								// so we can validate all clusters are hit
-								callCount = util.CallsPerCluster * to.WorkloadsOrFail(t).Len()
-							}
-
 							copts := &callOptions
 							// If test case specified service call options, use that instead.
 							if c.CallOpts != nil {
@@ -179,7 +169,9 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 
 								// Set the target on the call options.
 								opts.To = to
-								opts.Count = callCount
+								if len(toClusters) == 1 {
+									opts.Count = 1
+								}
 
 								// TODO(https://github.com/istio/istio/issues/37629) go back to converge
 								opts.Retry.Options = []retry.Option{retry.Converge(1)}
@@ -202,7 +194,6 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 									tpe = "negative"
 									opts.Check = scheck.NotOK()
 								}
-
 								include := c.Include
 								if include == nil {
 									include = func(_ echo.Instance, _ echo.CallOptions) bool { return true }
@@ -217,10 +208,6 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 
 									t.NewSubTest(subTestName).
 										Run(func(t framework.TestContext) {
-											// TODO: fix Multiversion related test in multicluster
-											if t.Clusters().IsMulticluster() && apps.Multiversion.ContainsTarget(to) {
-												t.Skip("https://github.com/istio/istio/issues/37307")
-											}
 											if (apps.IsNaked(from)) && len(toClusters) > 1 {
 												// TODO use echotest to generate the cases that would work for multi-network + naked
 												t.Skip("https://github.com/istio/istio/issues/37307")

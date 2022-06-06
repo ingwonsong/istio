@@ -64,7 +64,7 @@ func sdsNeedsPush(updates model.XdsUpdates) bool {
 	if len(updates) == 0 {
 		return true
 	}
-	if len(model.ConfigNamesOfKind(updates, gvk.Secret)) > 0 {
+	if model.ConfigsHaveKind(updates, gvk.Secret) || model.ConfigsHaveKind(updates, gvk.ReferencePolicy) {
 		return true
 	}
 	return false
@@ -401,7 +401,8 @@ type SecretGen struct {
 var _ model.XdsResourceGenerator = &SecretGen{}
 
 func NewSecretGen(sc credscontroller.MulticlusterController, cache model.XdsCache, configCluster cluster.ID,
-	meshConfig *mesh.MeshConfig) *SecretGen {
+	meshConfig *mesh.MeshConfig,
+) *SecretGen {
 	// TODO: Currently we only have a single credentials controller (Kubernetes). In the future, we will need a mapping
 	// of resource type to secret controller (ie kubernetes:// -> KubernetesController, vault:// -> VaultController)
 	return &SecretGen{

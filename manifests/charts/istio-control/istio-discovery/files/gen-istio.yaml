@@ -321,6 +321,10 @@ data:
             - "-k"
             - "{{ index .ObjectMeta.Annotations `traffic.sidecar.istio.io/kubevirtInterfaces` }}"
             {{ end -}}
+            - "--log_output_level={{ annotation .ObjectMeta `sidecar.istio.io/agentLogLevel` .Values.global.logging.level }}"
+            {{ if .Values.global.logAsJson -}}
+            - "--log_as_json"
+            {{ end -}}
             {{ if .Values.istio_cni.enabled -}}
             - "--run-validation"
             - "--skip-rule-apply"
@@ -1037,22 +1041,6 @@ data:
           }
         spec:
           containers:
-          {{- range $index, $container := .Spec.Containers  }}
-          {{ if not (eq $container.Name "istio-proxy") }}
-          - name: {{ $container.Name }}
-            env:
-            - name: "GRPC_XDS_EXPERIMENTAL_SECURITY_SUPPORT"
-              value: "true"
-            - name: "GRPC_XDS_BOOTSTRAP"
-              value: "/etc/istio/proxy/grpc-bootstrap.json"
-            volumeMounts:
-            - mountPath: /var/lib/istio/data
-              name: istio-data
-            # UDS channel between istioagent and gRPC client for XDS/SDS
-            - mountPath: /etc/istio/proxy
-              name: istio-xds
-          {{- end }}
-          {{- end }}
           - name: istio-proxy
           {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image) }}
             image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image }}"
@@ -1060,9 +1048,9 @@ data:
             image: "{{ .ProxyImage }}"
           {{- end }}
             ports:
-            - containerPort: 15090
+            - containerPort: 15020
               protocol: TCP
-              name: http-envoy-prom
+              name: mesh-metrics
             args:
             - proxy
             - sidecar
@@ -1226,6 +1214,30 @@ data:
               {{ toYaml $value | indent 6 }}
               {{ end }}
               {{- end }}
+        {{- range $index, $container := .Spec.Containers  }}
+        {{ if not (eq $container.Name "istio-proxy") }}
+          - name: {{ $container.Name }}
+            env:
+              - name: "GRPC_XDS_EXPERIMENTAL_SECURITY_SUPPORT"
+                value: "true"
+              - name: "GRPC_XDS_BOOTSTRAP"
+                value: "/etc/istio/proxy/grpc-bootstrap.json"
+            volumeMounts:
+              - mountPath: /var/lib/istio/data
+                name: istio-data
+              # UDS channel between istioagent and gRPC client for XDS/SDS
+              - mountPath: /etc/istio/proxy
+                name: istio-xds
+              {{- if eq $.Values.global.caName "GkeWorkloadCertificate" }}
+              - name: gke-workload-certificate
+                mountPath: /var/run/secrets/workload-spiffe-credentials
+                readOnly: true
+              {{- else }}
+              - name: workload-certs
+                mountPath: /var/run/secrets/workload-spiffe-credentials
+              {{- end }}
+        {{- end }}
+        {{- end }}
           volumes:
           - emptyDir:
             name: workload-socket
@@ -1782,6 +1794,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: HTTP_FILTER
       match:
@@ -1906,6 +1919,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: NETWORK_FILTER
       match:
@@ -2022,6 +2036,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: HTTP_FILTER
       match:
@@ -2146,6 +2161,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: NETWORK_FILTER
       match:
@@ -2262,6 +2278,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: HTTP_FILTER
       match:
@@ -2386,6 +2403,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: NETWORK_FILTER
       match:
@@ -2502,6 +2520,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: HTTP_FILTER
       match:
@@ -2626,6 +2645,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: NETWORK_FILTER
       match:
@@ -2742,6 +2762,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: HTTP_FILTER
       match:
@@ -2866,6 +2887,7 @@ metadata:
   labels:
     istio.io/rev: default
 spec:
+  priority: -1
   configPatches:
     - applyTo: NETWORK_FILTER
       match:

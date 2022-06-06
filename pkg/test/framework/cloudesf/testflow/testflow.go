@@ -304,7 +304,8 @@ func isCustomBootstrap(path string) bool {
 }
 
 func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageAddr,
-	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs string) func(t framework.TestContext) {
+	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs string,
+) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
 		// Deploy CloudESF config.
 		for _, configPath := range cloudESFConfigs {

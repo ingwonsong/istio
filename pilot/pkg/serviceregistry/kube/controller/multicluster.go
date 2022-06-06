@@ -89,7 +89,8 @@ func NewMulticluster(
 	revision string,
 	startNsController bool,
 	clusterLocal model.ClusterLocalProvider,
-	s server.Instance) *Multicluster {
+	s server.Instance,
+) *Multicluster {
 	remoteKubeController := make(map[cluster.ID]*kubeController)
 	mc := &Multicluster{
 		serverID:               serverID,
@@ -150,15 +151,14 @@ func (m *Multicluster) ClusterAdded(cluster *multicluster.Cluster, clusterStopCh
 	}
 
 	client := cluster.Client
-	// localCluster may also be the "config" cluster, in an external-istiod setup.
-	localCluster := m.opts.ClusterID == cluster.ID
+	configCluster := m.opts.ClusterID == cluster.ID
 
 	// clusterStopCh is a channel that will be closed when this cluster removed.
 	options := m.opts
 	options.ClusterID = cluster.ID
 	// different clusters may have different k8s version, re-apply conditional default
 	options.EndpointMode = DetectEndpointMode(client)
-	if !localCluster {
+	if !configCluster {
 		options.SyncTimeout = features.RemoteClusterTimeout
 	}
 	log.Infof("Initializing Kubernetes service registry %q", options.ClusterID)
@@ -169,14 +169,13 @@ func (m *Multicluster) ClusterAdded(cluster *multicluster.Cluster, clusterStopCh
 
 	m.m.Unlock()
 
-	// TODO move instance cache out of registries
 	if m.serviceEntryController != nil && features.EnableServiceEntrySelectPods {
 		// Add an instance handler in the kubernetes registry to notify service entry store about pod events
 		kubeRegistry.AppendWorkloadHandler(m.serviceEntryController.WorkloadInstanceHandler)
 	}
 
 	// TODO implement deduping in aggregate registry to allow multiple k8s registries to handle WorkloadEntry
-	if m.serviceEntryController != nil && localCluster {
+	if m.serviceEntryController != nil && configCluster {
 		// Add an instance handler in the service entry store to notify kubernetes about workload entry events
 		m.serviceEntryController.AppendWorkloadHandler(kubeRegistry.WorkloadInstanceHandler)
 	} else if features.WorkloadEntryCrossCluster {
@@ -200,13 +199,13 @@ func (m *Multicluster) ClusterAdded(cluster *multicluster.Cluster, clusterStopCh
 	// run after WorkloadHandler is added
 	m.opts.MeshServiceController.AddRegistryAndRun(kubeRegistry, clusterStopCh)
 
-	if m.startNsController && (features.ExternalIstiod || localCluster) {
+	if m.startNsController && (features.ExternalIstiod || configCluster) {
 		// Block server exit on graceful termination of the leader controller.
 		m.s.RunComponentAsyncAndWait(func(_ <-chan struct{}) error {
 			log.Infof("joining leader-election for %s in %s on cluster %s",
 				leaderelection.NamespaceController, options.SystemNamespace, options.ClusterID)
 			election := leaderelection.
-				NewLeaderElectionMulticluster(options.SystemNamespace, m.serverID, leaderelection.NamespaceController, m.revision, !localCluster, client).
+				NewLeaderElectionMulticluster(options.SystemNamespace, m.serverID, leaderelection.NamespaceController, m.revision, !configCluster, client).
 				AddRunFunction(func(leaderStop <-chan struct{}) {
 					log.Infof("starting namespace controller for cluster %s", cluster.ID)
 					nc := NewNamespaceController(client, m.caBundleWatcher)
@@ -218,28 +217,27 @@ func (m *Multicluster) ClusterAdded(cluster *multicluster.Cluster, clusterStopCh
 					client.RunAndWait(clusterStopCh)
 					nc.Run(leaderStop)
 				})
-			// Set up injection webhook patching for remote clusters we are controlling.
-			// The local cluster has this patching set up elsewhere. We may eventually want to move it here.
-			if features.ExternalIstiod && !localCluster && m.caBundleWatcher != nil {
-				// Patch injection webhook cert
-				// This requires RBAC permissions - a low-priv Istiod should not attempt to patch but rely on
-				// operator or CI/CD
-				if features.InjectionWebhookConfigName != "" {
-					election = election.
-						AddRunFunction(func(leaderStop <-chan struct{}) {
-							log.Infof("initializing webhook cert patch for cluster %s", cluster.ID)
-							patcher, err := webhooks.NewWebhookCertPatcher(client, m.revision, webhookName, m.caBundleWatcher)
-							if err != nil {
-								log.Errorf("could not initialize webhook cert patcher: %v", err)
-							} else {
-								patcher.Run(leaderStop)
-							}
-						})
-				}
-			}
 			election.Run(clusterStopCh)
 			return nil
 		})
+	}
+	// Set up injection webhook patching for remote clusters we are controlling.
+	// The config cluster has this patching set up elsewhere. We may eventually want to move it here.
+	// We can not use leader election for webhook patching because each revision needs to patch its own
+	// webhook.
+	if features.ExternalIstiod && !configCluster && m.caBundleWatcher != nil {
+		// Patch injection webhook cert
+		// This requires RBAC permissions - a low-priv Istiod should not attempt to patch but rely on
+		// operator or CI/CD
+		if features.InjectionWebhookConfigName != "" {
+			log.Infof("initializing injection webhook cert patcher for cluster %s", cluster.ID)
+			patcher, err := webhooks.NewWebhookCertPatcher(client, m.revision, webhookName, m.caBundleWatcher)
+			if err != nil {
+				log.Errorf("could not initialize webhook cert patcher: %v", err)
+			} else {
+				go patcher.Run(clusterStopCh)
+			}
+		}
 	}
 
 	// setting up the serviceexport controller if and only if it is turned on in the meshconfig.
@@ -249,7 +247,7 @@ func (m *Multicluster) ClusterAdded(cluster *multicluster.Cluster, clusterStopCh
 		// Block server exit on graceful termination of the leader controller.
 		m.s.RunComponentAsyncAndWait(func(_ <-chan struct{}) error {
 			leaderelection.
-				NewLeaderElectionMulticluster(options.SystemNamespace, m.serverID, leaderelection.ServiceExportController, m.revision, !localCluster, client).
+				NewLeaderElectionMulticluster(options.SystemNamespace, m.serverID, leaderelection.ServiceExportController, m.revision, !configCluster, client).
 				AddRunFunction(func(leaderStop <-chan struct{}) {
 					serviceExportController := newAutoServiceExportController(autoServiceExportOptions{
 						Client:       client,

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"go.opencensus.io/stats/view"
 	"golang.org/x/time/rate"
@@ -34,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"istio.io/istio/mdp/controller/pkg/apis"
@@ -139,6 +141,7 @@ func run() {
 		"entire revision using MDP")
 	reconciler.MaxTimeToReconcile = mrt.Get()
 	scope.Infof("using max reconcile time of %v", reconciler.MaxTimeToReconcile)
+	logger := log.NewLogrAdapter(scope)
 
 	mapper := revision.NewMapper(mgr.GetClient())
 	cmhandler, cmcache := revision.NewConfigMapHandler(mapper)
@@ -153,7 +156,9 @@ func run() {
 		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{},
 			predicate.AnnotationChangedPredicate{}, predicate.LabelChangedPredicate{})).
 		Watches(&source.Kind{Type: &v1.Pod{}}, revision.NewPodHandler(mapper, pcache)).
-		WithLogger(log.NewLogrAdapter(scope)).
+		WithLogConstructor(func(request *reconcile.Request) logr.Logger {
+			return logger
+		}).
 		Watches(&source.Kind{Type: &v1.Namespace{}}, nscache).
 		Watches(&source.Kind{Type: &v1.ConfigMap{}}, cmhandler,
 			builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {

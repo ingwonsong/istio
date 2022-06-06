@@ -147,7 +147,8 @@ func NewOrFail(ctx context.Context, t framework.TestContext, opts ...option.Clie
 
 // fetchTimeSeries fetches first time series within a project that match the labels provided.
 func fetchTimeSeries(ctx context.Context, t framework.TestContext, ms *monitoring.Service, project, filter, aligner, startTime,
-	endTime string) ([]*monitoring.TimeSeries, error) {
+	endTime string,
+) ([]*monitoring.TimeSeries, error) {
 	lr := ms.Projects.TimeSeries.List(fmt.Sprintf("projects/%s", project)).
 		IntervalStartTime(startTime).
 		IntervalEndTime(endTime).
@@ -184,7 +185,8 @@ func execute(t framework.TestContext, tpl string, data interface{}) []byte {
 // GetTimeSeries gets timeseries from stackdriver based on the filters and duration provided.
 // If multiple filters are provided, timeseries retrieved with any one of them could be returned.
 func (d *Instance) GetAndValidateTimeSeries(ctx context.Context, t framework.TestContext, filters []string, aligner, startTime,
-	endTime, projectID string, expLabel []byte, templlabels map[string]interface{}) ([]*monitoring.TimeSeries, error) {
+	endTime, projectID string, expLabel []byte, templlabels map[string]interface{},
+) ([]*monitoring.TimeSeries, error) {
 	var timeSeries []*monitoring.TimeSeries
 	t.Log("fetching metrics using filters:")
 	for i, f := range filters {
@@ -287,7 +289,8 @@ func fetchLog(ctx context.Context, t framework.TestContext, loggingService *logg
 
 // ValidateMetrics validate metrics from stackdriver.
 func (d *Instance) ValidateMetrics(t framework.TestContext, ts []*monitoring.TimeSeries, expLabel []byte,
-	templlabels map[string]interface{}) error {
+	templlabels map[string]interface{},
+) error {
 	if len(expLabel) == 0 {
 		// if no expected labels provided, skip verifying metric labels.
 		return nil
@@ -354,7 +357,8 @@ func (d *Instance) ValidateMetricsWithLabels(t framework.TestContext, tss []*mon
 }
 
 func fetchTrace(ctx context.Context, t framework.TestContext, traceService *cloudtrace.Service, projectID, filter string,
-	functionStartTime string) (*cloudtrace.Trace, error) {
+	functionStartTime string,
+) (*cloudtrace.Trace, error) {
 	listTracesResponse, err := traceService.Projects.Traces.List(projectID).
 		StartTime(functionStartTime).
 		Filter(filter).

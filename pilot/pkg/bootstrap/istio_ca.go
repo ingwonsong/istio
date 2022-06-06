@@ -29,14 +29,12 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"istio.io/api/security/v1beta1"
 	"istio.io/istio/pilot/pkg/features"
 	securityModel "istio.io/istio/pilot/pkg/security/model"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/jwt"
-	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/spiffe"
 	"istio.io/istio/security/pkg/cmd"
@@ -87,7 +85,7 @@ var (
 		"Location of a local or mounted CA root")
 
 	useRemoteCerts = env.RegisterBoolVar("USE_REMOTE_CERTS", false,
-		"Whether to try to load CA certs from a remote Kubernetes cluster. Used for external Istiod.")
+		"Whether to try to load CA certs from config Kubernetes cluster. Used for external Istiod.")
 
 	workloadCertTTL = env.RegisterDurationVar("DEFAULT_WORKLOAD_CERT_TTL",
 		cmd.DefaultWorkloadCertTTL,
@@ -151,13 +149,6 @@ var (
 	keyManagementKeyID = env.RegisterStringVar("KEY_MANAGEMENT_KEY_ID", "",
 		"Key management key ID, which can be HSM KEK ID")
 )
-
-// EnableCA returns whether CA functionality is enabled in istiod.
-// This is a central consistent endpoint to get whether CA functionality is
-// enabled in istiod. EnableCA() is called in multiple places.
-func (s *Server) EnableCA() bool {
-	return features.EnableCAServer
-}
 
 // RunCA will start the cert signing GRPC service on an existing server.
 // Protected by installer options: the CA will be started only if the JWT token in /var/run/secrets
@@ -240,17 +231,19 @@ func detectAuthEnv(jwt string) (*authenticate.JwtPayload, error) {
 	return structuredPayload, nil
 }
 
-// loadRemoteCACerts mounts an existing cacerts Secret if the files aren't mounted locally.
+// loadCACerts loads an existing `cacerts` Secret if the files aren't mounted locally.
 // By default, a cacerts Secret would be mounted during pod startup due to the
 // Istiod Deployment configuration. But with external Istiod, we want to be
 // able to load cacerts from a remote cluster instead.
-func (s *Server) loadRemoteCACerts(caOpts *caOptions, dir string) error {
+func (s *Server) loadCACerts(caOpts *caOptions, dir string) error {
 	if s.kubeClient == nil {
 		return nil
 	}
 
 	signingKeyFile := path.Join(dir, ca.CAPrivateKeyFile)
-	if _, err := os.Stat(signingKeyFile); !os.IsNotExist(err) {
+	if _, err := os.Stat(signingKeyFile); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("signing key file %s already exists", signingKeyFile)
 	}
 
@@ -263,7 +256,7 @@ func (s *Server) loadRemoteCACerts(caOpts *caOptions, dir string) error {
 		return err
 	}
 
-	log.Infof("cacerts Secret found in remote cluster, saving contents to %s", dir)
+	log.Infof("cacerts Secret found in config cluster, saving contents to %s", dir)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
@@ -384,9 +377,10 @@ func (s *Server) initCACertsWatcher() {
 
 // createIstioCA initializes the Istio CA signing functionality.
 // - for 'plugged in', uses ./etc/cacert directory, mounted from 'cacerts' secret in k8s.
-//   Inside, the key/cert are 'ca-key.pem' and 'ca-cert.pem'. The root cert signing the intermediate is root-cert.pem,
-//   which may contain multiple roots. A 'cert-chain.pem' file has the full cert chain.
-func (s *Server) createIstioCA(client corev1.CoreV1Interface, opts *caOptions) (*ca.IstioCA, error) {
+//
+//	Inside, the key/cert are 'ca-key.pem' and 'ca-cert.pem'. The root cert signing the intermediate is root-cert.pem,
+//	which may contain multiple roots. A 'cert-chain.pem' file has the full cert chain.
+func (s *Server) createIstioCA(opts *caOptions) (*ca.IstioCA, error) {
 	var caOpts *ca.IstioCAOptions
 	var err error
 
@@ -410,14 +404,14 @@ func (s *Server) createIstioCA(client corev1.CoreV1Interface, opts *caOptions) (
 		defer cancel()
 
 		caOpts, err = ca.NewKMSBackedCAOptions(ctx, workloadCertTTL.Get(), maxWorkloadCertTTL.Get(), opts.TrustDomain, true,
-			opts.Namespace, client, caRSAKeySize.Get(), keyManagementEndpoint.Get(), []byte(keyManagementKeyID.Get()))
+			opts.Namespace, s.kubeClient.Kube().CoreV1(), caRSAKeySize.Get(), keyManagementEndpoint.Get(), []byte(keyManagementKeyID.Get()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a KMS backed CA: %v", err)
 		}
 
 	} else if _, err := os.Stat(signingKeyFile); err != nil {
 		// The user-provided certs are missing - create a self-signed cert.
-		if client != nil {
+		if s.kubeClient != nil {
 			log.Info("Use self-signed certificate as the CA certificate")
 
 			// Abort after 20 minutes.
@@ -430,7 +424,7 @@ func (s *Server) createIstioCA(client corev1.CoreV1Interface, opts *caOptions) (
 				selfSignedRootCertGracePeriodPercentile.Get(), SelfSignedCACertTTL.Get(),
 				selfSignedRootCertCheckInterval.Get(), workloadCertTTL.Get(),
 				maxWorkloadCertTTL.Get(), opts.TrustDomain, true,
-				opts.Namespace, -1, client, rootCertFile,
+				opts.Namespace, -1, s.kubeClient.Kube().CoreV1(), rootCertFile,
 				enableJitterForRootCertRotator.Get(), caRSAKeySize.Get())
 		} else {
 			log.Warnf(
@@ -479,10 +473,11 @@ func (s *Server) createIstioCA(client corev1.CoreV1Interface, opts *caOptions) (
 // ca cert can come from three sources, order matters:
 // 1. Define ca cert via kubernetes secret and mount the secret through `external-ca-cert` volume
 // 2. Use kubernetes ca cert `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` if signer is
-//    kubernetes built-in `kubernetes.io/legacy-unknown" signer
+//
+//	kubernetes built-in `kubernetes.io/legacy-unknown" signer
+//
 // 3. Extract from the cert-chain signed by other CSR signer.
-func (s *Server) createIstioRA(client kubelib.Client,
-	opts *caOptions) (ra.RegistrationAuthority, error) {
+func (s *Server) createIstioRA(opts *caOptions) (ra.RegistrationAuthority, error) {
 	caCertFile := path.Join(ra.DefaultExtCACertDir, constants.CACertNamespaceConfigMapDataName)
 	certSignerDomain := opts.CertSignerDomain
 	_, err := os.Stat(caCertFile)
@@ -500,6 +495,10 @@ func (s *Server) createIstioRA(client kubelib.Client,
 			caCertFile = ""
 		}
 	}
+
+	if s.kubeClient == nil {
+		return nil, fmt.Errorf("kubeClient is nil")
+	}
 	raOpts := &ra.IstioRAOptions{
 		ExternalCAType:   opts.ExternalCAType,
 		DefaultCertTTL:   workloadCertTTL.Get(),
@@ -507,7 +506,7 @@ func (s *Server) createIstioRA(client kubelib.Client,
 		CaSigner:         opts.ExternalCASigner,
 		CaCertFile:       caCertFile,
 		VerifyAppendCA:   true,
-		K8sClient:        client.Kube(),
+		K8sClient:        s.kubeClient.Kube(),
 		TrustDomain:      opts.TrustDomain,
 		CertSignerDomain: opts.CertSignerDomain,
 	}

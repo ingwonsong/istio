@@ -143,7 +143,7 @@ func initXdsProxy(ia *Agent) (*XdsProxy, error) {
 		}
 	}
 
-	cache := wasm.NewLocalFileCache(constants.IstioDataDir, wasm.DefaultWasmModulePurgeInterval, wasm.DefaultWasmModuleExpiry, ia.cfg.WASMInsecureRegistries)
+	cache := wasm.NewLocalFileCache(constants.IstioDataDir, ia.cfg.WASMOptions)
 	proxy := &XdsProxy{
 		istiodAddress:         ia.proxyConfig.DiscoveryAddress,
 		istiodSAN:             ia.cfg.IstiodSAN,
@@ -497,6 +497,7 @@ func (p *XdsProxy) handleUpstreamRequest(con *ProxyConnection) {
 }
 
 func (p *XdsProxy) handleUpstreamResponse(con *ProxyConnection) {
+	forwardEnvoyCh := make(chan *discovery.DiscoveryResponse, 1)
 	for {
 		select {
 		case resp := <-con.responsesChan:
@@ -530,7 +531,14 @@ func (p *XdsProxy) handleUpstreamResponse(con *ProxyConnection) {
 			case v3.ExtensionConfigurationType:
 				if features.WasmRemoteLoadConversion {
 					// If Wasm remote load conversion feature is enabled, rewrite and send.
-					go p.rewriteAndForward(con, resp)
+					go p.rewriteAndForward(con, resp, func(resp *discovery.DiscoveryResponse) {
+						// Forward the response using the thread of `handleUpstreamResponse`
+						// to prevent concurrent access to forwardToEnvoy
+						select {
+						case forwardEnvoyCh <- resp:
+						case <-con.stopChan:
+						}
+					})
 				} else {
 					// Otherwise, forward ECDS resource update directly to Envoy.
 					forwardToEnvoy(con, resp)
@@ -542,13 +550,15 @@ func (p *XdsProxy) handleUpstreamResponse(con *ProxyConnection) {
 					forwardToEnvoy(con, resp)
 				}
 			}
+		case resp := <-forwardEnvoyCh:
+			forwardToEnvoy(con, resp)
 		case <-con.stopChan:
 			return
 		}
 	}
 }
 
-func (p *XdsProxy) rewriteAndForward(con *ProxyConnection, resp *discovery.DiscoveryResponse) {
+func (p *XdsProxy) rewriteAndForward(con *ProxyConnection, resp *discovery.DiscoveryResponse, forward func(resp *discovery.DiscoveryResponse)) {
 	sendNack := wasm.MaybeConvertWasmExtensionConfig(resp.Resources, p.wasmCache)
 	if sendNack {
 		proxyLog.Debugf("sending NACK for ECDS resources %+v", resp.Resources)
@@ -564,7 +574,7 @@ func (p *XdsProxy) rewriteAndForward(con *ProxyConnection, resp *discovery.Disco
 		return
 	}
 	proxyLog.Debugf("forward ECDS resources %+v", resp.Resources)
-	forwardToEnvoy(con, resp)
+	forward(resp)
 }
 
 func (p *XdsProxy) forwardToTap(resp *discovery.DiscoveryResponse) {

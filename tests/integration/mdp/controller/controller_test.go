@@ -276,7 +276,8 @@ func verifyFailureEventsAndLabels(t framework.TestContext, cs cluster.Cluster, i
 
 // verifyProxyVersion is a helper function to verify proxies percentage, it can be used before and after upgrade.
 func verifyProxyVersion(t framework.TestContext, cs cluster.Cluster,
-	expectedPercentage float32, revision string) {
+	expectedPercentage float32, revision string,
+) {
 	_, expectedVersion := getIstiodVersion(t, cs, revision)
 	scopes.Framework.Infof("expected proxy version is: %v", expectedVersion)
 

@@ -79,7 +79,8 @@ type UpdateWorkerImpl struct {
 }
 
 func NewWorker(revision, version string, limit rate.Limit, burst int, upgrader DataPlaneUpgrader,
-	podCache revision.ReadPodCache, client client.Client, eventRecorder record.EventRecorder) UpdateWorker {
+	podCache revision.ReadPodCache, client client.Client, eventRecorder record.EventRecorder,
+) UpdateWorker {
 	// TODO: set up metrics provider https://pkg.go.dev/k8s.io/client-go/util/workqueue#MetricsProvider
 	failureLimiter := workqueue.NewItemExponentialFailureRateLimiter(minFail, maxFail)
 	return &UpdateWorkerImpl{

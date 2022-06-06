@@ -98,6 +98,13 @@ func (e *Environment) Mesh() *meshconfig.MeshConfig {
 	return nil
 }
 
+func (e *Environment) MeshNetworks() *meshconfig.MeshNetworks {
+	if e != nil && e.NetworksWatcher != nil {
+		return e.NetworksWatcher.Networks()
+	}
+	return nil
+}
+
 // GetDiscoveryAddress parses the DiscoveryAddress specified via MeshConfig.
 func (e *Environment) GetDiscoveryAddress() (host.Name, string, error) {
 	proxyConfig := mesh.DefaultProxyConfig()
@@ -622,6 +629,9 @@ type NodeMetadata struct {
 	// OutboundListenerExactBalance sets connection balance config to use exact_balance for outbound
 	// redirected tcp listeners. This does not change the virtualOutbound listener.
 	OutboundListenerExactBalance StringBool `json:"OUTBOUND_LISTENER_EXACT_BALANCE,omitempty"`
+
+	// The istiod address when running ASM Managed Control Plane.
+	CloudrunAddr string `json:"CLOUDRUN_ADDR,omitempty"`
 
 	// Contains a copy of the raw metadata. This is needed to lookup arbitrary values.
 	// If a value is known ahead of time it should be added to the struct rather than reading from here,

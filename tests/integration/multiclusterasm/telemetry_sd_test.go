@@ -218,7 +218,8 @@ func sendTraffic(t framework.TestContext, src, dest echo.Instance, portName stri
 }
 
 func validateMetrics(t framework.TestContext, portName string, projectID string, sd *stackdriver.Instance, ns namespace.Instance, src, dest echo.Instance,
-	startTime, endTime string, param *stackdriver.ResourceFilterParam) error {
+	startTime, endTime string, param *stackdriver.ResourceFilterParam,
+) error {
 	metricParam := *param
 	metricParam.FilterFor = "metric"
 	filter := fmt.Sprintf("%s AND metric.type = %q", metricParam, "istio.io/service/server/request_count")
@@ -262,7 +263,8 @@ func validateMetrics(t framework.TestContext, portName string, projectID string,
 }
 
 func validateLog(ctx framework.TestContext, projectID string, sd *stackdriver.Instance, src, dest echo.Instance,
-	param *stackdriver.ResourceFilterParam, startTime string, filter string) {
+	param *stackdriver.ResourceFilterParam, startTime string, filter string,
+) {
 	logParam := *param
 	logParam.FilterFor = "log"
 	lf := fmt.Sprintf("%s AND timestamp > %q AND logName=\"projects/%s/logs/%s\"", logParam, startTime, projectID, filter)

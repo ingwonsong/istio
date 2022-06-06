@@ -51,7 +51,8 @@ const (
 )
 
 func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances, b echo.Instances,
-	expectSuccess bool, testPrefix string) {
+	expectSuccess bool, testPrefix string,
+) {
 	t.Helper()
 	ctx.NewSubTest(testPrefix).Run(func(t framework.TestContext) {
 		srcList := []echo.Instance{a[0], b[0]}

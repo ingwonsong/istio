@@ -1,7 +1,12 @@
-ff9b627ccfed3427390008845be06298d4b20d92
+429bdb6298827bbe31dcf7dee40c01b835335301
 ========================================
-Clay
-Mon May 16 15:18:41 2022 -0700
+Tairan Jin
+Sat May 28 05:10:51 2022 +0000
 
-Fix kpt branch logic (#1200)
+In-place CA Migration Script Skeleton (#1203)
 
+* In-place CA Migration Script Skeleton
+
+* add flag parsing for subcommands
+
+* add check prerequisite subcommand

@@ -53,7 +53,8 @@ type mockKmsServer struct {
 
 // GenerateKEK returns the KID of the GeneratedKEK if allowed/successful
 func (m *mockKmsService) GenerateKEK(ctx context.Context, request *istio.GenerateKEKRequest) (
-	*istio.GenerateKEKResponse, error) {
+	*istio.GenerateKEKResponse, error,
+) {
 	out := &istio.GenerateKEKResponse{
 		KekKid: m.kekKid,
 	}
@@ -65,7 +66,8 @@ func (m *mockKmsService) GenerateKEK(ctx context.Context, request *istio.Generat
 
 // GenerateDEK returns a wrapped (by HSM handled KEK)
 func (m *mockKmsService) GenerateDEK(ctx context.Context, request *istio.GenerateDEKRequest) (
-	*istio.GenerateDEKResponse, error) {
+	*istio.GenerateDEKResponse, error,
+) {
 	out := &istio.GenerateDEKResponse{
 		EncryptedDekBlob: m.encryptedDekBlob,
 	}
@@ -77,7 +79,8 @@ func (m *mockKmsService) GenerateDEK(ctx context.Context, request *istio.Generat
 
 // GenerateSKey returns a wrapped (by provided encrypted DEK ), for later use during loading and signing key generation
 func (m *mockKmsService) GenerateSKey(ctx context.Context, request *istio.GenerateSKeyRequest) (
-	*istio.GenerateSKeyResponse, error) {
+	*istio.GenerateSKeyResponse, error,
+) {
 	out := &istio.GenerateSKeyResponse{
 		EncryptedSkeyBlob: m.encryptedSkeyBlob,
 	}
@@ -89,7 +92,8 @@ func (m *mockKmsService) GenerateSKey(ctx context.Context, request *istio.Genera
 
 // LoadSKey returns the SKey unwrapped for the controller to use for CA work...
 func (m *mockKmsService) LoadSKey(ctx context.Context, request *istio.LoadSKeyRequest) (
-	*istio.LoadSKeyResponse, error) {
+	*istio.LoadSKeyResponse, error,
+) {
 	out := &istio.LoadSKeyResponse{
 		PlaintextSkey: m.plaintextSkey,
 	}
@@ -100,7 +104,8 @@ func (m *mockKmsService) LoadSKey(ctx context.Context, request *istio.LoadSKeyRe
 }
 
 func (m *mockKmsService) AuthenticatedEncrypt(ctx context.Context, request *istio.AuthenticatedEncryptRequest) (
-	*istio.AuthenticatedEncryptResponse, error) {
+	*istio.AuthenticatedEncryptResponse, error,
+) {
 	out := &istio.AuthenticatedEncryptResponse{
 		Ciphertext: m.ciphertext,
 	}
@@ -111,7 +116,8 @@ func (m *mockKmsService) AuthenticatedEncrypt(ctx context.Context, request *isti
 }
 
 func (m *mockKmsService) AuthenticatedDecrypt(ctx context.Context, request *istio.AuthenticatedDecryptRequest) (
-	*istio.AuthenticatedDecryptResponse, error) {
+	*istio.AuthenticatedDecryptResponse, error,
+) {
 	out := &istio.AuthenticatedDecryptResponse{
 		Plaintext: m.plaintext,
 	}
@@ -122,12 +128,14 @@ func (m *mockKmsService) AuthenticatedDecrypt(ctx context.Context, request *isti
 }
 
 func (m *mockKmsService) ImportCACert(ctx context.Context, request *istio.ImportCACertRequest) (
-	*istio.ImportCACertResponse, error) {
+	*istio.ImportCACertResponse, error,
+) {
 	return nil, nil
 }
 
 func (m *mockKmsService) VerifyCertChain(ctx context.Context, request *istio.VerifyCertChainRequest) (
-	*istio.VerifyCertChainResponse, error) {
+	*istio.VerifyCertChainResponse, error,
+) {
 	return nil, nil
 }
 

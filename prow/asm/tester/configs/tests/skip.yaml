@@ -44,6 +44,9 @@ tests:
     - names:
       - TestJWTHTTPS
       buganizerID: 215175941
+    - names:
+      - TestRequestAuthentication/remote
+      buganizerID: 235203166
 
 
   # Multiversion test skips.
@@ -687,6 +690,9 @@ tests:
           - TestSimpleTlsOrigination
           - TestMutualTlsOrigination
         buganizerID: 219498565
+      - names:
+        - TestJWTHTTPS
+        buganizerID: 215175941
 
       # cloudesf/tests
       - names:
@@ -726,6 +732,9 @@ tests:
       - names:
           - TestTelemetry/telemetry
         reason: Prometheus shouldn't be tested for MCP. We have a separate test for real stackdriver.
+      - names:
+          - TestJWTHTTPS
+        buganizerID: 215175941
 
   # Managed CP, cluster topology = sc OR SINGLECLUSTER, feature = VPC_SC
   - selectors:

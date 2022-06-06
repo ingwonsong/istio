@@ -39,7 +39,8 @@ const (
 
 // NewResID creates new resource identifier
 func NewResID(
-	k config.GroupVersionKind, n string) ResID {
+	k config.GroupVersionKind, n string,
+) ResID {
 	return ResID{gvk: k, name: n}
 }
 

@@ -128,7 +128,8 @@ func TestReconcile(t *testing.T) {
 	// inject fakes of the functions used to build proxyupdater classes
 	fu := &FakeUpgradeWorker{}
 	workerBuilder = func(revision, version string, limit rate.Limit, burst int, upgrader proxyupdater.DataPlaneUpgrader,
-		podCache revision.ReadPodCache, client client.Client, eventRecorder record.EventRecorder) proxyupdater.UpdateWorker {
+		podCache revision.ReadPodCache, client client.Client, eventRecorder record.EventRecorder,
+	) proxyupdater.UpdateWorker {
 		return fu
 	}
 	upgraderBuilder = func(cs *kubernetes.Clientset) proxyupdater.DataPlaneUpgrader {

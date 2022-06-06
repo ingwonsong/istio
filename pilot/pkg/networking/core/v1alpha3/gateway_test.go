@@ -24,18 +24,22 @@ import (
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	auth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
+	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/features"
 	pilot_model "istio.io/istio/pilot/pkg/model"
 	istionetworking "istio.io/istio/pilot/pkg/networking"
+	"istio.io/istio/pilot/pkg/networking/core/v1alpha3/listenertest"
 	"istio.io/istio/pilot/pkg/networking/util"
 	"istio.io/istio/pilot/pkg/security/model"
+	xdsfilters "istio.io/istio/pilot/pkg/xds/filters"
 	"istio.io/istio/pilot/test/xdstest"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/host"
@@ -1506,7 +1510,7 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 				tc.server: {SNIHosts: pilot_model.GetSNIHostsForServer(tc.server)},
 			}}
 			ret := cgi.createGatewayHTTPFilterChainOpts(tc.node, tc.server.Port, tc.server,
-				tc.routeName, tc.proxyConfig, tc.transportProtocol)
+				tc.routeName, tc.proxyConfig, tc.transportProtocol, nil)
 			if diff := cmp.Diff(tc.result.tlsContext, ret.tlsContext, protocmp.Transform()); diff != "" {
 				t.Errorf("got diff in tls context: %v", diff)
 			}
@@ -2509,5 +2513,261 @@ func TestBuildNameToServiceMapForHttpRoutes(t *testing.T) {
 
 	if service, exist := nameToServiceMap[bazHostName]; !exist || service != nil {
 		t.Errorf("The value of hostname %s mapping must be exist and it should be nil.", bazHostName)
+	}
+}
+
+func TestBuildGatewayListenersFilters(t *testing.T) {
+	cases := []struct {
+		name                   string
+		gateways               []config.Config
+		virtualServices        []config.Config
+		expectedHTTPFilters    []string
+		expectedNetworkFilters []string
+	}{
+		{
+			name: "http server",
+			gateways: []config.Config{
+				{
+					Meta: config.Meta{Name: "http-server", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port: &networking.Port{Name: "http", Number: 80, Protocol: "HTTP"},
+							},
+						},
+					},
+				},
+			},
+			virtualServices: nil,
+			expectedHTTPFilters: []string{
+				xdsfilters.MxFilterName,
+				xdsfilters.Alpn.GetName(),
+				xdsfilters.Fault.GetName(), xdsfilters.Cors.GetName(), xdsfilters.Router.GetName(),
+			},
+			expectedNetworkFilters: []string{wellknown.HTTPConnectionManager},
+		},
+		{
+			name: "passthrough server",
+			gateways: []config.Config{
+				{
+					Meta: config.Meta{Name: "passthrough-gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "tls", Number: 9443, Protocol: "TLS"},
+								Hosts: []string{"barone.example.com"},
+								Tls:   &networking.ServerTLSSettings{Mode: networking.ServerTLSSettings_PASSTHROUGH},
+							},
+						},
+					},
+				},
+			},
+			virtualServices: []config.Config{
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/passthrough-gateway"},
+						Hosts:    []string{"barone.example.com"},
+						Tls: []*networking.TLSRoute{
+							{
+								Match: []*networking.TLSMatchAttributes{
+									{
+										Port:     9443,
+										SniHosts: []string{"barone.example.com"},
+									},
+								},
+								Route: []*networking.RouteDestination{
+									{
+										Destination: &networking.Destination{
+											Host: "foo.com",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedHTTPFilters:    []string{},
+			expectedNetworkFilters: []string{wellknown.TCPProxy},
+		},
+		{
+			name: "terminated-tls server",
+			gateways: []config.Config{
+				{
+					Meta: config.Meta{Name: "terminated-tls-gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "tls", Number: 5678, Protocol: "TLS"},
+								Hosts: []string{"barone.example.com"},
+								Tls:   &networking.ServerTLSSettings{CredentialName: "test", Mode: networking.ServerTLSSettings_SIMPLE},
+							},
+						},
+					},
+				},
+			},
+			virtualServices: []config.Config{
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/terminated-tls-gateway"},
+						Hosts:    []string{"barone.example.com"},
+						Tcp: []*networking.TCPRoute{
+							{
+								Match: []*networking.L4MatchAttributes{
+									{
+										Port: 5678,
+									},
+								},
+								Route: []*networking.RouteDestination{
+									{
+										Destination: &networking.Destination{
+											Host: "foo.com",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedHTTPFilters:    []string{},
+			expectedNetworkFilters: []string{wellknown.TCPProxy},
+		},
+		{
+			name: "non-http istio-mtls server",
+			gateways: []config.Config{
+				{
+					Meta: config.Meta{Name: "non-http-gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "mtls", Number: 15443, Protocol: "TLS"},
+								Hosts: []string{"barone.example.com"},
+								Tls:   &networking.ServerTLSSettings{Mode: networking.ServerTLSSettings_ISTIO_MUTUAL},
+							},
+						},
+					},
+				},
+			},
+			virtualServices: []config.Config{
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/non-http-gateway"},
+						Hosts:    []string{"barone.example.com"},
+						Tcp: []*networking.TCPRoute{
+							{
+								Match: []*networking.L4MatchAttributes{
+									{
+										Port: 15443,
+									},
+								},
+								Route: []*networking.RouteDestination{
+									{
+										Destination: &networking.Destination{
+											Host: "foo.com",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedHTTPFilters:    []string{},
+			expectedNetworkFilters: []string{xdsfilters.TCPListenerMx.GetName(), wellknown.TCPProxy},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			Configs := make([]config.Config, 0)
+			Configs = append(Configs, tt.gateways...)
+			Configs = append(Configs, tt.virtualServices...)
+			cg := NewConfigGenTest(t, TestOptions{
+				Configs: Configs,
+			})
+			proxy := cg.SetupProxy(&proxyGateway)
+			proxy.Metadata = &proxyGatewayMetadata
+
+			builder := cg.ConfigGen.buildGatewayListeners(&ListenerBuilder{node: proxy, push: cg.PushContext()})
+			listenertest.VerifyListeners(t, builder.gatewayListeners, listenertest.ListenersTest{
+				Listener: listenertest.ListenerTest{FilterChains: []listenertest.FilterChainTest{
+					{
+						NetworkFilters: tt.expectedNetworkFilters,
+						HTTPFilters:    tt.expectedHTTPFilters,
+					},
+				}},
+			})
+		})
+	}
+}
+
+func TestGatewayHCMInternalAddressConfig(t *testing.T) {
+	cg := NewConfigGenTest(t, TestOptions{})
+	proxy := &pilot_model.Proxy{
+		Type:            pilot_model.Router,
+		ConfigNamespace: "test",
+	}
+	proxy = cg.SetupProxy(proxy)
+	test.SetBoolForTest(t, &features.EnableHCMInternalNetworks, true)
+	push := cg.PushContext()
+	cases := []struct {
+		name           string
+		networks       *meshconfig.MeshNetworks
+		expectedconfig *hcm.HttpConnectionManager_InternalAddressConfig
+	}{
+		{
+			name:           "nil networks",
+			expectedconfig: nil,
+		},
+		{
+			name:           "empty networks",
+			networks:       &meshconfig.MeshNetworks{},
+			expectedconfig: nil,
+		},
+		{
+			name: "networks populated",
+			networks: &meshconfig.MeshNetworks{
+				Networks: map[string]*meshconfig.Network{
+					"default": {
+						Endpoints: []*meshconfig.Network_NetworkEndpoints{
+							{
+								Ne: &meshconfig.Network_NetworkEndpoints_FromCidr{
+									FromCidr: "192.168/16",
+								},
+							},
+							{
+								Ne: &meshconfig.Network_NetworkEndpoints_FromCidr{
+									FromCidr: "172.16/12",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedconfig: &hcm.HttpConnectionManager_InternalAddressConfig{
+				CidrRanges: []*core.CidrRange{
+					{
+						AddressPrefix: "192.168",
+						PrefixLen:     &wrappers.UInt32Value{Value: 16},
+					},
+					{
+						AddressPrefix: "172.16",
+						PrefixLen:     &wrappers.UInt32Value{Value: 12},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			push.Networks = tt.networks
+			httpConnManager := buildGatewayConnectionManager(&meshconfig.ProxyConfig{}, proxy, false, push)
+			if !reflect.DeepEqual(tt.expectedconfig, httpConnManager.InternalAddressConfig) {
+				t.Errorf("unexpected internal address config, expected: %v, got :%v", tt.expectedconfig, httpConnManager.InternalAddressConfig)
+			}
+		})
 	}
 }

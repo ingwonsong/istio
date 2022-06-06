@@ -58,7 +58,8 @@ func ReportProxiesSingleVersion(ver, revision string, count int) {
 
 // ReportUpgradedProxiesCount reports upgraded_proxy_count metric
 func ReportUpgradedProxiesCount(fromProxyVersion,
-	toProxyVersion, result, revision string) {
+	toProxyVersion, result, revision string,
+) {
 	upgradedProxiesCount.With(fromProxyVersionLabel.Value(fromProxyVersion),
 		toProxyVersionLabel.Value(toProxyVersion),
 		resultLabel.Value(result),
