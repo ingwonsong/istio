@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -275,6 +276,14 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 				return fmt.Errorf("failed to create HTTP client for MCP VPCSC installation verification: %w", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				const pref = "failed to call fetchControlPlane"
+				bs, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return fmt.Errorf("%s: %s (response body was not available: %v)", pref, resp.Status, err)
+				}
+				return fmt.Errorf("%s: %s (%s)", pref, bs, resp.Status)
+			}
 			cp := struct {
 				Name    string `json:"name"`
 				State   string `json:"state"`
