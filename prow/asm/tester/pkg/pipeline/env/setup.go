@@ -15,6 +15,7 @@
 package env
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -121,9 +122,15 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 		settings.ClusterGCPProjects = projectIDs
 		// If it's using the gke clusters, use the first available project to hold the images.
 		gcrProjectID = settings.ClusterGCPProjects[0]
-		// If GCP projects have not been set, use the Cluster projects
+		// If GCP projects have not been set, get the projects listed in the
+		// status.json file located in the same folder as the kubeconfig file.
 		if len(settings.GCPProjects[0]) == 0 {
-			settings.GCPProjects = settings.ClusterGCPProjects
+			kubeconfigs := filepath.SplitList(settings.Kubeconfig)
+			artifactsPath := filepath.Dir(kubeconfigs[0])
+			settings.GCPProjects, err = getProjectsFromStatusFile(artifactsPath)
+			if err != nil {
+				return fmt.Errorf("error getting projects from status file: %w", err)
+			}
 		}
 	} else {
 		// Otherwise use the shared GCP project to hold these images.
@@ -772,3 +779,31 @@ func setCloudSDKProject(project string) error {
 
 	return nil
 }
+
+// getProjectsFromStatusFile returns the list of GCP projects from
+// status.json file. These projects were acquired from
+// Boskos by Tailorbird before cluster(s) creation.
+func getProjectsFromStatusFile(configPath string) ([]string, error) {
+	status, err := ioutil.ReadFile(fmt.Sprintf("%s/status.json", configPath))
+	if err != nil {
+		return nil, fmt.Errorf("error reading the status file: %w", err)
+	}
+
+	var res map[string]interface{}
+	err = json.Unmarshal(status, &res)
+	if err != nil {
+		return nil, fmt.Errorf("error reading the status file: %w", err)
+	}
+
+	// the key used to store the project list is different for multi-clusters.
+	// First cluster created has key 'boskosProjects' and the second has 'projects'
+	key := "boskosProjects"
+	_, exists := res[key]
+	if !exists {
+		key = "projects"
+	}
+
+	projects := strings.Split(res[key].(string), ",")
+	return projects, nil
+}
+

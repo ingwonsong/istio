@@ -1,0 +1,61 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-gke-mp
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 14400 # 4 hours
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-ci-gke-mp-knest
+    spec:
+      clusters:
+      {{ $data := . -}}
+      {{- range $index,$clusterName := .ClusterNames }}
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-gke-mp-cluster-{{ $index }}
+        spec:
+          provider: gcp
+          distribution: gke
+          provisionerArgs:
+            pluginSpecYaml: |
+              {{- if eq $index 0 }}
+              pluginOptions:
+                primaryID: "{{ $data.PrimaryID }}"
+              projectOptions:
+                {{- if $data.IsBoskosProjectRequired }}
+                boskosResourceType:{{ range $type := $data.BoskosResourceType }}
+                - {{ $type }}{{ end }}
+                boskosProjectsRequested:{{ range $number := $data.BoskosProjectsRequested }}
+                - {{ $number }}{{ end }}
+                boskosLocation: http://middleware-operators-boskos.middleware-operators.svc.cluster.local.
+                {{- else }}
+                projects: "{{ $data.Projects }}"
+                {{- end }}
+              {{- else }}
+              pluginOptions:
+                primarySelector: "{{ $data.PrimaryID }}"
+              {{- end }}
+              networkOptions:
+                network: "{{ $data.NetworkName }}"
+                privateClusterAccessLevel: "{{ $data.PrivateClusterAccessLevel }}"
+                privateClusterMasterIPRanges: "{{ $data.PrivateClusterMasterIPRanges }}"
+                subnetworkRanges: "{{ $data.SubnetworkRanges }}"
+              clusterOptions:
+                clusters: "{{ $clusterName }}"
+                regions: "us-central1,us-west1,us-east1"
+                clusterVersion: "{{ $data.Version }}"
+                releaseChannel: "{{ $data.ReleaseChannel }}"
+                environment: "{{ $data.Environment }}"
+                machineType: "e2-standard-4"
+                numNodes: 2
+                workloadIdentityEnabled: true
+                autopilot: {{ $data.IsAutoPilot }}
+                retryableErrorPatterns: "{{ $data.ErrorPatterns }}"
+                gcloudCommandGroup: "{{ $data.GcloudCommandGroup }}"
+                gcloudExtraFlags: "{{ $data.GcloudExtraFlags }}"
+      {{- end }}
