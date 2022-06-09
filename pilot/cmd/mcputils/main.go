@@ -150,6 +150,9 @@ type updateWehooksRequest struct {
 	RequestShared
 	// Revision signals which webhook/controlplane should be updated
 	Revision string `json:"revision"`
+	// DuplicatedCloudRunURL is the url of the duplicated control plane.
+	// Used to verify and signal if validatingwebhooks require an update as well.
+	DuplicatedCloudRunURL string `json:"duplicatedCloudRunURL"`
 }
 
 type server struct {
@@ -244,46 +247,73 @@ func (s *server) installCRDs(req *http.Request) (string, *httpError) {
 	return fmt.Sprintf("CRDs installed (version: %s)\n", version.Info.Version), nil
 }
 
-func (s *server) fetchWebhookURLForMigration(ctx context.Context, client kubelib.Client, revision string) (string, error) {
+func (s *server) fetchWebhookURLsForMigration(
+	ctx context.Context,
+	client kubelib.Client,
+	revision string,
+) (mutatingWebhookURL string, validatingWebhookURL string, err error) {
 	cmAPI := client.Kube().CoreV1().ConfigMaps(constants.IstioSystemNamespace)
 	name := fmt.Sprintf("env-%s", revision)
 	cm, err := cmAPI.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	addr := cm.Data["CLOUDRUN_ADDR"]
 	if addr == "" {
-		return "", fmt.Errorf("cloudrun_addr does not exist in %s", name)
+		return "", "", fmt.Errorf("cloudrun_addr does not exist in %s", name)
 	}
+	vwhURL := fmt.Sprintf("https://%s/validate", addr)
 	// In asm version 1.13+ we indicate whether a webhook should be proxied using
 	// the WEBHOOK_PROXY flag set in the config map.
 	//
 	// Note: VPC-SC uses a webhook proxy prior to 1.13, but VPC-SC webhooks should
 	// not be updated in the webhook migration since VPC-SC is an AFC only feature.
 	if cm.Data["WEBHOOK_PROXY"] == "true" {
-		return fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/webhooks/inject/ISTIO_META_CLOUDRUN_ADDR/%s", s.project, addr), nil
+		return fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/webhooks/inject/ISTIO_META_CLOUDRUN_ADDR/%s", s.project, addr), vwhURL, nil
 	}
-	return fmt.Sprintf("https://%s/inject/ISTIO_META_CLOUDRUN_ADDR/%s", addr, addr), nil
+	return fmt.Sprintf("https://%s/inject/ISTIO_META_CLOUDRUN_ADDR/%[1]s", addr), vwhURL, nil
 }
 
-func (s *server) getAndUpdateWebhook(ctx context.Context, client kubelib.Client, revision string) error {
+func (s *server) getAndUpdateWebhooks(ctx context.Context, client kubelib.Client, revision, duplicatedCloudRunURL string) error {
 	mwh, err := client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, fmt.Sprintf("istiod-%s", revision), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	vwh, err := client.Kube().AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, "istiod-istio-system-mcp", metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	// We don't need to update AFC webhooks since AFC already fixes webhooks to
 	// use the value set in the configmap.
-	if mwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com" {
-		log.Infof("webhook is owned by AFC")
+	if mwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com" && vwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com" {
+		log.Infof("Mutating and Validating webhooks are owned by AFC")
 		return nil
 	}
-	webhookURL, err := s.fetchWebhookURLForMigration(ctx, client, revision)
+	if (mwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com") != (vwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com") {
+		log.Infof("Webhook are not fully owned by AFC")
+		return fmt.Errorf("AFC is partially installed")
+	}
+	mutatingURL, validatingURL, err := s.fetchWebhookURLsForMigration(ctx, client, revision)
 	if err != nil {
 		return err
 	}
+	update := false
+	for i := range vwh.Webhooks {
+		webhook := &vwh.Webhooks[i]
+		if strings.Contains(*webhook.ClientConfig.URL, duplicatedCloudRunURL) {
+			log.Infof("updating validating webhook to point to %s", validatingURL)
+			update = true
+			webhook.ClientConfig.URL = &validatingURL
+		}
+	}
+	if update {
+		if _, err := client.Kube().AdmissionregistrationV1().ValidatingWebhookConfigurations().Update(ctx, vwh, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+	}
 	for i := range mwh.Webhooks {
 		webhook := &mwh.Webhooks[i]
-		webhook.ClientConfig.URL = &webhookURL
+		webhook.ClientConfig.URL = &mutatingURL
 	}
 	_, err = client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Update(ctx, mwh, metav1.UpdateOptions{})
 	return err
@@ -307,7 +337,7 @@ func (s *server) updateWebhooks(req *http.Request) (string, *httpError) {
 		}
 	}
 
-	if err := s.getAndUpdateWebhook(req.Context(), client, r.Revision); err != nil {
+	if err := s.getAndUpdateWebhooks(req.Context(), client, r.Revision, r.DuplicatedCloudRunURL); err != nil {
 		return "", &httpError{
 			code:    http.StatusPreconditionFailed,
 			message: err.Error(),
