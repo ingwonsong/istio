@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -256,12 +257,14 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 		return nil, fmt.Errorf("create env configmap: %v", err)
 	}
 
-	mwh, err := executeTemplate(mcpinit.GetMCPFile(mcpinit.MutatingWebhookFile), templateParams)
-	if err != nil {
-		return nil, fmt.Errorf("mutating webhook template: %v", err)
-	}
-	if err := createOrSetWebhook(client, mwh); err != nil {
-		return nil, fmt.Errorf("create webhook: %v", err)
+	if !p.AFCManagedWebhook {
+		mwh, err := executeTemplate(mcpinit.GetMCPFile(mcpinit.MutatingWebhookFile), templateParams)
+		if err != nil {
+			return nil, fmt.Errorf("mutating webhook template: %v", err)
+		}
+		if err := createOrSetWebhook(client, mwh); err != nil {
+			return nil, fmt.Errorf("create webhook: %v", err)
+		}
 	}
 
 	// This was our first time provisioning the environment, so we also need to write configmaps
@@ -614,6 +617,7 @@ type MCPParameters struct {
 	XDSAuthProvider    string
 	GKEClusterURL      string
 	FleetProjectNumber string
+	AFCManagedWebhook  bool
 }
 
 type ProxyResourceParameters struct {
@@ -672,6 +676,14 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	}
 	p.TrustDomain = fmt.Sprintf("%s.svc.id.goog", tdProj)
 	p.PodName = fmt.Sprintf("%s-%d", p.KRevision, time.Now().Nanosecond())
+
+	if v := os.Getenv("AFC_MANAGED_WEBHOOK"); v != "" {
+		var err error
+		p.AFCManagedWebhook, err = strconv.ParseBool(v)
+		if err != nil {
+			return p, fmt.Errorf("parsing AFC_MANAGED_WEBHOOK: %w", err)
+		}
+	}
 	return p, nil
 }
 
