@@ -15,6 +15,7 @@
 package exec
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -117,6 +118,18 @@ func Output(rawCommand string, options ...Option) ([]byte, error) {
 	// The Output function call requires Stdout to be set as nil.
 	cmd.Stdout = nil
 	return cmd.Output()
+}
+
+// CombinedOutput will run the command with the given args and options, and
+// return the output and stderr strings.
+// It will wait until the command is finished.
+func CombinedOutput(rawCommand string, options ...Option) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := Run(rawCommand,
+		WithWriter(io.MultiWriter(os.Stdout, &buf), io.MultiWriter(os.Stderr, &buf))); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // Pipe will run the given two commands with a pipe, and return the output

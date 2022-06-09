@@ -22,8 +22,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v2"
@@ -65,6 +67,9 @@ const (
 	sharedVPCHostBoskosResource      = "shared-vpc-host-gke-project"
 	sharedVPCSVCBoskosResource       = "shared-vpc-svc-gke-project"
 	networkName                      = "prow-test-network"
+
+	statusCheckInterval = 30
+	statusCheckMaxRetry = 140
 )
 
 var (
@@ -220,6 +225,10 @@ func (d *Instance) flags() ([]string, error) {
 		return nil, fmt.Errorf("error getting the config file for tailorbird: %w", err)
 	}
 	flags = append(flags, "--tbconfig="+fp)
+
+	// Append the filename of the generated configuration for a request
+	// This file is required during upgrade
+	flags = append(flags, "--generated-request-file="+d.cfg.RookeryRequestFile)
 
 	// Append the test script.
 	flags = append(flags, "--test=exec", "--", d.cfg.TestScript)
@@ -535,6 +544,13 @@ func (d *Instance) rookeryFile() (string, error) {
 		return "", fmt.Errorf("error executing the Tailorbird rookery template: %w", err)
 	}
 
+	// Create a temp file to store the generated configuration for a request.
+	tmpRequestFile, err := ioutil.TempFile("", "tailorbird-request-*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("error creating the temporary Tailorbird rookery request file: %w", err)
+	}
+	d.cfg.RookeryRequestFile = tmpRequestFile.Name()
+
 	d.cfg.Rookery = tmpFile.Name()
 
 	return tmpFile.Name(), nil
@@ -584,36 +600,48 @@ func platformName(cluster string) string {
 
 func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {
 
-	var upgradeCmds []string
-
-	tbFile, err := ioutil.ReadFile(d.cfg.Rookery)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't read file %s: %v", d.cfg.Rookery, err)
-	}
-
-	var rook Rookery
-
-	if err = yaml.Unmarshal(tbFile, &rook); err != nil {
-		return nil, fmt.Errorf("unable to unmarshall file %s: %v", tbFile, err)
-	}
-
-	for _, knest := range rook.Spec.Knests {
-		for _, cluster := range knest.Spec.Clusters {
-			log.Printf("cluster to upgrade: %s", cluster.Metadata.Name)
-			for version := range d.cfg.UpgradeClusterVersion {
-				upgradeCmds = append(upgradeCmds, fmt.Sprintf(`kubetest2-tailorbird --up --upgrade-cluster --upgrade-cluster-name %s --upgrade-target-platform-version %d`,
-					cluster.Metadata.Name, version))
-			}
-		}
-	}
-
 	upgradeFunc := func(w http.ResponseWriter, _ *http.Request) {
 
-		for _, upgradeCmd := range upgradeCmds {
-			if err := exec.Run(upgradeCmd); err != nil {
-				log.Printf("error: %+v, while upgrading the cluster to version %s", err.Error(), d.cfg.UpgradeClusterVersion)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+		tbFile, err := ioutil.ReadFile(d.cfg.RookeryRequestFile)
+		if err != nil {
+			log.Printf("error: %+v, couldn't read file %s", err.Error(), d.cfg.RookeryRequestFile)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var rook Rookery
+
+		if err = yaml.Unmarshal(tbFile, &rook); err != nil {
+			log.Printf("error: %+v, unable to unmarshall file %s", err.Error(), tbFile)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		for _, knest := range rook.Spec.Knests {
+			for _, cluster := range knest.Spec.Clusters {
+				log.Printf("cluster to upgrade: %s", cluster.Metadata.Name)
+				for _, version := range d.cfg.UpgradeClusterVersion {
+					upgradeCmd := fmt.Sprintf("kubetest2-tailorbird --up "+
+						"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
+						"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
+						cluster.Metadata.Name, version, d.cfg.RookeryRequestFile)
+
+					if err := exec.Run(upgradeCmd); err != nil {
+						log.Printf("error: %+v, while upgrading the cluster to version %s", err.Error(), version)
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+						return
+					}
+
+					if d.cfg.SyncUpgrade {
+						if err := d.waitForUpgradeToFinish(cluster.Metadata.Name); err != nil {
+							log.Printf("error: %+v, fail to get upgrade status", err.Error())
+							http.Error(w, err.Error(), http.StatusInternalServerError)
+							return
+						} else {
+							log.Printf("Cluster upgraded successfully!")
+						}
+					}
+				}
 			}
 		}
 		w.WriteHeader(http.StatusOK)
@@ -628,4 +656,70 @@ func (d *Instance) supportedHandlers() map[string]func() (func(http.ResponseWrit
 		supportedHandler[common.UpgradePath] = d.newGkeUpgradeHandler
 	}
 	return supportedHandler
+}
+
+// waitForUpgradeToFinish waits for the cluster upgrade process to finish.
+// Current maximum waiting time is 70 minutes (polling every 30s)
+func (d *Instance) waitForUpgradeToFinish(clusterName string) error {
+	statusCheckAttempt := 0
+	clusterReady := false
+	var err error
+	for !clusterReady {
+		statusCheckAttempt++
+		log.Printf("Waiting for the cluster upgrade status to become Succeeded...")
+		time.Sleep(time.Duration(statusCheckInterval) * time.Second)
+		clusterReady, err = d.IsUpgradeDone(clusterName)
+		if err != nil {
+			return err
+		}
+
+		if clusterReady || (statusCheckAttempt >= statusCheckMaxRetry) {
+			break
+		}
+	}
+
+	return nil
+}
+
+// IsUpgradeDone returns true if the upgrade process finished successfully.
+// Otherwise, returns false (if status is Pending or Failed). If failed, an
+// error is also returned.
+func (d *Instance) IsUpgradeDone(clusterName string) (bool, error) {
+	s, err := d.getUpgradeStatus(clusterName)
+	if err != nil {
+		return false, err
+	}
+
+	switch s {
+	case types.Succeeded:
+		return true, nil
+	case types.Failed:
+		return false, fmt.Errorf("Tailorbird upgrade status is in Failed state.")
+	default:
+		return false, nil
+	}
+}
+
+// getUpgradeStatus returns the cluster upgrade process status by calling
+// kubetest2-tailorbird
+func (d *Instance) getUpgradeStatus(clusterName string) (types.Type, error) {
+	workdir := filepath.Dir(d.cfg.RookeryRequestFile)
+	upgradeConfigFile := filepath.Join(workdir, fmt.Sprintf("%s-upgrade.yaml", clusterName))
+	upgradeStatusCmd := fmt.Sprintf("kubetest2-tailorbird --up "+
+		"--verbose --upgrade-cluster --get-upgrade-status "+
+		"--upgrade-cluster-name %s --upgrade-resource-config %s --tbconfig %s",
+		clusterName, d.cfg.RookeryRequestFile, upgradeConfigFile)
+
+	output, err := exec.CombinedOutput(upgradeStatusCmd)
+	if err != nil {
+		return types.Failed, err
+	}
+
+	// Output format is: [UPGRADE_STATUS]: <cluster name>=<status>
+	regex := regexp.MustCompile(`\[UPGRADE_STATUS\]\: .+\=(.+)`)
+	matches := regex.FindStringSubmatch(string(output))
+	if len(matches) != 2 {
+		return types.Failed, fmt.Errorf("fail to find the upgrade status")
+	}
+	return types.Type(matches[1]), nil
 }

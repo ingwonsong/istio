@@ -31,12 +31,10 @@ type Instance interface {
 func New(cfg config.Instance) Instance {
 	// GKE-on-GCP cluster with VPC_SC/COMPOSITE_GATEWAY features and
 	// topology Multi-project (WIP=HUB) still need to be migrated to Tailorbird.
-	// GKE-on-GCP cluster upgrade is not supported by Tailorbird.
 	if (cfg.Cluster == types.GKEOnGCP && cfg.Topology == types.MultiProject && cfg.WIP == types.HUB) ||
 		(cfg.Cluster == types.GKEOnGCP &&
 			(cfg.Features.Has(string(types.VPCServiceControls)) ||
-				cfg.Features.Has(string(types.CompositeGateway)) ||
-				len(cfg.UpgradeClusterVersion) != 0)) ||
+				cfg.Features.Has(string(types.CompositeGateway)))) ||
 		cfg.Cluster == types.GKEOnGCPWithAutoPilot {
 		return gke.NewInstance(cfg)
 	}

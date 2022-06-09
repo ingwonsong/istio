@@ -63,6 +63,8 @@ type Instance struct {
 	Environment           types.Environment
 	Features              sets.String
 	Rookery               string
+	RookeryRequestFile    string
+	SyncUpgrade           bool
 }
 
 // Default provides a config Instance with defaults filled in.
