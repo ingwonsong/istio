@@ -130,7 +130,7 @@ func (Build) Entrypoint() error {
 		return err
 	}
 	log.Println("Compiling TaaA entrypoint binary.")
-	return sh.Run("go", "build", "-o", outBinPath+"/entrypoint", "./cmd/entrypoint")
+	return sh.Run("go", "build", "-buildvcs=false", "-o", outBinPath+"/entrypoint", "./cmd/entrypoint")
 }
 
 // Tester compiler the "Tester" application in the istio repo used to install and run tests.
@@ -324,6 +324,7 @@ func compileGo(isTest bool, outputBinaryName string, pathToPackage string, other
 	} else {
 		cmd.AddArgs("build")
 	}
+	cmd.AddArgs("-buildvcs=false")
 	cmd.AddArgs("-o", path.Join(internalOutDir, outputBinaryName))
 	cmd.AddArgs(otherGoTestArgs...)
 	log.Println("Running compiler image: ", compilerImgPath)

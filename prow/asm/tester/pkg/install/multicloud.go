@@ -105,6 +105,12 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			if err := exec.Run(cmd); err != nil {
 				return fmt.Errorf("error enabling the uid for ingress gateway: %w", err)
 			}
+			for _, ns := range c.settings.WorkloadNamespaces {
+				log.Printf("Setting up workload namespace %q...", ns)
+				if err := setupNamespaceForOpenshift(c.settings.RepoRootDir, ns); err != nil {
+					return fmt.Errorf("failed to set up workload namespace: %v", err)
+				}
+			}
 		}
 		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
 			return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)
@@ -291,6 +297,22 @@ func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int
 			return err
 		}
 		return nil
+	}
+	return nil
+}
+
+func setupNamespaceForOpenshift(repoRoot string, namespace string) error {
+	// Assumes oc is installed by fixOpenshift().
+	cmd1 := fmt.Sprintf("./oc adm policy add-scc-to-group anyuid system:serviceaccounts:%s", namespace)
+	err := exec.Run(cmd1)
+	if err != nil {
+		return fmt.Errorf("error enabling the user id 1337 on application namespaces %s with error %s", namespace, err)
+	}
+	yaml := filepath.Join(repoRoot, "prow/asm/tester/configs", "openshift_ns_modification.yaml")
+	cmd2 := fmt.Sprintf("kubectl apply -f %s -n %s", yaml, namespace)
+	err = exec.Run(cmd2)
+	if err != nil {
+		return fmt.Errorf("unable to fullfil the network attachment requirement for namespace %s with error %s", namespace, err)
 	}
 	return nil
 }

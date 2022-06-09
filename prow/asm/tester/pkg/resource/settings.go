@@ -114,6 +114,10 @@ type Settings struct {
 	// UseStackDriver if true, a server-side stackdriver component will be installed. This is useful for off-GCP.
 	UseStackDriver bool `flag:"use-stackdriver" desc:"If set installs a server-side StackDriver component. Useful for off-GCP."`
 
+	// WorkloadNamespaces is a list of namespace names that would be set up for use with ASM.
+	// This includes platform-specific setup.
+	WorkloadNamespaces []string `flag:"workload-namespaces"`
+
 	VMSettings
 
 	MCPSettings
