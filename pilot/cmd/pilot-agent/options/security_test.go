@@ -18,6 +18,9 @@ import (
 	"os"
 	"testing"
 
+	meshconfig "istio.io/api/mesh/v1alpha1"
+	"istio.io/istio/security/pkg/credentialfetcher"
+
 	"istio.io/istio/pkg/security"
 )
 
@@ -58,4 +61,63 @@ func TestCheckGkeWorkloadCertificate(t *testing.T) {
 			t.Errorf("Test %s failed, expected: %t got: %t", tt.name, tt.expected, result)
 		}
 	}
+}
+
+func TestSetupSecurityOptions(t *testing.T) {
+	proxyConfig := &meshconfig.ProxyConfig{}
+	mockCredFetcher, err := credentialfetcher.NewCredFetcher(security.Mock, "", "", "")
+	if err != nil {
+		t.Fatalf("failed to create mock credential fetcher: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		secOpt      *security.Options
+		expectError bool
+		expectedOut *security.Options
+	}{
+		{
+			name: "CA endpoint is a google api",
+			secOpt: &security.Options{
+				CAEndpoint: "googleapis.com",
+			},
+			expectError: false,
+			expectedOut: &security.Options{
+				CAEndpoint:     "googleapis.com",
+				CAProviderName: security.GoogleCAProvider,
+				CredFetcher:    mockCredFetcher,
+			},
+		},
+		{
+			name: "CA provider is security.GkeWorkloadCertificateProvider",
+			secOpt: &security.Options{
+				CAProviderName: security.GkeWorkloadCertificateProvider,
+			},
+			// The error is expected because the GKE workload certificate is not present in the test.
+			expectError: true,
+		},
+	}
+	for _, tt := range tests {
+		result, err := SetupSecurityOptions(proxyConfig, tt.secOpt, "", "", "")
+		gotErr := err != nil
+		if gotErr != tt.expectError {
+			t.Errorf("expect error is %v while actual error is %v", tt.expectError, gotErr)
+			continue
+		}
+		if !gotErr && !resultAsExpected(result, tt.expectedOut) {
+			t.Errorf("Test %s failed, expected: %v got: %v", tt.name, tt.expectedOut, result)
+		}
+	}
+}
+
+func resultAsExpected(result *security.Options, expectedOut *security.Options) bool {
+	if result.CAEndpoint == expectedOut.CAEndpoint &&
+		result.CAProviderName == expectedOut.CAProviderName &&
+		result.FileMountedCerts == expectedOut.FileMountedCerts &&
+		result.CertChainFilePath == expectedOut.CertChainFilePath &&
+		result.KeyFilePath == expectedOut.KeyFilePath &&
+		result.RootCertFilePath == expectedOut.RootCertFilePath {
+		return true
+	}
+	return false
 }
