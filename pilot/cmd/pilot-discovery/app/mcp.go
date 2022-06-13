@@ -133,6 +133,8 @@ func generateTemplateParameters(p MCPParameters, options AsmOptions, client kube
 		templateParams.CA = string(PrivatecaOption)
 		templateParams.CATrustAnchor = options.CAOptions.TrustAnchorLoc
 		templateParams.CAAddress = options.CAOptions.CAAddr
+	} else if options.CAOptions.CAType == ManagedCaOption {
+		templateParams.CA = security.GkeWorkloadCertificateProvider
 	} else {
 		templateParams.CA = string(MeshcaOption)
 		templateParams.CAAddress = "meshca.googleapis.com:443"
@@ -510,6 +512,8 @@ func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
 		}
 		if strings.Contains(cmOption, "CA=PRIVATECA") {
 			option.CAOptions.CAType = PrivatecaOption
+		} else if strings.Contains(cmOption, "CA=MANAGEDCAS") {
+			option.CAOptions.CAType = ManagedCaOption
 		} else if strings.Contains(cmOption, "CA=MESHCA") {
 			option.CAOptions.CAType = MeshcaOption
 		}
@@ -575,6 +579,7 @@ const (
 
 	MeshcaOption    CAType = "GoogleCA"
 	PrivatecaOption CAType = "GoogleCAS"
+	ManagedCaOption CAType = "ManagedCAS"
 )
 
 type ManagedCAOptions struct {
