@@ -35,7 +35,7 @@ spec:
           provisionerArgs:
             username: asm-svc-acct
             region: us-east-2
-            installerVersion: 4.7.11 # must be a valid 4.x release of OCP or OKD.
+            installerVersion: 4.9.11 # must be a valid 4.x release of OCP or OKD.
             nodeCount: 6
             #    baseDomain: # (Optional, defaults to aws.openshift.ceplabs.dev for AWS) DNS zone to use for the cluster. Must preexist in the project/account with resolvable DNS.
             #    nodeCount: # (Optional, defaults to 3) Number of worker nodes. This must be a quoted string.
