@@ -65,6 +65,7 @@ func main() {
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
 		fmt.Sprintf("the cluster type, can be one of %v", types.SupportedClusters))
 	flag.BoolVar(&cfg.UseOnePlatform, "use-oneplatform", cfg.UseOnePlatform, "whether to use One Platform API to provision the cluster")
+	flag.BoolVar(&cfg.UseKubevirtVM, "use-kubevirt-vm", cfg.UseKubevirtVM, "To enable Kubevirt runtime in ABM cluster and run ASM tests on KubeVM APIs")
 	flag.StringVar((*string)(&cfg.Topology), "topology", string(cfg.Topology),
 		fmt.Sprintf("the cluster topology for the SUT (optional). Can be one of %v", types.SupportedTopologies))
 	flag.StringVar((*string)(&cfg.WIP), "wip", string(cfg.WIP),

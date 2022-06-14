@@ -508,6 +508,9 @@ func (d *Instance) rookeryFile() (string, error) {
 	if d.cfg.UseOnePlatform {
 		tmplFileName = fmt.Sprintf("%s-%s", tmplFileName, "oneplatform")
 	}
+	if d.cfg.UseKubevirtVM {
+		tmplFileName = fmt.Sprintf("%s-%s", tmplFileName, "kubevirt-vm")
+	}
 	tmplFileName = fmt.Sprintf("%s.%s", tmplFileName, "yaml")
 	tmplFile := filepath.Join(d.cfg.RepoRootDir, configRelDir, tmplFileName)
 	if _, err := os.Stat(tmplFile); err != nil {

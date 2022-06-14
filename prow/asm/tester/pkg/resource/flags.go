@@ -91,6 +91,9 @@ func ReconcileAndValidateSettings(settings *Settings) error {
 	if settings.UseOnePlatform && settings.ClusterType != GKEOnAWS && settings.ClusterType != GKEOnAzure {
 		errs = append(errs, errors.New("--use-oneplatform can only be used with GKE on AWS or GKE on Azure"))
 	}
+	if settings.UseKubevirtVM && settings.ClusterType != BareMetal {
+		errs = append(errs, errors.New("--use-kubevirt-vm can only be used with Bare Metal"))
+	}
 
 	return multierr.Combine(errs...)
 }

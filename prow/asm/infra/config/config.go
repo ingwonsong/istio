@@ -54,6 +54,7 @@ type Instance struct {
 	TRACComponentIndex    int
 	Cluster               types.Cluster
 	UseOnePlatform        bool
+	UseKubevirtVM         bool
 	UpgradeClusterVersion []string
 	GCSBucket             string
 	IsCloudESFTest        bool
@@ -111,6 +112,9 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 		"--feature="+strings.Join(c.Features.List(), ","))
 	if c.UseOnePlatform {
 		testerFlags = append(testerFlags, "--use-oneplatform")
+	}
+	if c.UseKubevirtVM {
+		testerFlags = append(testerFlags, "--use-kubevirt-vm")
 	}
 	return append(testerFlags, extraTestFlagArr...), nil
 }

@@ -49,6 +49,9 @@ type Settings struct {
 	// Use OnePlatform API to provision the cluster
 	UseOnePlatform bool `flag:"use-oneplatform" desc:"Whether to use oneplatform API to provision k8s clusters."`
 
+	//Use Kubevirt VM API to install Kubevirt controllers
+	UseKubevirtVM bool `flag:"use-kubevirt-vm" desc:"To enable Kubevirt emulation in ABM cluster and run ASM tests on KubeVM APIs."`
+
 	// MulticloudOverrideEnvironProject makes GCPProjects take precedence over hardcoded values for multicloud projects.
 	MulticloudOverrideEnvironProject bool `flag:"multicloud-override-environ-project" desc:"When running on multicloud clusters, prefer --gcp-projects to hardcoded project names."`
 

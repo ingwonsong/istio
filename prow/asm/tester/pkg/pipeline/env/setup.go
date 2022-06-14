@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -74,6 +73,13 @@ func Setup(settings *resource.Settings) error {
 	if settings.ClusterType == resource.GKEOnGCP && !settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		// Enable core dumps for Istio proxy
 		if err := enableCoreDumps(settings); err != nil {
+			return err
+		}
+	}
+
+	if settings.ClusterType == resource.BareMetal && settings.UseKubevirtVM {
+		log.Printf("Start running the env setup for Kubevirt VM")
+		if err := EnableKubevirtRuntime(settings); err != nil {
 			return err
 		}
 	}
@@ -230,6 +236,9 @@ func injectEnvVars(settings *resource.Settings) error {
 	}
 	if settings.RevisionConfig != "" {
 		envVars["MULTI_VERSION"] = "1"
+	}
+	if settings.UseKubevirtVM == true {
+		envVars["USE_KUBEVIRT_VM"] = "true"
 	}
 
 	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
@@ -545,6 +554,7 @@ func fixBareMetal(settings *resource.Settings) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -807,3 +817,29 @@ func getProjectsFromStatusFile(configPath string) ([]string, error) {
 	return projects, nil
 }
 
+func EnableKubevirtRuntime(settings *resource.Settings) error {
+
+	// enable KubeVirt
+	enableKubevirtVMPatchFile := settings.ConfigDir + "/kubevirtvm/enable-kubevirt-vm-patch.yaml"
+	log.Printf("Enabling kubevirt with H/W virtualisation")
+	for i, kc := range settings.KubeContexts {
+		if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {
+			os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
+			defer os.Unsetenv("HTTPS_PROXY")
+		}
+		cmds := []string{
+			fmt.Sprintf("kubectl patch vmruntime vmruntime --type=merge --patch-file %s --context=%s",
+				enableKubevirtVMPatchFile, kc),
+			"echo \"Waiting for KubeVirt to be enabled, can take a few minutes.\"",
+			"sleep 30",
+			fmt.Sprintf("kubectl wait --for=jsonpath='{.status.ready}'=true --timeout=300s vmruntime vmruntime --context=%s", kc),
+		}
+
+		if err := exec.RunMultiple(cmds); err != nil {
+			log.Print(err)
+			return err
+		}
+	}
+
+	return nil
+}
