@@ -55,7 +55,7 @@ function prepare_images() {
   # Configure Docker to authenticate with Container Registry.
   gcloud auth configure-docker
   # Build images from the current branch and push the images to gcr.
-  make dockerx.pushx HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.pilot docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp"
+  make dockerx.pushx HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.pilot docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp docker.ext-authz"
 
   docker pull gcr.io/asm-staging-images/asm/stackdriver-prometheus-sidecar:e2e-test
   docker tag gcr.io/asm-staging-images/asm/stackdriver-prometheus-sidecar:e2e-test "${HUB}/stackdriver-prometheus-sidecar:${TAG}"
@@ -67,7 +67,7 @@ function prepare_images() {
 # If testing addon migration, addon-migration job will be built as well.
 function prepare_images_for_managed_control_plane() {
   local FEATURE_TO_TEST=${1:-};
-  local DOCKER_TARGETS="docker.cloudrun docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp"
+  local DOCKER_TARGETS="docker.cloudrun docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp docker.ext-authz"
   if [[ "${FEATURE_TO_TEST}" == "ADDON" ]];then
     DOCKER_TARGETS="${DOCKER_TARGETS} docker.addon-migration"
   fi
