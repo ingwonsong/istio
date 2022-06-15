@@ -96,14 +96,18 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 			return fmt.Errorf("ASM installation using script failed: %w", err)
 		}
 
-		if err := c.installIngressGateway(c.settings, rev, "", kubeconfig, i); err != nil {
+		if err := c.installGateways(c.settings, rev, "", kubeconfig, i); err != nil {
 			return err
 		}
-		// enable uid for ingress gateway in openshift
+		// enable uid for gateways in openshift
 		if c.settings.ClusterType == resource.Openshift {
 			cmd := "./oc -n istio-system expose svc/istio-ingressgateway --port=http2"
 			if err := exec.Run(cmd); err != nil {
 				return fmt.Errorf("error enabling the uid for ingress gateway: %w", err)
+			}
+			cmd = "./oc -n istio-system expose svc/istio-egressgateway --port=http2"
+			if err := exec.Run(cmd); err != nil {
+				return fmt.Errorf("error enabling the uid for egress gateway: %w", err)
 			}
 			for _, ns := range c.settings.WorkloadNamespaces {
 				log.Printf("Setting up workload namespace %q...", ns)
@@ -112,6 +116,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 				}
 			}
 		}
+		
 		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
 			return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)
 		}

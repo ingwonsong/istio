@@ -115,7 +115,7 @@ func (c *installer) installASM(rev *revision.Config) error {
 		// If this is Cloud ESF based, don't install gateway here. The customized
 		// Cloud ESF gateway will be installed in each test.
 		if !c.settings.InstallCloudESF {
-			if err := c.installIngressGateway(c.settings, rev, context, "", i); err != nil {
+			if err := c.installGateways(c.settings, rev, context, "", i); err != nil {
 				return err
 			}
 		}

@@ -8,11 +8,7 @@ tests:
         - TestVersion
       reason: istioctl does not work
     - names:
-        - TestReachability/beta-mtls.*/headless.*
-      buganizerID: 192372862
-    - names:
         - TestAnalysisWritesStatus
-        - TestRequestAuthentication/.*/valid-token-forward-remote-jwks
       reason: require custom installation
     - names:
         - TestDashboard
@@ -25,10 +21,6 @@ tests:
         - TestStackdriverAudit
       buganizerID: 183508169
     - names:
-        - TestAuthorization_IngressGateway
-      reason: unknown
-    - names:
-        - TestAuthorization_EgressGateway
         - TestSimpleTlsOrigination
         - TestMutualTlsOrigination
       reason: relies on egress gateway deployed to cluster
@@ -44,10 +36,6 @@ tests:
     - names:
       - TestJWTHTTPS
       buganizerID: 215175941
-    - names:
-      - TestRequestAuthentication/remote
-      buganizerID: 235203166
-
 
   # Multiversion test skips.
   - selectors:
@@ -128,10 +116,6 @@ tests:
     - names:
       - TestTraffic/dns/.*
       buganizerID: 191802552
-    - names:
-      - TestReachability/beta-mtls.*/.*/.*headless.*
-      - TestReachability/no-peer.*/.*/.*headless.*
-      buganizerID: 197235650
 
   # Unmanaged CP + bare-metal
   - selectors:
@@ -167,11 +151,6 @@ tests:
       - names:
           - TestAuthorization_Custom
         reason: requires mesh config
-      - names:
-          - TestStackdriver
-          - TestStackdriverAudit
-          - TestVMTelemetry
-        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
       # telemetry/ tests
       - names:
@@ -180,6 +159,11 @@ tests:
       - names:
           - TestTelemetryAPITCPStats
         buganizerID: 205336277
+      - names:
+          - TestStackdriver
+          - TestStackdriverAudit
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
   # Unmanaged CP + bare-metal
   - selectors:
@@ -187,14 +171,6 @@ tests:
       cluster_type: bare-metal
       cluster_topology: mcmn
     targets:
-    # security/ tests
-    - names:
-      - TestReachability/no-peer-authn/headless.*
-      - TestReachability/no-peer-authn/naked.*
-      buganizerID: 192372391
-    - names:
-      - TestReachability/global-plaintext*
-      buganizerID: 204604480
     - names:
       - TestBadRemoteSecret
       - TestTraffic/sniffing/http/headless.*
@@ -504,6 +480,7 @@ tests:
       - names:
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
+        reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
       # networking/ tests
       - names:
         - TestTcpProbe
@@ -534,10 +511,6 @@ tests:
     - names:
       - TestTraffic/dns.*
       buganizerID: 191802552
-    - names:
-      - TestReachability/no-peer-authn/headless.*
-      - TestReachability/no-peer-authn/naked.*
-      buganizerID: 192372391
 
   # Unmanaged CP, cluster topology = mp OR multiproject
   - selectors:
@@ -554,10 +527,6 @@ tests:
       - names:
           - TestTraffic/dns.*
         buganizerID: 191802552
-      - names:
-        - TestReachability/no-peer-authn/headless.*
-        - TestReachability/no-peer-authn/naked.*
-        buganizerID: 192372391
 
   # Unmanaged CP, cluster topology = mc OR multiproject
   - selectors:
@@ -574,10 +543,6 @@ tests:
       - names:
           - TestTraffic/dns.*
         buganizerID: 191802552
-      - names:
-        - TestReachability/no-peer-authn/headless.*
-        - TestReachability/no-peer-authn/naked.*
-        buganizerID: 192372391
 
   # MCP test skips
   - selectors:

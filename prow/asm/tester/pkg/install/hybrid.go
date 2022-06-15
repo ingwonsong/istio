@@ -106,7 +106,7 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 				return fmt.Errorf("ASM installation using script failed: %w", err)
 			}
 		}
-		if err := c.installIngressGateway(c.settings, rev, "", kubeconfig, i); err != nil {
+		if err := c.installGateways(c.settings, rev, "", kubeconfig, i); err != nil {
 			return err
 		}
 		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {

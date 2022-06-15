@@ -29,18 +29,28 @@ const (
 	gatewayNamespace             = "istio-system"
 	ingressGatewayServiceAccount = "istio-ingressgateway"
 	ingressSamples               = "/samples/gateways/istio-ingressgateway"
+	egressGatewayServiceAccount  = "istio-egressgateway"
+	egressSamples                = "/samples/gateways/istio-egressgateway"
 )
 
+type gatewaySA struct {
+	ingressSA bool
+	egressSA  bool
+}
+
 // TODO we don't want the command to memorize the entire list of files
-func gatewayDir(rev *revision.Config) (string, error) {
+func gatewayDir(rev *revision.Config, isIngress bool) (string, error) {
 	outputDir, err := ASMOutputDir(rev)
 	if err != nil {
 		return "", err
 	}
+	if !isIngress {
+		return filepath.Join(outputDir, egressSamples), nil
+	}
 	return filepath.Join(outputDir, ingressSamples), nil
 }
 
-func (c *installer) installIngressGateway(settings *resource.Settings, rev *revision.Config, context, kubeconfig string, idx int) error {
+func (c *installer) installGateways(settings *resource.Settings, rev *revision.Config, context, kubeconfig string, idx int) error {
 	// enabling NetworkAttachmentDefinition to gatewayNamespace for openshift cluster
 	if settings.ClusterType == resource.Openshift {
 		yaml := filepath.Join(settings.ConfigDir, "openshift_ns_modification.yaml")
@@ -50,7 +60,7 @@ func (c *installer) installIngressGateway(settings *resource.Settings, rev *revi
 		}
 	}
 
-	// TODO(samnaser) this prevents us from deploying ingresses for older versions. Long-term we should come up with
+	// TODO(samnaser) this prevents us from deploying gateways for older versions. Long-term we should come up with
 	// a better approach here.
 	if rev != nil && rev.Version != "" && rev.Name != "" {
 		return nil
@@ -61,18 +71,12 @@ func (c *installer) installIngressGateway(settings *resource.Settings, rev *revi
 	}
 
 	// TODO resource.Settings should have an easy way to fetch this for a given cluster
-	var ctxFlags []string
-	if context != "" {
-		ctxFlags = append(ctxFlags, "--context", context)
-	}
-	if kubeconfig != "" {
-		ctxFlags = append(ctxFlags, "--kubeconfig", kubeconfig)
-	}
+	ctxFlags := getCtxFlags(context, kubeconfig)
 
 	if err := enableGatewayInjection(ctxFlags, rev); err != nil {
 		return err
 	}
-	gatewayManifests, err := listIngressFiles(ctxFlags, rev)
+	gatewayManifests, err := listGatewayInstallationFiles(ctxFlags, rev)
 	if err != nil {
 		return err
 	}
@@ -80,7 +84,7 @@ func (c *installer) installIngressGateway(settings *resource.Settings, rev *revi
 	applyArgs := append(ctxFlags, "-n", gatewayNamespace)
 	applyArgs = append(applyArgs, strings.Split("-f "+strings.Join(gatewayManifests, " -f "), " ")...)
 	if err := exec.Run("kubectl apply", exec.WithAdditionalArgs(applyArgs)); err != nil {
-		return fmt.Errorf("error installing ingress gateway: %w", err)
+		return fmt.Errorf("error installing gateways: %w", err)
 	}
 
 	return nil
@@ -117,51 +121,87 @@ func enableGatewayInjection(kubectlFlags []string, rev *revision.Config) error {
 	return nil
 }
 
-// listIngressFiles gets either the directory containing the ingress manifests or
-// if the ingress service account already exists, it gets all items in that directory except
-// the service account (to avoid overwriting customized parts of the SA)
+// listGatewayInstallationFiles gets all items in that directory except
+// the service account (to avoid overwriting customized parts of the SA) is SA is already present
 // TODO we should be able to just use some merge strategry to avoid overwriting
-func listIngressFiles(kubectlFlags []string, rev *revision.Config) ([]string, error) {
-	gwDir, err := gatewayDir(rev)
+func listGatewayInstallationFiles(kubectlFlags []string, rev *revision.Config) ([]string, error) {
+	saExists, err := checkForGatewaySA(kubectlFlags)
+	gatewayManifests := []string{}
 	if err != nil {
-		return nil, fmt.Errorf("error retreiving gateway dir: %v", err)
-	}
-	gatewayManifests := []string{gwDir}
-	if saExists, err := checkForIngressSA(kubectlFlags); err == nil && saExists {
-		// relies on extglob to include all but the serviceaccount
-		gatewayManifests = []string{}
-		files, err := os.ReadDir(gwDir)
+		return nil, err
+	} else {
+		ingressDir, err := gatewayDir(rev, true)
+		if err != nil {
+			return nil, fmt.Errorf("error retreiving ingress gateway dir: %v", err)
+		}
+		ingressFiles, err := os.ReadDir(ingressDir)
 		if err != nil {
 			return nil, err
 		}
-		// TODO maybe use `extglob` and `awk` to generate multiple `-f`?
-		for _, f := range files {
-			if strings.Contains(f.Name(), "serviceaccount") {
+		for _, f := range ingressFiles {
+			if strings.Contains(f.Name(), "serviceaccount") && saExists.ingressSA {
 				continue
 			}
 			// TODO(iamwen) remove this part when we test on 1.23+ clusters
 			if strings.Contains(f.Name(), "autoscalingv2") {
 				continue
 			}
-			gatewayManifests = append(gatewayManifests, filepath.Join(gwDir, f.Name()))
+			gatewayManifests = append(gatewayManifests, filepath.Join(ingressDir, f.Name()))
 		}
-	} else if err != nil {
-		return nil, err
+
+		egressDir, err := gatewayDir(rev, false)
+		if err != nil {
+			return nil, fmt.Errorf("error retreiving egress gateway dir: %v", err)
+		}
+		egressFiles, err := os.ReadDir(egressDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range egressFiles {
+			if strings.Contains(f.Name(), "serviceaccount") && saExists.egressSA {
+				continue
+			}
+			// TODO(iamwen) remove this part when we test on 1.23+ clusters
+			if strings.Contains(f.Name(), "autoscaling-v2") {
+				continue
+			}
+			gatewayManifests = append(gatewayManifests, filepath.Join(egressDir, f.Name()))
+		}
+		return gatewayManifests, nil
 	}
-	return gatewayManifests, nil
 }
 
-// checkForIngressSA returns true if the istio-ingressgateway-service-account exists in the gatewayNamespace
-func checkForIngressSA(kubectlFlags []string) (bool, error) {
+// ccheckForGatewaySA returns true if the serviceAccount exists in the gatewayNamespace
+func checkForGatewaySA(kubectlFlags []string) (gatewaySA, error) {
+	gatewaySA := gatewaySA{ingressSA: false, egressSA: false}
 	err := exec.Run(
 		fmt.Sprintf("kubectl -n %s get sa %s", gatewayNamespace, ingressGatewayServiceAccount),
 		exec.WithAdditionalArgs(kubectlFlags),
 	)
 	if err == nil {
-		return true, nil
+		gatewaySA.ingressSA = true
+	} else if !strings.Contains(err.Error(), "NotFound") {
+		return gatewaySA, err
 	}
-	if strings.Contains(err.Error(), "NotFound") {
-		return false, nil
+	err = exec.Run(
+		fmt.Sprintf("kubectl -n %s get sa %s", gatewayNamespace, egressGatewayServiceAccount),
+		exec.WithAdditionalArgs(kubectlFlags),
+	)
+	if err == nil {
+		gatewaySA.egressSA = true
+	} else if !strings.Contains(err.Error(), "NotFound") {
+		return gatewaySA, err
 	}
-	return false, err
+	return gatewaySA, nil
+}
+
+func getCtxFlags(context, kubeconfig string) []string {
+	var ctxFlags []string
+	if context != "" {
+		ctxFlags = append(ctxFlags, "--context", context)
+	}
+	if kubeconfig != "" {
+		ctxFlags = append(ctxFlags, "--kubeconfig", kubeconfig)
+	}
+	return ctxFlags
 }
