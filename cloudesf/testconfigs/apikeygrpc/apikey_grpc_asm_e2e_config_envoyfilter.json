@@ -27,6 +27,34 @@
         "patch": {
           "operation": "INSERT_BEFORE",
           "value": {
+            "name": "com.google.error_details_patch_filter",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/net.envoy.proto.ErrorDetailsPatchFilterConfig",
+              "value": {}
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
             "name": "envoy.filters.http.grpc_web",
             "typedConfig": {
               "@type": "type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb"
@@ -59,8 +87,45 @@
               "autoMapping": true,
               "convertGrpcStatus": true,
               "ignoredQueryParameters": [
+                "$.xgafv",
+                "$alt",
+                "$apiFormat",
+                "$callback",
+                "$ct",
+                "$fields",
+                "$httpHeaders",
+                "$httpMethod",
                 "$key",
-                "key"
+                "$outputDefaults",
+                "$pp",
+                "$prettyPrint",
+                "$prettyprint",
+                "$quotaUser",
+                "$req",
+                "$trace",
+                "$unique",
+                "$upload_protocol",
+                "$userIp",
+                "$userProject",
+                "$visibilities",
+                ".xgafv",
+                "access_token",
+                "alt",
+                "authuser",
+                "bearer_token",
+                "callback",
+                "google_cloud_resource_prefix",
+                "key",
+                "oauth_token",
+                "pageId",
+                "pp",
+                "prettyPrint",
+                "prettyprint",
+                "quotaUser",
+                "uploadType",
+                "upload_protocol",
+                "userIp",
+                "xoauth"
               ],
               "matchUnregisteredCustomVerb": true,
               "printOptions": {},
@@ -118,60 +183,30 @@
                   {
                     "apiName": "google.example.apikeys.v1.ApiKeys",
                     "apiVersion": "v1",
-                    "metricCosts": [
-                      {
-                        "cost": "1",
-                        "name": "codelabapikeys.googleapis.com/requests"
-                      }
-                    ],
                     "operationName": "google.example.apikeys.v1.ApiKeys.ListApiKeys",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   },
                   {
                     "apiName": "google.example.apikeys.v1.ApiKeys",
                     "apiVersion": "v1",
-                    "metricCosts": [
-                      {
-                        "cost": "1",
-                        "name": "codelabapikeys.googleapis.com/requests"
-                      }
-                    ],
                     "operationName": "google.example.apikeys.v1.ApiKeys.GetApiKey",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   },
                   {
                     "apiName": "google.example.apikeys.v1.ApiKeys",
                     "apiVersion": "v1",
-                    "metricCosts": [
-                      {
-                        "cost": "1",
-                        "name": "codelabapikeys.googleapis.com/requests"
-                      }
-                    ],
                     "operationName": "google.example.apikeys.v1.ApiKeys.CreateApiKey",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   },
                   {
                     "apiName": "google.example.apikeys.v1.ApiKeys",
                     "apiVersion": "v1",
-                    "metricCosts": [
-                      {
-                        "cost": "1",
-                        "name": "codelabapikeys.googleapis.com/update_requests"
-                      }
-                    ],
                     "operationName": "google.example.apikeys.v1.ApiKeys.UpdateApiKey",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   },
                   {
                     "apiName": "google.example.apikeys.v1.ApiKeys",
                     "apiVersion": "v1",
-                    "metricCosts": [
-                      {
-                        "cost": "1",
-                        "name": "codelabapikeys.googleapis.com/requests"
-                      }
-                    ],
                     "operationName": "google.example.apikeys.v1.ApiKeys.DeleteApiKey",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   },

@@ -327,56 +327,6 @@
               }
             },
             "uri": {
-              "exact": "/test.grpc.Test/Cork"
-            }
-          }
-        ],
-        "name": "test.grpc.Test.Cork",
-        "route": [
-          {
-            "destination": {
-              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
-              "port": {
-                "number": 8080
-              }
-            }
-          }
-        ]
-      },
-      {
-        "match": [
-          {
-            "headers": {
-              ":method": {
-                "exact": "POST"
-              }
-            },
-            "uri": {
-              "exact": "/test.grpc.Test/Cork/"
-            }
-          }
-        ],
-        "name": "test.grpc.Test.Cork",
-        "route": [
-          {
-            "destination": {
-              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
-              "port": {
-                "number": 8080
-              }
-            }
-          }
-        ]
-      },
-      {
-        "match": [
-          {
-            "headers": {
-              ":method": {
-                "exact": "POST"
-              }
-            },
-            "uri": {
               "exact": "/test.grpc.Test/Echo"
             }
           }
