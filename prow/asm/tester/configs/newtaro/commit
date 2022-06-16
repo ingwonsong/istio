@@ -1,12 +1,7 @@
-429bdb6298827bbe31dcf7dee40c01b835335301
+dc704669a71b0252de69097a7e2e3e6d747e5bfb
 ========================================
-Tairan Jin
-Sat May 28 05:10:51 2022 +0000
+lei-tang
+Fri Jun 10 17:03:29 2022 -0700
 
-In-place CA Migration Script Skeleton (#1203)
+Configure managed CAS for MCP (#1229)
 
-* In-place CA Migration Script Skeleton
-
-* add flag parsing for subcommands
-
-* add check prerequisite subcommand
