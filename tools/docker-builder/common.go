@@ -39,12 +39,12 @@ func extractTags(a Args, target, variant string, hasDoubleDefault bool) []string
 	return tags
 }
 
-func createArgs(args Args, target string, variant string) map[string]string {
+func createArgs(args Args, target string, variant string, architecture string) map[string]string {
 	baseDist := variant
 	if baseDist == DefaultVariant {
 		baseDist = PrimaryVariant
 	}
-	return map[string]string{
+	m := map[string]string{
 		// Base version defines the tag of the base image to use. Typically, set in the Makefile and not overridden.
 		"BASE_VERSION": args.BaseVersion,
 		// Base distribution picks which variant to build
@@ -56,6 +56,13 @@ func createArgs(args Args, target string, variant string) map[string]string {
 		"VM_IMAGE_VERSION": vmImageVersion(target),
 		"CLOUDESF_VERSION": args.CloudEFSVersion,
 	}
+	// Only needed for crane - buildx does it automagically
+	if architecture != "" {
+		os, arch, _ := strings.Cut(architecture, "/")
+		m["TARGETARCH"] = arch
+		m["TARGETOS"] = os
+	}
+	return m
 }
 
 func vmImageName(target string) string {

@@ -46,6 +46,7 @@ var proxyHost string
 // 3. Use MITM proxy and proxy's cert, user should be able to finish authn flow
 // 4. Use MITM proxy and IDP's root cert, user should fail authn flow
 func TestProxy(t *testing.T) {
+	// nolint: staticcheck
 	framework.
 		NewTest(t).
 		RequiresSingleCluster().

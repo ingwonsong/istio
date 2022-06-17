@@ -57,6 +57,7 @@ features:
     cni:
       race-condition-repair:
       upgrade:
+    tunneling:
     gateway:
   usability:
     observability:

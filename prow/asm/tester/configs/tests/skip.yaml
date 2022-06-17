@@ -608,9 +608,12 @@ tests:
           - TestMtlsGatewaysWithQUIC/quic
         reason: Experemental code. Not supported by GKE
       - names:
-        - TestGatewayConformance
+          - TestGatewayConformance
         buganizerID: 229786939
         reason: Requires Default label, not yet supported.
+      - names:
+          - TestTunnelingOutboundTraffic
+        buganizerID: 236717015
 
       # telemetry/ tests
       - names:

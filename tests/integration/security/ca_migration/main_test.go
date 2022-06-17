@@ -78,6 +78,7 @@ func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances
 
 // TestIstiodToMeshCAMigration: test zero downtime migration from Istiod CA to Google Mesh CA
 func TestIstiodToMeshCAMigration(t *testing.T) {
+	// nolint: staticcheck
 	framework.NewTest(t).
 		RequiresSingleCluster().
 		Features("security.migrationca.citadel-meshca").
