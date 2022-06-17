@@ -26,6 +26,7 @@ import (
 
 	kubeApiCore "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/cloudesf"
@@ -335,7 +336,8 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t, apply.Wait, apply.NoCleanup)
 
 		// Get the ingress address.
-		address, _ := i.CustomIngressFor(t.Clusters().Default(), "istio-ingressgateway", "ingressgateway").HTTPAddress()
+		name := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "istio-system"}
+		address, _ := i.CustomIngressFor(t.Clusters().Default(), name, "ingressgateway").HTTPAddress()
 		t.Logf("The ingress address is: %v", address)
 
 		// Wait for CloudESF to be healthy.
