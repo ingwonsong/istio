@@ -40,6 +40,7 @@ import (
 
 // TestIstioOnGKEToMeshCA: test zero downtime migration from Istio on GKE to Google Mesh CA
 func TestIstioOnGKEToMeshCA(t *testing.T) {
+	// nolint: staticcheck
 	framework.NewTest(t).
 		RequiresSingleCluster().
 		Features("security.migrationca.citadel-meshca").

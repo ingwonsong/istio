@@ -51,6 +51,7 @@ var secretClient corev1.SecretInterface
 // 3. Redirect URL in UserAuthConfig
 // 4. Issuer URL in UserAuthConfig
 func TestMisconfiguration(t *testing.T) {
+	// nolint: staticcheck
 	framework.
 		NewTest(t).
 		RequiresSingleCluster().

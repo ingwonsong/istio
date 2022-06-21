@@ -31,7 +31,6 @@ func IsRunningOnCI() bool {
 	return os.Getenv("CI") == "true"
 }
 
-
 func NewWebServer(supportedHandlers map[string]func() (func(http.ResponseWriter, *http.Request), error)) (net.Listener, error) {
 	// Create the mapping of URL paths to handlers.
 	router := http.NewServeMux()

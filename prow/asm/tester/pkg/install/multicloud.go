@@ -116,7 +116,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 				}
 			}
 		}
-		
+
 		if err := installExpansionGateway(c.settings, rev, clusterID, networkID, kubeconfig, i); err != nil {
 			return fmt.Errorf("failed to install expansion gateway for the cluster: %w", err)
 		}
