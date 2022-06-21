@@ -1,7 +1,7 @@
-dc704669a71b0252de69097a7e2e3e6d747e5bfb
+4c95e8523ce062b60a1e29ed445c185744787dc7
 ========================================
-lei-tang
-Fri Jun 10 17:03:29 2022 -0700
+Rui Gu
+Thu Jun 16 11:03:16 2022 -0700
 
-Configure managed CAS for MCP (#1229)
+Add Connect Gateway as a requirement for Managed Control Plane (#1206)
 
