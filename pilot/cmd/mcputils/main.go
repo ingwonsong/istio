@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -78,6 +79,7 @@ func newMCPServeCommand() *cobra.Command {
 			mux.Handle("/mcp-install-crds", handler{s.installCRDs})
 			mux.Handle("/mcp-run-precheck", handler{s.runPrecheck})
 			mux.Handle("/mcp-update-webhooks", handler{s.updateWebhooks})
+			mux.Handle("/mcp-is-afc-owned", handler{s.isAFCOwned})
 
 			addr := fmt.Sprintf(":%s", params.port)
 			log.Infof("Listening on: %s", addr)
@@ -153,6 +155,12 @@ type updateWehooksRequest struct {
 	// DuplicatedCloudRunURL is the url of the duplicated control plane.
 	// Used to verify and signal if validatingwebhooks require an update as well.
 	DuplicatedCloudRunURL string `json:"duplicatedCloudRunURL"`
+}
+
+type afcOwnedRequest struct {
+	RequestShared
+	// Revision signals which webhook/controlplane should be checked.
+	Revision string `json:"revision"`
 }
 
 type server struct {
@@ -317,6 +325,59 @@ func (s *server) getAndUpdateWebhooks(ctx context.Context, client kubelib.Client
 	}
 	_, err = client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Update(ctx, mwh, metav1.UpdateOptions{})
 	return err
+}
+
+func decodeRequest(req *http.Request, r interface{}) *httpError {
+	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
+		return &httpError{
+			code:    http.StatusBadRequest,
+			message: fmt.Sprintf("json decoding error: %v", err),
+		}
+	}
+	return nil
+}
+
+func (s *server) isAFCOwned(req *http.Request) (string, *httpError) {
+	var r afcOwnedRequest
+	if err := decodeRequest(req, &r); err != nil {
+		return "", err
+	}
+	log.Infof("Received update webhooks request: %+v", r)
+	ctx := req.Context()
+	client, _, err := s.createKubeClient(ctx, s.project, r.Location, r.Cluster)
+	if err != nil {
+		return "", &httpError{
+			code:    http.StatusInternalServerError,
+			message: err.Error(),
+		}
+	}
+	mwh, err := client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, fmt.Sprintf("istiod-%s", r.Revision), metav1.GetOptions{})
+	if err != nil {
+		return "", &httpError{
+			code:    http.StatusInternalServerError,
+			message: fmt.Sprintf("unable to get mutating webhook: %v", err),
+		}
+	}
+	vwh, err := client.Kube().AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, "istiod-istio-system-mcp", metav1.GetOptions{})
+	if err != nil {
+		return "", &httpError{
+			code:    http.StatusInternalServerError,
+			message: fmt.Sprintf("unable to get validating webhook: %v", err),
+		}
+	}
+	// AFC does not own the webhooks if neither of the webhooks have set the
+	// owned-by label. If AFC only owns one of the webhooks, we consider it an
+	// error in AFC installation.
+	mwhOwned := mwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com"
+	vwhOwned := vwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com"
+	if mwhOwned != vwhOwned {
+		log.Infof("AFC is partially installed on the cluster")
+		return "", &httpError{
+			code:    http.StatusPreconditionFailed,
+			message: fmt.Sprintf("AFC is partially installed for control plane: (%s, %s, %s, %s)", s.project, r.Location, r.Cluster, r.Revision),
+		}
+	}
+	return strconv.FormatBool(mwhOwned), nil
 }
 
 func (s *server) updateWebhooks(req *http.Request) (string, *httpError) {
