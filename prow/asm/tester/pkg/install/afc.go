@@ -54,7 +54,7 @@ func (c *installer) installASMManagedLocalControlPlane(rev *revision.Config) err
 		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
 	}
 
-	if err := exec.Run(fmt.Sprintf("gcloud container hub mesh enable --project=%s", onPremFleetProject)); err != nil {
+	if err := exec.Run(fmt.Sprintf("gcloud container hub mesh enable --project=%s", OnPremFleetProject)); err != nil {
 		return fmt.Errorf("error enabling hub mesh feature: %w", err)
 	}
 

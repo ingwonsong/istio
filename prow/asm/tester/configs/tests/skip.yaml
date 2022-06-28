@@ -113,7 +113,10 @@ tests:
 
       # telemetry/
       - names:
-          - TestStackdriver
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
           - TestVMTelemetry
         buganizerID: 187956450
 
@@ -129,7 +132,10 @@ tests:
     - names:
       - TestCustomGateway/helm
       - TestBadWasmRemoteLoad
-      - TestStackdriver*
+      - TestStackdriverLegacy
+      - TestStackdriverAuditLogging
+      - TestStackdriverHTTPAuditLogging
+      - TestStackdriverAuthz
       buganizerID: 202282289
     - names:
       - TestTraffic/dns/.*
@@ -169,6 +175,13 @@ tests:
       - names:
           - TestAuthz_Custom
         reason: requires mesh config
+      - names:
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
+          - TestVMTelemetry
+        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
       # telemetry/ tests
       - names:
@@ -241,8 +254,10 @@ tests:
       - TestAuthz_Custom
       reason: requires mesh config
     - names:
-      - TestStackdriver
-      - TestStackdriverAudit
+      - TestStackdriverLegacy
+      - TestStackdriverAuditLogging
+      - TestStackdriverHTTPAuditLogging
+      - TestStackdriverAuthz
       - TestVMTelemetry
       reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
@@ -302,8 +317,10 @@ tests:
       - TestAuthz_Custom
       reason: requires mesh config
     - names:
-      - TestStackdriver
-      - TestStackdriverAudit
+      - TestStackdriverLegacy
+      - TestStackdriverAuditLogging
+      - TestStackdriverHTTPAuditLogging
+      - TestStackdriverAuthz
       - TestVMTelemetry
       reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
@@ -321,8 +338,10 @@ tests:
       cluster_type: apm
     targets:
       - names:
-          - TestStackdriver
-          - TestStackdriverAudit
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro Baremetal installation
       # pilot/ tests
@@ -365,8 +384,10 @@ tests:
           - TestCanonicalServices
         buganizerID: 203557135
       - names:
-          - TestStackdriver
-          - TestStackdriverAudit
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
       - names:
@@ -403,8 +424,10 @@ tests:
 
       # telemetry/ tests
       - names:
-          - TestStackdriver
-          - TestStackdriverAudit
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
 
@@ -436,7 +459,10 @@ tests:
         reason: Experemental code.
       # telemetry/ tests
       - names:
-          - TestStackdriver
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
           - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
@@ -472,8 +498,10 @@ tests:
         reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
       # telemetry/ tests
       - names:
-          - TestStackdriver
-          - TestStackdriverAudit
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
       - names:
@@ -510,7 +538,10 @@ tests:
         - TestGatewayConformance
       # telemetry/ tests
       - names:
-        - TestStackdriver
+        - TestStackdriverLegacy
+        - TestStackdriverAuditLogging
+        - TestStackdriverHTTPAuditLogging
+        - TestStackdriverAuthz
 
   # Unmanaged CP, cluster topology = mc, feature = VPC_SC
   # Keep the skipped test cases same as unmanaged cp, mp
@@ -711,7 +742,10 @@ tests:
           - TestReachability/no-peer-authn/naked.*
         buganizerID: 192372391
       - names:
-          - TestStackdriver
+          - TestStackdriverLegacy
+          - TestStackdriverAuditLogging
+          - TestStackdriverHTTPAuditLogging
+          - TestStackdriverAuthz
         buganizerID: 187956450
       - names:
           - TestWorkloadEntryUpdatesStatus
@@ -830,7 +864,10 @@ tests:
     - names:
       - TestCustomGateway/helm
       - TestBadWasmRemoteLoad
-      - TestStackdriver*
+      - TestStackdriverLegacy
+      - TestStackdriverAuditLogging
+      - TestStackdriverHTTPAuditLogging
+      - TestStackdriverAuthz
       buganizerID: 202282289
     - names:
       - TestTraffic/dns/.*

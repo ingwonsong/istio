@@ -31,8 +31,8 @@ import (
 
 const (
 	// Use personal test project since there is no project pool for multi-cloud.
-	onPremFleetProject         = "tairan-asm-multi-cloud-dev"
-	proxiedClusterFleetProject = "tailorbird"
+	OnPremFleetProject         = "tairan-asm-multi-cloud-dev"
+	ProxiedClusterFleetProject = "tailorbird"
 )
 
 func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
@@ -45,11 +45,11 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 
 	// Set the _CI_ENVIRON_PROJECT_NUMBER as the project where fleet is registered
 	// TODO(chizhg): use the same project for all multicloud.
-	environProject := proxiedClusterFleetProject
+	environProject := ProxiedClusterFleetProject
 	if c.settings.ClusterType == resource.OnPrem ||
 		c.settings.ClusterType == resource.HybridGKEAndBareMetal ||
 		c.settings.ClusterType == resource.HybridGKEAndEKS {
-		environProject = onPremFleetProject
+		environProject = OnPremFleetProject
 	}
 	if c.settings.MulticloudOverrideEnvironProject {
 		environProject = c.settings.GCPProjects[0]

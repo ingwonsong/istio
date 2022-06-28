@@ -314,7 +314,7 @@ func generateASMCreateMeshFlags(settings *resource.Settings) []string {
 
 	var createMeshFlags []string
 	if settings.ClusterType == resource.HybridGKEAndEKS {
-		createMeshFlags = append(createMeshFlags, "create-mesh", onPremFleetProject)
+		createMeshFlags = append(createMeshFlags, "create-mesh", OnPremFleetProject)
 		kubeconfigs := filepath.SplitList(settings.Kubeconfig)
 		for _, kubeconfig := range kubeconfigs {
 			createMeshFlags = append(createMeshFlags, kubeconfig)

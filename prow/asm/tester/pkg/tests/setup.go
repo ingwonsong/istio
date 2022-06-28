@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/install"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests/topology"
@@ -160,9 +161,19 @@ func genTopologyFile(settings *resource.Settings) error {
     kubeconfig: %s`, clusterName, kubeconfig)
 
 		// associate the project for the cluster in the metadata for the config
+		// TODO: determine if this logic is correct. It is taken from
+		// prow/asm/tester/pkg/install/multicloud.go (installASMOnMulticloudClusters)
 		if settings.ClusterType == resource.GKEOnGCP {
 			proj := kube.GKEClusterSpecFromContext(settings.KubeContexts[i]).ProjectID
 			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", proj)
+		} else if settings.ClusterType == resource.OnPrem ||
+			settings.ClusterType == resource.HybridGKEAndBareMetal ||
+			settings.ClusterType == resource.HybridGKEAndEKS {
+			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", install.OnPremFleetProject)
+		} else if settings.MulticloudOverrideEnvironProject {
+			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", settings.GCPProjects[0])
+		} else {
+			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", install.ProxiedClusterFleetProject)
 		}
 
 		// Disable using simulated Pod-based "VMs" when testing real VMs

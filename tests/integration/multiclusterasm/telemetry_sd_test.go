@@ -86,7 +86,7 @@ func setupApps(ctx resource.Context) error {
 	return err
 }
 
-func TestStackdriver(t *testing.T) {
+func TestStackdriverLegacy(t *testing.T) {
 	framework.NewTest(t).
 		Features("observability.telemetry.stackdriver").
 		Run(func(ctx framework.TestContext) {
