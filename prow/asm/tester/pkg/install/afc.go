@@ -355,6 +355,8 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--output_dir", outputDir,
 		"--offline",
 	}
+	installFlags = append(installFlags, caFlags(settings, cluster)...)
+
 	if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		installFlags = append(installFlags, "--use_vpcsc")
 	}

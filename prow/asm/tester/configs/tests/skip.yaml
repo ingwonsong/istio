@@ -1001,3 +1001,28 @@ packages:
     - names:
       - /mdp/installation
       reason: tests meant for asmcli install in VPC-SC environment
+
+  # MCP multi-project tests skips the following packages that's skipped by multi-cluster.
+  - selectors:
+      control_plane: managed
+      cluster_topology: mp
+    targets:
+    - names:
+      - /helm
+      - /operator
+      - /pilot/cni
+      - /pilot/revisions
+      - /pilot/revisioncmd
+      - /telemetry/stackdriver/vm
+      - /telemetry/stats/prometheus/customizemetrics
+      - /telemetry/stats/prometheus/wasm
+      reason: not supported
+    - names:
+      - /pilot/mcs
+      buganizerID: 183429870
+    - names:
+      - /mdp/controller
+      reason: requires setup of CNI and multiversion of CP
+    - names:
+      - /mdp/installation
+      reason: tests meant for asmcli install in VPC-SC environment

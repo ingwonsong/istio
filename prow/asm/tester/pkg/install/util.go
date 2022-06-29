@@ -29,6 +29,7 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
+	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -453,4 +454,22 @@ EOF'`, context)); err != nil {
 		time.Sleep(time.Minute * 5)
 	}
 	return nil
+}
+
+func caFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
+	ca := settings.CA
+	caFlags := []string{}
+	if ca == resource.MeshCA {
+		caFlags = append(caFlags, "--ca", "mesh_ca")
+	} else if ca == resource.PrivateCA {
+		caName := gcp.GetPrivateCAPool(env.SharedGCPProject, cluster.Location)
+		if settings.FeaturesToTest.Has(string(resource.CasCertTemplate)) {
+			caName = fmt.Sprintf("%s:%s", caName,
+				gcp.GetPrivateCACertTemplate(env.SharedGCPProject, cluster.Location))
+		}
+		caFlags = append(caFlags, "--enable_gcp_iam_roles")
+		caFlags = append(caFlags, "--ca", "gcp_cas")
+		caFlags = append(caFlags, "--ca_pool", caName)
+	}
+	return caFlags
 }

@@ -25,7 +25,6 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
-	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -113,25 +112,9 @@ EOF'`, context)); err != nil {
 }
 
 func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
-	installFlags := []string{"install"}
-	installFlags = append(installFlags, "--legacy")
-
-	ca := settings.CA
-	caFlags := []string{}
-	if ca == resource.MeshCA {
-		caFlags = append(caFlags, "--ca", "mesh_ca")
-	} else if ca == resource.PrivateCA {
-		caName := gcp.GetPrivateCAPool(env.SharedGCPProject, cluster.Location)
-		if settings.FeaturesToTest.Has(string(resource.CasCertTemplate)) {
-			caName = fmt.Sprintf("%s:%s", caName,
-				gcp.GetPrivateCACertTemplate(env.SharedGCPProject, cluster.Location))
-		}
-		caFlags = append(caFlags, "--enable_gcp_iam_roles")
-		caFlags = append(caFlags, "--ca", "gcp_cas")
-		caFlags = append(caFlags, "--ca_pool", caName)
-	}
-
-	installFlags = append(installFlags,
+	installFlags := []string{
+		"install",
+		"--legacy",
 		"--project_id", cluster.ProjectID,
 		"--cluster_location", cluster.Location,
 		"--cluster_name", cluster.Name,
@@ -139,8 +122,9 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--enable_cluster_labels",
 		"--enable_namespace_creation",
 		"--enable_registration",
-		"--verbose")
-	installFlags = append(installFlags, caFlags...)
+		"--verbose",
+	}
+	installFlags = append(installFlags, caFlags(settings, cluster)...)
 
 	installFlags = append(installFlags, "--fleet_id", settings.GCRProject)
 
