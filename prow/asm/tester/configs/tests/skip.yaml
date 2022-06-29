@@ -54,6 +54,9 @@ tests:
     - names:
       - TestJWTHTTPS
       buganizerID: 215175941
+    - names:
+      - TestReachability/beta-mtls-on/.*/.*multiversion
+      buganizerID: 237680146
 
   # Multiversion test skips.
   - selectors:
@@ -100,6 +103,9 @@ tests:
       - names:
           - TestReachability/automtls-passthrough.*
         reason: UNKNOWN
+      - names:
+        - TestReachability/beta-mtls-on/.*/.*multiversion
+        buganizerID: 237680146
       - names:
           - TestAuthz_Conditions
         reason: relies on specific pod IP when creating authz policies
@@ -615,6 +621,9 @@ tests:
       - names:
         - TestReachability/beta-mtls.*/headless.*
         buganizerID: 192372862
+      - names:
+        - TestReachability/beta-mtls-on/.*/.*multiversion
+        buganizerID: 237680146
       - names:
           - TestXdsVersion
         buganizerID: 184572948
