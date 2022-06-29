@@ -24,6 +24,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -131,19 +133,31 @@ func (n *naiveCache) hookMatchesObj(wh *v1admission.MutatingWebhook, ns *v1.Name
 
 // PodsFromRevision returns the pods which, if evicted, will be injected by the specified revision.  This is /slightly/
 // different from the Pods currently controlled by the revision, as revision labels may change after pod creation.
+// There can only be one webhook selecting each revision, unless they have tags.
 // Errors encountered when communicating with K8s will be logged, marking the cache as invalid, and returning a nil slice.
 func (n *naiveCache) PodsFromRevision(ctx context.Context, rev string) ([]*v1.Pod, error) {
 	webhooks := &v1admission.MutatingWebhookConfigurationList{}
-	whlabels := map[string]string{
-		appKey:                  injectorValue,
-		name.IstioRevisionLabel: rev,
+	appRequirement, err := labels.NewRequirement(appKey, selection.Equals, []string{injectorValue})
+	if err != nil {
+		return nil, err
 	}
-	if err := n.client.List(ctx, webhooks, client.MatchingLabels(whlabels)); err != nil {
+	revisionLabelRequirement, err := labels.NewRequirement(name.IstioRevisionLabel, selection.Equals, []string{rev})
+	if err != nil {
+		return nil, err
+	}
+	// List the webhooks without a tag.
+	tagNotExistRequirement, err := labels.NewRequirement(name.IstioTagLabel, selection.DoesNotExist, []string{})
+	if err != nil {
+		return nil, err
+	}
+	if err := n.client.List(ctx, webhooks, client.MatchingLabelsSelector{
+		Selector: labels.NewSelector().Add(*appRequirement, *revisionLabelRequirement, *tagNotExistRequirement),
+	}); err != nil {
 		return nil, err
 	}
 	if len(webhooks.Items) > 1 {
 		// TODO: @iamwen alert users to this condition.  Cannot manage dataplane.
-		err := fmt.Errorf("more than one webhook shares the revision %s", rev)
+		err := fmt.Errorf("more than one webhook shares the revision %s with tag", rev)
 		globalerrors.ErrorOnRevision(rev, err)
 		return nil, err
 	}
@@ -160,7 +174,6 @@ func (n *naiveCache) PodsFromRevision(ctx context.Context, rev string) ([]*v1.Po
 		return nil, err
 	}
 	result := make([]*v1.Pod, 0)
-	var err error
 	for _, ns := range namespaces.Items {
 		rslist := &appsv1.ReplicaSetList{}
 		if err := n.client.List(ctx, rslist, client.InNamespace(ns.Name)); err != nil {

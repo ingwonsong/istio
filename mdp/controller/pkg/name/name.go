@@ -20,6 +20,7 @@ const (
 
 const (
 	IstioRevisionLabel = "istio.io/rev"
+	IstioTagLabel      = "istio.io/tag"
 
 	// IstioSystemNamespace is the default Istio system namespace.
 	IstioSystemNamespace string = "istio-system"

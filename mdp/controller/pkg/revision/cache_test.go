@@ -154,6 +154,7 @@ func buildClient() client.Client {
 	rspods = append(rspods, kubesystempod, annotatedpod)
 	myrevwh := &admissionv1.MutatingWebhookConfiguration{
 		ObjectMeta: v12.ObjectMeta{
+			Name: "myrevwh",
 			Labels: map[string]string{
 				appKey:                  injectorValue,
 				name.IstioRevisionLabel: myRev,
@@ -220,7 +221,7 @@ func buildClient() client.Client {
 		ObjectMeta: v12.ObjectMeta{
 			Name: "otherwh",
 			Labels: map[string]string{
-				"app":                   "sidecar-injector",
+				appKey:                  injectorValue,
 				name.IstioRevisionLabel: otherRev,
 			},
 		},
@@ -281,6 +282,72 @@ func buildClient() client.Client {
 			},
 		},
 	}
+	myrevwhWithDefaultTag := &admissionv1.MutatingWebhookConfiguration{
+		ObjectMeta: v12.ObjectMeta{
+			Name: "myrevwhWithDefaultTag",
+			Labels: map[string]string{
+				appKey:                  injectorValue,
+				name.IstioRevisionLabel: myRev,
+				name.IstioTagLabel:      "default",
+			},
+		},
+		Webhooks: []admissionv1.MutatingWebhook{
+			{
+				Name: "rev.namespace.sidecar-injector.istio.io",
+				NamespaceSelector: &v12.LabelSelector{
+					MatchExpressions: []v12.LabelSelectorRequirement{
+						{
+							Key:      name.IstioRevisionLabel,
+							Operator: v12.LabelSelectorOpIn,
+							Values:   []string{"myRev"},
+						},
+						{
+							Key:      "istio-injection",
+							Operator: v12.LabelSelectorOpDoesNotExist,
+						},
+					},
+				},
+				ObjectSelector: &v12.LabelSelector{
+					MatchExpressions: []v12.LabelSelectorRequirement{
+						{
+							Key:      "sidecar.istio.io/inject",
+							Operator: "NotIn",
+							Values:   []string{"false"},
+						},
+					},
+				},
+			},
+			{
+				Name: "rev.object.sidecar-injector.istio.io",
+				NamespaceSelector: &v12.LabelSelector{
+					MatchExpressions: []v12.LabelSelectorRequirement{
+						{
+							Key:      name.IstioRevisionLabel,
+							Operator: v12.LabelSelectorOpDoesNotExist,
+						},
+						{
+							Key:      "istio-injection",
+							Operator: v12.LabelSelectorOpDoesNotExist,
+						},
+					},
+				},
+				ObjectSelector: &v12.LabelSelector{
+					MatchExpressions: []v12.LabelSelectorRequirement{
+						{
+							Key:      "sidecar.istio.io/inject",
+							Operator: "NotIn",
+							Values:   []string{"false"},
+						},
+						{
+							Key:      name.IstioRevisionLabel,
+							Operator: "In",
+							Values:   []string{"myRev"},
+						},
+					},
+				},
+			},
+		},
+	}
 	myrevCfg = &v1alpha1.DataPlaneControl{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      myRev,
@@ -292,7 +359,7 @@ func buildClient() client.Client {
 			ProxyTargetBasisPoints: 1,
 		},
 	}
-	rspods = append(rspods, myrevwh, otherrevwh, myrevCfg, otherRevCM, myRevCM)
+	rspods = append(rspods, myrevwh, otherrevwh, myrevwhWithDefaultTag, myrevCfg, otherRevCM, myRevCM)
 
 	s := scheme.Scheme
 	_ = apis.AddToScheme(s)
