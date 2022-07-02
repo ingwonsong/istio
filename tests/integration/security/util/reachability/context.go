@@ -33,7 +33,6 @@ import (
 	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/istio/tests/integration/security/util"
-	"istio.io/istio/tests/integration/security/util/scheck"
 )
 
 // TestCase represents reachability test cases.
@@ -144,16 +143,16 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 								continue
 							}
 							// grabbing the 0th assumes all echos in destinations have the same service name
-							if isNakedToVM(apps, from, to) {
+							if isNakedToVM(from, to) {
 								// No need to waste time on these tests which will time out on connection instead of fail-fast
 								continue
 							}
 							// TODO: https://b.corp.google.com/issues/186466594
 							if os.Getenv("CLUSTER_TYPE") == "bare-metal" {
-								if c.ConfigFile == "beta-mtls-off.yaml" && (apps.IsNaked(to) || apps.IsVM(to)) {
+								if c.ConfigFile == "beta-mtls-off.yaml" && (to.Config().IsNaked() || to.Config().IsVM()) {
 									continue
 								}
-								if c.ConfigFile == "global-plaintext.yaml" && apps.IsNaked(to) {
+								if c.ConfigFile == "global-plaintext.yaml" && to.Config().IsNaked() {
 									continue
 								}
 							}
@@ -185,14 +184,14 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 									tpe = "positive"
 									opts.Check = check.And(
 										check.OK(),
-										scheck.ReachedClusters(t.AllClusters(), &opts))
+										check.ReachedTargetClusters(t))
 									if expectMTLS {
 										opts.Check = check.And(opts.Check,
 											check.MTLSForHTTP())
 									}
 								} else {
 									tpe = "negative"
-									opts.Check = scheck.NotOK()
+									opts.Check = check.NotOK()
 								}
 								include := c.Include
 								if include == nil {
@@ -208,7 +207,7 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 
 									t.NewSubTest(subTestName).
 										Run(func(t framework.TestContext) {
-											if (apps.IsNaked(from)) && len(toClusters) > 1 {
+											if (from.Config().IsNaked()) && len(toClusters) > 1 {
 												// TODO use echotest to generate the cases that would work for multi-network + naked
 												t.Skip("https://github.com/istio/istio/issues/37307")
 											}
@@ -227,6 +226,6 @@ func Run(testCases []TestCase, t framework.TestContext, apps *util.EchoDeploymen
 
 // Exclude calls from naked->VM since naked has no Envoy
 // However, no endpoint exists for VM in k8s, so calls from naked->VM will fail, regardless of mTLS
-func isNakedToVM(apps *util.EchoDeployments, from echo.Instance, to echo.Target) bool {
-	return apps.IsNaked(from) && apps.IsVM(to)
+func isNakedToVM(from echo.Instance, to echo.Target) bool {
+	return from.Config().IsNaked() && to.Config().IsVM()
 }
