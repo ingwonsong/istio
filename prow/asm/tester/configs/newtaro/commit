@@ -1,7 +1,7 @@
-4c95e8523ce062b60a1e29ed445c185744787dc7
+cd0a0e6cf0a013b3b6d75702008e0dab8a39ea0e
 ========================================
-Rui Gu
-Thu Jun 16 11:03:16 2022 -0700
+Clay
+Wed Jul 6 16:10:03 2022 -0700
 
-Add Connect Gateway as a requirement for Managed Control Plane (#1206)
+Use updated labelling command for off-GCP clusters (#1256)
 
