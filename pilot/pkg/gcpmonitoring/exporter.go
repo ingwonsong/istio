@@ -228,8 +228,18 @@ func newASMExporter(s sdExporterConfigs) (*ASMExporter, error) {
 	if ep := endpointOverride.Get(); ep != "" {
 		clientOptions = append(clientOptions, option.WithEndpoint(ep))
 	}
+	// b/237576270: to prevent MDP controller from crashing incase projectID not found from mds.
+	var projectID string
+	switch {
+	case gcpMetadata[platform.GCPProject] != "":
+		projectID = gcpMetadata[platform.GCPProject]
+	case gcpMetadata[platform.GCPProjectNumber] != "":
+		projectID = gcpMetadata[platform.GCPProjectNumber]
+	default:
+		projectID = "UNSPECIFIED"
+	}
 	se, err := stackdriver.NewExporter(stackdriver.Options{
-		ProjectID:               gcpMetadata[platform.GCPProject],
+		ProjectID:               projectID,
 		Location:                gcpMetadata[platform.GCPLocation],
 		MetricPrefix:            s.metricsPrefix,
 		MonitoringClientOptions: clientOptions,
