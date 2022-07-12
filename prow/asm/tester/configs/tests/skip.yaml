@@ -57,6 +57,13 @@ tests:
     - names:
       - TestReachability/beta-mtls-on/.*/.*multiversion
       buganizerID: 237680146
+    - names:
+      - TestReachability/global_mtls_disabled
+      - TestReachability/global_plaintext_to_mtls_permissive
+      - TestReachability/global_automtls_disable
+      - TestReachability/global_automtls_passthrough
+      - TestReachability/mtls_disabled
+      buganizerID: 238942267
 
   # Multiversion test skips.
   - selectors:
@@ -729,6 +736,13 @@ tests:
       - names:
         - TestJWTHTTPS
         buganizerID: 215175941
+      - names:
+        - TestReachability/global_mtls_disabled
+        - TestReachability/global_plaintext_to_mtls_permissive
+        - TestReachability/global_automtls_disable
+        - TestReachability/global_automtls_passthrough
+        - TestReachability/mtls_disabled
+        buganizerID: 238942267
 
       # cloudesf/tests
       - names:
