@@ -95,6 +95,9 @@ func TestProxy(t *testing.T) {
 				if err := wd.WaitWithTimeout(selenium.WaitForTitleCondition("Sign in - Google Accounts"), 20*time.Second); err != nil {
 					ctx.Fatalf("unable to load sign in page %v", err)
 				}
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("//*[@id=\"identifierId\"]\n"), 10*time.Second); err != nil {
+					ctx.Log("unable to load sign in page %v", err)
+				}
 				selenium.InputByXPathOrFail(ctx, wd, "//*[@id=\"identifierId\"]\n", "cloud_gatekeeper_prober_prod_authorized@gmail.com")
 				selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"identifierNext\"]/div/button")
 				// Password page
@@ -157,7 +160,7 @@ func TestProxy(t *testing.T) {
 					ctx.Fatalf("unable to get the text from headers page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authentication Failed.") {
+				if !strings.Contains(tx, "Authentication failed, please contact your system administrator.") {
 					ctx.Fatalf("Failed to detect authentication failure.")
 				}
 			})
@@ -255,7 +258,7 @@ func TestProxy(t *testing.T) {
 					ctx.Fatalf("unable to get the text from headers page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authentication Failed.") {
+				if !strings.Contains(tx, "Authentication failed, please contact your system administrator.") {
 					ctx.Fatalf("Failed to detect authentication failure.")
 				}
 			})

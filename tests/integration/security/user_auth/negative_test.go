@@ -110,7 +110,7 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to get the text from headers page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authentication Failed.") {
+				if !strings.Contains(tx, "Authentication failed, please contact your system administrator.") {
 					ctx.Fatalf("Failed to detect authentication failure.")
 				}
 			})
@@ -145,6 +145,7 @@ func TestMisconfiguration(t *testing.T) {
 			// revert oauth secret after test client_id and client_secret
 			updateSecretOrFail(ctx, secretName, []string{clientID, clientSecret}, [][]byte{originalClientID, originalClientSecret})
 
+			// TODO(b/237566139): Remove outputJWTAudience test after adding the Admission Webhook validataion.
 			// No outputJWTAudience field should timeout due to redirection loop
 			ctx.NewSubTest("outputJWTAudience").Run(func(ctx framework.TestContext) {
 				// Test no outputJWTAudience field
@@ -162,6 +163,9 @@ func TestMisconfiguration(t *testing.T) {
 				if err := wd.WaitWithTimeout(selenium.WaitForTitleCondition("Sign in - Google Accounts"), 20*time.Second); err != nil {
 					ctx.Fatalf("unable to load sign in page %v", err)
 				}
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("//*[@id=\"identifierId\"]\n"), 10*time.Second); err != nil {
+					ctx.Log("unable to load sign in page %v", err)
+				}
 				selenium.InputByXPathOrFail(ctx, wd, "//*[@id=\"identifierId\"]\n", "cloud_gatekeeper_prober_prod_authorized@gmail.com")
 				selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"identifierNext\"]/div/button")
 				// Password page
@@ -170,13 +174,23 @@ func TestMisconfiguration(t *testing.T) {
 				}
 				selenium.InputByCSSOrFail(ctx, wd, "#password input", "bB2iAGl7VfDE7n7")
 				selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"passwordNext\"]/div/button")
-				// Timeout for loading error page due to headless mode
-				// TODO(b/210551310): revisit test after fixing the behavior
-				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("//*[@id=\"error-information-popup-content\"]/div[2]"), 30*time.Second); err != nil {
-					ctx.Log("unable to load error page %v", err)
+
+				// Headers page
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("/html/body/pre"), 20*time.Second); err != nil {
+					ctx.Fatalf("unable to load headers page %v", err)
+				}
+
+				// Get a reference to the text box containing code.
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "/html/body/pre")
+				tx, err := elem.Text()
+				if err != nil {
+					ctx.Fatalf("unable to get the text from headers page content %v", err)
+				}
+				ctx.Log(tx)
+				if !strings.Contains(tx, "X-Asm-Rctoken") {
+					ctx.Fatalf("X-Asm-Rctoken is not in the header")
 				}
 			})
-
 			time.Sleep(5 * time.Second)
 
 			// Invalid redirect URL Host should get Error 400: redirect_uri_mismatch
@@ -336,7 +350,7 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to get the text from headers page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authentication Failed.") {
+				if !strings.Contains(tx, "Authentication failed, please contact your system administrator.") {
 					ctx.Fatalf("Failed to detect authentication failure.")
 				}
 			})
@@ -377,7 +391,7 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to get the text from headers page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authentication Failed.") {
+				if !strings.Contains(tx, "Authentication failed, please contact your system administrator.") {
 					ctx.Fatalf("Failed to detect authentication failure.")
 				}
 			})

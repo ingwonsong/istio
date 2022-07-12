@@ -2,6 +2,7 @@
   "issuer": "https://accounts.google.com",
   "client_id": "MTA0MjQ1MTkyODAxNS03dm9hN2o2YnZqcDI4ZXFjZmhqNWR2aGJwNm4yNDhpcC5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbQ==",
   "client_secret": "WDIwUHpsRUVLZ0VvbUZZUjBhbGtYRjNQ",
-  "image": "gcr.io/gke-release-staging/ais:staging",
-  "redirect_uri_path": "/_gcp_anthos_callback"
+  "image": "gcr.io/gke-release-staging/ais_preview:staging",
+  "redirect_uri_path": "/_gcp_anthos_callback",
+  "redirect_uri_host": "https://localhost:8443"
 }
