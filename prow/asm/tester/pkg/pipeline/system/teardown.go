@@ -115,6 +115,7 @@ func cleanupPrivateCa(settings *resource.Settings) {
 			} else {
 				certTemplate = ""
 			}
+			os.Unsetenv("CA_POOL")
 			exec.Dispatch(settings.RepoRootDir,
 				"amend_privateca_iam",
 				[]string{"remove-iam-policy-binding",

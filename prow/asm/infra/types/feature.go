@@ -30,6 +30,7 @@ var (
 	CasCertTemplate                  = addFeature("CAS_CERT_TEMPLATE")
 	CompositeGateway                 = addFeature("COMPOSITE_GATEWAY")
 	PolicyConstraint                 = addFeature("POLICY_CONSTRAINT")
+	CAMigration                      = addFeature("CA_MIGRATION")
 
 	SupportedFeatures []Feature
 )

@@ -25,7 +25,6 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
-	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -192,34 +191,14 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 	if rev.CA != "" {
 		ca = resource.CAType(rev.CA)
 	}
-	if ca == resource.MeshCA {
-		installFlags = append(installFlags,
-			"--ca", "mesh_ca",
-		)
-	} else if ca == resource.Citadel {
-		installFlags = append(installFlags,
-			"--ca", "citadel",
-		)
-		// Tairan: for Citadel multicluster, cacerts need to be created ahead so that two clusters have the same root trust
-		if len(filepath.SplitList(settings.Kubeconfig)) > 1 {
-			installFlags = append(installFlags, "--ca_cert", "samples/certs/ca-cert.pem",
-				"--ca_key", "samples/certs/ca-key.pem",
-				"--root_cert", "samples/certs/root-cert.pem",
-				"--cert_chain", "samples/certs/cert-chain.pem")
-		}
-	} else if ca == resource.PrivateCA {
-		issuingCaPoolId := fmt.Sprintf("%s-%s", gcp.CasSubCaIdPrefix, gcp.CasRootCaLoc)
-		caName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
-			env.SharedGCPProject, gcp.CasRootCaLoc, issuingCaPoolId)
-		installFlags = append(installFlags, "--ca", "gcp_cas")
-		installFlags = append(installFlags, "--ca_pool", caName)
-		installFlags = append(installFlags, "--enable_gcp_iam_roles")
-	} else {
-		return nil, fmt.Errorf("unsupported CA type for multicloud installation: %s", ca)
+	// Tairan: for Citadel multicluster, cacerts need to be created ahead so that two clusters have the same root trust
+	citadelPluginCerts := false
+	if len(filepath.SplitList(settings.Kubeconfig)) > 1 {
+		citadelPluginCerts = true
 	}
-
+	caFlags, _ := GenCaFlags(ca, settings, nil, citadelPluginCerts)
 	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
-
+	installFlags = append(installFlags, caFlags...)
 	return installFlags, nil
 }
 

@@ -25,7 +25,6 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
-	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
@@ -230,28 +229,13 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if rev.CA != "" {
 		ca = resource.CAType(rev.CA)
 	}
-	if ca == resource.MeshCA {
-		installFlags = append(installFlags, "--ca", "mesh_ca")
-	} else if ca == resource.PrivateCA {
-		caName := gcp.GetPrivateCAPool(env.SharedGCPProject, cluster.Location)
-		if settings.FeaturesToTest.Has(string(resource.CasCertTemplate)) {
-			caName = fmt.Sprintf("%s:%s", caName,
-				gcp.GetPrivateCACertTemplate(env.SharedGCPProject, cluster.Location))
-		}
-		installFlags = append(installFlags, "--enable_gcp_iam_roles")
-		installFlags = append(installFlags, "--ca", "gcp_cas")
-		installFlags = append(installFlags, "--ca_pool", caName)
-	} else if ca == resource.Citadel {
-		installFlags = append(installFlags,
-			"--ca", "citadel")
+	citadelPluginCerts := false
+	if rev.Name == "" || rev.CustomCerts {
 		// if no revision or the revision specifies to use custom certs, add the Citadel flags
-		if rev.Name == "" || rev.CustomCerts {
-			installFlags = append(installFlags, "--ca_cert", "samples/certs/ca-cert.pem",
-				"--ca_key", "samples/certs/ca-key.pem",
-				"--root_cert", "samples/certs/root-cert.pem",
-				"--cert_chain", "samples/certs/cert-chain.pem")
-		}
+		citadelPluginCerts = true
 	}
+	caFlags, _ := GenCaFlags(ca, settings, cluster, citadelPluginCerts)
+	installFlags = append(installFlags, caFlags...)
 
 	// Set kpt overlays
 	overlays := []string{

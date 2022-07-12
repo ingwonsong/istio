@@ -44,14 +44,14 @@ func GetServiceAccount() (string, error) {
 	return strings.TrimSpace(serviceAccount), err
 }
 
-func GetPrivateCAPool(projectName, clusterLocation string) string {
+func GetPrivateCAPool(project, clusterLocation string) string {
 	issuingCaPoolId := fmt.Sprintf("%s-%s", CasSubCaIdPrefix, clusterLocation)
 	return fmt.Sprintf("projects/%s/locations/%s/caPools/%s",
-		projectName, clusterLocation, issuingCaPoolId)
+		project, clusterLocation, issuingCaPoolId)
 }
 
-func GetPrivateCACertTemplate(projectName, clusterLocation string) string {
+func GetPrivateCACertTemplate(project, clusterLocation string) string {
 	caCertificateTemplateId := fmt.Sprintf("%s-%s", CasCertTemplateIdPrefix, clusterLocation)
 	return fmt.Sprintf("projects/%s/locations/%s/certificateTemplates/%s",
-		projectName, clusterLocation, caCertificateTemplateId)
+		project, clusterLocation, caCertificateTemplateId)
 }

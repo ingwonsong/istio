@@ -112,9 +112,10 @@ EOF'`, context)); err != nil {
 }
 
 func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
-	installFlags := []string{
-		"install",
-		"--legacy",
+	installFlags := []string{"install"}
+	installFlags = append(installFlags, "--legacy")
+
+	installFlags = append(installFlags,
 		"--project_id", cluster.ProjectID,
 		"--cluster_location", cluster.Location,
 		"--cluster_name", cluster.Name,
@@ -122,10 +123,10 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--enable_cluster_labels",
 		"--enable_namespace_creation",
 		"--enable_registration",
-		"--verbose",
-	}
-	installFlags = append(installFlags, caFlags(settings, cluster)...)
+		"--verbose")
 
+	caFlags, _ := GenCaFlags(settings.CA, settings, cluster, false)
+	installFlags = append(installFlags, caFlags...)
 	installFlags = append(installFlags, "--fleet_id", settings.GCRProject)
 
 	if settings.FeaturesToTest.Has(string(resource.CNI)) || settings.FeaturesToTest.Has(string(resource.Addon)) {

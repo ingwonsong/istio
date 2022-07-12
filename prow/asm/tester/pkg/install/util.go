@@ -456,20 +456,36 @@ EOF'`, context)); err != nil {
 	return nil
 }
 
-func caFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
-	ca := settings.CA
-	caFlags := []string{}
-	if ca == resource.MeshCA {
+func GenCaFlags(caType resource.CAType, settings *resource.Settings,
+	cluster *kube.GKEClusterSpec, citadelPluginCerts bool) (caFlags []string, caName string) {
+
+	caName = ""
+	location := "us-central1"
+	if caType == resource.MeshCA {
 		caFlags = append(caFlags, "--ca", "mesh_ca")
-	} else if ca == resource.PrivateCA {
-		caName := gcp.GetPrivateCAPool(env.SharedGCPProject, cluster.Location)
+	} else if caType == resource.PrivateCA {
+		if cluster != nil && !settings.FeaturesToTest.Has(string(resource.CAMigration)) {
+			location = cluster.Location
+		}
+		caName = gcp.GetPrivateCAPool(env.SharedGCPProject, location)
 		if settings.FeaturesToTest.Has(string(resource.CasCertTemplate)) {
 			caName = fmt.Sprintf("%s:%s", caName,
-				gcp.GetPrivateCACertTemplate(env.SharedGCPProject, cluster.Location))
+				gcp.GetPrivateCACertTemplate(env.SharedGCPProject, location))
 		}
 		caFlags = append(caFlags, "--enable_gcp_iam_roles")
 		caFlags = append(caFlags, "--ca", "gcp_cas")
 		caFlags = append(caFlags, "--ca_pool", caName)
+	} else if caType == resource.Citadel {
+		caFlags = append(caFlags,
+			"--ca", "citadel")
+		// if no revision or the revision specifies to use custom certs, add the Citadel flags
+		if citadelPluginCerts {
+			caFlags = append(caFlags, "--ca_cert", "samples/certs/ca-cert.pem",
+				"--ca_key", "samples/certs/ca-key.pem",
+				"--root_cert", "samples/certs/root-cert.pem",
+				"--cert_chain", "samples/certs/cert-chain.pem")
+		}
 	}
-	return caFlags
+
+	return caFlags, caName
 }
