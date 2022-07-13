@@ -623,7 +623,7 @@ var (
 	EnableHCMInternalNetworks = env.RegisterBoolVar("ENABLE_HCM_INTERNAL_NETWORKS", false,
 		"If enable, endpoints defined in mesh networks will be configured as internal addresses in Http Connection Manager").Get()
 
-	CanonicalServiceForMeshExternalServiceEntry = env.RegisterBoolVar("LABEL_CANONICAL_SERVICES_FOR_MESH_EXTERNAL_SERVICE_ENTRIES", false,
+	CanonicalServiceForMeshExternalServiceEntry = env.RegisterBoolVar("LABEL_CANONICAL_SERVICES_FOR_MESH_EXTERNAL_SERVICE_ENTRIES", true,
 		"If enabled, metadata representing canonical services for ServiceEntry resources with a location of mesh_external will be populated"+
 			"in the cluster metadata for those endpoints.").Get()
 
