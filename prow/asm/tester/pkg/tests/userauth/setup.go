@@ -27,11 +27,11 @@ import (
 
 // Setup runs the test setups for userauth tests.
 func Setup(settings *resource.Settings) error {
-	if err := installASMUserAuth(settings); err != nil {
-		return fmt.Errorf("error installing user auth: %w", err)
-	}
 	if err := downloadUserAuthDependencies(settings); err != nil {
 		return fmt.Errorf("error installing user auth dependencies: %w", err)
+	}
+	if err := installASMUserAuth(settings); err != nil {
+		return fmt.Errorf("error installing user auth: %w", err)
 	}
 	return nil
 }
@@ -60,12 +60,10 @@ func installASMUserAuth(settings *resource.Settings) error {
 	redirectURIPath := res["redirect_uri_path"].(string)
 
 	cmds := []string{
-		fmt.Sprintf("kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git@main %s/user-auth", settings.ConfigDir),
-		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.image %s", settings.ConfigDir, userAuthImage),
-		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientID %s", settings.ConfigDir, oidcClientID),
-		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.clientSecret %s", settings.ConfigDir, oidcClientSecret),
-		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.issuerURI %s", settings.ConfigDir, oidcIssueURI),
-		fmt.Sprintf("kpt cfg set %s/user-auth/asm-user-auth/pkg anthos.servicemesh.user-auth.oidc.redirectURIPath %s", settings.ConfigDir, redirectURIPath),
+		fmt.Sprintf("%s/user-auth/dependencies/kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git/@main %s/user-auth",
+			settings.ConfigDir, settings.ConfigDir),
+		fmt.Sprintf("%s/user-auth/dependencies/kpt fn eval %s/user-auth/asm-user-auth/pkg --image gcr.io/kpt-fn/apply-setters:v0.2 --truncate-output=false -- image=%s client-id=%s client-secret=%s issuer-uri=%s redirect-path=%s",
+			settings.ConfigDir, settings.ConfigDir, userAuthImage, oidcClientID, oidcClientSecret, oidcIssueURI, redirectURIPath),
 	}
 	if err := exec.RunMultiple(cmds); err != nil {
 		return err
@@ -134,6 +132,7 @@ func downloadUserAuthDependencies(settings *resource.Settings) error {
 	chromiumURL := "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F" + revision + "%2Fchrome-linux.zip?alt=media"
 	driverURL := "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F" + revision + "%2Fchromedriver_linux64.zip?alt=media"
 	seleniumURL := "https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar"
+	kptURL := "https://github.com/GoogleContainerTools/kpt/releases/download/v1.0.0-beta.17/kpt_linux_amd64"
 
 	cmds := []string{
 		// TODO(b/182939536): add apt-get to https://github.com/istio/tools/blob/master/docker/build-tools/Dockerfile
@@ -146,6 +145,8 @@ func downloadUserAuthDependencies(settings *resource.Settings) error {
 		fmt.Sprintf("unzip %s/user-auth/dependencies/chrome-linux.zip -d %s/user-auth/dependencies", settings.ConfigDir, settings.ConfigDir),
 		fmt.Sprintf("unzip %s/user-auth/dependencies/chromedriver-linux.zip -d %s/user-auth/dependencies", settings.ConfigDir, settings.ConfigDir),
 		fmt.Sprintf("bash -c 'curl -# %s > %s/user-auth/dependencies/selenium-server.jar'", seleniumURL, settings.ConfigDir),
+		fmt.Sprintf("bash -c 'curl -L -# %s -o %s/user-auth/dependencies/kpt'", kptURL, settings.ConfigDir),
+		fmt.Sprintf("bash -c 'chmod +x %s/user-auth/dependencies/kpt -v'", settings.ConfigDir),
 	}
 	if err = exec.RunMultiple(cmds); err != nil {
 		return err
