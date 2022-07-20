@@ -160,7 +160,8 @@ type ReadWritePodCache interface {
 	Start(ctx context.Context)
 }
 
-type podCache struct {
+// PodCache is a cache for Pods.
+type PodCache struct {
 	state  perRevisionNamespace
 	mapper Mapper
 	mu     sync.RWMutex
@@ -177,9 +178,9 @@ type (
 	perRevisionNamespace map[string]perNamespaceVersion
 )
 
-// NewPodCache
-func NewPodCache(mapper Mapper, rec *EnablementCache) ReadWritePodCache {
-	return &podCache{
+// NewPodCache creates a new PodCache and returns a pointer to it.
+func NewPodCache(mapper Mapper, rec *EnablementCache) *PodCache {
+	return &PodCache{
 		state:           make(perRevisionNamespace),
 		mapper:          mapper,
 		rec:             rec,
@@ -187,28 +188,45 @@ func NewPodCache(mapper Mapper, rec *EnablementCache) ReadWritePodCache {
 	}
 }
 
+// CacheReader returns a read only interface to p.
+func (p *PodCache) CacheReader() ReadPodCache {
+	return p
+}
+
+// CacheReader returns a write only interface to p.
+func (p *PodCache) CacheWriter() WritePodCache {
+	return p
+}
+
+// CacheReader returns a read and write interface to p.
+func (p *PodCache) CacheReadAndWriter() ReadWritePodCache {
+	return p
+}
+
 // MarkDirty implements WritePodCache
-func (p *podCache) MarkDirty() {
+func (p *PodCache) MarkDirty() {
 	p.dirtymu.Lock()
 	defer p.dirtymu.Unlock()
 	p.dirty = true
 }
 
 // Start implements WritePodCache
-func (p *podCache) Start(ctx context.Context) {
+func (p *PodCache) Start(ctx context.Context) {
 	t := time.NewTicker(p.rebuildInterval)
 	go func() {
-		select {
-		case <-t.C:
-			p.maybeRebuildCache(ctx)
-		case <-ctx.Done():
-			t.Stop()
-			return
+		for {
+			select {
+			case <-t.C:
+				p.maybeRebuildCache(ctx)
+			case <-ctx.Done():
+				t.Stop()
+				return
+			}
 		}
 	}()
 }
 
-func (p *podCache) maybeRebuildCache(ctx context.Context) {
+func (p *PodCache) maybeRebuildCache(ctx context.Context) {
 	p.dirtymu.Lock()
 	defer p.dirtymu.Unlock()
 	if !p.dirty {
@@ -231,18 +249,18 @@ func (p *podCache) maybeRebuildCache(ctx context.Context) {
 			tempCache.AddPod(pod)
 		}
 	}
-	p.state = tempCache.(*podCache).state
+	p.state = tempCache.state
 	p.dirty = false
 }
 
 // AddPod implements WritePodCache
-func (p *podCache) AddPod(object rtclient.Object) string {
+func (p *PodCache) AddPod(object rtclient.Object) string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.addPodUnsafe(object)
 }
 
-func (p *podCache) addPodUnsafe(object rtclient.Object) string {
+func (p *PodCache) addPodUnsafe(object rtclient.Object) string {
 	pod := object.(*v1.Pod)
 	rev, err := p.mapper.RevisionForPod(context.Background(), object.(*v1.Pod))
 	if err != nil {
@@ -278,7 +296,11 @@ func (p *podCache) addPodUnsafe(object rtclient.Object) string {
 	return rev
 }
 
-func (p *podCache) podIsEnabled(pod *v1.Pod, rev string) bool {
+func (p *PodCache) podIsEnabled(pod *v1.Pod, rev string) bool {
+	// Pods with no revision are disabled by definition.
+	if rev == "" {
+		return false
+	}
 	// NamespaceIsEnabled errors on json parsing and kube client errors, which effectively means enablement is not specified
 	nse, err := p.mapper.NamespaceIsEnabled(context.Background(), pod.Namespace)
 	if err != nil {
@@ -298,9 +320,9 @@ func (p *podCache) podIsEnabled(pod *v1.Pod, rev string) bool {
 	if err != nil {
 		log.Errorf("failed to parse annotation %s of pod %s/%s: %s", name.MDPEnabledAnnotation, pod.Namespace, pod.Name, err)
 	}
-	re := p.rec.IsRevisionEnabled(rev)
-	// enablement preference favors pods, then namespaces, then revisions
-	out := prefer(pe, nse, re)
+	// enablement preference favors pods, then namespaces, then CPR.
+	cpre := p.rec.IsRevisionEnabled(rev)
+	out := prefer(pe, nse, cpre)
 	if out != nil {
 		return *out
 	}
@@ -319,7 +341,7 @@ func prefer(inputs ...*bool) *bool {
 }
 
 // RemovePod implements WritePodCache
-func (p *podCache) RemovePod(object rtclient.Object) string {
+func (p *PodCache) RemovePod(object rtclient.Object) string {
 	pod := object.(*v1.Pod)
 	rev, err := p.mapper.RevisionForPod(context.Background(), object.(*v1.Pod))
 	if err != nil {
@@ -333,7 +355,7 @@ func (p *podCache) RemovePod(object rtclient.Object) string {
 }
 
 // RemovePodByName implements ReadPodCache
-func (p *podCache) RemovePodByName(rev, namespace, version, podname string) {
+func (p *PodCache) RemovePodByName(rev, namespace, version, podname string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	nsmap, ok := p.state[rev]
@@ -377,7 +399,7 @@ func (p *podCache) RemovePodByName(rev, namespace, version, podname string) {
 }
 
 // GetProxyVersionCount implements ReadPodCache
-func (p *podCache) GetProxyVersionCount(rev string) (map[string]int, int) {
+func (p *PodCache) GetProxyVersionCount(rev string) (map[string]int, int) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	result := make(map[string]int)
@@ -400,7 +422,7 @@ func (p *podCache) GetProxyVersionCount(rev string) (map[string]int, int) {
 }
 
 // GetPodsInRevisionOutOfVersion implements ReadPodCache
-func (p *podCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Set {
+func (p *PodCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Set {
 	result := set.Set{}
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -430,7 +452,7 @@ func (p *podCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Set {
 }
 
 // RecalculateNamespaceMembers implements WritePodCache
-func (p *podCache) RecalculateNamespaceMembers(ns string, oldrev string, client rtclient.Client) []string {
+func (p *PodCache) RecalculateNamespaceMembers(ns string, oldrev string, client rtclient.Client) []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	affectedRev, ok := p.state[oldrev]

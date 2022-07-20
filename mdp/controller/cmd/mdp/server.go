@@ -144,8 +144,9 @@ func run() {
 	logger := log.NewLogrAdapter(scope)
 
 	mapper := revision.NewMapper(mgr.GetClient())
-	cmhandler, cmcache := revision.NewConfigMapHandler(mapper)
-	pcache := revision.NewPodCache(mapper, cmcache)
+	cprhandler, cprcache := revision.NewCPRHandler(mapper)
+	pcache := revision.NewPodCache(mapper, cprcache)
+	cprhandler.SetPodCache(pcache)
 	nscache := revision.NewNamespaceHandler(pcache, mgr.GetClient(), mapper)
 	sw := status.NewWorker(rate.Every(10*time.Second), mgr.GetClient())
 
@@ -160,10 +161,10 @@ func run() {
 			return logger
 		}).
 		Watches(&source.Kind{Type: &v1.Namespace{}}, nscache).
-		Watches(&source.Kind{Type: &v1.ConfigMap{}}, cmhandler,
+		Watches(&source.Kind{Type: &v1alpha1.ControlPlaneRevision{}}, cprhandler,
 			builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
 				return object.GetNamespace() == name.IstioSystemNamespace &&
-					strings.HasPrefix(object.GetName(), name.EnablementCMPrefix)
+					strings.HasPrefix(object.GetName(), name.CPRPrefix)
 			}))).
 		Complete(reconciler.New(pcache, sw, mgr.GetClient(), mgr.GetConfig(), mgr.GetEventRecorderFor(controllerName)))
 	if err != nil {

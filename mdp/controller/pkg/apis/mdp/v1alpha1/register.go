@@ -33,14 +33,12 @@ var (
 	// SchemeGroupVersion is group version used to register these objects
 	SchemeGroupVersion = schema.GroupVersion{Group: "mesh.cloud.google.com", Version: "v1alpha1"}
 
-	// SchemeGroupKind is group version used to register these objects
-	SchemeGroupKind = schema.GroupKind{Group: "mesh.cloud.google.com", Kind: "DataPlaneControl"}
-
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
-// Register the DataPlaneControl and DataPlaneControlList API kind
+// Register API kinds.
 func init() {
 	SchemeBuilder.Register(&DataPlaneControl{}, &DataPlaneControlList{})
+	SchemeBuilder.Register(&ControlPlaneRevision{}, &ControlPlaneRevisionList{})
 }

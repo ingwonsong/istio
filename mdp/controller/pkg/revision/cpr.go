@@ -17,24 +17,25 @@
 package revision
 
 import (
-	"strings"
 	"sync"
 
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
+
+	"istio.io/istio/mdp/controller/pkg/apis/mdp/v1alpha1"
 )
 
-type configMapHandler struct {
-	cache  *EnablementCache
-	mapper Mapper
+// CPR is a handler for ControlPlaneRevisions.
+type CPRHandler struct {
+	cache    *EnablementCache
+	podCache ReadWritePodCache
+	mapper   Mapper
 }
 
-// NewConfigMapHandler returns an event handler designed to handle only events for
-func NewConfigMapHandler(mapper Mapper) (handler.EventHandler, *EnablementCache) {
-	result := &configMapHandler{
+// NewCPRHandler returns an event handler designed to handle only events for
+func NewCPRHandler(mapper Mapper) (*CPRHandler, *EnablementCache) {
+	result := &CPRHandler{
 		cache: &EnablementCache{
 			cache: make(map[string]*bool),
 		},
@@ -44,35 +45,43 @@ func NewConfigMapHandler(mapper Mapper) (handler.EventHandler, *EnablementCache)
 }
 
 // Create implements EventHandler Interface.
-func (c *configMapHandler) Create(event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Create(event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
 	c.updateEnablement(event.Object)
 }
 
 // Update Implements EventHandler Interface
-func (c *configMapHandler) Update(event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Update(event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 	c.updateEnablement(event.ObjectNew)
 }
 
 // Delete Implements EventHandler Interface
-func (c *configMapHandler) Delete(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
-	rev := getRevisionNameFromCMName(event.Object.GetName())
-	c.cache.UpdateRevisionEnablement(rev, nil)
+func (c *CPRHandler) Delete(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+	c.cache.UpdateRevisionEnablement(event.Object.GetName(), nil)
 }
 
 // Generic Implements EventHandler Interface
-func (c *configMapHandler) Generic(event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Generic(event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
 }
 
-func (c *configMapHandler) updateEnablement(object client.Object) {
-	rev := getRevisionNameFromCMName(object.GetName())
+func (c *CPRHandler) updateEnablement(object client.Object) {
 	// typedRevisionEnabled errors on json parsing, which effectively means enablement is not specified
-	enabled, _ := c.mapper.ObjectIsMDPEnabled(object.(*v1.ConfigMap))
-	c.cache.UpdateRevisionEnablement(rev, enabled)
+	enabled, _ := c.mapper.ObjectIsMDPEnabled(object.(*v1alpha1.ControlPlaneRevision))
+	// Any time CPR enablement is touched, invalidate the entire pod cache.
+	// These are rare events so it's not worth checking for state changes, given the ambiguity with using
+	// bool pointers for enablement.
+	c.invalidatePodCache()
+	c.cache.UpdateRevisionEnablement(object.GetName(), enabled)
 }
 
-func getRevisionNameFromCMName(cmName string) string {
-	parts := strings.Split(cmName, "-")
-	return parts[len(parts)-1]
+func (c *CPRHandler) SetPodCache(podCache ReadWritePodCache) {
+	c.podCache = podCache
+}
+
+func (c *CPRHandler) invalidatePodCache() {
+	if c.podCache == nil {
+		return
+	}
+	c.podCache.MarkDirty()
 }
 
 // EnablementCache caches the enablement of revisions, controlled by configmap, for rapid, frequent acces.

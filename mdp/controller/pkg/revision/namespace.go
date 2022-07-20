@@ -22,21 +22,21 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"istio.io/istio/mdp/controller/pkg/name"
 	"istio.io/pkg/log"
 )
 
-type nameSpaceHandler struct {
+// NameSpaceHandler is a handler for namespaces.
+type NameSpaceHandler struct {
 	podCache WritePodCache
 	client   client.Client
 	mapper   Mapper
 }
 
-func NewNamespaceHandler(cache WritePodCache, client client.Client, mapper Mapper) handler.EventHandler {
-	return &nameSpaceHandler{
+func NewNamespaceHandler(cache WritePodCache, client client.Client, mapper Mapper) *NameSpaceHandler {
+	return &NameSpaceHandler{
 		podCache: cache,
 		client:   client,
 		mapper:   mapper,
@@ -44,11 +44,11 @@ func NewNamespaceHandler(cache WritePodCache, client client.Client, mapper Mappe
 }
 
 // Create implements EventHandler Interface.
-func (n *nameSpaceHandler) Create(event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Create(event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
 }
 
 // Update Implements EventHandler Interface
-func (n *nameSpaceHandler) Update(event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Update(event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 	// if label controlling revision has changed, need to update cache.
 	oldrev := event.ObjectOld.GetLabels()[name.IstioRevisionLabel]
 	newrev := event.ObjectNew.GetLabels()[name.IstioRevisionLabel]
@@ -76,9 +76,9 @@ func (n *nameSpaceHandler) Update(event event.UpdateEvent, limitingInterface wor
 }
 
 // Delete Implements EventHandler Interface
-func (n *nameSpaceHandler) Delete(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Delete(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
 }
 
 // Generic Implements EventHandler Interface
-func (n *nameSpaceHandler) Generic(event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Generic(event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
 }

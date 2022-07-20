@@ -43,6 +43,9 @@ const (
 	// EnablementCMPrefix is used to identify the config map which controls MDP enablement per revision.
 	EnablementCMPrefix string = "istio-asm-managed-"
 
+	// CPRPrefix is used to identify the ControlPlaneRevision which controls MDP enablement per revision.
+	CPRPrefix string = "asm-managed"
+
 	// IstioProxyImageName is the proxy container's image name.
 	IstioProxyImageName = "proxyv2"
 
