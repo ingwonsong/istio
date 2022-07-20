@@ -50,7 +50,7 @@ func ReleaseBoskosResource(resourceName string) error {
 	if err != nil {
 		return fmt.Errorf("error creating the boskos client: %w", err)
 	}
-	if err := boskos.Release(cli, resourceName, make(chan struct{})); err != nil {
+	if err := boskos.Release(cli, []string{resourceName}, make(chan struct{})); err != nil {
 		return fmt.Errorf("error releasing boskos resource %s: %w", resourceName, err)
 	}
 	return nil

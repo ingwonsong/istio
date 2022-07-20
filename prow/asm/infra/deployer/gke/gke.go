@@ -61,6 +61,7 @@ var (
 		"-v=2",
 		"--gcp-service-account=" + os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"),
 		"--retryable-error-patterns='" + retryableErrorPatterns + "'",
+		"--image-type=cos_containerd",
 	}
 )
 
