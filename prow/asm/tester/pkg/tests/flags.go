@@ -135,6 +135,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		testFlags = append(testFlags, "--istio.test.useDefaultInjectionLabels=true")
 	}
 
+	if settings.UseKubevirtVM {
+		testFlags = append(testFlags, "--istio.test.echo.kube.template.deployment=kubevirt_vm_deployment.yaml")
+	}
+
 	return testFlags, nil
 }
 

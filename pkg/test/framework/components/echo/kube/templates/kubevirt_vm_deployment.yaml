@@ -1,0 +1,159 @@
+{{- $revVerMap := .Revisions }}
+{{- $subsets := .Subsets }}
+{{- $cluster := .Cluster }}
+{{- range $i, $subset := $subsets }}
+{{- range $revision, $version := $revVerMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: virtspec-{{ $.Service }}
+data:
+  virtSpec: |
+    running: true
+    template:
+      metadata:
+        labels:
+          app: {{ $.Service }}
+          version: {{ $subset.Version }}
+          test.istio.io/class: {{ $.WorkloadClass }}
+{{- if $.Compatibility }}
+          istio.io/rev: {{ $revision }}
+{{- end }}
+{{- if ne $.Locality "" }}
+          istio-locality: {{ $.Locality }}
+{{- end }}
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "15014"
+{{- if and
+  (ne ($subset.Annotations.GetByName "sidecar.istio.io/inject") "false")
+  (ne ($subset.Annotations.GetByName "inject.istio.io/templates") "grpc")
+  ($.OverlayIstioProxy)
+}}
+          sidecar.istio.io/inject: "true"
+{{- else }}
+          sidecar.istio.io/inject: "false"
+{{- end }}
+{{- if $.ProxylessGRPC }}
+          inject.istio.io/templates: "grpc-agent"
+{{- end }}
+{{- if eq $.Service "tproxy" }}
+          sidecar.istio.io/interceptionMode: "TPROXY"
+{{- end }}
+      spec:
+        terminationGracePeriodSeconds: 0
+        domain:
+          devices:
+            disks:
+            - disk:
+                bus: virtio
+              name: bootdiskkubevm
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+{{- if $.ServiceAccount }}
+            - disk:
+                bus: virtio
+              name: sadisk
+{{- end }}
+{{- if $.TLSSettings }}{{if not $.TLSSettings.ProxyProvision }}
+            - disk: {}
+              name: custom-certs
+              serial: CVLY623300HK240D
+{{- end }}{{- end }}
+        volumes:
+        - name: bootdiskkubevm
+          containerDisk:
+            image: gcr.io/asm-staging-images/test/kubevirtvm_app:1.13.4-asm-test
+  {{- if ne $.ImagePullSecretName "" }}
+            imagePullSecret: {{ $.ImagePullSecretName }}
+  {{- end }}
+            imagePullPolicy: {{ $.ImagePullPolicy }}
+        - cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              user: fedora
+              password: fedora
+              chpasswd: { expire: False }
+              write_files:
+              - path: /etc/rc.local
+                content: |
+                  #!/bin/bash
+                  /usr/local/bin/server --metrics=15014 --cluster {{ $cluster }} \
+  {{- range $i, $p := $.ContainerPorts }}
+      {{- if eq .Protocol "GRPC" }}
+                  --grpc {{ $p.Port }} \
+      {{- else if eq .Protocol "TCP" }}
+                  --tcp {{ $p.Port }} \
+      {{- else }}
+                  --port {{ $p.Port }} \
+      {{- end }}
+  {{- end }}
+                  --version v1 --istio-version "" \
+                  --crt=/cert.crt --key=/cert.key &
+{{- if $.TLSSettings }}{{if not $.TLSSettings.ProxyProvision }}
+              bootcmd:
+                - "mkdir -p /etc/certs/custom"
+                - "mount /dev/$(lsblk --nodeps -no name,serial | grep CVLY623300HK240D | cut -f1 -d' ') /etc/certs/custom"
+{{- end }}{{- end }}
+              runcmd:
+{{- if $.ProxylessGRPC }}
+                - "EXPOSE_GRPC_ADMIN=true"
+{{- end }}
+                - [chmod, +x, /etc/rc.local]
+                - [systemctl, enable, rc-local]
+                - [/usr/bin/bash, /etc/rc.local]
+          name: cloudinitdisk
+  {{- if $.ServiceAccount }}
+        - name: sadisk
+          serviceAccount:
+            serviceAccountName: {{ $.Service }}
+  {{- end }}
+{{- if $.TLSSettings }}{{if not $.TLSSettings.ProxyProvision }}
+        - name: custom-certs
+          configMap:
+            name: {{ $.Service }}-certs
+{{- end }}{{- end }}
+
+---
+apiVersion: vm.cluster.gke.io/v1
+kind: VirtualMachine
+metadata:
+{{- if $.Compatibility }}
+  name: {{ $.Service }}-{{ $subset.Version }}-{{ $revision }}
+{{- else }}
+  name: {{ $.Service }}-{{ $subset.Version }}
+{{- end }}
+  annotations:
+    vm.cluster.gke.io/virt-spec-configmap: virtspec-{{ $.Service }}
+spec:
+  osType: Linux
+  guestEnvironment: {}
+  interfaces:
+  - name: eth0
+    networkName: pod-network
+    default: true
+  compute:
+    cpu:
+      vcpus: 2
+    memory:
+      capacity: 2G
+---
+{{- end }}
+{{- end }}
+
+{{- if $.TLSSettings }}{{if not $.TLSSettings.ProxyProvision }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Service }}-certs
+data:
+  root-cert.pem: |
+{{ $.TLSSettings.RootCert | indent 4 }}
+  cert-chain.pem: |
+{{ $.TLSSettings.ClientCert | indent 4 }}
+  key.pem: |
+{{ $.TLSSettings.Key | indent 4}}
+---
+{{- end}}{{- end}}
+

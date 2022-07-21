@@ -33,6 +33,7 @@ const (
 	featureSkipLabel         = "feature_to_test"
 	gceVmSkipLabel           = "gce_vms"
 	multiversion             = "multiversion"
+	deploymentType           = "deployment_type"
 )
 
 // TargetSkipConfig defines the schema for our skipped test configuration.
@@ -143,6 +144,11 @@ func skipLabels(settings *resource.Settings) SkipLabels {
 	labelMap[featureSkipLabel] = strings.ToLower(strings.Join(settings.FeaturesToTest.List(), ","))
 	labelMap[gceVmSkipLabel] = fmt.Sprintf("%t", settings.UseGCEVMs || settings.VMStaticConfigDir != "")
 	labelMap[multiversion] = fmt.Sprintf("%t", settings.RevisionConfig != "")
+	if settings.UseKubevirtVM {
+		labelMap[deploymentType] = "kubevirt_vm"
+	} else {
+		labelMap[deploymentType] = "container"
+	}
 	// a common label to easily allow selecting every test without having an empty selector
 	labelMap["all"] = "true"
 	return labelMap
