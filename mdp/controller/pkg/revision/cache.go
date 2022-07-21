@@ -145,20 +145,9 @@ func (n *naiveCache) PodsFromRevision(ctx context.Context, rev string) ([]*v1.Po
 	if err != nil {
 		return nil, err
 	}
-	// List the webhooks without a tag.
-	tagNotExistRequirement, err := labels.NewRequirement(name.IstioTagLabel, selection.DoesNotExist, []string{})
-	if err != nil {
-		return nil, err
-	}
 	if err := n.client.List(ctx, webhooks, client.MatchingLabelsSelector{
-		Selector: labels.NewSelector().Add(*appRequirement, *revisionLabelRequirement, *tagNotExistRequirement),
+		Selector: labels.NewSelector().Add(*appRequirement, *revisionLabelRequirement),
 	}); err != nil {
-		return nil, err
-	}
-	if len(webhooks.Items) > 1 {
-		// TODO: @iamwen alert users to this condition.  Cannot manage dataplane.
-		err := fmt.Errorf("more than one webhook shares the revision %s with tag", rev)
-		globalerrors.ErrorOnRevision(rev, err)
 		return nil, err
 	}
 	if len(webhooks.Items) < 1 {
@@ -168,41 +157,42 @@ func (n *naiveCache) PodsFromRevision(ctx context.Context, rev string) ([]*v1.Po
 		return nil, err
 	}
 	globalerrors.ClearErrorOnRevision(rev)
-	wh := webhooks.Items[0]
-	namespaces := &v1.NamespaceList{}
-	if err := n.client.List(ctx, namespaces); err != nil {
-		return nil, err
-	}
 	result := make([]*v1.Pod, 0)
-	for _, ns := range namespaces.Items {
-		rslist := &appsv1.ReplicaSetList{}
-		if err := n.client.List(ctx, rslist, client.InNamespace(ns.Name)); err != nil {
+	for _, wh := range webhooks.Items {
+		namespaces := &v1.NamespaceList{}
+		if err := n.client.List(ctx, namespaces); err != nil {
 			return nil, err
 		}
-		for _, rs := range rslist.Items {
-			if *rs.Spec.Replicas < 1 {
-				// skip empty replicasets
-				continue
+		for _, ns := range namespaces.Items {
+			rslist := &appsv1.ReplicaSetList{}
+			if err := n.client.List(ctx, rslist, client.InNamespace(ns.Name)); err != nil {
+				return nil, err
 			}
-			for _, hook := range wh.Webhooks {
-				if n.hookMatchesObj(&hook, &ns, rs.Spec.Template.Labels) {
-					pods := &v1.PodList{}
-					sel, ierr := v12.LabelSelectorAsSelector(rs.Spec.Selector)
-					if ierr != nil {
-						err = multierror.Append(fmt.Errorf("failed to parse label selector %v: %s", rs.Spec.Selector, ierr))
-						continue
-					}
-					if ierr := n.client.List(ctx, pods,
-						client.MatchingLabelsSelector{Selector: sel}, client.InNamespace(rs.Namespace)); ierr != nil {
-						err = multierror.Append(err, ierr)
-						continue
-					}
-					for i, pod := range pods.Items {
-						if mdpControlsPod(&pod) && PodShouldBeInjected(&pod) {
-							result = append(result, &pods.Items[i]) // can't use &pod as that pointer is reused on iteration
+			for _, rs := range rslist.Items {
+				if *rs.Spec.Replicas < 1 {
+					// skip empty replicasets
+					continue
+				}
+				for _, hook := range wh.Webhooks {
+					if n.hookMatchesObj(&hook, &ns, rs.Spec.Template.Labels) {
+						pods := &v1.PodList{}
+						sel, ierr := v12.LabelSelectorAsSelector(rs.Spec.Selector)
+						if ierr != nil {
+							err = multierror.Append(fmt.Errorf("failed to parse label selector %v: %s", rs.Spec.Selector, ierr))
+							continue
 						}
+						if ierr := n.client.List(ctx, pods,
+							client.MatchingLabelsSelector{Selector: sel}, client.InNamespace(rs.Namespace)); ierr != nil {
+							err = multierror.Append(err, ierr)
+							continue
+						}
+						for i, pod := range pods.Items {
+							if mdpControlsPod(&pod) && PodShouldBeInjected(&pod) {
+								result = append(result, &pods.Items[i]) // can't use &pod as that pointer is reused on iteration
+							}
+						}
+						break
 					}
-					break
 				}
 			}
 		}
