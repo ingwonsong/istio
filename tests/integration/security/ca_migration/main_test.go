@@ -193,6 +193,7 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 func TestMain(t *testing.M) {
 	// Integration test for testing migration of workloads from Istiod Ca based control plane to
 	// Google Mesh Ca based control plane
+	// This tests Canary CA migration, where workloads are migrated between control planes
 	framework.NewSuite(t).
 		Label(label.CustomSetup).
 		Setup(istio.Setup(&inst, setupConfig)).

@@ -90,6 +90,7 @@ features:
       multiple-root:
     migrationca:
       citadel-meshca:
+      meshca-privateca:
     user:
       auth:
     ingress:

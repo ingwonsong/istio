@@ -70,7 +70,7 @@ func configureEnvvars(settings *resource.Settings,
 	integrationTestFlagsEnvvar := strings.Join(integrationTestFlags, " ")
 
 	gcrProjectID1, gcrProjectID2 := gcrProjectIDs(settings)
-	_, caPool := install.GenCaFlags(settings.CA, settings, nil, false)
+	_, caPool := install.GenCaFlags(resource.PrivateCA, settings, nil, false)
 	// environment variables required when running the test make target
 	envVars := map[string]string{
 		// The Makefile passes the path defined in INTEGRATION_TEST_TOPOLOGY_FILE to --istio.test.kube.topology on go test.

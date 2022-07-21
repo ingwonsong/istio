@@ -109,9 +109,13 @@ func cleanupPrivateCa(settings *resource.Settings) {
 			kube.GKEClusterSpecFromContext(settings.KubeContexts[0]).ProjectID)
 		for _, context := range settings.KubeContexts {
 			cluster := kube.GKEClusterSpecFromContext(context)
-			caName := gcp.GetPrivateCAPool(env.SharedGCPProject, cluster.Location)
+			location := "us-central1"
+			if cluster != nil && !settings.FeaturesToTest.Has(string(resource.CAMigration)) {
+				location = cluster.Location
+			}
+			caName := gcp.GetPrivateCAPool(env.SharedGCPProject, location)
 			if settings.FeaturesToTest.Has(string(resource.CasCertTemplate)) {
-				certTemplate = gcp.GetPrivateCACertTemplate(env.SharedGCPProject, cluster.Location)
+				certTemplate = gcp.GetPrivateCACertTemplate(env.SharedGCPProject, location)
 			} else {
 				certTemplate = ""
 			}

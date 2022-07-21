@@ -458,6 +458,7 @@ func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error 
 		case types.CasCertTemplate:
 		case types.PolicyConstraint:
 		case types.CompositeGateway:
+		case types.CAMigration:
 		default:
 			err = fmt.Errorf("feature %q is not supported", feat)
 		}
