@@ -50,9 +50,7 @@ const (
 	MeshCARevision  = "asm-revision-meshca"
 )
 
-func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances, b echo.Instances,
-	expectSuccess bool, testPrefix string,
-) {
+func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances, b echo.Instances, testPrefix string) {
 	t.Helper()
 	ctx.NewSubTest(testPrefix).Run(func(t framework.TestContext) {
 		srcList := []echo.Instance{a[0], b[0]}
@@ -66,11 +64,7 @@ func checkConnectivity(t *testing.T, ctx framework.TestContext, a echo.Instances
 				Scheme: scheme.HTTP,
 				Count:  1,
 			}
-			if expectSuccess {
-				callOptions.Check = check.OK()
-			} else {
-				callOptions.Check = check.Error()
-			}
+			callOptions.Check = check.OK()
 			src.CallOrFail(t, callOptions)
 		}
 	})
@@ -128,7 +122,7 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 			d := match.And(match.ServiceName(echo.NamespacedName{Name: DSvc, Namespace: nsD}), match.Cluster(cluster)).GetMatches(echos)
 
 			// 1. Setup Test
-			checkConnectivity(t, ctx, b, c, true, "init-test-cross-ca-mtls")
+			checkConnectivity(t, ctx, b, c, "init-test-cross-ca-mtls")
 
 			// 2: Migration test
 
@@ -141,8 +135,8 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 			if err := b[0].Restart(); err != nil {
 				t.Fatalf("revisioned instance rollout failed with: %v", err)
 			}
-			checkConnectivity(t, ctx, b, c, true, "post-migrate-test-same-ca-mtls")
-			checkConnectivity(t, ctx, a, b, true, "post-migrate-test-cross-ca-mtls")
+			checkConnectivity(t, ctx, b, c, "post-migrate-test-same-ca-mtls")
+			checkConnectivity(t, ctx, a, b, "post-migrate-test-cross-ca-mtls")
 
 			// 3: Rollback Test
 
@@ -154,7 +148,7 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 			if err := c[0].Restart(); err != nil {
 				t.Fatalf("revisioned instance rollout failed with: %v", err)
 			}
-			checkConnectivity(t, ctx, a, c, true, "post-rollback-test-same-ca-mtls")
+			checkConnectivity(t, ctx, a, c, "post-rollback-test-same-ca-mtls")
 
 			// 4: Test removal of trust anchor: Same ca connectvity will work, cross ca connectivity will not
 
@@ -185,8 +179,10 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 			}
 			// TODO: need better way to rollout and restart meshca deployment and wait until pods are active
 			time.Sleep(40 * time.Second)
-			checkConnectivity(t, ctx, b, d, true, "post-trust-test-same-ca-conn")
-			checkConnectivity(t, ctx, a, b, false, "post-trust-test-cross-ca-conn")
+			checkConnectivity(t, ctx, b, d, "post-trust-test-same-ca-conn")
+			// TODO(shankgan): removing check temporarily. takes too much time. Need to find
+			// a better way to confirm trust removal.
+			// checkConnectivity(t, ctx, a, b, "post-trust-test-cross-ca-conn")
 		})
 }
 
