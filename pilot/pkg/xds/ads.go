@@ -189,8 +189,8 @@ func (s *DiscoveryServer) receive(con *Connection, identities []string) {
 // protection. Original code avoided the mutexes by doing both 'push' and 'process requests' in same thread.
 func (s *DiscoveryServer) processRequest(req *discovery.DiscoveryRequest, con *Connection) error {
 	stype := v3.GetShortType(req.TypeUrl)
-	log.Debugf("ADS:%s: REQ %s verson received %s, nonce received %s", stype,
-		con.conID, req.VersionInfo, req.ResponseNonce)
+	log.Debugf("ADS:%s: REQ %s resources:%d nonce:%s version:%s ", stype,
+		con.conID, len(req.ResourceNames), req.ResponseNonce, req.VersionInfo)
 	if req.TypeUrl == v3.HealthInfoType {
 		s.handleWorkloadHealthcheck(con.proxy, req)
 		return nil
@@ -394,13 +394,34 @@ func (s *DiscoveryServer) shouldRespond(con *Connection, request *discovery.Disc
 		log.Debugf("ADS:%s: INIT/RECONNECT %s %s %s", stype, con.conID, request.VersionInfo, request.ResponseNonce)
 		con.proxy.Lock()
 		con.proxy.WatchedResources[request.TypeUrl] = &model.WatchedResource{TypeUrl: request.TypeUrl, ResourceNames: request.ResourceNames}
+		// For all EDS requests that we have already responded with in the same stream let us
+		// force the response. It is important to respond to those requests for Envoy to finish
+		// warming of those resources(Clusters).
+		// This can happen with the following sequence
+		// 1. Envoy disconnects and reconnects to Istiod.
+		// 2. Envoy sends EDS request and we respond with it.
+		// 3. Envoy sends CDS request and we respond with clusters.
+		// 4. Envoy detects a change in cluster state and tries to warm those clusters and send EDS request for them.
+		// 5. We should respond to the EDS request with Endpoints to let Envoy finish cluster warming.
+		// Refer to https://github.com/envoyproxy/envoy/issues/13009 for more details.
+		for _, dependent := range warmingDependencies(request.TypeUrl) {
+			if dwr, exists := con.proxy.WatchedResources[dependent]; exists {
+				dwr.AlwaysRespond = true
+			}
+		}
 		con.proxy.Unlock()
 		return true, emptyResourceDelta
 	}
 
 	// If there is mismatch in the nonce, that is a case of expired/stale nonce.
 	// A nonce becomes stale following a newer nonce being sent to Envoy.
+	// previousInfo.NonceSent can be empty if we previously had shouldRespond=true but didn't send any resources.
 	if request.ResponseNonce != previousInfo.NonceSent {
+		if features.EnableUnsafeAssertions && previousInfo.NonceSent == "" {
+			// Assert we do not end up in an invalid state
+			log.Fatalf("ADS:%s: REQ %s Expired nonce received %s, but we never sent any nonce", stype,
+				con.conID, request.ResponseNonce)
+		}
 		log.Debugf("ADS:%s: REQ %s Expired nonce received %s, sent %s", stype,
 			con.conID, request.ResponseNonce, previousInfo.NonceSent)
 		xdsExpiredNonce.With(typeTag.Value(v3.GetMetricType(request.TypeUrl))).Increment()
@@ -410,16 +431,17 @@ func (s *DiscoveryServer) shouldRespond(con *Connection, request *discovery.Disc
 		return false, emptyResourceDelta
 	}
 
-	// If it comes here, that means nonce match. This an ACK.
-	previousNonceAcked := previousInfo.NonceAcked
+	// If it comes here, that means nonce match.
 	con.proxy.Lock()
 	previousResources := con.proxy.WatchedResources[request.TypeUrl].ResourceNames
 	con.proxy.WatchedResources[request.TypeUrl].NonceAcked = request.ResponseNonce
 	con.proxy.WatchedResources[request.TypeUrl].NonceNacked = ""
 	con.proxy.WatchedResources[request.TypeUrl].ResourceNames = request.ResourceNames
+	alwaysRespond := previousInfo.AlwaysRespond
+	previousInfo.AlwaysRespond = false
 	con.proxy.Unlock()
 
-	// Envoy can send two DiscoveryRequests with same version and nonce
+	// Envoy can send two DiscoveryRequests with same version and nonce.
 	// when it detects a new resource. We should respond if they change.
 	prev := sets.New(previousResources...)
 	cur := sets.New(request.ResourceNames...)
@@ -427,15 +449,13 @@ func (s *DiscoveryServer) shouldRespond(con *Connection, request *discovery.Disc
 	added := cur.Difference(prev)
 
 	if len(removed) == 0 && len(added) == 0 {
-		// We got a request which looks like an ACK, but we already got the same ACK. Envoy won't ACK the
-		// same resource twice. However, in some cases a request for new resources is indistinguishable
-		// from an ACK (in particular, when requesting EDS after a CDS push):
-		// https://github.com/envoyproxy/envoy/issues/13009. As a result, if we see the same ACK multiple
-		// times, we treat subsequent requests as something we should respond to.
-		if features.PushOnRepeatNonce && request.ResponseNonce == previousNonceAcked {
-			log.Debugf("ADS:%s: REQ %s Repeated nonce received %s", stype, con.conID, request.ResponseNonce)
+		// We should always respond "alwaysRespond" marked requests to let Envoy finish warming
+		// even though Nonce match and it looks like an ACK.
+		if alwaysRespond {
+			log.Infof("ADS:%s: FORCE RESPONSE %s for warming.", stype, con.conID)
 			return true, emptyResourceDelta
 		}
+
 		log.Debugf("ADS:%s: ACK %s %s %s", stype, con.conID, request.VersionInfo, request.ResponseNonce)
 		return false, emptyResourceDelta
 	}
@@ -475,6 +495,17 @@ func isWildcardTypeURL(typeURL string) bool {
 	default:
 		// All of our internal types use wildcard semantics
 		return true
+	}
+}
+
+// warmingDependencies returns the dependent typeURLs that need to be responded with
+// for warming of this typeURL.
+func warmingDependencies(typeURL string) []string {
+	switch typeURL {
+	case v3.ClusterType:
+		return []string{v3.EndpointType}
+	default:
+		return nil
 	}
 }
 

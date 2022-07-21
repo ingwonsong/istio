@@ -28,15 +28,16 @@ type Map = map[string]Cluster
 
 func NewTopology(config Config, allClusters Map) Topology {
 	topology := Topology{
-		ClusterName:        config.Name,
-		ClusterKind:        config.Kind,
-		Network:            config.Network,
-		ClusterHTTPProxy:   config.HTTPProxy,
-		PrimaryClusterName: config.PrimaryClusterName,
-		ConfigClusterName:  config.ConfigClusterName,
-		AllClusters:        allClusters,
-		Index:              len(allClusters),
-		ConfigMetadata:     config.Meta,
+		ClusterName:             config.Name,
+		ClusterKind:             config.Kind,
+		Network:                 config.Network,
+		ClusterHTTPProxy:        config.HTTPProxy,
+		PrimaryClusterName:      config.PrimaryClusterName,
+		ConfigClusterName:       config.ConfigClusterName,
+		ClusterProxyKubectlOnly: config.ProxyKubectlOnly,
+		AllClusters:             allClusters,
+		Index:                   len(allClusters),
+		ConfigMetadata:          config.Meta,
 	}
 	if len(config.Meta.String("sshuser")) > 0 {
 		topology.ClusterSSHUser = config.Meta.String("sshuser")
@@ -48,21 +49,22 @@ func NewTopology(config Config, allClusters Map) Topology {
 // Topology gives information about the relationship between clusters.
 // Cluster implementations can embed this struct to include common functionality.
 type Topology struct {
-	ClusterName        string
-	ClusterKind        Kind
-	Network            string
-	ClusterHTTPProxy   string
-	ClusterSSHUser     string
-	ClusterSSHKey      string
-	PrimaryClusterName string
-	ConfigClusterName  string
-	Index              int
+	ClusterName             string
+	ClusterKind             Kind
+	Network                 string
+	ClusterHTTPProxy        string
+	ClusterSSHUser          string
+	ClusterSSHKey           string
+	PrimaryClusterName      string
+	ConfigClusterName       string
+	ClusterProxyKubectlOnly bool
+	Index                   int
 	// AllClusters should contain all AllClusters in the context
 	AllClusters    Map
 	ConfigMetadata config.Map
 }
 
-// MetadataValue provides the configured value for a metadata key in the the cluster configuration.
+// MetadataValue provides the configured value for a metadata key in the cluster configuration.
 func (c Topology) MetadataValue(key string) string {
 	return c.ConfigMetadata.String(key)
 }
@@ -88,6 +90,10 @@ func (c Topology) Name() string {
 // HTTPProxy to connect to the cluster
 func (c Topology) HTTPProxy() string {
 	return c.ClusterHTTPProxy
+}
+
+func (c Topology) ProxyKubectlOnly() bool {
+	return c.ClusterProxyKubectlOnly
 }
 
 // knownClusterNames maintains a well-known set of cluster names. These will always be used with
@@ -211,6 +217,7 @@ func (c Topology) String() string {
 	_, _ = fmt.Fprintf(buf, "ConfigCluster:      %s\n", c.Config().Name())
 	_, _ = fmt.Fprintf(buf, "Network:            %s\n", c.NetworkName())
 	_, _ = fmt.Fprintf(buf, "HTTPProxy:          %s\n", c.HTTPProxy())
+	_, _ = fmt.Fprintf(buf, "ProxyKubectlOnly:   %t\n", c.ProxyKubectlOnly())
 	_, _ = fmt.Fprintf(buf, "SSHKey:             %s\n", c.SSHKey())
 	_, _ = fmt.Fprintf(buf, "SSHUser:            %s\n", c.SSHUser())
 

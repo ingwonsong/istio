@@ -365,6 +365,28 @@ func TestShouldRespond(t *testing.T) {
 			response: false,
 		},
 		{
+			name: "ack forced",
+			connection: &Connection{
+				proxy: &model.Proxy{
+					WatchedResources: map[string]*model.WatchedResource{
+						v3.EndpointType: {
+							VersionSent:   "v1",
+							NonceSent:     "nonce",
+							AlwaysRespond: true,
+							ResourceNames: []string{"my-resource"},
+						},
+					},
+				},
+			},
+			request: &discovery.DiscoveryRequest{
+				TypeUrl:       v3.EndpointType,
+				VersionInfo:   "v1",
+				ResponseNonce: "nonce",
+				ResourceNames: []string{"my-resource"},
+			},
+			response: true,
+		},
+		{
 			name: "nack",
 			connection: &Connection{
 				proxy: &model.Proxy{
@@ -438,28 +460,6 @@ func TestShouldRespond(t *testing.T) {
 				ResourceNames: []string{"cluster1", "cluster2"},
 			},
 			response: false,
-		},
-		{
-			name: "double nonce",
-			connection: &Connection{
-				proxy: &model.Proxy{
-					WatchedResources: map[string]*model.WatchedResource{
-						v3.EndpointType: {
-							VersionSent:   "v1",
-							NonceSent:     "nonce",
-							NonceAcked:    "nonce",
-							ResourceNames: []string{"cluster2", "cluster1"},
-						},
-					},
-				},
-			},
-			request: &discovery.DiscoveryRequest{
-				TypeUrl:       v3.EndpointType,
-				VersionInfo:   "v1",
-				ResponseNonce: "nonce",
-				ResourceNames: []string{"cluster1", "cluster2"},
-			},
-			response: true,
 		},
 		{
 			name: "unsubscribe EDS",

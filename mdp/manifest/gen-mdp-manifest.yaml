@@ -24,7 +24,7 @@ data:
           "cniVersion": "0.3.1",
           "name": "istio-cni",
           "type": "istio-cni",
-          "log_level": "info",
+          "log_level": "debug",
           "log_uds_address": "__LOG_UDS_ADDRESS__", 
           "kubernetes": {
               "kubeconfig": "__KUBECONFIG_FILEPATH__",
@@ -229,6 +229,8 @@ spec:
             runAsNonRoot: false
             privileged: false
           command: ["install-cni"]
+          args:
+            - --log_output_level=default:info,cni:info
           env:
             # The CNI network config to install on each node.
             - name: CNI_NETWORK_CONFIG
