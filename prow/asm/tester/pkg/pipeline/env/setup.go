@@ -37,6 +37,7 @@ const (
 	SharedGCPProject    = "istio-prow-build"
 	configDir           = "prow/asm/tester/configs"
 	newtaroCommitConfig = "newtaro/commit"
+	KubevirtVMGcsBucket = "asm_testing_on_kubevirtvm_artifacts"
 
 	// Envvar consts
 	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"
@@ -239,6 +240,7 @@ func injectEnvVars(settings *resource.Settings) error {
 	}
 	if settings.UseKubevirtVM == true {
 		envVars["USE_KUBEVIRT_VM"] = "true"
+		envVars["KUBEVIRT_VM_ECHO_ARTIFACTS_GCS_FOLDER"] = KubevirtVMGcsBucket + "/" + "kubevirtecho_" + os.Getenv("BUILD_ID")
 	}
 
 	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {

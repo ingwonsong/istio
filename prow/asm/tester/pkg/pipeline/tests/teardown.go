@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+	"istio.io/istio/prow/asm/tester/pkg/tests/kubevirtvm"
 	"istio.io/istio/prow/asm/tester/pkg/tests/policyconstraint"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
 )
@@ -28,6 +29,13 @@ func Teardown(settings *resource.Settings) error {
 
 	if settings.ControlPlane == resource.Unmanaged && settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 		return userauth.Teardown(settings)
+	}
+
+	if settings.UseKubevirtVM {
+		log.Printf("Start running the teardown for kubevirt vm tests")
+		if err := kubevirtvm.TearDown(settings); err != nil {
+			return err
+		}
 	}
 
 	if settings.FeaturesToTest.Has(string(resource.PolicyConstraint)) {
