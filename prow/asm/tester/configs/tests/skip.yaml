@@ -204,7 +204,7 @@ tests:
           - TestTelemetryAPITCPStats
         buganizerID: 205336277
       - names:
-          - TestStackdriver
+          - TestStackdriverLegacy
           - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro Baremetal installation
