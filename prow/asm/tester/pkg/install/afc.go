@@ -93,6 +93,11 @@ EOF'`, context)); err != nil {
 				[]string{"HERCULES_CLI_LAB=atl_shared"})); err != nil {
 			return err
 		}
+
+		// Override CRD to 1.14
+		if err := exec.Run("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
+			return fmt.Errorf("error installing 1.14 CRD: %w", err)
+		}
 	}
 
 	return nil
@@ -183,6 +188,10 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 		// Install Gateway
 		if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
 			return fmt.Errorf("error installing injected-gateway: %w", err)
+		}
+		// Override CRD to 1.14
+		if err := exec.Run("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
+			return fmt.Errorf("error installing 1.14 CRD: %w", err)
 		}
 	}
 
@@ -318,6 +327,10 @@ EOF'`, context)); err != nil {
 			return fmt.Errorf("error installing injected-gateway: %w", err)
 		}
 
+		// Override CRD to 1.14
+		if err := exec.Run("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
+			return fmt.Errorf("error installing 1.14 CRD: %w", err)
+		}
 		contextLogger.Println("Done installing MCP via AFC...")
 	}
 
