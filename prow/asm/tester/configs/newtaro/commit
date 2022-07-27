@@ -1,7 +1,7 @@
-cd0a0e6cf0a013b3b6d75702008e0dab8a39ea0e
+78df3e878a9c7e4a5a550ac2a48610d034259bf3
 ========================================
 Clay
-Wed Jul 6 16:10:03 2022 -0700
+Fri Jul 22 14:21:08 2022 -0700
 
-Use updated labelling command for off-GCP clusters (#1256)
+Temp workaround for attached clusters (#1280)
 
