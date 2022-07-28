@@ -76,6 +76,10 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 				additionalEnvVars = append(additionalEnvVars, "HTTPS_PROXY="+c.settings.ClusterProxy[i])
 			}
 
+			pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
+			customOverlay := filepath.Join(pkgPath, "overlay/custom_istio.yaml")
+			additionalFlags = append(additionalFlags, "--custom_overlay", customOverlay)
+
 			if err := exec.Run(scriptPath,
 				exec.WithAdditionalEnvs(additionalEnvVars),
 				exec.WithAdditionalArgs(additionalFlags)); err != nil {

@@ -21,24 +21,6 @@ tests:
         - TestStackdriverAudit
       buganizerID: 183508169
     - names:
-      - TestAuthz_IngressGateway
-      - TestAuthz_EgressGateway
-      - TestAuthz_Principal
-      - TestAuthz_DenyPrincipal
-      - TestAuthz_Namespace
-      - TestAuthz_DenyNamespace
-      - TestAuthz_NotNamespace
-      - TestAuthz_NotMethod
-      - TestAuthz_NotPort
-      - TestAuthz_DenyPlaintext
-      - TestAuthz_JWT
-      - TestAuthz_WorkloadSelector
-      - TestAuthz_PathPrecedence
-      - TestAuthz_Conditions
-      - TestAuthz_PathNormalization
-      - TestAuthz_CustomServer
-      reason: unknown
-    - names:
       - TestSimpleTlsOrigination
       - TestMutualTlsOrigination
       reason: relies on egress gateway deployed to cluster
@@ -51,9 +33,6 @@ tests:
     - names:
         - TestRemoteClusters
       buganizerID: 194713967
-    - names:
-      - TestJWTHTTPS
-      buganizerID: 215175941
     - names:
       - TestReachability/beta-mtls-on/.*/.*multiversion
       buganizerID: 237680146
@@ -698,21 +677,7 @@ tests:
 
       # security/ tests
       - names:
-          - TestAuthz_IngressGateway
-          - TestAuthz_Principal
-          - TestAuthz_DenyPrincipal
-          - TestAuthz_Namespace
-          - TestAuthz_DenyNamespace
-          - TestAuthz_NotNamespace
-          - TestAuthz_NotMethod
-          - TestAuthz_NotPort
-          - TestAuthz_DenyPlaintext
-          - TestAuthz_JWT
-          - TestAuthz_WorkloadSelector
-          - TestAuthz_PathPrecedence
-          - TestAuthz_Conditions
-          - TestAuthz_PathNormalization
-          - TestAuthz_CustomServer
+        - TestAuthz_IngressGateway
         reason: http://b/193076663
       - names:
         - TestAuthz_EgressGateway
@@ -733,9 +698,6 @@ tests:
           - TestSimpleTlsOrigination
           - TestMutualTlsOrigination
         buganizerID: 219498565
-      - names:
-        - TestJWTHTTPS
-        buganizerID: 215175941
       - names:
         - TestReachability/global_mtls_disabled
         - TestReachability/global_plaintext_to_mtls_permissive
@@ -785,9 +747,6 @@ tests:
       - names:
           - TestTelemetry/telemetry
         reason: Prometheus shouldn't be tested for MCP. We have a separate test for real stackdriver.
-      - names:
-          - TestJWTHTTPS
-        buganizerID: 215175941
 
   # Managed CP, cluster topology = sc OR SINGLECLUSTER, feature = VPC_SC
   - selectors:
@@ -857,7 +816,6 @@ tests:
         - TestAuthz_IngressGateway
       reason: unknown
     - names:
-        - TestAuthz_EgressGateway
         - TestSimpleTlsOrigination
         - TestMutualTlsOrigination
       reason: relies on egress gateway deployed to cluster
@@ -870,9 +828,6 @@ tests:
     - names:
         - TestRemoteClusters
       buganizerID: 194713967
-    - names:
-      - TestJWTHTTPS
-      buganizerID: 215175941
 
   # Managed local CP + GKE_ON_PREM skips all tests that
   # are skipped by Umanaged local CP + GKE_ON_PREM

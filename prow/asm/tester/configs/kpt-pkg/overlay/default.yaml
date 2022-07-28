@@ -12,3 +12,7 @@ spec:
         stackdriver:
           configOverride:
             enable_audit_log: true
+  meshConfig:
+    defaultConfig:
+      gatewayTopology:
+        numTrustedProxies: 1
