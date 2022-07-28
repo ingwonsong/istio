@@ -132,6 +132,7 @@
               "protoDescriptor": "/etc/istio/proxy/apikey_grpc_asm_e2e_config_descriptor",
               "queryParamUnescapePlus": true,
               "requestValidationOptions": {
+                "rejectBindingBodyFieldCollisions": true,
                 "rejectUnknownMethod": true,
                 "rejectUnknownQueryParameters": true
               },
