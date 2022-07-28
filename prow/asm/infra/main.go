@@ -16,10 +16,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -122,5 +124,28 @@ func postprocessTestArtifacts() {
 			}
 			return nil
 		})
+	}
+	hackClientAuthentication()
+}
+
+const (
+	oldClientAuthentication = "client.authentication.k8s.io/v1alpha1"
+	newClientAuthentication = "client.authentication.k8s.io/v1beta1"
+)
+
+// TODO this is a hack to workaround  https://chat.google.com/room/AAAA4bSPYm4/bkCLisFqnUs
+func hackClientAuthentication() {
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+	if kubeconfigPath == "" {
+		return
+	}
+	kubeconfig, err := ioutil.ReadFile(kubeconfigPath)
+	if err != nil {
+		log.Printf("failed reading kubeconfig %q: %v", kubeconfigPath, err)
+	}
+	strings.ReplaceAll(string(kubeconfig), oldClientAuthentication, newClientAuthentication)
+	err = ioutil.WriteFile(kubeconfigPath, kubeconfig, 0644)
+	if err != nil {
+		log.Printf("failed writing kubeconfig %q: %v", kubeconfigPath, err)
 	}
 }
