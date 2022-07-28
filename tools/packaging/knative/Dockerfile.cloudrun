@@ -1,9 +1,8 @@
 # Version is the base image version from the TLD Makefile
 ARG BASE_VERSION=latest
 
-# Pinned SHA from `latest` tag. Cannot use gcr.io/istio-release/distroless as we are dynamically linking boringssl
-# The image comes from https://github.com/istio/distroless/tree/iptables/libc
-FROM gcr.io/istio-release/distroless/libc@sha256:42b4a0aad0ee0f83a94fb7e437518be8725eea6ed224073bfdf0604b620406ee
+# The following section is used as base image if BASE_DISTRIBUTION=distroless
+FROM gcr.io/istio-release/distroless:${BASE_VERSION} as distroless
 
 # The libc distroless image runs as non-root, but our image expects root.
 # We could probably get it running as non-root, but for now just override it back to root.
