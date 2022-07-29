@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
@@ -27,7 +26,6 @@ import (
 // Setup runs the test setups for kubevirt vm tests.
 func Setup(settings *resource.Settings) error {
 	gcsFolder := os.Getenv("KUBEVIRT_VM_ECHO_ARTIFACTS_GCS_FOLDER")
-	serviceAccountPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 	log.Println("Copying echo artifacts to GCS which will be downloaded in kubevirt vm")
 	gsutilCmds := []string{
@@ -38,15 +36,6 @@ func Setup(settings *resource.Settings) error {
 	}
 	if err := exec.RunMultiple(gsutilCmds); err != nil {
 		return err
-	}
-
-	// Pass service account and gcs folder to all clusters as config map to enable kubevirt vm to access gcs in tests
-	configs := filepath.SplitList(settings.Kubeconfig)
-	for _, config := range configs {
-		if err := exec.Run(fmt.Sprintf("kubectl create configmap kubevirtconfigmap --from-file %s --from-literal gcsfolder=%s --kubeconfig=%s",
-			serviceAccountPath, gcsFolder, config)); err != nil {
-			return err
-		}
 	}
 
 	return nil

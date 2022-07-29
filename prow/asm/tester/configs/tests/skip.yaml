@@ -873,17 +873,8 @@ tests:
       deployment_type: kubevirt_vm
     targets:
     - names:
-      - TestMirroring
-      reason: different way to get logs for kubevirt vms
-    - names:
       - TestTelemetryAPIStats/mockprom-to-metrics
       reason: unable to share istio-proxy certs to kubevirt vms
-    - names:
-      - TestPassThroughFilterChain
-      - TestTraffic/virtualservice/.*/tproxy/to_tproxy
-      reason: self routing issues
-      buganizerID: 238731708
-
 
 packages:
 

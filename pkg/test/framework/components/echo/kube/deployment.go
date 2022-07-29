@@ -338,6 +338,7 @@ func deploymentParams(ctx resource.Context, cfg echo.Config, settings *resource.
 		"Compatibility":       settings.Compatibility,
 		"WorkloadClass":       cfg.WorkloadClass(),
 		"OverlayIstioProxy":   canCreateIstioProxy(settings.Revisions.Minimum()),
+		"GCSFolder":           os.Getenv("KUBEVIRT_VM_ECHO_ARTIFACTS_GCS_FOLDER"),
 	}
 
 	vmIstioHost, vmIstioIP := "", ""

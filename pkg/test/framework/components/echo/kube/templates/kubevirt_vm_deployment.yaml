@@ -22,6 +22,9 @@ data:
 {{- if ne $.Locality "" }}
           istio-locality: {{ $.Locality }}
 {{- end }}
+{{- if $.ProxylessGRPC }}
+          test.istio.io/class: proxyless
+{{- end }}
         annotations:
           prometheus.io/scrape: "true"
           prometheus.io/port: "15014"
@@ -59,16 +62,19 @@ data:
 {{- if $.TLSSettings }}{{if not $.TLSSettings.ProxyProvision }}
             - disk: {}
               name: custom-certs
-              serial: CVLY623300HK240D
+              serial: CVLY623300HK241D
 {{- end }}{{- end }}
+            - disk: {}
+              name: secretdisk
+              serial: CVLY623300HK240D
         volumes:
         - name: bootdiskkubevm
           containerDisk:
-            image: gcr.io/asm-staging-images/test/kubevirtvm_app:1.13.4-asm-test
+            image: gcr.io/asm-staging-images/test/kubevirtvm_fedora36_app:latest
   {{- if ne $.ImagePullSecretName "" }}
             imagePullSecret: {{ $.ImagePullSecretName }}
   {{- end }}
-            imagePullPolicy: {{ $.ImagePullPolicy }}
+            imagePullPolicy: IfNotPresent
         - cloudInitNoCloud:
             userData: |
               #cloud-config
@@ -79,22 +85,42 @@ data:
               - path: /etc/rc.local
                 content: |
                   #!/bin/bash
+                  curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-392.0.0-linux-x86_64.tar.gz
+                  tar -xf google-cloud-cli-392.0.0-linux-x86_64.tar.gz
+                  jq '[.auths."https://gcr.io".password] | to_entries[].value | fromjson' /mnt/secret/.dockerconfigjson > service-account.json
+                  ./google-cloud-sdk/bin/gcloud auth activate-service-account --key-file=service-account.json
+                  ./google-cloud-sdk/bin/gsutil cp gs://{{ $.GCSFolder }}/server /usr/local/bin
+                  ./google-cloud-sdk/bin/gsutil cp gs://{{ $.GCSFolder }}/client /usr/local/bin
+                  ./google-cloud-sdk/bin/gsutil cp gs://{{ $.GCSFolder }}/cert.crt /cert.crt
+                  ./google-cloud-sdk/bin/gsutil cp gs://{{ $.GCSFolder }}/cert.key /cert.key
+                  chmod +x /usr/local/bin/server
                   /usr/local/bin/server --metrics=15014 --cluster {{ $cluster }} \
   {{- range $i, $p := $.ContainerPorts }}
-      {{- if eq .Protocol "GRPC" }}
+      {{- if and $p.XDSServer (eq .Protocol "GRPC") }}
+                  --xds-grpc-server={{ $p.Port }} \
+      {{- else if eq .Protocol "GRPC" }}
                   --grpc {{ $p.Port }} \
       {{- else if eq .Protocol "TCP" }}
                   --tcp {{ $p.Port }} \
       {{- else }}
                   --port {{ $p.Port }} \
       {{- end }}
+      {{- if $p.TLS }}
+                  --tls={{ $p.Port }} \
+      {{- end }}
+      {{- if $p.ServerFirst }}
+                  --server-first={{ $p.Port }} \
+      {{- end }}
   {{- end }}
                   --version v1 --istio-version "" \
                   --crt=/cert.crt --key=/cert.key &
-{{- if $.TLSSettings }}{{if not $.TLSSettings.ProxyProvision }}
               bootcmd:
+                - "mkdir -p /mnt/secret"
+                - "mount /dev/$(lsblk --nodeps -no name,serial | grep CVLY623300HK240D | cut -f1 -d' ') /mnt/secret"
+                - "yum install jq -y"
+{{- if $.TLSSettings }}{{if not $.TLSSettings.ProxyProvision }}
                 - "mkdir -p /etc/certs/custom"
-                - "mount /dev/$(lsblk --nodeps -no name,serial | grep CVLY623300HK240D | cut -f1 -d' ') /etc/certs/custom"
+                - "mount /dev/$(lsblk --nodeps -no name,serial | grep CVLY623300HK241D | cut -f1 -d' ') /etc/certs/custom"
 {{- end }}{{- end }}
               runcmd:
 {{- if $.ProxylessGRPC }}
@@ -114,6 +140,9 @@ data:
           configMap:
             name: {{ $.Service }}-certs
 {{- end }}{{- end }}
+        - name: secretdisk
+          secret:
+            secretName: {{ $.ImagePullSecretName }}
 
 ---
 apiVersion: vm.cluster.gke.io/v1
