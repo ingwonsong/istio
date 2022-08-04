@@ -20,15 +20,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 
 	"istio.io/istio/pkg/test/framework/components/cluster"
-
-	// imported to trigger registration
-	_ "istio.io/istio/pkg/test/framework/components/cluster/asmvm"
-
-	// imported to trigger registration
-	_ "istio.io/istio/pkg/test/framework/components/cluster/kube"
-
-	// imported to trigger registration
-	_ "istio.io/istio/pkg/test/framework/components/cluster/staticvm"
+	_ "istio.io/istio/pkg/test/framework/components/cluster/asmvm"    // imported to trigger registration
+	_ "istio.io/istio/pkg/test/framework/components/cluster/kube"     // imported to trigger registration
+	_ "istio.io/istio/pkg/test/framework/components/cluster/staticvm" // imported to trigger registration
 	"istio.io/istio/pkg/test/framework/config"
 	"istio.io/istio/pkg/test/scopes"
 )

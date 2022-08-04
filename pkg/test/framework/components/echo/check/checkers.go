@@ -370,7 +370,7 @@ func URL(expected string) echo.Checker {
 	})
 }
 
-func isDNSCaptureEnabled(t framework.TestContext) bool {
+func IsDNSCaptureEnabled(t framework.TestContext) bool {
 	t.Helper()
 	mc := istio.GetOrFail(t, t).MeshConfigOrFail(t)
 	if mc.DefaultConfig != nil && mc.DefaultConfig.ProxyMetadata != nil {
@@ -382,7 +382,7 @@ func isDNSCaptureEnabled(t framework.TestContext) bool {
 // ReachedTargetClusters is similar to ReachedClusters, except that the set of expected clusters is
 // retrieved from the Target of the request.
 func ReachedTargetClusters(t framework.TestContext) echo.Checker {
-	dnsCaptureEnabled := isDNSCaptureEnabled(t)
+	dnsCaptureEnabled := IsDNSCaptureEnabled(t)
 	return func(result echo.CallResult, err error) error {
 		from := result.From
 		to := result.Opts.To
@@ -435,6 +435,13 @@ func ReachedClusters(allClusters cluster.Clusters, expectedClusters cluster.Clus
 	expectedByNetwork := expectedClusters.ByNetwork()
 	return func(result echo.CallResult, err error) error {
 		return checkReachedClusters(result, allClusters, expectedByNetwork)
+	}
+}
+
+// ReachedSourceCluster is similar to ReachedClusters, except it only checks the reachability of source cluster only
+func ReachedSourceCluster(allClusters cluster.Clusters) echo.Checker {
+	return func(result echo.CallResult, err error) error {
+		return checkReachedSourceClusterOnly(result, allClusters)
 	}
 }
 

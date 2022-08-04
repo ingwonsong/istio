@@ -708,8 +708,8 @@ spec:
 			toN:            len(split),
 			sourceMatchers: []match.Matcher{match.NotHeadless, match.NotNaked},
 			targetMatchers: []match.Matcher{match.NotHeadless, match.NotNaked, match.NotExternal, match.NotProxylessGRPC},
-			templateVars: func(_ echo.Callers, _ echo.Instances) map[string]interface{} {
-				return map[string]interface{}{
+			templateVars: func(_ echo.Callers, _ echo.Instances) map[string]any {
+				return map[string]any{
 					"split": split,
 				}
 			},
@@ -1011,12 +1011,12 @@ spec:
 }
 
 func gatewayCases(t TrafficContext) {
-	templateParams := func(protocol protocol.Instance, src echo.Callers, dests echo.Instances, ciphers []string) map[string]interface{} {
+	templateParams := func(protocol protocol.Instance, src echo.Callers, dests echo.Instances, ciphers []string) map[string]any {
 		hostName, dest, portN, cred := "*", dests[0], 80, ""
 		if protocol.IsTLS() {
 			hostName, portN, cred = dest.Config().ClusterLocalFQDN(), 443, "cred"
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"IngressNamespace":   src[0].(ingress.Instance).Namespace(),
 			"GatewayHost":        hostName,
 			"GatewayPort":        portN,
@@ -1157,9 +1157,9 @@ spec:
 			Check: check.OK(),
 		},
 		setupOpts: fqdnHostHeader,
-		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]interface{} {
+		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]any {
 			dest := dests[0]
-			return map[string]interface{}{
+			return map[string]any{
 				"Gateway":            "gateway",
 				"VirtualServiceHost": dest.Config().ClusterLocalFQDN(),
 				"Port":               dest.PortForName("http").ServicePort,
@@ -1170,7 +1170,7 @@ spec:
 		name: "cipher suite",
 		config: gatewayTmpl + httpVirtualServiceTmpl +
 			ingressutil.IngressKubeSecretYAML("cred", "{{.IngressNamespace}}", ingressutil.TLS, ingressutil.IngressCredentialA),
-		templateVars: func(src echo.Callers, dests echo.Instances) map[string]interface{} {
+		templateVars: func(src echo.Callers, dests echo.Instances) map[string]any {
 			// Test all cipher suites, including a fake one. Envoy should accept all of the ones on the "valid" list,
 			// and control plane should filter our invalid one.
 			return templateParams(protocol.HTTPS, src, dests, append(security.ValidCipherSuites.SortedList(), "fake"))
@@ -1217,9 +1217,9 @@ spec:
 			Check: check.Status(http.StatusMovedPermanently),
 		},
 		setupOpts: fqdnHostHeader,
-		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]interface{} {
+		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]any {
 			dest := dests[0]
-			return map[string]interface{}{
+			return map[string]any{
 				"Gateway":            "gateway",
 				"VirtualServiceHost": dest.Config().ClusterLocalFQDN(),
 				"Port":               443,
@@ -1288,9 +1288,9 @@ spec:
 			Check: check.Status(http.StatusBadRequest),
 		},
 		setupOpts: fqdnHostHeader,
-		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]interface{} {
+		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]any {
 			dest := dests[0]
-			return map[string]interface{}{
+			return map[string]any{
 				"Gateway":            "gateway",
 				"VirtualServiceHost": dest.Config().ClusterLocalFQDN(),
 				"Port":               443,
@@ -1329,9 +1329,9 @@ spec:
 				check.Protocol("HTTP/1.1")),
 		},
 		setupOpts: fqdnHostHeader,
-		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]interface{} {
+		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]any {
 			dest := dests[0]
-			return map[string]interface{}{
+			return map[string]any{
 				"Gateway":            "gateway",
 				"VirtualServiceHost": dest.Config().ClusterLocalFQDN(),
 				"Port":               ports.All().MustForName("auto-http").ServicePort,
@@ -1376,9 +1376,9 @@ spec:
 				check.RequestHeader("X-Envoy-Peer-Metadata", "")),
 		},
 		setupOpts: fqdnHostHeader,
-		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]interface{} {
+		templateVars: func(_ echo.Callers, dests echo.Instances) map[string]any {
 			dest := dests[0]
-			return map[string]interface{}{
+			return map[string]any{
 				"Gateway":            "gateway",
 				"VirtualServiceHost": dest.Config().ClusterLocalFQDN(),
 				"Port":               ports.All().MustForName("auto-http").ServicePort,
@@ -1434,9 +1434,9 @@ spec:
 						check.RequestHeader("X-Envoy-Peer-Metadata", "")),
 				},
 				setupOpts: fqdnHostHeader,
-				templateVars: func(_ echo.Callers, dests echo.Instances) map[string]interface{} {
+				templateVars: func(_ echo.Callers, dests echo.Instances) map[string]any {
 					dest := dests[0]
-					return map[string]interface{}{
+					return map[string]any{
 						"Gateway":            "gateway",
 						"VirtualServiceHost": dest.Config().ClusterLocalFQDN(),
 						"Port":               ports.All().MustForName(port).ServicePort,
@@ -1454,7 +1454,7 @@ spec:
 		t.RunTraffic(TrafficTestCase{
 			name:   string(proto),
 			config: gatewayTmpl + httpVirtualServiceTmpl + secret,
-			templateVars: func(src echo.Callers, dests echo.Instances) map[string]interface{} {
+			templateVars: func(src echo.Callers, dests echo.Instances) map[string]any {
 				return templateParams(proto, src, dests, nil)
 			},
 			setupOpts: fqdnHostHeader,
@@ -1470,7 +1470,7 @@ spec:
 		t.RunTraffic(TrafficTestCase{
 			name:   fmt.Sprintf("%s scheme match", proto),
 			config: gatewayTmpl + httpVirtualServiceTmpl + secret,
-			templateVars: func(src echo.Callers, dests echo.Instances) map[string]interface{} {
+			templateVars: func(src echo.Callers, dests echo.Instances) map[string]any {
 				params := templateParams(proto, src, dests, nil)
 				params["MatchScheme"] = strings.ToLower(string(proto))
 				return params
@@ -1751,15 +1751,15 @@ func hostCases(t TrafficContext) {
 
 // serviceCases tests overlapping Services. There are a few cases.
 // Consider we have our base service B, with service port P and target port T
-// 1) Another service, B', with P -> T. In this case, both the listener and the cluster will conflict.
-//    Because everything is workload oriented, this is not a problem unless they try to make them different
-//    protocols (this is explicitly called out as "not supported") or control inbound connectionPool settings
-//    (which is moving to Sidecar soon)
-// 2) Another service, B', with P -> T'. In this case, the listener will be distinct, since its based on the target.
-//    The cluster, however, will be shared, which is broken, because we should be forwarding to T when we call B, and T' when we call B'.
-// 3) Another service, B', with P' -> T. In this case, the listener is shared. This is fine, with the exception of different protocols
-//    The cluster is distinct.
-// 4) Another service, B', with P' -> T'. There is no conflicts here at all.
+//  1. Another service, B', with P -> T. In this case, both the listener and the cluster will conflict.
+//     Because everything is workload oriented, this is not a problem unless they try to make them different
+//     protocols (this is explicitly called out as "not supported") or control inbound connectionPool settings
+//     (which is moving to Sidecar soon)
+//  2. Another service, B', with P -> T'. In this case, the listener will be distinct, since its based on the target.
+//     The cluster, however, will be shared, which is broken, because we should be forwarding to T when we call B, and T' when we call B'.
+//  3. Another service, B', with P' -> T. In this case, the listener is shared. This is fine, with the exception of different protocols
+//     The cluster is distinct.
+//  4. Another service, B', with P' -> T'. There is no conflicts here at all.
 func serviceCases(t TrafficContext) {
 	for _, c := range t.Apps.A {
 		c := c
@@ -1914,7 +1914,7 @@ spec:
     {{- if .Network }}
     topology.istio.io/network: {{.Network}}
 	{{- end }}
-`, map[string]interface{}{
+`, map[string]any{
 				"Service":        svcName,
 				"Network":        c.Config().Cluster.NetworkName(),
 				"Port":           ports.All().MustForName("http").ServicePort,
@@ -2415,7 +2415,7 @@ spec:
   - number: 80
     name: http
     protocol: HTTP
-`, map[string]interface{}{"IPs": ips})
+`, map[string]any{"IPs": ips})
 	}
 	ipv4 := "1.2.3.4"
 	ipv6 := "1234:1234:1234::1234:1234:1234"
@@ -2892,8 +2892,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{{"@request.auth.claims.nested.key1", "exact", "valueA"}},
 			}
 		},
@@ -2915,8 +2915,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{{"@request.auth.claims.sub", "prefix", "sub"}},
 			}
 		},
@@ -2938,8 +2938,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{
 					{"@request.auth.claims.nested.key1", "exact", "valueA"},
 					{"@request.auth.claims.sub", "prefix", "sub"},
@@ -2964,8 +2964,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"WithoutHeaders": []configData{{"@request.auth.claims.nested.key1", "exact", "value-not-matched"}},
 			}
 		},
@@ -2987,8 +2987,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"WithoutHeaders": []configData{{"@request.auth.claims.nested.key1", "exact", "valueA"}},
 			}
 		},
@@ -3010,8 +3010,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers":        []configData{{"@request.auth.claims.sub", "prefix", "sub"}},
 				"WithoutHeaders": []configData{{"@request.auth.claims.nested.key1", "exact", "value-not-matched"}},
 			}
@@ -3034,8 +3034,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{
 					{"@request.auth.claims.nested.key1", "exact", "valueA"},
 					{"@request.auth.claims.sub", "prefix", "value-not-matched"},
@@ -3060,8 +3060,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{{"@request.auth.claims.sub", "exact", "value-not-matched"}},
 			}
 		},
@@ -3083,8 +3083,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{{"@request.auth.claims.nested.key1", "exact", "valueA"}},
 			}
 		},
@@ -3106,8 +3106,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{{"@request.auth.claims.nested.key1", "exact", "valueA"}},
 			}
 		},
@@ -3129,8 +3129,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configAll,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{{"@request.auth.claims.nested.key1", "exact", "valueA"}},
 			}
 		},
@@ -3153,8 +3153,8 @@ spec:
 		workloadAgnostic: true,
 		viaIngress:       true,
 		config:           configRoute,
-		templateVars: func(src echo.Callers, dest echo.Instances) map[string]interface{} {
-			return map[string]interface{}{
+		templateVars: func(src echo.Callers, dest echo.Instances) map[string]any {
+			return map[string]any{
 				"Headers": []configData{{"@request.auth.claims.nested.key1", "exact", "valueA"}},
 			}
 		},

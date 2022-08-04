@@ -24,9 +24,7 @@ import (
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 	"github.com/davecgh/go-spew/spew"
-
-	// nolint: staticcheck
-	legacyproto "github.com/golang/protobuf/proto"
+	legacyproto "github.com/golang/protobuf/proto" // nolint: staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -156,7 +154,7 @@ func dataAsString(data []byte) string {
 // checkForNilValues is a helper to check for nil
 // values in the runtime objects.
 // This part only converts the interface to a reflect.Value.
-func checkForNilValues(targetStruct interface{}) error {
+func checkForNilValues(targetStruct any) error {
 	v := reflect.ValueOf(targetStruct)
 	e := v.Elem()
 	err := checkForNil(e)

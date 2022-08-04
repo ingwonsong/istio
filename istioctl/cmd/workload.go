@@ -37,8 +37,6 @@ import (
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	networkingv1alpha3 "istio.io/api/networking/v1alpha3"
 	clientv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
-	"istio.io/pkg/log"
-
 	"istio.io/istio/istioctl/pkg/clioptions"
 	"istio.io/istio/istioctl/pkg/multicluster"
 	"istio.io/istio/operator/pkg/tpath"
@@ -53,6 +51,7 @@ import (
 	"istio.io/istio/pkg/url"
 	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/pkg/util/shellescape"
+	"istio.io/pkg/log"
 )
 
 var (
@@ -132,10 +131,10 @@ The default output is serialized YAML, which can be piped into 'kubectl apply -f
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			u := &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": collections.IstioNetworkingV1Alpha3Workloadgroups.Resource().APIVersion(),
 					"kind":       collections.IstioNetworkingV1Alpha3Workloadgroups.Resource().Kind(),
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      name,
 						"namespace": namespace,
 					},
@@ -529,7 +528,7 @@ func createMeshConfig(kubeClient kube.ExtendedClient, wg *clientv1alpha3.Workloa
 		return nil, err
 	}
 
-	proxyYAML, err := yaml.Marshal(map[string]interface{}{"defaultConfig": proxyConfig})
+	proxyYAML, err := yaml.Marshal(map[string]any{"defaultConfig": proxyConfig})
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +625,7 @@ func extractClusterIDFromInjectionConfig(kubeClient kube.ExtendedClient) (string
 		return "", fmt.Errorf("fetch injection template: %v", err)
 	}
 
-	var injectedCMValues map[string]interface{}
+	var injectedCMValues map[string]any
 	if err := json.Unmarshal([]byte(istioInjectionCM.Data[valuesConfigMapKey]), &injectedCMValues); err != nil {
 		return "", err
 	}

@@ -30,13 +30,9 @@ import (
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/echo"
-
-	// force registraton of factory func
-	_ "istio.io/istio/pkg/test/framework/components/echo/asmvm"
+	_ "istio.io/istio/pkg/test/framework/components/echo/asmvm" // force registraton of factory func
 	"istio.io/istio/pkg/test/framework/components/echo/kube"
-
-	// force registraton of factory func
-	_ "istio.io/istio/pkg/test/framework/components/echo/staticvm"
+	_ "istio.io/istio/pkg/test/framework/components/echo/staticvm" // force registraton of factory func
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	"istio.io/istio/pkg/test/framework/resource"
@@ -48,17 +44,17 @@ import (
 // Builder for a group of collaborating Echo Instances. Once built, all Instances in the
 // group:
 //
-//     1. Are ready to receive traffic, and
-//     2. Can call every other Instance in the group (i.e. have received Envoy config
-//        from Pilot).
+//  1. Are ready to receive traffic, and
+//  2. Can call every other Instance in the group (i.e. have received Envoy config
+//     from Pilot).
 //
 // If a test needs to verify that one Instance is NOT reachable from another, there are
 // a couple of options:
 //
-//     1. Build a group while all Instances ARE reachable. Then apply a policy
-//        disallowing the communication.
-//     2. Build the source and destination Instances in separate groups and then
-//        call `source.WaitUntilCallable(destination)`.
+//  1. Build a group while all Instances ARE reachable. Then apply a policy
+//     disallowing the communication.
+//  2. Build the source and destination Instances in separate groups and then
+//     call `source.WaitUntilCallable(destination)`.
 type Builder interface {
 	// With adds a new Echo configuration to the Builder. Once built, the instance
 	// pointer will be updated to point at the new Instance.
