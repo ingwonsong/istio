@@ -158,7 +158,7 @@ func (i *istioImpl) RemoteDiscoveryAddressFor(cluster cluster.Cluster) (net.TCPA
 	if !primary.IsConfig() {
 		// istiod is exposed via LoadBalancer since we won't have ingress outside of a cluster;a cluster that is;
 		// a control cluster, but not config cluster is supposed to simulate istiod outside of k8s or "external"
-		address, err := retry.UntilComplete(func() (interface{}, bool, error) {
+		address, err := retry.UntilComplete(func() (any, bool, error) {
 			return getRemoteServiceAddress(i.env.Settings(), primary, i.cfg.SystemNamespace, istiodLabel,
 				istiodSvcName, discoveryPort)
 		}, getAddressTimeout, getAddressDelay)
@@ -582,7 +582,7 @@ func waitForIstioReady(ctx resource.Context, c cluster.Cluster, cfg Config) erro
 	return nil
 }
 
-// configureDirectAPIServiceAccessBetweenClusters - create a remote secret of cluster `c`` and place
+// configureDirectAPIServiceAccessBetweenClusters - create a remote secret of cluster `c` and place
 // the secret in all `from` clusters
 func (i *istioImpl) configureDirectAPIServiceAccessBetweenClusters(c cluster.Cluster, from ...cluster.Cluster) error {
 	// Create a secret.

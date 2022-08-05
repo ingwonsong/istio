@@ -34,9 +34,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo/check"
 	"istio.io/istio/pkg/test/framework/components/echo/common/ports"
 	"istio.io/istio/pkg/test/framework/components/echo/deployment"
-
-	// Side-effect import to register cmd line flags
-	_ "istio.io/istio/pkg/test/framework/components/istio"
+	_ "istio.io/istio/pkg/test/framework/components/istio" // Side-effect import to register cmd line flags
 	"istio.io/istio/pkg/test/framework/components/namespace"
 	stackdriver "istio.io/istio/pkg/test/framework/components/stackdriverasm"
 	"istio.io/istio/pkg/test/framework/resource"

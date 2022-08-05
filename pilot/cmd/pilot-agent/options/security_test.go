@@ -19,9 +19,8 @@ import (
 	"testing"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
-	"istio.io/istio/security/pkg/credentialfetcher"
-
 	"istio.io/istio/pkg/security"
+	"istio.io/istio/security/pkg/credentialfetcher"
 )
 
 func TestCheckGkeWorkloadCertificate(t *testing.T) {
