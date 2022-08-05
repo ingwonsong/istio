@@ -184,6 +184,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	// Disable webhook config patching - manual configs used, proper DNS certs means no cert patching needed.
 	// TODO: oss bug, cannot disable validation
+	features.EnableRemoteJwks = true
 	features.InjectionWebhookConfigName = ""
 	bootstrap.Revision = p.Revision
 	bootstrap.PodName = p.PodName
@@ -418,8 +419,7 @@ func createOrSetWebhook(client kubelib.Client, mwh string) error {
 }
 
 // createConfigmap creates a configmap in the system namespace
-// Returns true if the configmap had to be created.
-//         false if the configmap exists.
+// Returns true if the configmap had to be created, false if the configmap exists.
 func createConfigmap(client kubelib.Client, name string, data map[string]string, update bool) (bool, error) {
 	cmAPI := client.Kube().CoreV1().ConfigMaps(constants.IstioSystemNamespace)
 	cm := &corev1.ConfigMap{

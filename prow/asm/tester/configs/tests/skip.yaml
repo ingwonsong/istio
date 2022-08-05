@@ -689,9 +689,6 @@ tests:
           - TestAuthz_Custom
         reason: requires mesh config
       - names:
-          - TestRequestAuthentication
-        buganizerID: 180418442
-      - names:
           - TestTelemetry
         buganizerID: 190420441
       - names:
