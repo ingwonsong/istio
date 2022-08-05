@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	ImageAnnotationKey = "mesh.cloud.google.com/image"
+	imageAnnotationKey = "mesh.cloud.google.com/image"
 )
 
 // Since asmcli will be deprecated in the future, MLCP will be not be installed
@@ -126,6 +126,7 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 	//  (1) Label each cluster with mesh_id
 	//  (2) Register the membership
 	//  (3) Enable automatic CP management for the membership
+	//  (4) Annotate ControlPlaneReision with CI Image
 	for _, context := range c.settings.KubeContexts {
 		cluster := kube.GKEClusterSpecFromContext(context)
 		log.Printf("Enabling automatic control plane management for cluster %s in project %s...",
@@ -133,6 +134,7 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 
 		if err := exec.Run(fmt.Sprintf("gcloud container clusters update %s --update-labels mesh_id=proj-%s --project %s --region %s",
 			cluster.Name, projectNumber, cluster.ProjectID, cluster.Location)); err != nil {
+			return fmt.Errorf("failed updating mesh label for cluster %s to fleet: %w", cluster.Name, err)
 		}
 		if err := exec.Run(fmt.Sprintf(`gcloud container hub memberships register membership-%s \
 		--gke-uri=%s --enable-workload-identity --project %s`,
@@ -141,9 +143,25 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 		}
 		// TODO(samnaser) update to be --memberships once gcloud change lands.
 		if err := exec.Run(fmt.Sprintf(`gcloud alpha container hub mesh update \
-		--control-plane automatic --membership membership-%s --project %s`,
+		--management automatic --membership membership-%s --project %s`,
 			cluster.Name, fleetProject)); err != nil {
-			return fmt.Errorf("failed enabling automatic CP management for cluster %s: %w", cluster.Name, err)
+			return fmt.Errorf("failed enabling automatic ASM management for cluster %s: %w", cluster.Name, err)
+		}
+
+		log.Printf("Overriding CI images for cluster %s in project %s...", cluster.Name, cluster.ProjectID)
+		// Annotate the CPR when it's created. This will cause a new reconciliation with the overridden image.
+		if err := retry.UntilSuccess(func() error {
+			cprList, err := exec.RunWithOutput(fmt.Sprintf("kubectl get controlplanerevision -n istio-system --context=%s -o=jsonpath='{.items[*].metadata.name}'", context))
+			if err != nil {
+				return fmt.Errorf("failed to list controlplanerevision: %w", err)
+			}
+			// Annotate the ControlPlaneRevision to override the image. This is to test the images built in the CI.
+			if err := exec.Run(fmt.Sprintf("kubectl annotate controlplanerevision %s -n istio-system --context=%s %s=%s", cprList, context, imageAnnotationKey, cloudRunImage())); err != nil {
+				return fmt.Errorf("error annotating CPRs: %w", err)
+			}
+			return nil
+		}, retry.Timeout(time.Second*600), retry.Delay(time.Second*5)); err != nil {
+			return fmt.Errorf("error waiting for controlplanerevision creation: %w", err)
 		}
 	}
 
@@ -151,7 +169,7 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 	// membershipSpecs:
 	// 	 projects/746296320118/locations/global/memberships/demo-cluster-1:
 	//     mesh:
-	//       controlPlane: AUTOMATIC
+	//       management: AUTOMATIC
 	// membershipStates:
 	// 	 projects/746296320118/locations/global/memberships/demo-cluster-1:
 	//     servicemesh:
@@ -159,6 +177,10 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 	//         details:
 	// 	         - code: REVISION_READY
 	//             details: 'Ready: asm-managed'
+	//       dataPlaneManagement:
+	//         details:
+	//           - code: OK
+	//             details: Service is running.
 	//     state: ACTIVE
 	//       state:
 	//         description: 'Revision(s) ready for use: asm-managed.'
@@ -460,12 +482,11 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 		cpr.Metadata.Annotations = yaml.Node{Kind: yaml.MappingNode}
 	}
 	patched := false
-	cloudRunImage := fmt.Sprintf("%s/%s:%s", os.Getenv("HUB"), "cloudrun", os.Getenv("TAG"))
 	for i := 0; i < len(cpr.Metadata.Annotations.Content); i += 2 {
 		// Key/Value pairs are traversed in sequence like k1, v1, k2, v2...
-		if cpr.Metadata.Annotations.Content[i].Value == ImageAnnotationKey {
+		if cpr.Metadata.Annotations.Content[i].Value == imageAnnotationKey {
 			patched = true
-			cpr.Metadata.Annotations.Content[i+1].Value = cloudRunImage
+			cpr.Metadata.Annotations.Content[i+1].Value = cloudRunImage()
 			break
 		}
 	}
@@ -474,11 +495,11 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 		cpr.Metadata.Annotations.Content = append(cpr.Metadata.Annotations.Content,
 			&yaml.Node{
 				Kind:  yaml.ScalarNode,
-				Value: ImageAnnotationKey,
+				Value: imageAnnotationKey,
 			},
 			&yaml.Node{
 				Kind:  yaml.ScalarNode,
-				Value: cloudRunImage,
+				Value: cloudRunImage(),
 			})
 	}
 
@@ -496,4 +517,8 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 func gkeURI(spec *kube.GKEClusterSpec) string {
 	format := "https://container.googleapis.com/v1/projects/%s/locations/%s/clusters/%s"
 	return fmt.Sprintf(format, spec.ProjectID, spec.Location, spec.Name)
+}
+
+func cloudRunImage() string {
+	return fmt.Sprintf("%s/%s:%s", os.Getenv("HUB"), "cloudrun", os.Getenv("TAG"))
 }
