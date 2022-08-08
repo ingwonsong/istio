@@ -264,6 +264,14 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
 		overlays = append(overlays, filepath.Join(pkgPath, "overlay/autopilot-cni-image.yaml"))
 	}
+	if settings.FeaturesToTest.Has(string(resource.CNI)) {
+		switch settings.ClusterType {
+		case resource.GKEOnAWS:
+			overlays = append(overlays, filepath.Join(pkgPath, "overlay/aws-cni-overlay.yaml"))
+		default:
+			overlays = append(overlays, filepath.Join(pkgPath, "overlay/cni-gcp.yaml"))
+		}
+	}
 
 	installFlags = append(installFlags, "--custom_overlay", strings.Join(overlays, ","))
 
