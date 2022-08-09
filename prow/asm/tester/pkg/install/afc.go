@@ -40,7 +40,8 @@ import (
 )
 
 const (
-	imageAnnotationKey = "mesh.cloud.google.com/image"
+	imageAnnotationKey      = "mesh.cloud.google.com/image"
+	crdManagementSkippedKey = "mesh.cloud.google.com/crd-management-skipped"
 )
 
 // Since asmcli will be deprecated in the future, MLCP will be not be installed
@@ -157,6 +158,10 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 			}
 			// Annotate the ControlPlaneRevision to override the image. This is to test the images built in the CI.
 			if err := exec.Run(fmt.Sprintf("kubectl annotate controlplanerevision %s -n istio-system --context=%s %s=%s", cprList, context, imageAnnotationKey, cloudRunImage())); err != nil {
+				return fmt.Errorf("error annotating CPRs: %w", err)
+			}
+			// Skip the CRD installtion since we manually install the latest CRD.
+			if err := exec.Run(fmt.Sprintf("kubectl label controlplanerevision %s -n istio-system --context=%s %s=%s", cprList, context, crdManagementSkippedKey, "true")); err != nil {
 				return fmt.Errorf("error annotating CPRs: %w", err)
 			}
 			return nil
@@ -477,31 +482,10 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 	if err := yaml.Unmarshal(cprBytes, &cpr); err != nil {
 		return fmt.Errorf("unable to parse %s: %w", path, err)
 	}
-	// No annotation field, initialize it as a mapping node.
-	if len(cpr.Metadata.Annotations.Content) == 0 {
-		cpr.Metadata.Annotations = yaml.Node{Kind: yaml.MappingNode}
-	}
-	patched := false
-	for i := 0; i < len(cpr.Metadata.Annotations.Content); i += 2 {
-		// Key/Value pairs are traversed in sequence like k1, v1, k2, v2...
-		if cpr.Metadata.Annotations.Content[i].Value == imageAnnotationKey {
-			patched = true
-			cpr.Metadata.Annotations.Content[i+1].Value = cloudRunImage()
-			break
-		}
-	}
-	// Key does not exist, adding the key/value pair.
-	if !patched {
-		cpr.Metadata.Annotations.Content = append(cpr.Metadata.Annotations.Content,
-			&yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Value: imageAnnotationKey,
-			},
-			&yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Value: cloudRunImage(),
-			})
-	}
+
+	cpr.Metadata.Annotations = patchMap(cpr.Metadata.Annotations, imageAnnotationKey, cloudRunImage())
+	// Skip the CRD installtion since we manually install the latest CRD.
+	cpr.Metadata.Labels = patchMap(cpr.Metadata.Labels, crdManagementSkippedKey, "true")
 
 	// Replace the ControlPlaneRevision with patched annotation without changing the mode.
 	bytesToWrite, err := yaml.Marshal(cpr)
@@ -512,6 +496,36 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 		return err
 	}
 	return nil
+}
+
+func patchMap(contentMap yaml.Node, key string, value string) yaml.Node {
+	// No annotation field, initialize it as a mapping node.
+	if len(contentMap.Content) == 0 {
+		contentMap = yaml.Node{Kind: yaml.MappingNode}
+	}
+	patched := false
+	for i := 0; i < len(contentMap.Content); i += 2 {
+		// Key/Value pairs are traversed in sequence like k1, v1, k2, v2...
+		if contentMap.Content[i].Value == key {
+			patched = true
+			contentMap.Content[i+1].Value = value
+			break
+		}
+	}
+	// Key does not exist, adding the key/value pair.
+	if !patched {
+		contentMap.Content = append(contentMap.Content,
+			&yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: key,
+			},
+			&yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Tag:   "!!str", // force it to be string
+				Value: value,
+			})
+	}
+	return contentMap
 }
 
 func gkeURI(spec *kube.GKEClusterSpec) string {
