@@ -115,7 +115,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	}
 
 	if settings.FeaturesToTest.Has(string(resource.CNI)) {
-		testFlags = append(testFlags, " --istio.test.istio.enableCNI=true ")
+		// Managed Control Plane will install the managed CNI via AFC.
+		if settings.ControlPlane == resource.Unmanaged {
+			testFlags = append(testFlags, " --istio.test.istio.enableCNI=true ")
+		}
 	}
 
 	// openshift doesn't support TProxy mode
