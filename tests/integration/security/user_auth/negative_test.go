@@ -58,6 +58,7 @@ func TestMisconfiguration(t *testing.T) {
 		Features("security.user.auth").
 		Run(func(ctx framework.TestContext) {
 			util.SetupConfig(ctx)
+			util.ApplyUserAuthConfigIfNotExist(ctx)
 			// port-forward to cluster
 			forwarder := util.GetIngressPortForwarderOrFail(ctx, ist, localPort, ingressPort)
 			if err := forwarder.Start(); err != nil {

@@ -22,6 +22,7 @@ package util
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"istio.io/istio/pkg/kube"
@@ -41,6 +42,32 @@ metadata:
 spec:
   authentication:
     oidc:
+      certificateAuthorityData: ""
+      issuerURI: "https://accounts.google.com"
+      proxy: ""
+      oauthCredentialsSecret:
+        name: "oauth-secret"
+        namespace: "asm-user-auth"
+      redirectURIHost: ""
+      redirectURIPath: "/_gcp_anthos_callback"
+      scopes: ""
+      groupsClaim: ""
+  outputJWTAudience: "test_audience"
+`
+
+const CustomClaimUserAuthConfig = `
+apiVersion: security.anthos.io/v1beta1
+kind: UserAuthConfig
+metadata:
+  name: user-auth-config
+  namespace: asm-user-auth
+spec:
+  authentication:
+    oidc:
+      attributeMapping:
+        test_aud: assertion.aud
+        test_decision: 'assertion.sub.startsWith("105") ? "Positive" : "Negative"'
+        invalid_claim: assertion.invalid_claim
       certificateAuthorityData: ""
       issuerURI: "https://accounts.google.com"
       proxy: ""
@@ -134,6 +161,18 @@ func RestartDeploymentOrFail(ctx framework.TestContext, deployments []string, na
 		if _, err := shell.Execute(true, waitCmd); err != nil {
 			ctx.Fatalf("failed to wait rollout status for %v/%v: %v", namespace, deploymentName, err)
 		}
+	}
+}
+
+func ApplyUserAuthConfigIfNotExist(ctx framework.TestContext) {
+	cmd := "kubectl -n asm-user-auth get userauthconfigs.security.anthos.io"
+	res, err := shell.Execute(true, cmd)
+	if err != nil {
+		ctx.Fatalf("failed to connect to kubeapi server %s", err)
+	}
+
+	if strings.Contains(res, "No resources found") {
+		ctx.ConfigKube(ctx.Clusters().Configs()...).YAML("asm-user-auth", OriginalUserAuthConfig).ApplyOrFail(ctx)
 	}
 }
 
