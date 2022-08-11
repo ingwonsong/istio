@@ -209,6 +209,12 @@ func (d *Instance) flags() ([]string, error) {
 	// The name of the deployer is first in the list.
 	flags := []string{d.Name()}
 
+	// Add presubmit-related tailorbird-specific flags.
+	// Added in the beginning to ensure lower precedence.
+	if os.Getenv("JOB_TYPE") == "presubmit" {
+		flags = append(flags, "--extra-cluster-labels=testType=presubmit")
+	}
+
 	// Get the base flags from the options.
 	cfgFlags, err := d.cfg.GetDeployerFlags()
 	if err != nil {
