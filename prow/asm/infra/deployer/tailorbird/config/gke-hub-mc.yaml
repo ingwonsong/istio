@@ -4,7 +4,7 @@ metadata:
   name: asm-ci-gke-hub-mc
   namespace: tailorbird-users
 spec:
-  ttlSeconds: 10800 # 3 hours
+  ttlSeconds: 14400 # 4 hours
   knests:
   - apiVersion: sut.tailorbird.io/v1alpha1
     kind: Knest
