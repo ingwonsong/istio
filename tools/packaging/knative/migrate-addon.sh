@@ -53,6 +53,8 @@ SUB_COMMAND=""
 ZERO_DOWNTIME=""
 # SUCCESS represents the state when migration is complete
 SUCCESS="SUCCESS"
+MIGRATION_CONFIG_ERROR="MIGRATION_CONFIG_ERROR"
+CUSTOM_CONFIGS_DETECTED="CUSTOM_CONFIGS_DETECTED"
 # default to regular
 REVISION="asm-managed"
 
@@ -146,6 +148,33 @@ CLEANUP_RESOURCES=(
   "Secret/istio-ca-secret/istio-system"
 )
 
+write_marker() {
+  local STATUS; STATUS="${1:-${SUCCESS}}"
+
+  heading "Current migration state: ${STATUS}"
+  cat <<EOF | kube apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: asm-addon-migration-state
+  namespace: istio-system
+data:
+  migrationStatus: ${STATUS}
+EOF
+
+  echo -e "${green}OK${clr}"
+}
+
+write_marker_on_exit() {
+  local status=$?
+  if [[ ${status} == 1 ]];then
+    write_marker "${MIGRATION_CONFIG_ERROR}"
+  fi
+  exit $status
+}
+
+trap write_marker_on_exit EXIT
+
 die() {
     echo -e "${red}$*${clr}" >&2 ; exit 1;
 }
@@ -176,7 +205,9 @@ prompt() {
 prompt_unsupported() {
   echo -e "${yellow}${1}${clr}\n${2}"
   if [[ -n "${SKIP_CONFIRM}" ]]; then
-    die "--skip-confirm set but an unsupported configuration was detected"
+    echo "--skip-confirm set but an unsupported configuration was detected"
+    write_marker "${CUSTOM_CONFIGS_DETECTED}"
+    exit 2
   fi
   read -r -p "Continue anyways? [y/N] " response
   case "$response" in
@@ -559,23 +590,6 @@ replace_webhook() {
   echo -e "${green}OK${clr}"
 }
 
-write_marker() {
-  local STATUS; STATUS="${1:-${SUCCESS}}"
-
-  heading "Current migration state: ${STATUS}"
-  cat <<EOF | kube apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: asm-addon-migration-state
-  namespace: istio-system
-data:
-  migrationStatus: ${STATUS}
-EOF
-
-  echo -e "${green}OK${clr}"
-}
-
 download_and_install_migration_tool () {
   if [[ ! -f "${TMP_DIR}/convert" ]]; then
     heading "Installing the authentication CR migration tool..."
@@ -683,7 +697,7 @@ config_check_custom_gateway(){
   for depl in ${deploymentIndices}; do
     deploymentName=$(echo "${deployments}" | jq .items[$(( depl - 1 ))].metadata.name)
     if [[ "${deploymentName}" != "\"istio-ingressgateway\"" ]]; then
-      prompt_unsupported "Deployment ${deploymentName} appears to be a gateway. Please migrate this manually"
+      prompt_unsupported "Detected Custom Gateway" "Deployment ${deploymentName} appears to be a gateway. Please migrate this manually"
       heading "Deployment ${deploymentName} could be a custom gateway. Please migrate this manually"
     fi
   done

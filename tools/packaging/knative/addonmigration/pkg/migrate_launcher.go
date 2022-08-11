@@ -100,7 +100,7 @@ EOF'`
 	}, retry.Timeout(retryTimeOut), retry.Delay(retryDelay))
 	if err != nil {
 		log.Errorf("Failed to migrate from addon to MCP: %v\n", err)
-		writeConfigMapAndReportMetrics(jobstate)
+		ReportMigrationState(jobstate)
 	} else {
 		log.Info("Successfully migrated from addon to MCP\n")
 		writeConfigMapAndReportMetrics(SuccessState)
