@@ -312,3 +312,7 @@ func (i *instance) ClusterLocalFQDN() string {
 func (i *instance) ClusterSetLocalFQDN() string {
 	return i.Config().ClusterSetLocalFQDN()
 }
+
+func (i *instance) UpdateWorkloadLabel(add map[string]string, remove []string) error {
+	panic("cannot trigger UpdateWorkloadLabel of a static VM")
+}
