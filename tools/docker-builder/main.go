@@ -261,6 +261,14 @@ func RunMake(args Args, arch string, c ...string) error {
 	log.Infof("Running make for %v: %v", arch, strings.Join(shortArgs, " "))
 	env := StandardEnv(args)
 	env = append(env, archToGoFlags(arch)...)
+	// Special Cases
+	if arch == "arm64" {
+		// If Env contains duplicate environment keys, only the last
+		// value in the slice for each duplicate key is used.
+		// Therefore, create an empty GOEXPERIMENT for arm64 until
+		// goboring supports arm64 targets.
+		env = append(env, `GOEXPERIMENT=""`)
+	}
 	makeArgs := []string{"--no-print-directory"}
 	makeArgs = append(makeArgs, c...)
 	cmd := exec.Command("make", makeArgs...)

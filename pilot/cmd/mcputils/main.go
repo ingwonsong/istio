@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -239,7 +238,7 @@ func (s *server) installCRDs(req *http.Request) (string, *httpError) {
 		}
 	}
 
-	crdTemplate, err := ioutil.ReadFile(mcpinit.GetMCPFile(mcpinit.CRDsFile))
+	crdTemplate, err := os.ReadFile(mcpinit.GetMCPFile(mcpinit.CRDsFile))
 	if err != nil {
 		return "", &httpError{
 			code:    http.StatusInternalServerError,

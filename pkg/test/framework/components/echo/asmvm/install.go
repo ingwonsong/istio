@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -133,7 +132,7 @@ func (i *instance) generateConfig() error {
 	if i.unitFile == "" {
 		service := tmpl.MustEvaluate(echoServiceTmpl, params)
 		i.unitFile = path.Join(i.dir, "echo.service")
-		if err := ioutil.WriteFile(i.unitFile, []byte(service), 0o644); err != nil {
+		if err := os.WriteFile(i.unitFile, []byte(service), 0o644); err != nil {
 			return err
 		}
 	}

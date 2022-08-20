@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -270,7 +269,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	// This was our first time provisioning the environment, so we also need to write configmaps
 	if envProvisioned {
-		crdTemplate, err := ioutil.ReadFile(mcpinit.GetMCPFile(mcpinit.CRDsFile))
+		crdTemplate, err := os.ReadFile(mcpinit.GetMCPFile(mcpinit.CRDsFile))
 		if err != nil {
 			return nil, fmt.Errorf("crd file: %v", err)
 		}
@@ -527,7 +526,7 @@ func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
 
 // executeTemplate executes a go template over fromFile, with inputs from params
 func executeTemplate(fromFile string, params TemplateParameters) (string, error) {
-	by, err := ioutil.ReadFile(fromFile)
+	by, err := os.ReadFile(fromFile)
 	if err != nil {
 		return "", err
 	}
@@ -548,7 +547,7 @@ func executeTemplateTo(fromFile, toFile string, params TemplateParameters) error
 		// This may be ok, so just warn here. If its not we will fail on the write.
 		log.Warnf("failed to create directory %v: %v", filepath.Dir(toFile), err)
 	}
-	return ioutil.WriteFile(toFile, []byte(expanded), 0o644)
+	return os.WriteFile(toFile, []byte(expanded), 0o644)
 }
 
 // configureMCPLogs configures our custom logging to be compatible with SD and tee to the consumer project's logs

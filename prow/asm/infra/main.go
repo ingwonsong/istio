@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -139,12 +138,12 @@ func hackClientAuthentication() {
 	if kubeconfigPath == "" {
 		return
 	}
-	kubeconfig, err := ioutil.ReadFile(kubeconfigPath)
+	kubeconfig, err := os.ReadFile(kubeconfigPath)
 	if err != nil {
 		log.Printf("failed reading kubeconfig %q: %v", kubeconfigPath, err)
 	}
 	strings.ReplaceAll(string(kubeconfig), oldClientAuthentication, newClientAuthentication)
-	err = ioutil.WriteFile(kubeconfigPath, kubeconfig, 0644)
+	err = os.WriteFile(kubeconfigPath, kubeconfig, 0644)
 	if err != nil {
 		log.Printf("failed writing kubeconfig %q: %v", kubeconfigPath, err)
 	}

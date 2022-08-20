@@ -81,11 +81,11 @@ func TestMain(m *testing.M) {
 }
 
 // TestProxiesRestarted verify whether the MDP controller can upgrade proxies as expected
-// 1. Two control planes would be installed at setup stage by providing the RevisionConfig to the test framework, i.e. 1.11-asm and master-asm.
-//    Initially the proxies are injected with old version, i.e. 1.11-asm
-// 2. Then it relabels the namespace for new version, i.e. master-asm,
-//    so after MDP successfully evict a pod, the newly created pods would be injected with proxies of new version.
-// 3. verify upgraded proxies percentage, CR status
+//  1. Two control planes would be installed at setup stage by providing the RevisionConfig to the test framework, i.e. 1.11-asm and master-asm.
+//     Initially the proxies are injected with old version, i.e. 1.11-asm
+//  2. Then it relabels the namespace for new version, i.e. master-asm,
+//     so after MDP successfully evict a pod, the newly created pods would be injected with proxies of new version.
+//  3. verify upgraded proxies percentage, CR status
 func TestProxiesRestarted(t *testing.T) {
 	framework.NewTest(t).
 		Features("mdp.upgrade").

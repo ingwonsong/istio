@@ -17,7 +17,6 @@ package userauth
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -45,7 +44,7 @@ func installASMUserAuth(settings *resource.Settings) error {
 	// Config install pkg
 	var res map[string]interface{}
 	// TODO(b/182940034): use ASM owned account once created
-	configs, err := ioutil.ReadFile(fmt.Sprintf("%s/user-auth/userauth_config.json", settings.ConfigDir))
+	configs, err := os.ReadFile(fmt.Sprintf("%s/user-auth/userauth_config.json", settings.ConfigDir))
 	if err != nil {
 		return fmt.Errorf("error reading the odic key file: %w", err)
 	}

@@ -15,7 +15,7 @@
 package cloudesf
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -26,7 +26,7 @@ import (
 var versionFilePath = filepath.Join(env.IstioSrc, "cloudesf/Makefile.cloudesf.version.mk")
 
 func Version() string {
-	file, err := ioutil.ReadFile(versionFilePath)
+	file, err := os.ReadFile(versionFilePath)
 	if err != nil {
 		return ""
 	}

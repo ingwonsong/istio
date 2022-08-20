@@ -16,7 +16,7 @@ package util
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -566,13 +566,13 @@ func TestTimeBeforeCertExpires(t *testing.T) {
 func TestSplitCerts(t *testing.T) {
 	var cert1, cert2, cert3 []byte
 	var err error
-	if cert1, err = ioutil.ReadFile(intCertFile); err != nil {
+	if cert1, err = os.ReadFile(intCertFile); err != nil {
 		t.Fatalf("Error reading file: %v", err)
 	}
-	if cert2, err = ioutil.ReadFile(int2CertFile); err != nil {
+	if cert2, err = os.ReadFile(int2CertFile); err != nil {
 		t.Fatalf("Error reading file: %v", err)
 	}
-	if cert3, err = ioutil.ReadFile(rootCertFile); err != nil {
+	if cert3, err = os.ReadFile(rootCertFile); err != nil {
 		t.Fatalf("Error reading file: %v", err)
 	}
 

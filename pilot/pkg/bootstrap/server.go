@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -1231,7 +1230,7 @@ func (s *Server) addIstioCAToTrustBundle(args *PilotArgs) error {
 		if _, err := os.Stat(rootCertFile); err != nil {
 			rootCertFile = path.Join(LocalCertDir.Get(), "ca-cert.pem")
 		}
-		certBytes, err := ioutil.ReadFile(rootCertFile)
+		certBytes, err := os.ReadFile(rootCertFile)
 		if err != nil {
 			return nil
 		}

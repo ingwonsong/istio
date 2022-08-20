@@ -16,7 +16,7 @@ package tests
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -68,7 +68,7 @@ type SkipLabels map[string]string
 
 // ParseSkipConfig parses the configuration for skipping tests from the config file.
 func ParseSkipConfig(path string) (*TargetSkipConfig, error) {
-	yamlContents, err := ioutil.ReadFile(path)
+	yamlContents, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read test skip config file %q: %w",
 			path, err)

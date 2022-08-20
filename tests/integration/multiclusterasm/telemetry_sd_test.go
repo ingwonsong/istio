@@ -20,7 +20,6 @@ package multiclusterasm
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -222,7 +221,7 @@ func validateMetrics(t framework.TestContext, portName string, projectID string,
 	metricParam.FilterFor = "metric"
 	filter := fmt.Sprintf("%s AND metric.type = %q", metricParam, "istio.io/service/server/request_count")
 
-	expLabel, err := ioutil.ReadFile("testdata/server_request_count.json")
+	expLabel, err := os.ReadFile("testdata/server_request_count.json")
 	if err != nil {
 		t.Fatalf("failed to read expected label file for asm: %v", err)
 	}

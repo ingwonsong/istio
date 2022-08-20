@@ -18,7 +18,7 @@ import (
 	contextpkg "context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -314,7 +314,7 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				const pref = "failed to call fetchControlPlane"
-				bs, err := ioutil.ReadAll(resp.Body)
+				bs, err := io.ReadAll(resp.Body)
 				if err != nil {
 					return fmt.Errorf("%s: %s (response body was not available: %v)", pref, resp.Status, err)
 				}
@@ -474,7 +474,7 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 	}
 
 	// Read the ControlPlaneRevision and patch the annotation with the custom image.
-	cprBytes, err := ioutil.ReadFile(path)
+	cprBytes, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -492,7 +492,7 @@ func patchCPRWithImageWalkFn(path string, info os.FileInfo, err error) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(path, bytesToWrite, info.Mode()); err != nil {
+	if err := os.WriteFile(path, bytesToWrite, info.Mode()); err != nil {
 		return err
 	}
 	return nil

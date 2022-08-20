@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -410,7 +409,7 @@ func writeYAMLFile(fname string, data []byte) error {
   creationTimestamp: null`), []byte(`metadata:`), -1)
 	data = bytes.Replace(data, []byte(`metadata:
   annotations: null`), []byte(`metadata:`), -1)
-	return ioutil.WriteFile(fname, data, 0o644)
+	return os.WriteFile(fname, data, 0o644)
 }
 
 func generateWarnings(spec *operator.IstioOperatorSpec) ([]string, []string, []string) {

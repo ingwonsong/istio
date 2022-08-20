@@ -41,15 +41,16 @@ var _ Cluster = &asmvm{}
 // name: name
 // primaryClusterName: cn-asm-boskos1-prow-test1-us-central1-a
 // meta:
-//   project: asm-boskos1
-//   projectNo: 1234567890
-//   gkeLocation: us-central1-a
-//   gkeCluster: prow-test1
-//   gkeNetwork: prow-test-network
-//   firewallTag: prow-to-vms
-//   instanceMetadata:
-//   - key: gce-service-proxy-agent-bucket
-//     value: gs://storage.googleapis.com/mesh-agent-canary/release.tgz
+//
+//	project: asm-boskos1
+//	projectNo: 1234567890
+//	gkeLocation: us-central1-a
+//	gkeCluster: prow-test1
+//	gkeNetwork: prow-test-network
+//	firewallTag: prow-to-vms
+//	instanceMetadata:
+//	- key: gce-service-proxy-agent-bucket
+//	  value: gs://storage.googleapis.com/mesh-agent-canary/release.tgz
 func New(cfg cluster.Config, topology cluster.Topology) (cluster.Cluster, error) {
 	project := cfg.Meta.String("project")
 	projectNo := strconv.Itoa(cfg.Meta.Int("projectNumber"))
@@ -118,7 +119,7 @@ type Cluster interface {
 }
 
 type asmvm struct {
-	kube.ExtendedClient
+	kube.CLIClient
 	cluster.Topology
 
 	project     string

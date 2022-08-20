@@ -15,7 +15,7 @@
 package tests
 
 import (
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -199,7 +199,7 @@ func TestTargetSkip(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			f, err := ioutil.TempFile("", "revision-config")
+			f, err := os.CreateTemp("", "revision-config")
 			if err != nil {
 				t.Fatalf("failed creating skip test config file: %v", err)
 			}

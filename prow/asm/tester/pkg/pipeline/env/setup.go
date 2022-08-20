@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -146,7 +145,7 @@ func populateRuntimeSettings(settings *resource.Settings) error {
 	settings.GCRProject = gcrProjectID
 
 	f := filepath.Join(settings.ConfigDir, newtaroCommitConfig)
-	bytes, err := ioutil.ReadFile(f)
+	bytes, err := os.ReadFile(f)
 	if err != nil {
 		return fmt.Errorf("error reading the Newtaro commit config file: %w", err)
 	}
@@ -725,7 +724,7 @@ type multicloudClusterConfig struct {
 
 func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloudClusterConfig) error {
 	tunnelScriptPath := filepath.Join(mcConf.clusterArtifactsPath, mcConf.scriptRelPath)
-	tunnelScriptContent, err := ioutil.ReadFile(tunnelScriptPath)
+	tunnelScriptContent, err := os.ReadFile(tunnelScriptPath)
 	if err != nil {
 		return fmt.Errorf("error reading %q under the cluster artifacts path for aws: %w", mcConf.scriptRelPath, err)
 	}
@@ -796,7 +795,7 @@ func setCloudSDKProject(project string) error {
 // status.json file. These projects were acquired from
 // Boskos by Tailorbird before cluster(s) creation.
 func getProjectsFromStatusFile(configPath string) ([]string, error) {
-	status, err := ioutil.ReadFile(fmt.Sprintf("%s/status.json", configPath))
+	status, err := os.ReadFile(fmt.Sprintf("%s/status.json", configPath))
 	if err != nil {
 		return nil, fmt.Errorf("error reading the status file: %w", err)
 	}

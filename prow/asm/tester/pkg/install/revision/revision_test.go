@@ -15,7 +15,7 @@
 package revision
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -64,7 +64,7 @@ func TestParseRevisionConfig(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			f, err := ioutil.TempFile("", "revision-config")
+			f, err := os.CreateTemp("", "revision-config")
 			if err != nil {
 				t.Fatalf("failed creating temp revision config file: %v", err)
 			}

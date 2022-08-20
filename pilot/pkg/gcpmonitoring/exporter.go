@@ -16,7 +16,7 @@ package gcpmonitoring
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -101,7 +101,7 @@ func AuthenticateClient(gcpMetadata map[string]string) []option.ClientOption {
 	// The audience from the token should tell us (in addition to the trust domain)
 	// whether or not we should do the token exchange.
 	// It's fine to fail for reading from the token because we will use the trust domain as a fallback.
-	subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName)
+	subjectToken, err := os.ReadFile(model.K8sSATrustworthyJwtFileName)
 	var audience string
 	if err != nil {
 		log.Errorf("Cannot read third party jwt token file: %v", err)
@@ -128,7 +128,7 @@ func AuthenticateClient(gcpMetadata map[string]string) []option.ClientOption {
 		// Set up goroutine to read token file periodically and refresh subject token with new expiry.
 		go func() {
 			for range time.Tick(5 * time.Minute) {
-				if subjectToken, err := ioutil.ReadFile(model.K8sSATrustworthyJwtFileName); err == nil {
+				if subjectToken, err := os.ReadFile(model.K8sSATrustworthyJwtFileName); err == nil {
 					ts.RefreshSubjectToken(string(subjectToken))
 				} else {
 					log.Debugf("Cannot refresh subject token for sts token source: %v", err)

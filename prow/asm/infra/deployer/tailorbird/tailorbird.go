@@ -16,7 +16,6 @@ package tailorbird
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -531,7 +530,7 @@ func (d *Instance) rookeryFile() (string, error) {
 	}
 
 	// Create a temp file to hold the result of the template execution.
-	tmpFile, err := ioutil.TempFile("", "tailorbird-config-*.yaml")
+	tmpFile, err := os.CreateTemp("", "tailorbird-config-*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("error creating the temporary Tailorbird rookery file: %w", err)
 	}
@@ -555,7 +554,7 @@ func (d *Instance) rookeryFile() (string, error) {
 	}
 
 	// Create a temp file to store the generated configuration for a request.
-	tmpRequestFile, err := ioutil.TempFile("", "tailorbird-request-*.yaml")
+	tmpRequestFile, err := os.CreateTemp("", "tailorbird-request-*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("error creating the temporary Tailorbird rookery request file: %w", err)
 	}
@@ -612,7 +611,7 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 
 	upgradeFunc := func(w http.ResponseWriter, _ *http.Request) {
 
-		tbFile, err := ioutil.ReadFile(d.cfg.RookeryRequestFile)
+		tbFile, err := os.ReadFile(d.cfg.RookeryRequestFile)
 		if err != nil {
 			log.Printf("error: %+v, couldn't read file %s", err.Error(), d.cfg.RookeryRequestFile)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

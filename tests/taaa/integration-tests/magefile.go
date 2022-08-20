@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -198,7 +197,7 @@ func (Build) TestImages() error {
 		return err
 	}
 
-	dir, err := ioutil.TempDir("/tmp", "taaa-*")
+	dir, err := os.MkdirTemp("/tmp", "taaa-*")
 	if err != nil {
 		return fmt.Errorf("cannot create temp directory %q", dir)
 	}

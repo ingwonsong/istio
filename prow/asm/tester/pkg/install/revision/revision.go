@@ -16,7 +16,7 @@ package revision
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 
@@ -51,7 +51,7 @@ type Config struct {
 }
 
 func ParseConfig(path string) (*Configs, error) {
-	yamlContents, err := ioutil.ReadFile(path)
+	yamlContents, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read revision config file %q: %w",
 			path, err)

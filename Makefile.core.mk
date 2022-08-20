@@ -57,6 +57,8 @@ GO ?= go
 GOARCH_LOCAL := $(TARGET_ARCH)
 GOOS_LOCAL := $(TARGET_OS)
 
+export GOEXPERIMENT := $(GOEXPERIMENT)
+
 #-----------------------------------------------------------------------------
 # Output control
 #-----------------------------------------------------------------------------

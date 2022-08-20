@@ -17,7 +17,6 @@ package asm
 import (
 	"bytes"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +61,7 @@ func TestMCPCheck(t *testing.T) {
 				if info.IsDir() {
 					return nil
 				}
-				got, err := ioutil.ReadFile(path)
+				got, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
