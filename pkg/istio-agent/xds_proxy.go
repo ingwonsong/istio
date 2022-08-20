@@ -47,7 +47,6 @@ import (
 	istiogrpc "istio.io/istio/pilot/pkg/grpc"
 	"istio.io/istio/pilot/pkg/xds"
 	v3 "istio.io/istio/pilot/pkg/xds/v3"
-	"istio.io/istio/pkg/bootstrap"
 	"istio.io/istio/pkg/channels"
 	"istio.io/istio/pkg/config/constants"
 	dnsProto "istio.io/istio/pkg/dns/proto"
@@ -450,16 +449,6 @@ func (p *XdsProxy) handleUpstreamRequest(con *ProxyConnection) {
 				return
 			}
 
-			// override the first xds request node metadata labels
-			if req.Node != nil {
-				node, err := p.ia.generateNodeMetadata()
-				if err != nil {
-					proxyLog.Warnf("Generate node mata failed during reconnect: %v", err)
-				} else if node.ID != "" {
-					req.Node = bootstrap.ConvertNodeToXDSNode(node)
-				}
-			}
-
 			// forward to istiod
 			con.sendRequest(req)
 			if !initialRequestsSent.Load() && req.TypeUrl == v3.ListenerType {
@@ -718,6 +707,16 @@ func (p *XdsProxy) getTLSDialOption(agent *Agent) (grpc.DialOption, error) {
 			var certificate tls.Certificate
 			key, cert := agent.GetKeyCertsForXDS()
 			if key != "" && cert != "" {
+				var isExpired bool
+				isExpired, err = util.IsCertExpired(cert)
+				if err != nil {
+					log.Warnf("cannot parse the cert chain, using token instead: %v", err)
+					return &certificate, nil
+				}
+				if isExpired {
+					log.Warnf("cert expired, using token instead")
+					return &certificate, nil
+				}
 				// Load the certificate from disk
 				certificate, err = tls.LoadX509KeyPair(cert, key)
 				if err != nil {
