@@ -412,7 +412,7 @@ spec:
 			default:
 			}
 			return fmt.Errorf(" The test client container isn't completed yet")
-		}, retry.Delay(5*time.Second), retry.Timeout(600*time.Second))
+		}, retry.Delay(5*time.Second), retry.Timeout(1200*time.Second))
 	}
 }
 
