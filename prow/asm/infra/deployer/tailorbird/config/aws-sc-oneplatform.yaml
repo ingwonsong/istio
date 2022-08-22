@@ -22,5 +22,5 @@ spec:
               provisionerArgs:
                 region: us-east-2
                 nodeCount: "6"
-                kubernetesVersion: 1.23.8-gke.1700
+                kubernetesVersion: 1.23.9-gke.800
                 username: asm-svc-acct
