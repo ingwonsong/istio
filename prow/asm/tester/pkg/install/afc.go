@@ -142,9 +142,8 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 			cluster.Name, gkeURI(cluster), fleetProject)); err != nil {
 			return fmt.Errorf("failed registering cluster %s to fleet: %w", cluster.Name, err)
 		}
-		// TODO(samnaser) update to be --memberships once gcloud change lands.
 		if err := exec.Run(fmt.Sprintf(`gcloud alpha container hub mesh update \
-		--management automatic --membership membership-%s --project %s`,
+		--management automatic --memberships membership-%s --project %s`,
 			cluster.Name, fleetProject)); err != nil {
 			return fmt.Errorf("failed enabling automatic ASM management for cluster %s: %w", cluster.Name, err)
 		}
@@ -201,8 +200,13 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 			return fmt.Errorf("want %d ready revisions, got %d",
 				len(c.settings.KubeContexts), revisionsReady)
 		}
+		mdpReady := strings.Count(featureState, "Service is running")
+		if mdpReady != len(c.settings.KubeContexts) {
+			return fmt.Errorf("want %d ready dataplane management status, got %d",
+				len(c.settings.KubeContexts), mdpReady)
+		}
 		return nil
-	}, retry.Timeout(time.Second*600), retry.Delay(time.Second*25)); err != nil {
+	}, retry.Timeout(time.Second*900), retry.Delay(time.Second*25)); err != nil {
 		return fmt.Errorf("error waiting for revision readiness in feature state: %w", err)
 	}
 
