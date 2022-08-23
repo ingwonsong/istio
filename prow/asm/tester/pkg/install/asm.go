@@ -194,12 +194,27 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 }
 
 // commonASMCLIInstallFlags should be appended to any asmcli invocation's flags
-func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config) []string {
+func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config, pkgPath string) []string {
 	var flags []string
 
 	// HubIDNS tests need to specify fleet ID to pass the fleet verification in ASMCLI
 	if settings.ClusterType == resource.GKEOnGCP {
 		flags = append(flags, "--fleet_id", kube.GKEClusterSpecFromContext(settings.KubeContexts[0]).ProjectID)
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.CNI)) {
+		log.Printf("CNI flag enabled. ")
+		switch settings.ClusterType {
+		case resource.GKEOnAWS:
+			log.Println("Adding CNI overlay with AWS static iptables binary workaround.")
+			flags = append(flags, "--custom_overlay", filepath.Join(pkgPath, "overlay/aws-cni-overlay.yaml"))
+			flags = append(flags, "--option", "cni-onprem")
+		case resource.GKEOnGCP:
+			flags = append(flags, "--option", "cni-gcp")
+		default:
+			log.Println("Adding default (cni enabled) CNI overlay.")
+			flags = append(flags, "--option", "cni-onprem")
+		}
 	}
 
 	outputDir, err := ASMOutputDir(rev)
@@ -213,7 +228,9 @@ func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config)
 // script to install ASM.
 func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, pkgPath string, cluster *kube.GKEClusterSpec) []string {
 	installFlags := []string{"install"}
-	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
+
+	// Set kpt overlays
+	installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/default.yaml"))
 
 	installFlags = append(installFlags,
 		"--project_id", cluster.ProjectID,
@@ -237,43 +254,28 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	caFlags, _ := GenCaFlags(ca, settings, cluster, citadelPluginCerts)
 	installFlags = append(installFlags, caFlags...)
 
-	// Set kpt overlays
-	overlays := []string{
-		filepath.Join(pkgPath, "overlay/default.yaml"),
-	}
-
 	// Apply per-revision overlay customizations
 	if rev.Overlay != "" {
-		overlays = append(overlays, filepath.Join(pkgPath, rev.Overlay))
+		installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, rev.Overlay))
 	}
 	if settings.FeaturesToTest.Has(string(resource.UserAuth)) {
-		overlays = append(overlays, filepath.Join(pkgPath, "overlay/user-auth.yaml"))
+		installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/user-auth.yaml"))
 	}
 	if os.Getenv(cloudAPIEndpointOverrides) == testEndpoint {
-		overlays = append(overlays, filepath.Join(pkgPath, "overlay/meshca-test-gke.yaml"))
+		installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/meshca-test-gke.yaml"))
 	}
 	if os.Getenv(cloudAPIEndpointOverrides) == stagingEndpoint {
-		overlays = append(overlays, filepath.Join(pkgPath, "overlay/meshca-staging-gke.yaml"))
+		installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/meshca-staging-gke.yaml"))
 	}
 	if os.Getenv(cloudAPIEndpointOverrides) == staging2Endpoint {
-		overlays = append(overlays, filepath.Join(pkgPath, "overlay/meshca-staging2-gke.yaml"))
+		installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/meshca-staging2-gke.yaml"))
 	}
 	if settings.InstallCloudESF {
-		overlays = append(overlays, filepath.Join(pkgPath, "overlay/cloudesf-e2e.yaml"))
+		installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/cloudesf-e2e.yaml"))
 	}
 	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
-		overlays = append(overlays, filepath.Join(pkgPath, "overlay/autopilot-cni-image.yaml"))
+		installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/autopilot-cni-image.yaml"))
 	}
-	if settings.FeaturesToTest.Has(string(resource.CNI)) {
-		switch settings.ClusterType {
-		case resource.GKEOnAWS:
-			overlays = append(overlays, filepath.Join(pkgPath, "overlay/aws-cni-overlay.yaml"))
-		default:
-			overlays = append(overlays, filepath.Join(pkgPath, "overlay/cni-gcp.yaml"))
-		}
-	}
-
-	installFlags = append(installFlags, "--custom_overlay", strings.Join(overlays, ","))
 
 	// Set the revision name if specified on the per-revision config
 	// note that this flag only exists on newer install script versions
@@ -296,6 +298,8 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if settings.UseStackDriver {
 		installFlags = append(installFlags, "--option", "stackdriver")
 	}
+
+	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev, pkgPath)...)
 
 	return installFlags
 }

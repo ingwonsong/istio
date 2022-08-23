@@ -1,9 +1,7 @@
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 spec:
-  components:
+  values:
     cni:
-      enabled: true
-    values:
       static-iptables:
         enabled: true

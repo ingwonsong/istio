@@ -72,8 +72,11 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 
 		networkID := "network" + strconv.Itoa(i)
 		clusterID := "cluster" + strconv.Itoa(i)
+
+		pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
 		additionalFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
-			kubeconfig, environProject)
+			kubeconfig, environProject, pkgPath)
+
 		if err != nil {
 			return fmt.Errorf("error generating multicloud install flags: %w", err)
 		}
@@ -88,10 +91,6 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 		if i < len(c.settings.ClusterProxy) && c.settings.ClusterProxy[i] != "" {
 			additionalEnvVars = append(additionalEnvVars, "HTTPS_PROXY="+c.settings.ClusterProxy[i])
 		}
-
-		pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
-		customOverlay := filepath.Join(pkgPath, "overlay/custom_istio.yaml")
-		additionalFlags = append(additionalFlags, "--custom_overlay", customOverlay)
 
 		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(additionalEnvVars),
@@ -166,7 +165,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 
 // generateASMMultiCloudInstallFlags returns the flags required when running the install
 // script to install ASM on multi cloud.
-func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revision.Config, kubeconfig string, environProject string) ([]string, error) {
+func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revision.Config, kubeconfig string, environProject string, pkgPath string) ([]string, error) {
 	var installFlags []string
 	installFlags = append(installFlags, "install",
 		"--kubeconfig", kubeconfig,
@@ -201,7 +200,8 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 		citadelPluginCerts = true
 	}
 	caFlags, _ := GenCaFlags(ca, settings, nil, citadelPluginCerts)
-	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev)...)
+	installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/custom_istio.yaml"))
+	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev, pkgPath)...)
 	installFlags = append(installFlags, caFlags...)
 	return installFlags, nil
 }

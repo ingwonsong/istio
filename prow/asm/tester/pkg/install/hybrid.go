@@ -64,8 +64,11 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 				networkID = "network-eks"
 				clusterID = "cluster-eks"
 			}
+
+			pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
 			additionalFlags, err := generateASMMultiCloudInstallFlags(c.settings, rev,
-				kubeconfig, environProject)
+				kubeconfig, environProject, pkgPath)
+
 			if err != nil {
 				return fmt.Errorf("error generating multicloud install flags: %w", err)
 			}
@@ -75,10 +78,6 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 			if i < len(c.settings.ClusterProxy) && c.settings.ClusterProxy[i] != "" {
 				additionalEnvVars = append(additionalEnvVars, "HTTPS_PROXY="+c.settings.ClusterProxy[i])
 			}
-
-			pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
-			customOverlay := filepath.Join(pkgPath, "overlay/custom_istio.yaml")
-			additionalFlags = append(additionalFlags, "--custom_overlay", customOverlay)
 
 			if err := exec.Run(scriptPath,
 				exec.WithAdditionalEnvs(additionalEnvVars),

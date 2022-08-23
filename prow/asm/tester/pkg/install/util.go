@@ -289,23 +289,21 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		}
 
 		// Create the secret in kube-system that can be used to pull images from GCR.
-		if settings.ClusterType == resource.Openshift {
-			err = exec.Run(
-				fmt.Sprintf(
-					"bash -c 'kubectl create secret -n kube-system docker-registry %s "+
-						"--docker-server=https://gcr.io "+
-						"--docker-username=_json_key "+
-						"--docker-email=\"$(gcloud config get-value account)\" "+
-						"--docker-password=\"$(cat %s)\" "+
-						"--kubeconfig=%s'",
-					secretName,
-					cred,
-					config,
-				),
-			)
-			if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
-				return fmt.Errorf("error at 'kubectl create secret ...': %w", err)
-			}
+		err = exec.Run(
+			fmt.Sprintf(
+				"bash -c 'kubectl create secret -n kube-system docker-registry %s "+
+					"--docker-server=https://gcr.io "+
+					"--docker-username=_json_key "+
+					"--docker-email=\"$(gcloud config get-value account)\" "+
+					"--docker-password=\"$(cat %s)\" "+
+					"--kubeconfig=%s'",
+				secretName,
+				cred,
+				config,
+			),
+		)
+		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
+			return fmt.Errorf("error at 'kubectl create secret ...': %w", err)
 		}
 
 		// Save secret data once (to be passed into the test framework),
@@ -335,6 +333,7 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		}
 		serviceAccts := []string{
 			"default",
+			"istio-cni",
 			ingressGatewayServiceAccount,
 			egressGatewayServiceAccount,
 			// TODO: remove this service account once all test flows are
@@ -345,44 +344,31 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 			"istio-reader-service-account",
 			istiodSvcAccount,
 		}
-		for _, serviceAcct := range serviceAccts {
-			err = exec.Run(
-				fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --kubeconfig=%s apply -f -
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: %s
-  namespace: istio-system
-imagePullSecrets:
-- name: %s
-EOF'`,
-					config,
-					serviceAcct,
-					secretName,
-				),
-			)
-			if err != nil {
-				return fmt.Errorf("error at 'kubectl apply ...': %s", err)
-			}
+		namespaces := []string{
+			"istio-system",
+			"kube-system",
 		}
-		if settings.ClusterType == resource.Openshift {
-			err = exec.Run(
-				fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --kubeconfig=%s apply -f -
+		for _, namespace := range namespaces {
+			for _, serviceAcct := range serviceAccts {
+				err = exec.Run(
+					fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --kubeconfig=%s apply -f -
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: %s
-  namespace: kube-system
+  namespace: %s
 imagePullSecrets:
 - name: %s
 EOF'`,
-					config,
-					"istio-cni",
-					secretName,
-				),
-			)
-			if err != nil {
-				return fmt.Errorf("error at 'kubectl apply ...': %s", err)
+						config,
+						serviceAcct,
+						namespace,
+						secretName,
+					),
+				)
+				if err != nil {
+					return fmt.Errorf("error at 'kubectl apply ...': %s", err)
+				}
 			}
 		}
 	}
