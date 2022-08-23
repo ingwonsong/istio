@@ -226,9 +226,7 @@
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   }
                 ],
-                "scCallingConfig": {
-                  "networkFailOpen": true
-                },
+                "scCallingConfig": {},
                 "services": [
                   {
                     "backendProtocol": "grpc",

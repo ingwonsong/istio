@@ -212,9 +212,7 @@
                     "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
                   }
                 ],
-                "scCallingConfig": {
-                  "networkFailOpen": true
-                },
+                "scCallingConfig": {},
                 "services": [
                   {
                     "backendProtocol": "grpc",
