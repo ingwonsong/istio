@@ -296,6 +296,22 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 				return fmt.Errorf("MCP patch ControlPlaneRevision with custom image failed: %w", err)
 			}
 		}
+		if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
+			// Enable access logs to make debugging possible
+			if err := exec.Run(fmt.Sprintf("bash -c 'kubectl --context=%s get cm istio -n istio-system -o yaml | sed \"s/accessLogFile\\:.*$/accessLogFile\\: \\/dev\\/stdout/g\" | kubectl replace -f -'", context)); err != nil {
+				return fmt.Errorf("error enabling access logs for testing with Addon: %w", err)
+			}
+			extraFlags := generateAFCInstallFlags(c.settings, cluster, outputDir)
+			extraFlags = append(extraFlags, "--only_enable")
+			extraFlags = append(extraFlags, "--option", "cni-managed")
+
+			if err := exec.Run(scriptPath,
+				exec.WithAdditionalArgs(extraFlags)); err != nil {
+				return fmt.Errorf("setup prerequsite failed: %w", err)
+			}
+			contextLogger.Println("Running asmcli to enable prerequisites only, use migration tool to perform install instead")
+			continue
+		}
 		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateAFCInstallEnvvars(c.settings)),
 			exec.WithAdditionalArgs(generateAFCInstallFlags(c.settings, cluster, outputDir))); err != nil {
@@ -354,8 +370,12 @@ EOF'`, context)); err != nil {
 		}
 
 		// Install Gateway
-		if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
-			return fmt.Errorf("error installing injected-gateway: %w", err)
+		if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
+			contextLogger.Println("Skipping gateway, already installed by addon")
+		} else {
+			if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
+				return fmt.Errorf("error installing injected-gateway: %w", err)
+			}
 		}
 
 		// Override CRD to 1.14
@@ -381,6 +401,7 @@ func generateAFCBuildOfflineFlags(outputDir string) []string {
 }
 
 func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec, outputDir string) []string {
+
 	installFlags := []string{
 		"install",
 		"--project_id", cluster.ProjectID,
@@ -388,16 +409,24 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--cluster_name", cluster.Name,
 		"--managed",
 		"--fleet_id", settings.GCRProject,
-		// Fix the channel to rapid since the go test needs to know injection label beforehand.
-		// Without this, AFC will use GKE channel which can change when we bump the cluster version.
-		// The test will overwrite the istiod/proxyv2 image with test image built on-the-fly if
-		// staging environment is used.
-		"--channel", "rapid",
 		"--enable-all", // We can't use getInstallEnableFlags() since it apparently doesn't match what AFC expects
 		"--verbose",
 		"--ca", "mesh_ca",
 		"--output_dir", outputDir,
 		"--offline",
+	}
+	if settings.FeaturesToTest.Has(string(resource.Addon)) {
+		if os.Getenv("TEST_MIGRATION_MCP_CHANNEL") == "stable" {
+			installFlags = append(installFlags, "--channel", "stable")
+		} else {
+			installFlags = append(installFlags, "--channel", "regular")
+		}
+	} else {
+		// Fix the channel to rapid since the go test needs to know injection label beforehand.
+		// Without this, AFC will use GKE channel which can change when we bump the cluster version.
+		// The test will overwrite the istiod/proxyv2 image with test image built on-the-fly if
+		// staging environment is used.
+		installFlags = append(installFlags, "--channel", "rapid")
 	}
 	caFlags, _ := GenCaFlags(settings.CA, settings, cluster, false)
 	installFlags = append(installFlags, caFlags...)

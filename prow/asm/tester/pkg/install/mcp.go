@@ -133,6 +133,13 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		// Addon always will use CNI
 		installFlags = append(installFlags, "--option", "cni-managed")
 	}
+	if settings.FeaturesToTest.Has(string(resource.Addon)) {
+		if os.Getenv("TEST_MIGRATION_MCP_CHANNEL") == "stable" {
+			installFlags = append(installFlags, "--channel", "stable")
+		} else {
+			installFlags = append(installFlags, "--channel", "regular")
+		}
+	}
 	if settings.UseVMs {
 		installFlags = append(installFlags, "--option", "vm")
 	}
