@@ -59,7 +59,7 @@ func TestGoogleCAClient(t *testing.T) {
 		}
 		defer s.Stop()
 
-		cli, err := NewGoogleCAClient(s.Address, false, nil)
+		cli, err := NewGoogleCAClient(s.Address, "", false, nil)
 		if err != nil {
 			t.Errorf("Test case [%s]: failed to create ca client: %v", id, err)
 		}

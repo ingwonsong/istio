@@ -98,6 +98,8 @@ var (
 	DNSCaptureAddr = env.RegisterStringVar("DNS_PROXY_ADDR", "localhost:15053",
 		"Custom address for the DNS proxy. If it ends with :53 and running as root allows running without iptable DNS capture")
 
+	CAProxyURL = env.RegisterStringVar("CA_PLUGIN_PROXY_URL", "", "HTTPS Connect Proxy URL to connect to Google CA")
+
 	DNSForwardParallel = env.RegisterBoolVar("DNS_FORWARD_PARALLEL", false,
 		"If set to true, agent will send parallel DNS queries to all upstream nameservers")
 

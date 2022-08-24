@@ -249,6 +249,9 @@ type Options struct {
 	KeyFilePath string
 	// The path for an existing root certificate bundle
 	RootCertFilePath string
+
+	// CAProxyURL
+	CAProxyURL string
 }
 
 // TokenManager contains methods for generating token.

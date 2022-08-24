@@ -53,6 +53,7 @@ func NewSecurityOptions(proxyConfig *meshconfig.ProxyConfig, stsPort int, tokenM
 		STSPort:                        stsPort,
 		CertSigner:                     certSigner.Get(),
 		CARootPath:                     cafile.CACertFilePath,
+		CAProxyURL:                     CAProxyURL.Get(),
 		CertChainFilePath:              security.DefaultCertChainFilePath,
 		KeyFilePath:                    security.DefaultKeyFilePath,
 		RootCertFilePath:               security.DefaultRootCertFilePath,
@@ -129,7 +130,7 @@ func SetupSecurityOptions(proxyConfig *meshconfig.ProxyConfig, secOpt *security.
 	// TODO extract this logic out to a plugin
 	if o.CAProviderName == security.GoogleCAProvider || o.CAProviderName == security.GoogleCASProvider {
 		var err error
-		o.TokenExchanger, err = stsclient.NewSecureTokenServiceExchanger(o.CredFetcher, o.TrustDomain)
+		o.TokenExchanger, err = stsclient.NewSecureTokenServiceExchanger(o.CredFetcher, o.CAProxyURL, o.TrustDomain)
 		if err != nil {
 			return nil, err
 		}

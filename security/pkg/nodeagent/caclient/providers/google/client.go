@@ -30,6 +30,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"istio.io/istio/pkg/bootstrap/platform"
+	grpcproxy "istio.io/istio/pkg/grpcproxy"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/security/pkg/nodeagent/caclient"
 	gcapb "istio.io/istio/security/proto/providers/google"
@@ -52,33 +53,36 @@ type googleCAClient struct {
 }
 
 // NewGoogleCAClient create a CA client for Google CA.
-func NewGoogleCAClient(endpoint string, tls bool, provider *caclient.TokenProvider) (security.Client, error) {
+func NewGoogleCAClient(endpoint string, proxyAddr string, tls bool, provider *caclient.TokenProvider) (security.Client, error) {
 	c := &googleCAClient{
 		caEndpoint: endpoint,
 		enableTLS:  tls,
 	}
 
-	var opts grpc.DialOption
+	opts := []grpc.DialOption{}
 	var err error
 	if tls {
-		opts, err = c.getTLSDialOption()
+		opt, err := c.getTLSDialOption()
 		if err != nil {
 			return nil, err
 		}
+		opts = append(opts, opt)
 	} else {
-		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.Dial(endpoint,
-		opts,
+	opts = append(opts,
 		grpc.WithPerRPCCredentials(provider),
 		security.CARetryInterceptor(),
 	)
+	if proxyAddr != "" {
+		opts = append(opts, grpcproxy.GetGrpcProxyDialerOption(proxyAddr))
+	}
+	conn, err := grpc.Dial(endpoint, opts...)
 	if err != nil {
 		googleCAClientLog.Errorf("Failed to connect to endpoint %s: %v", endpoint, err)
 		return nil, fmt.Errorf("failed to connect to endpoint %s", endpoint)
 	}
-
 	c.conn = conn
 	c.client = gcapb.NewMeshCertificateServiceClient(conn)
 	return c, nil

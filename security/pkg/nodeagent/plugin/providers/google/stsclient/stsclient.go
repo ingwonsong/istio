@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"istio.io/istio/pkg/bootstrap/platform"
@@ -61,10 +62,28 @@ type SecureTokenServiceExchanger struct {
 }
 
 // NewSecureTokenServiceExchanger returns an instance of secure token service client plugin
-func NewSecureTokenServiceExchanger(credFetcher security.CredFetcher, trustDomain string) (*SecureTokenServiceExchanger, error) {
+func NewSecureTokenServiceExchanger(credFetcher security.CredFetcher, proxyAddr, trustDomain string) (*SecureTokenServiceExchanger, error) {
 	aud, err := constructAudience(credFetcher, trustDomain)
 	if err != nil {
 		return nil, err
+	}
+	if proxyAddr != "" {
+		proxyURL, err := url.Parse(proxyAddr)
+		if err != nil {
+			return nil, err
+		}
+		return &SecureTokenServiceExchanger{
+			httpClient: &http.Client{
+				Timeout: httpTimeout,
+				Transport: &http.Transport{
+					Proxy: http.ProxyURL(proxyURL),
+				},
+			},
+			backoff:     time.Millisecond * 50,
+			credFetcher: credFetcher,
+			trustDomain: trustDomain,
+			audience:    aud,
+		}, nil
 	}
 	return &SecureTokenServiceExchanger{
 		httpClient: &http.Client{
@@ -132,7 +151,6 @@ func (p *SecureTokenServiceExchanger) ExchangeToken(k8sSAjwt string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal federated token request: %v", err)
 	}
-
 	body, err := p.requestWithRetry(jsonStr)
 	if err != nil {
 		return "", fmt.Errorf("token exchange failed: %v, (aud: %s, STS endpoint: %s)", err, aud, SecureTokenEndpoint)
@@ -144,12 +162,10 @@ func (p *SecureTokenServiceExchanger) ExchangeToken(k8sSAjwt string) (string, er
 		return "", fmt.Errorf("(aud: %s, STS endpoint: %s), failed to unmarshal response data of size %v: %v",
 			aud, SecureTokenEndpoint, len(body), err)
 	}
-
 	if respData.AccessToken == "" {
 		return "", fmt.Errorf(
 			"exchanged empty token (aud: %s, STS endpoint: %s), response: %v", aud, SecureTokenEndpoint, string(body))
 	}
-
 	return respData.AccessToken, nil
 }
 

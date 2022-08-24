@@ -47,6 +47,7 @@ import (
 	dnsClient "istio.io/istio/pkg/dns/client"
 	dnsProto "istio.io/istio/pkg/dns/proto"
 	"istio.io/istio/pkg/envoy"
+	grpcproxy "istio.io/istio/pkg/grpcproxy"
 	"istio.io/istio/pkg/istio-agent/grpcxds"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/util/protomarshal"
@@ -869,17 +870,23 @@ func (a *Agent) newSecretManager() (*cache.SecretManagerClient, error) {
 		// Use a plugin to an external CA - this has direct support for the K8S JWT token
 		// This is only used if the proper env variables are injected - otherwise the existing Citadel or Istiod will be
 		// used.
-		caClient, err := gca.NewGoogleCAClient(a.secOpts.CAEndpoint, true, caclient.NewCATokenProvider(a.secOpts))
+		caClient, err := gca.NewGoogleCAClient(a.secOpts.CAEndpoint, a.secOpts.CAProxyURL, true, caclient.NewCATokenProvider(a.secOpts))
 		if err != nil {
 			return nil, err
 		}
 		return cache.NewSecretManagerClient(caClient, a.secOpts)
 	} else if a.secOpts.CAProviderName == security.GoogleCASProvider {
 		// Use a plugin
-		caClient, err := cas.NewGoogleCASClient(a.secOpts.CAEndpoint,
+		opts := []option.ClientOption{}
+		// Both options need not be provided. PerGRPCCredentials need to be removed after testing
+		opts = append(opts,
 			option.WithTokenSource(caclient.NewCATokenProvider(a.secOpts)),
-			// Both options need not be provided. PerGRPCCredentials need to be removed after testing
-			option.WithGRPCDialOption(grpc.WithPerRPCCredentials(caclient.NewCATokenProvider(a.secOpts))))
+			option.WithGRPCDialOption(grpc.WithPerRPCCredentials(caclient.NewCATokenProvider(a.secOpts))),
+		)
+		if a.secOpts.CAProxyURL != "" {
+			opts = append(opts, option.WithGRPCDialOption(grpcproxy.GetGrpcProxyDialerOption(a.secOpts.CAProxyURL)))
+		}
+		caClient, err := cas.NewGoogleCASClient(a.secOpts.CAEndpoint, opts...)
 		if err != nil {
 			return nil, err
 		}
