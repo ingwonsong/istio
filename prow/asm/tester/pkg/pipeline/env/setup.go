@@ -44,6 +44,9 @@ const (
 	stagingEndpoint           = "https://staging-container.sandbox.googleapis.com/"
 	staging2Endpoint          = "https://staging2-container.sandbox.googleapis.com/"
 	prodEndpoint              = "https://container.googleapis.com/"
+
+	// Hacks
+	staticIptablesDaemonset = "hacks/static-iptables-daemonset.yaml"
 )
 
 func Setup(settings *resource.Settings) error {
@@ -534,7 +537,9 @@ func fixOnPrem(settings *resource.Settings) error {
 
 // Fix bare-metal cluster configs that are created by Tailorbird:
 // 1. Keep only the artifacts/kubeconfig entries in the KUBECONFIG for baremetal
-//    by removing any others entries.
+//
+//	by removing any others entries.
+//
 // 2. Configure cluster proxy.
 func fixBareMetal(settings *resource.Settings) error {
 	err := filterKubeconfigFiles(settings, func(name string) bool {
@@ -587,7 +592,9 @@ func fixOpenshift(settings *resource.Settings) error {
 
 // Fix APM cluster configs that are created by Tailorbird:
 // 1. Keep only the artifacts/kubeconfig entries in the KUBECONFIG for baremetal
-//    by removing any others entries.
+//
+//	by removing any others entries.
+//
 // 2. Configure cluster proxy.
 func fixAPM(settings *resource.Settings) error {
 	err := filterKubeconfigFiles(settings, func(name string) bool {
@@ -639,6 +646,23 @@ func fixAWS(settings *resource.Settings) error {
 			regexMatcher:         `.*\-L([0-9]*):localhost.* (ubuntu@.*compute\.amazonaws\.com)`,
 			sshKeyRelPath:        ".ssh/anthos-gke",
 		}); err != nil {
+			return err
+		}
+	}
+
+	// HACK: b/238659994 -- Install a static iptables binary.
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for i, kubeconfig := range configs {
+		if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {
+			os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
+			defer os.Unsetenv("HTTPS_PROXY")
+		}
+		cmds := []string{
+			fmt.Sprintf(`kubectl -n kube-system apply -f %s --kubeconfig=%s`, filepath.Join(configDir, staticIptablesDaemonset), kubeconfig),
+			fmt.Sprintf("kubectl -n kube-system rollout status daemonset/iptables-installer --kubeconfig=%s", kubeconfig),
+		}
+		if err := exec.RunMultiple(cmds); err != nil {
+			log.Print(err)
 			return err
 		}
 	}

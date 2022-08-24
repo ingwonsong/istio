@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: iptables-installer
+spec:
+  selector:
+    matchLabels:
+      app: iptables-installer
+  template:
+    metadata:
+      labels:
+        app: iptables-installer
+    spec:
+      containers:
+      - image: gcr.io/howardjohn-istio/iptables-installer
+        name: installer
+        command:
+        - sh
+        - -c
+        - |
+          set -x
+          cp -r /cni/* /host/sbin
+          sleep infinity
+        volumeMounts:
+        - name: host-sbin
+          mountPath: /host/sbin
+      volumes:
+        - hostPath:
+            path: /usr/sbin
+          name: host-sbin

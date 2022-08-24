@@ -207,7 +207,6 @@ func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config,
 		switch settings.ClusterType {
 		case resource.GKEOnAWS:
 			log.Println("Adding CNI overlay with AWS static iptables binary workaround.")
-			flags = append(flags, "--custom_overlay", filepath.Join(pkgPath, "overlay/aws-cni-overlay.yaml"))
 			flags = append(flags, "--option", "cni-onprem")
 		case resource.GKEOnGCP:
 			flags = append(flags, "--option", "cni-gcp")
