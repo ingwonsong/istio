@@ -124,8 +124,8 @@ mdp:
   mdpNamespace: istio-system
   resources:
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 400m
+      memory: 1Gi
     requests:
       cpu: 50m
       memory: 128Mi
