@@ -167,6 +167,8 @@ func (c *ingressImpl) DiscoveryAddress() net.TCPAddr {
 }
 
 func (c *ingressImpl) Call(options echo.CallOptions) (echo.CallResult, error) {
+	errSetup := SetupIngressViaProxy(c, options.HTTP.Headers.Get("Host"))
+	scopes.Framework.Warnf("failed to setup ingress via proxy %v", errSetup)
 	return c.callEcho(options)
 }
 

@@ -790,9 +790,11 @@ func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloud
 		bootstrapHostSSHKey, bootstrapHostSSHUser)
 	sshCmd5 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/accept-intercepted-requests 0/accept-intercepted-requests 1/' '/etc/privoxy/config'\"",
 		bootstrapHostSSHKey, bootstrapHostSSHUser)
-	sshCmd6 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo systemctl restart privoxy.service\"",
+	sshCmd6 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i -e '/change-x-forwarded-for{block}/ d' '/etc/privoxy/match-all.action'\"",
 		bootstrapHostSSHKey, bootstrapHostSSHUser)
-	if err := exec.RunMultiple([]string{sshCmd1, sshCmd2, sshCmd3, sshCmd4, sshCmd5, sshCmd6}); err != nil {
+	sshCmd7 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo systemctl restart privoxy.service\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	if err := exec.RunMultiple([]string{sshCmd1, sshCmd2, sshCmd3, sshCmd4, sshCmd5, sshCmd6, sshCmd7}); err != nil {
 		return fmt.Errorf("error running the commands to increase proxy's max connection setup: %w", err)
 	}
 
