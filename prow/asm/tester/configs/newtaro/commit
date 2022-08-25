@@ -1,7 +1,7 @@
-90b1b5245e1702e8712fdc33dbf8b873d1a1ef74
+667d58a78139ee9280248e81d2b8c09cd9e6c378
 ========================================
-chengsiy
-Wed Aug 10 14:49:29 2022 -0700
+Cat Chu
+Tue Aug 16 11:28:46 2022 -0700
 
-add core dump (#1303)
+add cluster labels to Anthos on VMware clusters (#1296)
 
