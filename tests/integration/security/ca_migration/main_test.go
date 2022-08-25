@@ -105,10 +105,10 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 
 			builder.
 				WithClusters(ctx.Clusters()...).
-				WithConfig(util.EchoConfig(ASvc, nsA, false, nil)).
-				WithConfig(util.EchoConfig(BSvc, nsB, false, nil)).
-				WithConfig(util.EchoConfig(CSvc, nsC, false, nil)).
-				WithConfig(util.EchoConfig(DSvc, nsD, false, nil))
+				WithConfig(addNamespaceToConfig(util.EchoConfig(ASvc, false, nil), nsA)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig(BSvc, false, nil), nsB)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig(CSvc, false, nil), nsC)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig(DSvc, false, nil), nsD))
 
 			echos, err := builder.Build()
 			if err != nil {
@@ -200,4 +200,9 @@ func setupConfig(_ resource.Context, cfg *istio.Config) {
 	if cfg == nil {
 		return
 	}
+}
+
+func addNamespaceToConfig(config echo.Config, ns namespace.Instance) echo.Config {
+	config.Namespace = ns
+	return config
 }

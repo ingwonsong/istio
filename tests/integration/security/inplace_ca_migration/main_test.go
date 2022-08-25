@@ -230,8 +230,8 @@ func TestCAMigration(t *testing.T) {
 			builder := deployment.New(ctx)
 
 			echos, err := builder.WithClusters(ctx.Clusters()...).
-				WithConfig(util.EchoConfig(ASvc, nsA, false, nil)).
-				WithConfig(util.EchoConfig(BSvc, nsB, false, nil)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig(ASvc, false, nil), nsA)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig(BSvc, false, nil), nsB)).
 				Build()
 			if err != nil {
 				t.Fatalf("failed to bring up apps for ca_migration: %v", err)
