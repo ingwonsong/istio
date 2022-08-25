@@ -37,11 +37,12 @@ func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
 		return fmt.Errorf("failed to download the install script: %w", err)
 	}
 
-	// Most (except VPC-SC) ASM MCP Prow jobs connect to staging MeshConfig API.
-	// We use these jobs to test/alert our staging ADS proxy.
-	if !c.settings.UseProdMeshConfigAPI {
-		if err := exec.Run("sed -i 's/meshconfig\\.googleapis\\.com/staging-meshconfig.sandbox.googleapis.com/g' " + scriptPath); err != nil {
-			return fmt.Errorf("error replacing the meshconfig to staging-meshconfig API for MCP installation: %w", err)
+	// Addon migration tests migration logic + prod AFC.
+	if !c.settings.FeaturesToTest.Has(string(resource.Addon)) {
+		// ASM MCP Prow job (except VPCSC) should use staging AFC since we should alert before
+		// issues reach production.
+		if err := exec.Run("gcloud config set api_endpoint_overrides/gkehub https://staging-gkehub.sandbox.googleapis.com/"); err != nil {
+			return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
 		}
 	}
 
@@ -59,12 +60,22 @@ func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
 		contextLogger.Println("Performing ASM installation...")
 		cluster := kube.GKEClusterSpecFromContext(context)
 
+		outputDir, err := ASMOutputDir(rev)
+		if err != nil {
+			return fmt.Errorf("MCP create output dir failed: %w", err)
+		}
+		if err := exec.Run(scriptPath,
+			exec.WithAdditionalEnvs(generateAFCInstallEnvvars(c.settings)),
+			exec.WithAdditionalArgs(generateAFCBuildOfflineFlags(outputDir))); err != nil {
+			return fmt.Errorf("MCP build offline pacakge failed: %w", err)
+		}
+
 		if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
 			// Enable access logs to make debugging possible
 			if err := exec.Run(fmt.Sprintf("bash -c 'kubectl --context=%s get cm istio -n istio-system -o yaml | sed \"s/accessLogFile\\:.*$/accessLogFile\\: \\/dev\\/stdout/g\" | kubectl replace -f -'", context)); err != nil {
 				return fmt.Errorf("error enabling access logs for testing with Addon: %w", err)
 			}
-			extraFlags := generateMCPInstallFlags(c.settings, cluster)
+			extraFlags := generateMCPInstallFlags(c.settings, cluster, outputDir)
 			extraFlags = append(extraFlags, "--only_enable")
 			if err := exec.Run(scriptPath,
 				exec.WithAdditionalArgs(extraFlags)); err != nil {
@@ -74,10 +85,17 @@ func (c *installer) installASMManagedControlPlane(rev *revision.Config) error {
 			continue
 		}
 
+		// VPC-SC only tests production so no need to patch CPRs.
+		if !c.settings.FeaturesToTest.Has(string(resource.VPCSC)) {
+			contextLogger.Println("Patching CPR file to change image...")
+			if err := filepath.Walk(filepath.Join(outputDir, "asm", "control-plane-revision"), patchCPRWithImageWalkFn); err != nil {
+				return fmt.Errorf("MCP patch ControlPlaneRevision with custom image failed: %w", err)
+			}
+		}
 		contextLogger.Println("Running installation using install script...")
 		if err := exec.Run(scriptPath,
 			exec.WithAdditionalEnvs(generateMCPInstallEnvvars(c.settings)),
-			exec.WithAdditionalArgs(generateMCPInstallFlags(c.settings, cluster))); err != nil {
+			exec.WithAdditionalArgs(generateMCPInstallFlags(c.settings, cluster, outputDir))); err != nil {
 			return fmt.Errorf("MCP installation using script failed: %w", err)
 		}
 
@@ -111,9 +129,14 @@ EOF'`, context)); err != nil {
 	return nil
 }
 
-func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec) []string {
+func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClusterSpec, outputDir string) []string {
 	installFlags := []string{"install"}
 	installFlags = append(installFlags, "--legacy")
+
+	// Addon migration tests controls its own label
+	if !settings.FeaturesToTest.Has(string(resource.Addon)) {
+		installFlags = append(installFlags, "--channel", "rapid")
+	}
 
 	installFlags = append(installFlags,
 		"--project_id", cluster.ProjectID,
@@ -123,6 +146,8 @@ func generateMCPInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--enable_cluster_labels",
 		"--enable_namespace_creation",
 		"--enable_registration",
+		"--output_dir", outputDir,
+		"--offline",
 		"--verbose")
 
 	caFlags, _ := GenCaFlags(settings.CA, settings, cluster, false)
