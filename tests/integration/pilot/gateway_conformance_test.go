@@ -36,11 +36,13 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/gateway-api/conformance/tests"
+	"sigs.k8s.io/gateway-api/conformance/utils/config"
 	"sigs.k8s.io/gateway-api/conformance/utils/suite"
 
 	"istio.io/istio/pkg/kube"
@@ -70,6 +72,8 @@ var conformanceNamespaces = []string{
 
 var skippedTests = map[string]string{}
 
+const gatewayConformanceTimeoutScaler = 3
+
 func TestGatewayConformance(t *testing.T) {
 	// nolint: staticcheck
 	framework.
@@ -98,12 +102,24 @@ func TestGatewayConformance(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			// Set timeouts to some scalar multiple of the test defaults.
+			timeoutConfig := config.TimeoutConfig{
+				GatewayMustHaveAddress:         180 * time.Second * gatewayConformanceTimeoutScaler,
+				GWCMustBeAccepted:              180 * time.Second * gatewayConformanceTimeoutScaler,
+				MaxTimeToConsistency:           180 * time.Second * gatewayConformanceTimeoutScaler,
+				GatewayStatusMustHaveListeners: 60 * time.Second * gatewayConformanceTimeoutScaler,
+				HTTPRouteMustNotHaveParents:    60 * time.Second * gatewayConformanceTimeoutScaler,
+				HTTPRouteMustHaveCondition:     60 * time.Second * gatewayConformanceTimeoutScaler,
+				HTTPRouteMustHaveParents:       60 * time.Second * gatewayConformanceTimeoutScaler,
+			}
+			config.SetupTimeoutConfig(&timeoutConfig)
 			opts := suite.Options{
 				Client:               c,
 				GatewayClassName:     "istio",
 				Debug:                scopes.Framework.DebugEnabled(),
 				CleanupBaseResources: gatewayConformanceInputs.Cleanup,
 				SupportedFeatures:    []suite.SupportedFeature{suite.SupportReferenceGrant},
+				TimeoutConfig:        timeoutConfig,
 			}
 			if rev := ctx.Settings().Revisions.Default(); rev != "" {
 				opts.NamespaceLabels = map[string]string{
