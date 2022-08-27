@@ -85,10 +85,10 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			// Create workloads in namespaces served by both CA's
 			echos := builder.
 				WithClusters(t.Clusters()...).
-				WithConfig(util.EchoConfig("addon", stable14Namespace, false, nil)).
-				WithConfig(util.EchoConfig("addon", stable16Namespace, false, nil)).
-				WithConfig(util.EchoConfig("migration", migration14Namespace, false, nil)).
-				WithConfig(util.EchoConfig("migration", migration16Namespace, false, nil)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig("addon", false, nil), stable14Namespace)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig("addon", false, nil), stable16Namespace)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig("migration", false, nil), migration14Namespace)).
+				WithConfig(addNamespaceToConfig(util.EchoConfig("migration", false, nil), migration16Namespace)).
 				BuildOrFail(t)
 			stable14 := match.And(match.ServiceName(echo.NamespacedName{Name: "addon", Namespace: stable14Namespace})).GetMatches(echos)
 			migration14 := match.And(match.ServiceName(echo.NamespacedName{Name: "migration", Namespace: migration14Namespace})).GetMatches(echos)
@@ -311,4 +311,9 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 			}
 			// TODO: delete ca-secrets/amend meshConfig to remove trustanchors and ensure that traffic from the 1.4 workloads stops
 		})
+}
+
+func addNamespaceToConfig(config echo.Config, ns namespace.Instance) echo.Config {
+	config.Namespace = ns
+	return config
 }

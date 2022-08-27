@@ -18,8 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"math/rand"
 	"net"
 	"os"
 	"path"
@@ -29,8 +27,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	bootstrapv3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -40,7 +36,6 @@ import (
 	"istio.io/istio/pilot/cmd/pilot-agent/config"
 	"istio.io/istio/pilot/cmd/pilot-agent/status/ready"
 	"istio.io/istio/pilot/pkg/model"
-	v3 "istio.io/istio/pilot/pkg/xds/v3"
 	"istio.io/istio/pkg/bootstrap"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/config/constants"
@@ -50,7 +45,6 @@ import (
 	grpcproxy "istio.io/istio/pkg/grpcproxy"
 	"istio.io/istio/pkg/istio-agent/grpcxds"
 	"istio.io/istio/pkg/security"
-	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/pkg/wasm"
 	"istio.io/istio/security/pkg/nodeagent/cache"
 	"istio.io/istio/security/pkg/nodeagent/caclient"
@@ -61,24 +55,6 @@ import (
 	"istio.io/pkg/filewatcher"
 	"istio.io/pkg/log"
 )
-
-// To debug:
-// curl -X POST localhost:15000/logging?config=trace - to see SendingDiscoveryRequest
-
-// Breakpoints in secretcache.go GenerateSecret..
-
-// Note that istiod currently can't validate the JWT token unless it runs on k8s
-// Main problem is the JWT validation check which hardcodes the k8s server address and token location.
-//
-// To test on a local machine, for debugging:
-//
-// kis exec $POD -- cat /run/secrets/istio-token/istio-token > var/run/secrets/tokens/istio-token
-// kis port-forward $POD 15010:15010 &
-//
-// You can also copy the K8S CA and a token to be used to connect to k8s - but will need removing the hardcoded addr
-// kis exec $POD -- cat /run/secrets/kubernetes.io/serviceaccount/{ca.crt,token} > var/run/secrets/kubernetes.io/serviceaccount/
-//
-// Or disable the jwt validation while debugging SDS problems.
 
 const (
 	// Location of K8S CA root.
@@ -115,8 +91,8 @@ type Agent struct {
 	secOpts   *security.Options
 	envoyOpts envoy.ProxyConfig
 
-	envoyAgent  *envoy.Agent
-	envoyWaitCh chan error
+	envoyAgent             *envoy.Agent
+	dynamicBootstrapWaitCh chan error
 
 	sdsServer   *sds.Server
 	secretCache *cache.SecretManagerClient
@@ -327,99 +303,39 @@ func (a *Agent) initializeEnvoyAgent(ctx context.Context) error {
 	}
 	a.envoyAgent = envoy.NewAgent(envoyProxy, drainDuration, a.cfg.MinimumDrainDuration, localHostAddr,
 		int(a.proxyConfig.ProxyAdminPort), a.cfg.EnvoyStatusPort, a.cfg.EnvoyPrometheusPort, a.cfg.ExitOnZeroActiveConnections)
-	a.envoyWaitCh = make(chan error, 1)
 	if a.cfg.EnableDynamicBootstrap {
+		a.dynamicBootstrapWaitCh = make(chan error, 1)
 		// Simulate an xDS request for a bootstrap
-		a.wg.Add(1)
-		go func() {
-			defer a.wg.Done()
-
-			// wait indefinitely and keep retrying with jittered exponential backoff
-			backoff := 500
-			max := 30000
-		retries:
-			for {
-				// handleStream hands on to request after exit, so create a fresh one instead.
-				request := &bootstrapDiscoveryRequest{
-					node:        node,
-					envoyWaitCh: a.envoyWaitCh,
-					envoyUpdate: envoyProxy.UpdateConfig,
-				}
-				_ = a.xdsProxy.handleStream(request)
-				select {
-				case <-a.envoyWaitCh:
-					break retries
-				default:
-				}
-				delay := time.Duration(rand.Int()%backoff) * time.Millisecond
-				log.Infof("retrying bootstrap discovery request with backoff: %v", delay)
-				select {
-				case <-ctx.Done():
-					break retries
-				case <-time.After(delay):
-				}
-				if backoff < max/2 {
-					backoff *= 2
-				} else {
-					backoff = max
-				}
+		// wait indefinitely and keep retrying with jittered exponential backoff
+		b := backoff.NewExponentialBackOff()
+		b.MaxElapsedTime = 30 * time.Second
+		for {
+			// handleStream hands on to request after exit, so create a fresh one instead.
+			bsStream := &bootstrapDiscoveryStream{
+				node:        node,
+				errCh:       a.dynamicBootstrapWaitCh,
+				envoyUpdate: envoyProxy.UpdateConfig,
 			}
-		}()
-	} else {
-		close(a.envoyWaitCh)
+			_ = a.xdsProxy.handleStream(bsStream)
+			delay := b.NextBackOff()
+			select {
+			case err, ok := <-a.dynamicBootstrapWaitCh:
+				if !ok {
+					log.Infof("successfully updated bootstrap config")
+					return nil
+				}
+				// received invalid config, could not happen in normal case.
+				log.Warn(err)
+				return err
+			case <-ctx.Done():
+				return nil
+			case <-time.After(delay):
+				log.Infof("retrying bootstrap discovery request with backoff: %v", delay)
+			}
+		}
 	}
 	return nil
 }
-
-type bootstrapDiscoveryRequest struct {
-	node        *model.Node
-	envoyWaitCh chan error
-	envoyUpdate func(data []byte) error
-	sent        bool
-	received    bool
-}
-
-// Send refers to a request from the xDS proxy.
-func (b *bootstrapDiscoveryRequest) Send(resp *discovery.DiscoveryResponse) error {
-	if resp.TypeUrl == v3.BootstrapType && !b.received {
-		b.received = true
-		if len(resp.Resources) != 1 {
-			b.envoyWaitCh <- fmt.Errorf("unexpected number of bootstraps: %d", len(resp.Resources))
-			return nil
-		}
-		var bs bootstrapv3.Bootstrap
-		if err := resp.Resources[0].UnmarshalTo(&bs); err != nil {
-			b.envoyWaitCh <- fmt.Errorf("failed to unmarshal bootstrap: %v", err)
-			return nil
-		}
-		by, err := protomarshal.MarshalIndent(&bs, "  ")
-		if err != nil {
-			b.envoyWaitCh <- fmt.Errorf("failed to marshal bootstrap as JSON: %v", err)
-			return nil
-		}
-		if err := b.envoyUpdate(by); err != nil {
-			b.envoyWaitCh <- fmt.Errorf("failed to update bootstrap from discovery: %v", err)
-			return nil
-		}
-		close(b.envoyWaitCh)
-	}
-	return nil
-}
-
-// Recv Receive refers to a request to the xDS proxy.
-func (b *bootstrapDiscoveryRequest) Recv() (*discovery.DiscoveryRequest, error) {
-	if b.sent {
-		<-b.envoyWaitCh
-		return nil, io.EOF
-	}
-	b.sent = true
-	return &discovery.DiscoveryRequest{
-		TypeUrl: v3.BootstrapType,
-		Node:    bootstrap.ConvertNodeToXDSNode(b.node),
-	}, nil
-}
-
-func (b *bootstrapDiscoveryRequest) Context() context.Context { return context.Background() }
 
 // Run is a non-blocking call which returns either an error or a function to await for completion.
 func (a *Agent) Run(ctx context.Context) (func(), error) {
@@ -471,29 +387,12 @@ func (a *Agent) Run(ctx context.Context) (func(), error) {
 	if !a.EnvoyDisabled() {
 		err = a.initializeEnvoyAgent(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start envoy agent: %v", err)
+			return nil, fmt.Errorf("failed to initialize envoy agent: %v", err)
 		}
 
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
-
-			if a.cfg.EnableDynamicBootstrap {
-				start := time.Now()
-				var err error
-				select {
-				case err = <-a.envoyWaitCh:
-				case <-ctx.Done():
-					// Early cancellation before envoy started.
-					return
-				}
-				if err != nil {
-					log.Errorf("failed to write updated envoy bootstrap: %v", err)
-					return
-				}
-				log.Infof("received server-side bootstrap in %v", time.Since(start))
-			}
-
 			// This is a blocking call for graceful termination.
 			a.envoyAgent.Run(ctx)
 		}()
@@ -909,7 +808,7 @@ func (a *Agent) newSecretManager() (*cache.SecretManagerClient, error) {
 
 		if tlsOpts.RootCert == "" {
 			log.Infof("Using CA %s cert with system certs", a.secOpts.CAEndpoint)
-		} else if _, err := os.Stat(tlsOpts.RootCert); os.IsNotExist(err) {
+		} else if !fileExists(tlsOpts.RootCert) {
 			log.Fatalf("invalid config - %s missing a root certificate %s", a.secOpts.CAEndpoint, tlsOpts.RootCert)
 		} else {
 			log.Infof("Using CA %s cert with certs: %s", a.secOpts.CAEndpoint, tlsOpts.RootCert)

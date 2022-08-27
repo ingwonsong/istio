@@ -31,6 +31,8 @@ import (
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"go.uber.org/atomic"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	google_rpc "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -39,6 +41,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
@@ -409,7 +412,7 @@ func (p *XdsProxy) handleUpstream(ctx context.Context, con *ProxyConnection, xds
 		select {
 		case err := <-con.upstreamError:
 			// error from upstream Istiod.
-			if istiogrpc.IsExpectedGRPCError(err) {
+			if istiogrpc.IsExpectedGRPCError(err) || isRateLimited(err) {
 				proxyLog.Debugf("upstream [%d] terminated with status %v", con.conID, err)
 				metrics.IstiodConnectionCancellations.Increment()
 			} else {
@@ -433,6 +436,15 @@ func (p *XdsProxy) handleUpstream(ctx context.Context, con *ProxyConnection, xds
 			return nil
 		}
 	}
+}
+
+func isRateLimited(err error) bool {
+	if s, ok := status.FromError(err); ok {
+		if s.Code() == codes.ResourceExhausted {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *XdsProxy) handleUpstreamRequest(con *ProxyConnection) {
@@ -496,7 +508,7 @@ func (p *XdsProxy) handleUpstreamRequest(con *ProxyConnection) {
 				p.ecdsLastNonce.Store(req.ResponseNonce)
 			}
 			if err := sendUpstream(con.upstream, req); err != nil {
-				proxyLog.Errorf("upstream [%d] send error for type url %s: %v", con.conID, req.TypeUrl, err)
+				proxyLog.Debugf("upstream [%d] send error for type url %s: %v", con.conID, req.TypeUrl, err)
 				con.upstreamError <- err
 				return
 			}
@@ -725,13 +737,13 @@ func (p *XdsProxy) getTLSDialOption(agent *Agent) (grpc.DialOption, error) {
 			}
 			return &certificate, nil
 		},
-		RootCAs: rootCert,
+		RootCAs:    rootCert,
+		MinVersion: tls.VersionTLS12,
 	}
 
-	// strip the port from the address
-	parts := strings.Split(agent.proxyConfig.DiscoveryAddress, ":")
-	config.ServerName = parts[0]
-
+	if host, _, err := net.SplitHostPort(agent.proxyConfig.DiscoveryAddress); err != nil {
+		config.ServerName = host
+	}
 	// For debugging on localhost (with port forward)
 	// This matches the logic for the CA; this code should eventually be shared
 	if strings.Contains(config.ServerName, "localhost") {
@@ -741,9 +753,6 @@ func (p *XdsProxy) getTLSDialOption(agent *Agent) (grpc.DialOption, error) {
 	if p.istiodSAN != "" {
 		config.ServerName = p.istiodSAN
 	}
-	// TODO: if istiodSAN starts with spiffe://, use custom validation.
-
-	config.MinVersion = tls.VersionTLS12
 	transportCreds := credentials.NewTLS(&config)
 	return grpc.WithTransportCredentials(transportCreds), nil
 }
@@ -877,14 +886,27 @@ func (p *XdsProxy) makeTapHandler() func(w http.ResponseWriter, req *http.Reques
 func (p *XdsProxy) initDebugInterface(port int) error {
 	p.tapResponseChannel = make(chan *discovery.DiscoveryResponse)
 
+	tapGrpcHandler, err := NewTapGrpcHandler(p)
+	if err != nil {
+		log.Errorf("failed to start Tap XDS Proxy: %v", err)
+	}
+
 	httpMux := http.NewServeMux()
 	handler := p.makeTapHandler()
 	httpMux.HandleFunc("/debug/", handler)
 	httpMux.HandleFunc("/debug", handler) // For 1.10 Istiod which uses istio.io/debug
 
+	mixedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("content-type"), "application/grpc") {
+			tapGrpcHandler.ServeHTTP(w, r)
+			return
+		}
+		httpMux.ServeHTTP(w, r)
+	})
+
 	p.httpTapServer = &http.Server{
 		Addr:        fmt.Sprintf("localhost:%d", port),
-		Handler:     httpMux,
+		Handler:     h2c.NewHandler(mixedHandler, &http2.Server{}),
 		IdleTimeout: 90 * time.Second, // matches http.DefaultTransport keep-alive timeout
 		ReadTimeout: 30 * time.Second,
 	}

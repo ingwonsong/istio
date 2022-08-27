@@ -33,6 +33,7 @@ import (
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/check"
+	"istio.io/istio/pkg/test/framework/components/namespace"
 )
 
 const (
@@ -294,4 +295,9 @@ func rollbackCA(t *testing.T, ctx framework.TestContext, workingDirs []string) {
 				cluster.Name(), err, out)
 		}
 	}
+}
+
+func addNamespaceToConfig(config echo.Config, ns namespace.Instance) echo.Config {
+	config.Namespace = ns
+	return config
 }
