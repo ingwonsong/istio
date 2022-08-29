@@ -193,7 +193,7 @@ func registerStringParameter(name, value, usage string) {
 	envName := strings.Replace(strings.ToUpper(name), "-", "_", -1)
 	// Note: we do not rely on istio env package to retrieve configuration. We relies on viper.
 	// This is just to make sure the reference doc tool can generate doc with these vars as env variable at istio.io.
-	env.RegisterStringVar(envName, value, usage)
+	env.Register(envName, value, usage)
 	bindViper(name)
 }
 
@@ -202,7 +202,7 @@ func registerStringArrayParameter(name string, value []string, usage string) {
 	envName := strings.Replace(strings.ToUpper(name), "-", "_", -1)
 	// Note: we do not rely on istio env package to retrieve configuration. We relies on viper.
 	// This is just to make sure the reference doc tool can generate doc with these vars as env variable at istio.io.
-	env.RegisterStringVar(envName, strings.Join(value, ","), usage)
+	env.Register(envName, strings.Join(value, ","), usage)
 	bindViper(name)
 }
 
@@ -211,7 +211,7 @@ func registerIntegerParameter(name string, value int, usage string) {
 	envName := strings.Replace(strings.ToUpper(name), "-", "_", -1)
 	// Note: we do not rely on istio env package to retrieve configuration. We relies on viper.
 	// This is just to make sure the reference doc tool can generate doc with these vars as env variable at istio.io.
-	env.RegisterIntVar(envName, value, usage)
+	env.Register(envName, value, usage)
 	bindViper(name)
 }
 
@@ -220,7 +220,7 @@ func registerBooleanParameter(name string, value bool, usage string) {
 	rootCmd.Flags().Bool(name, value, usage)
 	// Note: we do not rely on istio env package to retrieve configuration. We relies on viper.
 	// This is just to make sure the reference doc tool can generate doc with these vars as env variable at istio.io.
-	env.RegisterBoolVar(envName, value, usage)
+	env.Register(envName, value, usage)
 	bindViper(name)
 }
 
