@@ -47,7 +47,7 @@ func SetupEtcHostsFile(ingr ingress.Instance, host string) error {
 	hostEntry := addr + " " + host
 	cmd := exec.Command("ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
 		"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
-		"sudo grep", "-qxF", host, "/etc/hosts", "||", "echo", hostEntry, ">>", "/etc/hosts")
+		"sudo grep", "-qxF", host, "/etc/hosts", "|| echo \""+hostEntry+"\"  | sudo tee -a /etc/hosts")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("command %s failed: %q %v", cmd.String(), string(out), err)
