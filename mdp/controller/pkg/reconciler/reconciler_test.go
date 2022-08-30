@@ -209,6 +209,9 @@ func Test_calculateStatus(t *testing.T) {
 				ErrorDetails:           nil,
 				ProxyTargetBasisPoints: 5100,
 				ObservedGeneration:     1,
+				ProxyMetrics: &v1alpha1.ProxyMetrics{
+					ManagedProxyCount: 100,
+				},
 			},
 		}, {
 			name: "reconciling",
@@ -225,6 +228,9 @@ func Test_calculateStatus(t *testing.T) {
 				ErrorDetails:           nil,
 				ProxyTargetBasisPoints: 4900,
 				ObservedGeneration:     1,
+				ProxyMetrics: &v1alpha1.ProxyMetrics{
+					ManagedProxyCount: 100,
+				},
 			},
 		}, {
 			name: "failing",
@@ -245,6 +251,9 @@ func Test_calculateStatus(t *testing.T) {
 				},
 				ProxyTargetBasisPoints: 4900,
 				ObservedGeneration:     1,
+				ProxyMetrics: &v1alpha1.ProxyMetrics{
+					ManagedProxyCount: 100,
+				},
 			},
 		},
 	}

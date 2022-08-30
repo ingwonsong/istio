@@ -286,5 +286,8 @@ func calculateStatus(dpc *v1alpha1.DataPlaneControl, total int, actual int, fail
 		ProxyTargetBasisPoints: achievedBpts,
 		ObservedGeneration:     generation,
 		ErrorDetails:           err,
+		ProxyMetrics: &v1alpha1.ProxyMetrics{
+			ManagedProxyCount: int32(total),
+		},
 	}
 }

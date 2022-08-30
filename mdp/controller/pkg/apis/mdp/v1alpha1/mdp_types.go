@@ -54,6 +54,9 @@ type DataPlaneControlStatus struct {
 	// The generation observed by the data plane controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// ProxyMetrics shows the overall cluster proxy metrics.
+	// +optional
+	ProxyMetrics *ProxyMetrics `json:"proxyMetrics,omitempty"`
 }
 
 // DataPlaneControlError contains details about the error state.
@@ -64,6 +67,22 @@ type DataPlaneControlError struct {
 	// Error message.
 	// +optional
 	Message string `json:"message,omitempty"`
+}
+
+// ProxyMetrics contains details about the overall cluster proxy metrics.
+type ProxyMetrics struct {
+	// ManagedProxyCount is the number of proxies managed by the controller.
+	// +optional
+	ManagedProxyCount int32 `json:"managedProxyCount,omitempty"`
+	// UnmanagedProxyCount is the number of proxies NOT managed by the controller.
+	// +optional
+	UnmanagedProxyCount int32 `json:"unmanagedProxyCount,omitempty"`
+	// NamespacesEnabledCount is the number of namespaces that have MDP enabled.
+	// +optional
+	NamespacesEnabledCount int32 `json:"namespacesEnabledCount,omitempty"`
+	// PodsEnabledCount is the number of pods that have MDP enabled.
+	// +optional
+	PodsEnabledCount int32 `json:"podsEnabledCount,omitempty"`
 }
 
 // DataPlaneState of the data plane controller controller.
