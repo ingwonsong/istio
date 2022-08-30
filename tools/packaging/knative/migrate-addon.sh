@@ -309,7 +309,13 @@ configure_mesh_ca_16() {
   # Next we insert the mesh ca root cert so that it is trusted
   orig="$(kube -n istio-system get secret istio-ca-secret -ojsonpath='{.data.ca-cert\.pem}' | base64 -d)"
   encoded="$(echo "${orig}" "${MESH_CA_ROOT}" | base64 -w 0)"
-  kube -n istio-system patch secret istio-ca-secret -p="{\"data\":{\"ca-cert.pem\":\"${encoded}\"}}"
+  patchfile="${TMP_DIR}/cacert.yaml"
+  cat <<EOF > "${patchfile}"
+data:
+  ca-cert.pem: ${encoded}
+EOF
+
+  kube -n istio-system patch secret istio-ca-secret --patch-file "${patchfile}"
 
   # We need to restart Istiod to pick up the new image, the TD alias, and the new root cert.
   # Patch the new image, in case operator isn't fast enough, and insert an annotation to make sure we are change something
