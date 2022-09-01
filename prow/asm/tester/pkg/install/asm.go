@@ -202,6 +202,17 @@ func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config,
 		flags = append(flags, "--fleet_id", kube.GKEClusterSpecFromContext(settings.KubeContexts[0]).ProjectID)
 	}
 
+	// Adding options for CertProvider
+	switch settings.ClusterType {
+	case resource.AKS:
+		log.Println("Adding Attached Cluster overlay.")
+		flags = append(flags, "--option", "attached-cluster")
+	case resource.EKS:
+		log.Println("Adding Attached Cluster overlay.")
+		flags = append(flags, "--option", "attached-cluster")
+	default:
+	}
+
 	if settings.FeaturesToTest.Has(string(resource.CNI)) {
 		log.Printf("CNI flag enabled. ")
 		switch settings.ClusterType {

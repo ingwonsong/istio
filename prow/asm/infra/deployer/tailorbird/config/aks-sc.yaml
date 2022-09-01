@@ -21,6 +21,6 @@ spec:
           distribution: aks
           provisionerArgs:
             region: centralus
-            kubernetesVersion: "1.21"
+            kubernetesVersion: "1.23"
             username: asm-svc-acct
             compressArtifacts: "true"
