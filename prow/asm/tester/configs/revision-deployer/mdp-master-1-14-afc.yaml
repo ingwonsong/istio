@@ -1,0 +1,5 @@
+# used for testing MDP with gen manifest for AFC
+revisions:
+- name: "asm-1-14"
+  version: "1.14"
+- name: "asm-master"
