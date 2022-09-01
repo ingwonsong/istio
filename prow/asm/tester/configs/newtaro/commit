@@ -1,7 +1,22 @@
-667d58a78139ee9280248e81d2b8c09cd9e6c378
+b8bdb9ff607c035e65c1eb94579be496011edb6c
 ========================================
-Cat Chu
-Tue Aug 16 11:28:46 2022 -0700
+stewartbutler
+Wed Aug 31 18:06:36 2022 -0400
 
-add cluster labels to Anthos on VMware clusters (#1296)
+Removing tonumber from JQ call, since it mangles large numbers (#1318)
 
+* Removing tonumber from JQ call, since it mangles large numbers (e.g. timestamps)
+
+* Forgot to run precommit
+
+* Preserving previous behavior for numbers less than json MAXINT
+
+* Fixing formatting
+
+* Switching to regex rather than 'test'.
+
+* Fixing lint failure, adding test
+
+* Adding more tests
+
+* Apparently /bin/yes isn't portable...
