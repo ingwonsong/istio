@@ -324,8 +324,8 @@ func fixGKE(settings *resource.Settings) error {
 			log.Println("test-router already exists")
 		}
 		if err := exec.Run("gcloud compute routers nats create test-nat" +
-				" --router=test-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges" +
-				" --router-region=us-central1 --enable-logging"); err != nil {
+			" --router=test-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges" +
+			" --router-region=us-central1 --enable-logging"); err != nil {
 			log.Println("test-nat already exists")
 		}
 
@@ -348,7 +348,7 @@ func fixGKE(settings *resource.Settings) error {
 	}
 
 	if settings.FeaturesToTest.Has(string(resource.PrivateClusterLimitedAccess)) ||
-			settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
+		settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
 		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
 			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}
@@ -494,21 +494,21 @@ func getTestRunnerCidr() (string, error) {
 
 func getPodIpCidr(clusterName, project, zone string) (string, error) {
 	getPodIpCidrCmd := fmt.Sprintf("gcloud container clusters describe %s"+
-			" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
+		" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
 		clusterName, project, zone)
 	return exec.RunWithOutput(getPodIpCidrCmd)
 }
 
 func getClusterSubnetPrimaryIpCidr(clusterName, project, networkProject, zone string) (string, error) {
 	getSubnetCmd := fmt.Sprintf("gcloud container clusters describe %s"+
-			" --project %s --zone %s --format \"value(subnetwork)\"",
+		" --project %s --zone %s --format \"value(subnetwork)\"",
 		clusterName, project, zone)
 	subnetName, err := exec.RunWithOutput(getSubnetCmd)
 	if err != nil {
 		return "", err
 	}
 	getPrimaryIpCidrCmd := fmt.Sprintf("gcloud compute networks subnets describe %s"+
-			" --project %s --region %s --format \"value(ipCidrRange)\"",
+		" --project %s --region %s --format \"value(ipCidrRange)\"",
 		strings.TrimSpace(subnetName), networkProject, zone)
 	return exec.RunWithOutput(getPrimaryIpCidrCmd)
 }
@@ -586,6 +586,14 @@ func fixOpenshift(settings *resource.Settings) error {
 		if err := exec.RunMultiple([]string{cmd1, cmd2, cmd3, cmd4}); err != nil {
 			return fmt.Errorf("error running the commands to setup openshift cluster requirement: %w", err)
 		}
+
+		// Add current directory to PATH; this makes sure that the 'oc' binary
+		// can be located.
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		os.Setenv("PATH", os.Getenv("PATH")+":"+cwd)
 	}
 	return nil
 }
