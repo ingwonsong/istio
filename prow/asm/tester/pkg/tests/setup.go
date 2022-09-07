@@ -185,7 +185,7 @@ func genTopologyFile(settings *resource.Settings) error {
 			cc += fmt.Sprintf("\n    sshuser: %s", settings.ClusterSSHUser[i])
 			cc += fmt.Sprintf("\n    sshkey: %s", settings.ClusterSSHKey[i])
 			cc += fmt.Sprintf("\n  httpProxy: %s", settings.ClusterProxy[i])
-			cc += fmt.Sprintf("\n  proxyKubectlOnly: %t", settings.ClusterType == resource.GKEOnAWS)
+			cc += fmt.Sprintf("\n  proxyKubectlOnly: %t", settings.ClusterType == resource.GKEOnAWS || settings.ClusterType == resource.GKEOnAzure)
 		}
 
 		// Add network name for multicloud cluster config.

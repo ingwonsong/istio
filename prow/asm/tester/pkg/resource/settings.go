@@ -190,6 +190,8 @@ type RuntimeSettings struct {
 
 	// The commit ID of Newtaro repo to use asmcli to install ASM.
 	NewtaroCommit string `flag:"-"`
+
+	CleanupFuns []func() error
 }
 
 func (s *Settings) String() string {

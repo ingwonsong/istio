@@ -19,13 +19,18 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
+	oexec "os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	shell "github.com/kballard/go-shellquote"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -550,7 +555,7 @@ func fixBareMetal(settings *resource.Settings) error {
 	}
 	configs := filepath.SplitList(settings.Kubeconfig)
 	for _, config := range configs {
-		if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+		if err := configMulticloudSOCKS5ClusterProxy(settings, multicloudClusterConfig{
 			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
 			clusterArtifactsPath: filepath.Dir(config),
 			scriptRelPath:        "tunnel.sh",
@@ -752,6 +757,83 @@ type multicloudClusterConfig struct {
 	// regex to find the PORT_NUMBER and BOOTSTRAP_HOST_SSH_USER from the tunnel
 	// script.
 	regexMatcher string
+}
+
+func newPort() (int, error) {
+	// if port is set to 0, net.ResolveTCPAddr automatically chooses an empty port
+	l, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	return port, l.Close()
+}
+
+func configMulticloudSOCKS5ClusterProxy(settings *resource.Settings, mcConf multicloudClusterConfig) error {
+
+	// get connectivity_metadata.json, kubeconfig and ssh key paths
+	connectivityMetadataPath := filepath.Join(mcConf.clusterArtifactsPath, "../connectivity-metadata/connectivity_metadata.json")
+	kubeconfigPath := filepath.Join(mcConf.clusterArtifactsPath, "kubeconfig")
+	bootstrapHostSSHKey := filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath)
+
+	// get user and hostname for the bootstrap node
+	cmd := fmt.Sprintf("jq -r '.default_transport.attributes | .bastion_hostname, .username' %s ", connectivityMetadataPath)
+	out, err := exec.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("error reading connectivity-metadata.json file %w", err)
+	}
+	splitOutput := strings.Split(out, "\n")
+	if len(splitOutput) < 2 {
+		return fmt.Errorf("error in command output")
+	}
+	bootstrapHost := strings.TrimSpace(splitOutput[0])
+	username := strings.TrimSpace(splitOutput[1])
+	bootstrapUser := username + "@" + bootstrapHost
+
+	port, err := newPort()
+	if err != nil {
+		return fmt.Errorf("Unable to get a free port %w", err)
+	}
+	// create a SOCKS5 proxy
+	socksCmdStr := fmt.Sprintf("ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "+
+		"-N -D %d -i %s %s", port, bootstrapHostSSHKey, bootstrapUser)
+	c, _ := shell.Split(socksCmdStr)
+	socksCmd := oexec.Command(c[0], c[1:]...)
+	socksCmd.Env = os.Environ()
+	socksCmd.Stdout = os.Stdout
+	socksCmd.Stderr = os.Stderr
+	fmt.Println(shell.Join(socksCmd.Args...))
+	if err = socksCmd.Start(); err != nil {
+		return err
+	}
+	time.Sleep(10 * time.Second)
+
+	// kill the socks5 proxy command
+	settings.RuntimeSettings.CleanupFuns = append(settings.RuntimeSettings.CleanupFuns,
+		func() error {
+			if socksCmd.Process == nil {
+				return nil
+			}
+			err1 := socksCmd.Process.Signal(syscall.SIGKILL) // TODO @akshayjnambiar do we need to sigterm first and then sigkill?
+			if err1 != nil {
+				return fmt.Errorf("terminating the socks5 proxy process had errors : %w", err)
+			}
+			return nil
+		})
+
+	// add proxy-url to the kubeconfig file. This helps to not worry about http_proxy env variables.
+	err = exec.Run(fmt.Sprintf("sed -i 's/- cluster:/- cluster:\\n    proxy-url: socks5:\\/\\/localhost:%d/' %s", port, kubeconfigPath))
+	if err != nil {
+		return fmt.Errorf("Unable to set proxy url in kubeconfig %w", err)
+	}
+
+	// add details to settings
+	settings.ClusterProxy = append(settings.ClusterProxy, "socks5://localhost:"+strconv.Itoa(port))
+	settings.ClusterSSHUser = append(settings.ClusterSSHUser, bootstrapUser)
+	settings.ClusterSSHKey = append(settings.ClusterSSHKey, filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath))
+	log.Printf("SSH_USER: %s, SSH_KEY: %s", settings.ClusterSSHUser, settings.ClusterSSHKey)
+
+	return nil
 }
 
 func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloudClusterConfig) error {

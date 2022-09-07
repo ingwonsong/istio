@@ -23,6 +23,11 @@ import (
 func Teardown(settings *resource.Settings) error {
 	log.Println("🎬 start tearing down the environment...")
 
-	// Nothing to teardown for now.
+	for _, cleanupFn := range settings.RuntimeSettings.CleanupFuns {
+		err := cleanupFn()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
