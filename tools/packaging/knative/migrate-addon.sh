@@ -298,6 +298,11 @@ configure_mesh_ca_16() {
 
   # Update the trust domain aliases
   kube get cm istio-istio-1611 -n istio-system -o yaml | sed "s/trustDomainAliases\:.*$/trustDomainAliases\: [\"${HUB_WIP}\"]/g" | kube replace -f -
+  # reattempt replace with force flag if the first replace fails, for example gets conflict from cache.
+  # shellcheck disable=SC2181
+  if [[ $? != 0 ]]; then
+      kube get cm istio-istio-1611 -n istio-system -o yaml | sed "s/trustDomainAliases\:.*$/trustDomainAliases\: [\"${HUB_WIP}\"]/g" | kube replace --force -f -
+  fi
 
   # Patch the Istiod image to a version that has support for trust domain alias.
   # The operator probably won't actually update Istiod faster than we will manually below, but this ensures it
