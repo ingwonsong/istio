@@ -43,6 +43,7 @@ spec:
           provider: aws
           distribution: eks
           provisionerArgs:
+            auth: "SAToken"
             kubernetesVersion: "1.21"
             username: asm-svc-acct
             compressArtifacts: "true"
