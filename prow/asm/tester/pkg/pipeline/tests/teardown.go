@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+	"istio.io/istio/prow/asm/tester/pkg/tests/caproxy"
 	"istio.io/istio/prow/asm/tester/pkg/tests/kubevirtvm"
 	"istio.io/istio/prow/asm/tester/pkg/tests/policyconstraint"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
@@ -40,6 +41,10 @@ func Teardown(settings *resource.Settings) error {
 
 	if settings.FeaturesToTest.Has(string(resource.PolicyConstraint)) {
 		return policyconstraint.Teardown(settings)
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.CAProxy)) {
+		return caproxy.Teardown(settings)
 	}
 
 	// Unset the proxy if the tests are run on proxied clusters.

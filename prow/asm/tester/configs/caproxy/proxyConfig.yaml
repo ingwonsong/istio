@@ -1,0 +1,9 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ProxyConfig
+metadata:
+  name: test-proxy-inject
+  namespace: istio-system
+spec:
+  environmentVariables:
+    CA_PLUGIN_PROXY_URL: http://squid-service.squid-proxy-ns:3128
+

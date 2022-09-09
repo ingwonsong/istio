@@ -462,6 +462,7 @@ func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error 
 		case types.Autopilot:
 		case types.CasCertTemplate:
 		case types.PolicyConstraint:
+		case types.CAProxy:
 		case types.CompositeGateway:
 		case types.CAMigration:
 		default:

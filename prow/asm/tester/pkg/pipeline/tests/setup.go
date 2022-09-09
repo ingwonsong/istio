@@ -20,6 +20,7 @@ import (
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests"
+	"istio.io/istio/prow/asm/tester/pkg/tests/caproxy"
 	"istio.io/istio/prow/asm/tester/pkg/tests/kubevirtvm"
 	"istio.io/istio/prow/asm/tester/pkg/tests/policyconstraint"
 	"istio.io/istio/prow/asm/tester/pkg/tests/userauth"
@@ -57,6 +58,13 @@ func Setup(settings *resource.Settings) error {
 	if settings.UseKubevirtVM {
 		log.Printf("Start running the test setup for kubevirt vm tests")
 		if err := kubevirtvm.Setup(settings); err != nil {
+			return err
+		}
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.CAProxy)) {
+		log.Printf("Start running the test setup for CAProxy test")
+		if err := caproxy.Setup(settings); err != nil {
 			return err
 		}
 	}

@@ -31,6 +31,7 @@ var (
 	CompositeGateway                 = addFeature("COMPOSITE_GATEWAY")
 	PolicyConstraint                 = addFeature("POLICY_CONSTRAINT")
 	CAMigration                      = addFeature("CA_MIGRATION")
+	CAProxy                          = addFeature("CA_PROXY")
 
 	SupportedFeatures []Feature
 )

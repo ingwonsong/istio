@@ -160,6 +160,7 @@ const (
 	CompositeGateway                 Feature = "COMPOSITE_GATEWAY"
 	PolicyConstraint                 Feature = "POLICY_CONSTRAINT"
 	CAMigration                      Feature = "CA_MIGRATION"
+	CAProxy                          Feature = "CA_PROXY"
 )
 
 var validFeatureTypes = sets.NewString(

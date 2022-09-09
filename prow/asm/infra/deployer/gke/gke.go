@@ -159,6 +159,8 @@ func (d *Instance) flags() ([]string, error) {
 		case types.Autopilot:
 		case types.CasCertTemplate:
 		case types.PolicyConstraint:
+		case types.CAProxy:
+		case types.CAMigration:
 		case types.CompositeGateway:
 			err = featureCompositeGatewaySetup(d.cfg.GCPProjects)
 		default:
