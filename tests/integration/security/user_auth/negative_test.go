@@ -201,14 +201,14 @@ func TestMisconfiguration(t *testing.T) {
 						CA:           "",
 						IssuerURI:    "https://accounts.google.com",
 						Proxy:        "",
-						RedirectHost: "https://fake.host",
+						RedirectHost: "https://fakehost",
 						RedirectPath: "/_gcp_anthos_callback",
 						Scopes:       "",
 						GroupsClaim:  "",
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(userAuthNS, config).ApplyOrFail(ctx)
-				time.Sleep(5 * time.Second)
+				time.Sleep(10 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -222,14 +222,14 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to load sign in page %v", err)
 				}
 				// Get a reference to the text box containing code.
-				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section[1]/header/div/h2/span")
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"headingText\"]/span")
 				tx, err := elem.Text()
 				if err != nil {
 					ctx.Fatalf("unable to get the text from sign in page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Error 400: redirect_uri_mismatch") {
-					ctx.Fatalf("Cannot find redirect uri mismatch text.")
+				if !strings.Contains(tx, "Authorization Error") {
+					ctx.Fatalf("Invalid RedirectURLHost should receive error message containing Authorization Error.")
 				}
 			})
 
@@ -249,7 +249,7 @@ func TestMisconfiguration(t *testing.T) {
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(userAuthNS, config).ApplyOrFail(ctx)
-				time.Sleep(5 * time.Second)
+				time.Sleep(10 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
@@ -263,14 +263,14 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to load sign in page %v", err)
 				}
 				// Get a reference to the text box containing code.
-				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section[1]/header/div/h2/span")
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"headingText\"]/span")
 				tx, err := elem.Text()
 				if err != nil {
 					ctx.Fatalf("unable to get the text from sign in page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Error 400: redirect_uri_mismatch") {
-					ctx.Fatalf("Cannot find redirect uri mismatch text.")
+				if !strings.Contains(tx, "Access blocked") {
+					ctx.Fatalf("Invalid RedirectURLPath should receive error message containing Access blocked.")
 				}
 			})
 
@@ -290,7 +290,7 @@ func TestMisconfiguration(t *testing.T) {
 						Aud:          "test_audience",
 					})
 				ctx.ConfigKube(ctx.Clusters().Configs()...).YAML(userAuthNS, config).ApplyOrFail(ctx)
-				time.Sleep(5 * time.Second)
+				time.Sleep(10 * time.Second)
 				// setup chrome and chromedriver
 				service, wd := selenium.StartChromeOrFail(ctx)
 				defer service.Stop()
