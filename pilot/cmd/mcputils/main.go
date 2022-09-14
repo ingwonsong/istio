@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	istioctlcmd "istio.io/istio/istioctl/cmd"
@@ -79,6 +79,7 @@ func newMCPServeCommand() *cobra.Command {
 			mux.Handle("/mcp-run-precheck", handler{s.runPrecheck})
 			mux.Handle("/mcp-update-webhooks", handler{s.updateWebhooks})
 			mux.Handle("/mcp-is-afc-owned", handler{s.isAFCOwned})
+			mux.Handle("/mcp-check-multiproject", handler{s.isMultiProject})
 
 			addr := fmt.Sprintf(":%s", params.port)
 			log.Infof("Listening on: %s", addr)
@@ -88,24 +89,45 @@ func newMCPServeCommand() *cobra.Command {
 }
 
 type handler struct {
-	fn func(*http.Request) (string, *httpError)
+	fn func(*http.Request) (any, error)
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request: %s %s", r.Method, r.URL)
-	message, httpErr := h.fn(r)
-	if httpErr != nil {
-		http.Error(w, httpErr.message, httpErr.code)
-		log.Warnf("Response: %d %s", httpErr.code, httpErr.message)
+	message, err := h.fn(r)
+	if err != nil {
+		var errMsg string
+		var code int
+		if he, ok := err.(*httpError); ok {
+			errMsg = he.message
+			code = he.code
+		} else {
+			errMsg = err.Error()
+			code = http.StatusInternalServerError
+		}
+		http.Error(w, errMsg, code)
+		log.Warnf("Response: %d %s", code, errMsg)
 		return
 	}
 	log.Infof("Response: 200 %s", message)
-	w.Write([]byte(message)) // nolint: errcheck
+	body, err := json.Marshal(message)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Warnf("error while marshaling response: %v", err)
+		return
+	}
+	if _, err := w.Write(body); err != nil {
+		log.Warnf("error writing response body: %v", err)
+	}
 }
 
 type httpError struct {
 	code    int
 	message string
+}
+
+func (h *httpError) Error() string {
+	return fmt.Sprintf("code: %d, message: %s", h.code, h.message)
 }
 
 // Also shared by mcpcrds.
@@ -207,7 +229,7 @@ func hasAnyMCPWebhooks(ctx context.Context, client kubelib.Client) bool {
 	return false
 }
 
-func (s *server) installCRDs(req *http.Request) (string, *httpError) {
+func (s *server) installCRDs(req *http.Request) (any, error) {
 	var r installCRDsRequest
 	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
 		return "", &httpError{
@@ -336,30 +358,150 @@ func decodeRequest(req *http.Request, r interface{}) *httpError {
 	return nil
 }
 
-func (s *server) isAFCOwned(req *http.Request) (string, *httpError) {
+type isMultiProjectResult struct {
+	project, cluster string
+	err              error
+}
+
+func (s *server) isMultiProject(req *http.Request) (any, error) {
+	var r RequestShared
+	if err := decodeRequest(req, &r); err != nil {
+		return nil, err
+	}
+	ctx := req.Context()
+	client, _, err := s.createKubeClient(ctx, s.project, r.Location, r.Cluster)
+	if err != nil {
+		return nil, &httpError{
+			code:    http.StatusInternalServerError,
+			message: err.Error(),
+		}
+	}
+	var opts metav1.ListOptions
+	opts.LabelSelector = "istio/multiCluster=true"
+	secrets, err := client.Kube().CoreV1().Secrets(constants.IstioSystemNamespace).List(ctx, opts)
+	if err != nil {
+		return nil, &httpError{
+			code:    http.StatusInternalServerError,
+			message: err.Error(),
+		}
+	}
+	if secrets.GetContinue() != "" {
+		return nil, &httpError{
+			code:    http.StatusInternalServerError,
+			message: "received unexpected continuation token when listing secrets",
+		}
+	}
+
+	projSet := map[string]bool{}
+	ch := make(chan isMultiProjectResult, len(secrets.Items))
+	for _, secret := range secrets.Items {
+		log.Infof("%v", s)
+		secret := secret
+		go func() {
+			ch <- checkGKEMetadataServer(ctx, secret)
+		}()
+	}
+	for range secrets.Items {
+		result := <-ch
+		if result.err != nil {
+			return nil, &httpError{
+				code:    http.StatusPreconditionFailed,
+				message: fmt.Sprintf("failed getting gke-metadata-server: %v", result.err),
+			}
+		}
+		log.Infof("(%s, %s) is discoverable in the mesh", result.project, result.cluster)
+		projSet[result.project] = true
+	}
+	var projs []string
+	for proj := range projSet {
+		if proj != s.project {
+			projs = append(projs, proj)
+		}
+	}
+	return projs, nil
+}
+
+func checkGKEMetadataServer(ctx context.Context, secret corev1.Secret) isMultiProjectResult {
+	for clusterID, kubeConfig := range secret.Data {
+		log.Infof("this is clusterID and kubeconfig: %s %s", clusterID, kubeConfig)
+		kubeFile := fmt.Sprintf("%s.yaml", clusterID)
+		f, err := os.Create(kubeFile)
+		if err != nil {
+			return isMultiProjectResult{
+				err: err,
+			}
+		}
+		defer f.Close()
+		if _, err := f.Write(kubeConfig); err != nil {
+			log.Infof("error writing kubeconfig: %v", err)
+			return isMultiProjectResult{
+				err: err,
+			}
+		}
+		remoteClient, err := mcpinit.CreateKubeClient(kubeFile, 0, 0)
+		if err != nil {
+			log.Infof("error creating the remote client: %v", err)
+			return isMultiProjectResult{
+				err: err,
+			}
+		}
+		pods, err := remoteClient.Kube().CoreV1().Pods("kube-system").List(ctx, metav1.ListOptions{
+			LabelSelector: "k8s-app=gke-metadata-server",
+		})
+		if err != nil {
+			log.Infof("error getting pods: %v", err)
+			return isMultiProjectResult{
+				err: err,
+			}
+		}
+		for _, pod := range pods.Items {
+			for _, container := range pod.Spec.Containers {
+				for _, command := range container.Command {
+					if strings.HasPrefix(command, "--workload-pool=") {
+						proj := strings.TrimSuffix(strings.TrimPrefix(command, "--workload-pool="), ".svc.id.goog")
+						return isMultiProjectResult{
+							project: proj,
+							cluster: clusterID,
+						}
+					}
+				}
+			}
+		}
+		// There shouldn't be a difference in the gke-metadata-pods, so returning
+		// an error if none of the pods listed so far have workload-pool set.
+		return isMultiProjectResult{
+			err: fmt.Errorf("unable to get metadata server: %s", clusterID),
+		}
+	}
+	return isMultiProjectResult{
+		err: fmt.Errorf("unexpected secret content: %v", secret),
+	}
+}
+
+func (s *server) isAFCOwned(req *http.Request) (any, error) {
 	var r afcOwnedRequest
 	if err := decodeRequest(req, &r); err != nil {
-		return "", err
+		return false, err
 	}
 	log.Infof("Received update webhooks request: %+v", r)
 	ctx := req.Context()
 	client, _, err := s.createKubeClient(ctx, s.project, r.Location, r.Cluster)
 	if err != nil {
-		return "", &httpError{
+		return false, &httpError{
 			code:    http.StatusInternalServerError,
 			message: err.Error(),
 		}
 	}
 	mwh, err := client.Kube().AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, fmt.Sprintf("istiod-%s", r.Revision), metav1.GetOptions{})
 	if err != nil {
-		return "", &httpError{
+		return false, &httpError{
 			code:    http.StatusInternalServerError,
 			message: fmt.Sprintf("unable to get mutating webhook: %v", err),
 		}
 	}
 	vwh, err := client.Kube().AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, "istiod-istio-system-mcp", metav1.GetOptions{})
 	if err != nil {
-		return "", &httpError{
+		return false, &httpError{
 			code:    http.StatusInternalServerError,
 			message: fmt.Sprintf("unable to get validating webhook: %v", err),
 		}
@@ -371,15 +513,15 @@ func (s *server) isAFCOwned(req *http.Request) (string, *httpError) {
 	vwhOwned := vwh.Labels["istio.io/owned-by"] == "mesh.googleapis.com"
 	if mwhOwned != vwhOwned {
 		log.Infof("AFC is partially installed on the cluster")
-		return "", &httpError{
+		return false, &httpError{
 			code:    http.StatusPreconditionFailed,
 			message: fmt.Sprintf("AFC is partially installed for control plane: (%s, %s, %s, %s)", s.project, r.Location, r.Cluster, r.Revision),
 		}
 	}
-	return strconv.FormatBool(mwhOwned), nil
+	return mwhOwned, nil
 }
 
-func (s *server) updateWebhooks(req *http.Request) (string, *httpError) {
+func (s *server) updateWebhooks(req *http.Request) (any, error) {
 	var r updateWehooksRequest
 	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
 		return "", &httpError{
@@ -407,7 +549,7 @@ func (s *server) updateWebhooks(req *http.Request) (string, *httpError) {
 	return fmt.Sprintf("Webhooks updated (project: %s, location: %s, cluster: %s, revision: %s)\n", s.project, r.Location, r.Cluster, r.Revision), nil
 }
 
-func (s *server) runPrecheck(req *http.Request) (string, *httpError) {
+func (s *server) runPrecheck(req *http.Request) (any, error) {
 	var r RequestShared
 	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
 		return "", &httpError{
