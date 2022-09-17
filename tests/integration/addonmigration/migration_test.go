@@ -186,11 +186,6 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 
 			deployAutomigration(t, channel, revision)
 
-			// for 1.6 we use istio.io/rev label so istioctl x revision tag set default does not cover
-			// nolint: staticcheck
-			if err := migration16Namespace.SetLabel("istio.io/rev", revision); err != nil {
-				t.Fatal(err)
-			}
 			tp := t.CreateTmpDirectoryOrFail("addon-migration-workload")
 			kube.DumpPods(t, tp, "istio-system", []string{"app=istio-ingressgateway"})
 			for _, i := range migration14 {

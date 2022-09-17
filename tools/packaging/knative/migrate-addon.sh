@@ -598,6 +598,11 @@ replace_webhook() {
   prompt "Configuring sidecar injection to use Anthos Service Mesh by default..."
   kube patch mutatingwebhookconfigurations istio-sidecar-injector --type=json -p='[{"op": "replace", "path": "/webhooks"}]'
   ${ISTIOCTL_BIN} x revision tag set default --revision=${REVISION} --overwrite
+  # we cannot use the tagging here because the update maybe reverted by the 1.6 operator.
+  for nsname in $(kube get namespaces -l istio.io/rev=istio-1611 -oname | cut -d/ -f2);do
+    kube label namespace "${nsname}" istio.io/rev=${REVISION} --overwrite
+    prompt "Relabelled 1.6 ${nsname} for ${REVISION}"
+  done
   echo -e "${green}OK${clr}"
 }
 
