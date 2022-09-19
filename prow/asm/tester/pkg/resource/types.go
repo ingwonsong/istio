@@ -104,10 +104,15 @@ const (
 	PrivateCA CAType = "PRIVATECA"
 )
 
-var validCATypes = sets.NewString(string(Citadel), string(MeshCA), string(PrivateCA))
+var validCATypes = sets.NewString(
+	string(Citadel),
+	string(MeshCA),
+	string(PrivateCA),
+)
 
 // Set converts the value string to ControlPlaneType
 func (ca *CAType) Set(value string) error {
+	value = strings.ToUpper(value)
 	if !validCATypes.Has(value) {
 		return fmt.Errorf("%q is not a valid CA type in %v", value, validCATypes)
 	}
@@ -116,7 +121,7 @@ func (ca *CAType) Set(value string) error {
 	return nil
 }
 
-func (ca *CAType) String() string { return string(*ca) }
+func (ca *CAType) String() string { return strings.ToUpper(string(*ca)) }
 
 func (ca *CAType) Type() string { return "ca" }
 
@@ -132,6 +137,7 @@ var validWIPTypes = sets.NewString(string(GKEWorkloadIdentityPool), string(HUBWo
 
 // Set converts the value string to WIPType
 func (wip *WIPType) Set(value string) error {
+	value = strings.ToUpper(value)
 	if !validWIPTypes.Has(value) {
 		return fmt.Errorf("%q is not a valid WIP type in %v", value, validWIPTypes)
 	}
@@ -140,7 +146,7 @@ func (wip *WIPType) Set(value string) error {
 	return nil
 }
 
-func (wip *WIPType) String() string { return string(*wip) }
+func (wip *WIPType) String() string { return strings.ToUpper(string(*wip)) }
 
 func (wip *WIPType) Type() string { return "wip" }
 
