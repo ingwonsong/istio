@@ -1,22 +1,7 @@
-b8bdb9ff607c035e65c1eb94579be496011edb6c
+0682ac06f5bb457e98a94f9822ccad584652fb8d
 ========================================
-stewartbutler
-Wed Aug 31 18:06:36 2022 -0400
+Clay
+Wed Sep 14 10:36:35 2022 -0700
 
-Removing tonumber from JQ call, since it mangles large numbers (#1318)
+Always canonicalize kubeconfig file (#1322)
 
-* Removing tonumber from JQ call, since it mangles large numbers (e.g. timestamps)
-
-* Forgot to run precommit
-
-* Preserving previous behavior for numbers less than json MAXINT
-
-* Fixing formatting
-
-* Switching to regex rather than 'test'.
-
-* Fixing lint failure, adding test
-
-* Adding more tests
-
-* Apparently /bin/yes isn't portable...
