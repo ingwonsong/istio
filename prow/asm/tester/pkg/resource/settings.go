@@ -121,6 +121,10 @@ type Settings struct {
 	// This includes platform-specific setup.
 	WorkloadNamespaces []string `flag:"workload-namespaces"`
 
+	// Enables the Anthos AWS iptables hack (useful for ignoring iptables failure
+	// due to removal of binary from base image)
+	UseAWSIptablesHack bool `flag:"use-aws-iptables-hack" desc:"Enables Anthos-on-AWS iptables hack. Installs iptables on base images missing it."`
+
 	VMSettings
 
 	MCPSettings

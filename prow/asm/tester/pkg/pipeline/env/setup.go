@@ -329,8 +329,8 @@ func fixGKE(settings *resource.Settings) error {
 			log.Println("test-router already exists")
 		}
 		if err := exec.Run("gcloud compute routers nats create test-nat" +
-			" --router=test-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges" +
-			" --router-region=us-central1 --enable-logging"); err != nil {
+				" --router=test-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges" +
+				" --router-region=us-central1 --enable-logging"); err != nil {
 			log.Println("test-nat already exists")
 		}
 
@@ -353,7 +353,7 @@ func fixGKE(settings *resource.Settings) error {
 	}
 
 	if settings.FeaturesToTest.Has(string(resource.PrivateClusterLimitedAccess)) ||
-		settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
+			settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
 		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
 			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}
@@ -499,21 +499,21 @@ func getTestRunnerCidr() (string, error) {
 
 func getPodIpCidr(clusterName, project, zone string) (string, error) {
 	getPodIpCidrCmd := fmt.Sprintf("gcloud container clusters describe %s"+
-		" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
+			" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
 		clusterName, project, zone)
 	return exec.RunWithOutput(getPodIpCidrCmd)
 }
 
 func getClusterSubnetPrimaryIpCidr(clusterName, project, networkProject, zone string) (string, error) {
 	getSubnetCmd := fmt.Sprintf("gcloud container clusters describe %s"+
-		" --project %s --zone %s --format \"value(subnetwork)\"",
+			" --project %s --zone %s --format \"value(subnetwork)\"",
 		clusterName, project, zone)
 	subnetName, err := exec.RunWithOutput(getSubnetCmd)
 	if err != nil {
 		return "", err
 	}
 	getPrimaryIpCidrCmd := fmt.Sprintf("gcloud compute networks subnets describe %s"+
-		" --project %s --region %s --format \"value(ipCidrRange)\"",
+			" --project %s --region %s --format \"value(ipCidrRange)\"",
 		strings.TrimSpace(subnetName), networkProject, zone)
 	return exec.RunWithOutput(getPrimaryIpCidrCmd)
 }
@@ -663,20 +663,22 @@ func fixAWS(settings *resource.Settings) error {
 		}
 	}
 
-	// HACK: b/238659994 -- Install a static iptables binary.
-	configs := filepath.SplitList(settings.Kubeconfig)
-	for i, kubeconfig := range configs {
-		if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {
-			os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
-			defer os.Unsetenv("HTTPS_PROXY")
-		}
-		cmds := []string{
-			fmt.Sprintf(`kubectl -n kube-system apply -f %s --kubeconfig=%s`, filepath.Join(configDir, staticIptablesDaemonset), kubeconfig),
-			fmt.Sprintf("kubectl -n kube-system rollout status daemonset/iptables-installer --kubeconfig=%s", kubeconfig),
-		}
-		if err := exec.RunMultiple(cmds); err != nil {
-			log.Print(err)
-			return err
+	if settings.UseAWSIptablesHack {
+		// HACK: b/238659994 -- Install a static iptables binary.
+		configs := filepath.SplitList(settings.Kubeconfig)
+		for i, kubeconfig := range configs {
+			if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {
+				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
+				defer os.Unsetenv("HTTPS_PROXY")
+			}
+			cmds := []string{
+				fmt.Sprintf(`kubectl -n kube-system apply -f %s --kubeconfig=%s`, filepath.Join(configDir, staticIptablesDaemonset), kubeconfig),
+				fmt.Sprintf("kubectl -n kube-system rollout status daemonset/iptables-installer --kubeconfig=%s", kubeconfig),
+			}
+			if err := exec.RunMultiple(cmds); err != nil {
+				log.Print(err)
+				return err
+			}
 		}
 	}
 
@@ -796,7 +798,7 @@ func configMulticloudSOCKS5ClusterProxy(settings *resource.Settings, mcConf mult
 	}
 	// create a SOCKS5 proxy
 	socksCmdStr := fmt.Sprintf("ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "+
-		"-N -D %d -i %s %s", port, bootstrapHostSSHKey, bootstrapUser)
+			"-N -D %d -i %s %s", port, bootstrapHostSSHKey, bootstrapUser)
 	c, _ := shell.Split(socksCmdStr)
 	socksCmd := oexec.Command(c[0], c[1:]...)
 	socksCmd.Env = os.Environ()
