@@ -228,7 +228,7 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to get the text from sign in page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authorization Error") {
+				if !strings.Contains(tx, "Authorization Error") && !strings.Contains(tx, "Access blocked") {
 					ctx.Fatalf("Invalid RedirectURLHost should receive error message containing Authorization Error.")
 				}
 			})
@@ -269,8 +269,8 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to get the text from sign in page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authorization Error") {
-					ctx.Fatalf("Invalid RedirectURLPath should receive error message containing Authorization Error.")
+				if !strings.Contains(tx, "Authorization Error") && !strings.Contains(tx, "Access blocked") {
+					ctx.Fatalf("Invalid RedirectURLPath should receive error message containing Authorization Error or Access Blocked.")
 				}
 			})
 

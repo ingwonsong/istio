@@ -34,7 +34,7 @@ func Setup(settings *resource.Settings) error {
 		return fmt.Errorf("error setting up the tests: %w", err)
 	}
 
-	if settings.ControlPlane == resource.Unmanaged && settings.FeaturesToTest.Has(string(resource.UserAuth)) {
+	if settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 		log.Printf("Start running the test setup for UserAuth test")
 		if err := userauth.Setup(settings); err != nil {
 			return err

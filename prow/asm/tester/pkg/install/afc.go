@@ -32,6 +32,7 @@ import (
 
 	"istio.io/istio/pkg/test/framework/util"
 	"istio.io/istio/pkg/test/util/retry"
+	"istio.io/istio/pkg/test/util/tmpl"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
@@ -271,7 +272,7 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 	}
 	os.Setenv("_CI_ENVIRON_PROJECT_NUMBER", strings.TrimSpace(environProjectNumber))
 
-	for _, context := range contexts {
+	for i, context := range contexts {
 		contextLogger := log.New(os.Stdout,
 			fmt.Sprintf("[kubeContext: %s] ", context), log.Ldate|log.Ltime)
 		contextLogger.Println("Performing ASM installation via AFC...")
@@ -355,23 +356,42 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 			contextLogger.Printf("Done verification. MCP VPCSC is installed in %v mode\n", cp.VPCMode)
 		}
 
-		if err := exec.Run(
-			fmt.Sprintf(`bash -c 'cat <<EOF | kubectl apply --context=%s -f -
+		testUserAuth := c.settings.FeaturesToTest.Has(string(resource.UserAuth))
+
+		if err := exec.Run(tmpl.MustEvaluate(`bash -c 'cat <<EOF | kubectl apply --context={{.context}} -f -
 apiVersion: v1
 data:
   mesh: |-
     accessLogFile: /dev/stdout
+{{- if .testUserAuth}}
+    extensionProviders:
+      - name: "asm-userauth-grpc"
+        envoyExtAuthzGrpc:
+          service: "authservice.asm-user-auth.svc.cluster.local"
+          port: "10003"
+{{- end }}
 kind: ConfigMap
 metadata:
   name: istio-asm-managed-rapid
   namespace: istio-system
-EOF'`, context)); err != nil {
-			return fmt.Errorf("error enabling access logging to help with debugging tests")
+EOF'`, map[string]any{
+			"testUserAuth": testUserAuth,
+			"context":      context,
+		})); err != nil {
+			if testUserAuth {
+				return fmt.Errorf("error enabling user-auth")
+			} else {
+				return fmt.Errorf("error enabling access logging to help with debugging tests")
+			}
 		}
 
 		// Install Gateway
 		if c.settings.FeaturesToTest.Has(string(resource.Addon)) {
 			contextLogger.Println("Skipping gateway, already installed by addon")
+		} else if c.settings.FeaturesToTest.Has(string(resource.UserAuth)) {
+			if err := c.installGateways(c.settings, rev, context, "", i); err != nil {
+				return err
+			}
 		} else {
 			if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
 				return fmt.Errorf("error installing injected-gateway: %w", err)

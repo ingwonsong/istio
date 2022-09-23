@@ -37,8 +37,11 @@ func Setup(settings *resource.Settings) error {
 
 func installASMUserAuth(settings *resource.Settings) error {
 	label := "istio-injection=enabled"
-	if settings.RevisionConfig != "" {
+	// this flag is for multiversion tests
+	if settings.RevisionConfig != "" && settings.ControlPlane == resource.Unmanaged {
 		label = "istio-injection- istio.io/rev=asm-master"
+	} else if settings.RevisionConfig != "" && settings.ControlPlane == resource.Managed {
+		label = "istio-injection- istio.io/rev=asm-managed-rapid"
 	}
 
 	// Config install pkg
@@ -105,10 +108,12 @@ func installASMUserAuth(settings *resource.Settings) error {
 		cmds = []string{
 			fmt.Sprintf("kubectl wait --for=condition=Ready --timeout=10m --namespace=userauth-test --all pod --context %s", context),
 			fmt.Sprintf("kubectl wait --for=condition=Ready --timeout=10m --namespace=asm-user-auth --all pod --context %s", context),
+			fmt.Sprintf("kubectl wait --for=condition=Ready --timeout=10m --namespace=squid --all pod --context %s", context),
 		}
 		if err := exec.RunMultiple(cmds); err != nil {
 			return err
 		}
+
 	}
 
 	return nil

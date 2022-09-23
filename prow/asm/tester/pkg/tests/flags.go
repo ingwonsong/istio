@@ -182,6 +182,9 @@ func generateTestSelect(settings *resource.Settings) string {
 		if settings.TestTarget == migrationTarget {
 			testSelect = ""
 		}
+		if settings.FeaturesToTest.Has(string(resource.UserAuth)) {
+			testSelect = "+userauth"
+		}
 		//if settings.ClusterTopology == resource.MultiCluster {
 		//	if settings.TestTarget == mcPresubmitTarget {
 		//		testSelect += ",+multicluster"

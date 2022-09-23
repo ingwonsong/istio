@@ -113,7 +113,7 @@ spec:
         app: squid
     spec:
       containers:
-      - image: b4tman/squid
+      - image: gcr.io/asm-staging-images/mirror/squid
         name: squid
         command: ['/usr/sbin/squid']
         args: ['-f', '/etc/squid/squid.conf', '--foreground', '-YCd', '1']
@@ -143,7 +143,7 @@ spec:
           subPath: squid.conf
       initContainers:
       - name: init-squid
-        image: b4tman/squid
+        image: gcr.io/asm-staging-images/mirror/squid
         command: ['/bin/sh']
         args: ['-c', 'rm -rf /var/cache/squid/ssl_db; /usr/lib/squid/security_file_certgen -c -s /var/cache/squid/ssl_db -M 4MB']
         volumeMounts:
