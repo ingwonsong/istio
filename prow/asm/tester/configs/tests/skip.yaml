@@ -95,6 +95,13 @@ tests:
           - TestPassThroughFilterChain
         reason: requires PR 28601, should add RequireIstioVersion to the test in OSS and then unskip.
         buganizerID: 194120617
+      - names:
+          - TestAuthz_Custom
+        reason: requires mesh config
+      - names:
+          - TestAuthz_WorkloadSelector/single_workload/.*/.*/.*//bad\((allow)\)/.*
+        buganizerID: 244709600
+        reason: labels are not applied to both revision pods
 
       # telemetry/
       - names:
