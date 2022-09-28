@@ -20,6 +20,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -75,6 +78,9 @@ var (
 
 	localClusters  = clustersCount.With(clusterType.Value("local"))
 	remoteClusters = clustersCount.With(clusterType.Value("remote"))
+
+	cgwHostRegex = regexp.MustCompile(`^([^\.]*)-?(autopush|staging)?\-?connectgateway.(?:sandbox\.)?googleapis.com$`)
+	cgwPathRegex = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/gkeMemberships/([^/]+)$`)
 )
 
 type ClusterHandler interface {
@@ -245,11 +251,12 @@ var BuildClientsFromConfig = func(kubeConfig []byte) (kube.Client, error) {
 	if err := clientcmd.Validate(*rawConfig); err != nil {
 		return nil, fmt.Errorf("kubeconfig is not valid: %v", err)
 	}
-	if err := sanitizeKubeConfig(*rawConfig, features.InsecureKubeConfigOptions); err != nil {
+	config, err := sanitizedKubeConfig(*rawConfig, features.InsecureKubeConfigOptions)
+	if err != nil {
 		return nil, fmt.Errorf("kubeconfig is not allowed: %v", err)
 	}
 
-	clientConfig := clientcmd.NewDefaultClientConfig(*rawConfig, &clientcmd.ConfigOverrides{})
+	clientConfig := clientcmd.NewDefaultClientConfig(config, &clientcmd.ConfigOverrides{})
 
 	clients, err := kube.NewClient(clientConfig)
 	if err != nil {
@@ -258,10 +265,10 @@ var BuildClientsFromConfig = func(kubeConfig []byte) (kube.Client, error) {
 	return clients, nil
 }
 
-// sanitizeKubeConfig sanitizes a kubeconfig file to strip out insecure settings which may leak
+// sanitizedKubeConfig sanitizes a kubeconfig file to strip out insecure settings which may leak
 // confidential materials.
 // See https://github.com/kubernetes/kubectl/issues/697
-func sanitizeKubeConfig(config api.Config, allowlist sets.Set) error {
+func sanitizedKubeConfig(config api.Config, allowlist sets.Set) (api.Config, error) {
 	for k, auths := range config.AuthInfos {
 		if ap := auths.AuthProvider; ap != nil {
 			// We currently are importing 5 authenticators: gcp, azure, exec, and openstack
@@ -269,24 +276,37 @@ func sanitizeKubeConfig(config api.Config, allowlist sets.Set) error {
 			case "oidc":
 				// OIDC is safe as it doesn't read files or execute code.
 				// create-remote-secret specifically supports OIDC so its probably important to not break this.
+			case "gcp":
+				for name, c := range config.Contexts {
+					// If any auth context is using gcp auth plugin, build a custom config based on the associated cluster.
+					if k == c.AuthInfo {
+						cluster, ok := config.Clusters[c.Cluster]
+						if !ok {
+							return api.Config{}, fmt.Errorf("cluster %s referenced in context %s not found",
+								c.Cluster, name)
+						}
+
+						return connectGatewayKubeConfig(cluster)
+					}
+				}
 			default:
 				if !allowlist.Contains(ap.Name) {
 					// All the others - gcp, azure, exec, and openstack - are unsafe
-					return fmt.Errorf("auth provider %s is not allowed", ap.Name)
+					return api.Config{}, fmt.Errorf("auth provider %s is not allowed", ap.Name)
 				}
 			}
 		}
 		if auths.ClientKey != "" && !allowlist.Contains("clientKey") {
-			return fmt.Errorf("clientKey is not allowed")
+			return api.Config{}, fmt.Errorf("clientKey is not allowed")
 		}
 		if auths.ClientCertificate != "" && !allowlist.Contains("clientCertificate") {
-			return fmt.Errorf("clientCertificate is not allowed")
+			return api.Config{}, fmt.Errorf("clientCertificate is not allowed")
 		}
 		if auths.TokenFile != "" && !allowlist.Contains("tokenFile") {
-			return fmt.Errorf("tokenFile is not allowed")
+			return api.Config{}, fmt.Errorf("tokenFile is not allowed")
 		}
 		if auths.Exec != nil && !allowlist.Contains("exec") {
-			return fmt.Errorf("exec is not allowed")
+			return api.Config{}, fmt.Errorf("exec is not allowed")
 		}
 		// Reconstruct the AuthInfo so if a new field is added we will not include it without review
 		config.AuthInfos[k] = &api.AuthInfo{
@@ -315,7 +335,8 @@ func sanitizeKubeConfig(config api.Config, allowlist sets.Set) error {
 		// * Cluster.CertificateAuthority. While this reads from files, the result is not attached to the request and is instead
 		//   entirely local
 	}
-	return nil
+
+	return config, nil
 }
 
 func (c *Controller) createRemoteCluster(kubeConfig []byte, clusterID string) (*Cluster, error) {
@@ -480,4 +501,78 @@ func (c *Controller) GetRemoteKubeClient(clusterID cluster.ID) kubernetes.Interf
 		return remoteCluster.Client.Kube()
 	}
 	return nil
+}
+
+func connectGatewayKubeConfig(cluster *api.Cluster) (api.Config, error) {
+	// Connect Gateway URL must be in the form:
+	// https://[LOCATION]-[ENVIRONMENT]-connectgateway.[sandbox.]googleapis.com/v1/projects/[PROJECT NUMBER]/locations/[LOCATION]/gkeMemberships/[MEMBERSHIP NAME]
+	cgwURL, err := url.Parse(cluster.Server)
+	if err != nil {
+		return api.Config{}, fmt.Errorf("failed to parse connect gateway URL from server %s", cluster.Server)
+	}
+
+	// Parse the membership location and GKE Connect environment from the host if possible.
+	hostMatches := cgwHostRegex.FindStringSubmatch(cgwURL.Host)
+	if len(hostMatches) == 0 {
+		return api.Config{}, fmt.Errorf("cannot parse host regex from host: %s", cgwURL.Host)
+	}
+
+	prefixMembershipLocation := hostMatches[1]
+	connectEnvironment := hostMatches[2]
+
+	// For the case where the regex captures the environment as the first group (when URL starts [ENV]-connectgateway..)
+	// Can be handled in the regex, but it's simpler to fix here in the code.
+	if strings.Contains(prefixMembershipLocation, "staging") ||
+		strings.Contains(prefixMembershipLocation, "autopush") {
+		connectEnvironment = hostMatches[1]
+		prefixMembershipLocation = ""
+	}
+
+	pathMatches := cgwPathRegex.FindStringSubmatch(cgwURL.Path)
+	if len(pathMatches) == 0 {
+		return api.Config{}, fmt.Errorf("cannot parse path regex from path: %s", cgwURL.Path)
+	}
+
+	projectNumber := pathMatches[1]
+	pathMembershipLocation := pathMatches[2]
+	membershipName := pathMatches[3]
+
+	sb := strings.Builder{}
+	sb.WriteString("https://")
+	if prefixMembershipLocation != "" {
+		sb.WriteString(prefixMembershipLocation)
+	}
+	if connectEnvironment != "" {
+		sb.WriteString(connectEnvironment)
+	}
+	sb.WriteString("connectgateway.")
+	if connectEnvironment != "" {
+		sb.WriteString("sandbox.")
+	}
+	sb.WriteString("googleapis.com")
+	sb.WriteString(fmt.Sprintf("/v1/projects/%s/locations/%s/gkeMemberships/%s",
+		projectNumber, pathMembershipLocation, membershipName))
+
+	return api.Config{
+		Clusters: map[string]*api.Cluster{
+			"cgw": {
+				Server: sb.String(),
+			},
+		},
+		AuthInfos: map[string]*api.AuthInfo{
+			"gcp": {
+				AuthProvider: &api.AuthProviderConfig{
+					Name:   "gcp",
+					Config: map[string]string{},
+				},
+			},
+		},
+		Contexts: map[string]*api.Context{
+			"cgw": {
+				Cluster:  "cgw",
+				AuthInfo: "gcp",
+			},
+		},
+		CurrentContext: "cgw",
+	}, nil
 }

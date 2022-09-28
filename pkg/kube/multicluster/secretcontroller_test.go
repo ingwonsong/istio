@@ -245,18 +245,164 @@ func TestSanitizeKubeConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "gcp unmatched cluster",
+			config: api.Config{
+				AuthInfos: map[string]*api.AuthInfo{
+					"default": {
+						AuthProvider: &api.AuthProviderConfig{
+							Name: "gcp",
+						},
+					},
+				},
+				Contexts: map[string]*api.Context{
+					"default": {
+						Cluster:  "non-existent",
+						AuthInfo: "default",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "gcp auth plugin ignores proxy URL",
+			config: api.Config{
+				AuthInfos: map[string]*api.AuthInfo{
+					"default": {
+						AuthProvider: &api.AuthProviderConfig{
+							Name: "gcp",
+						},
+					},
+				},
+				Clusters: map[string]*api.Cluster{
+					"default": {
+						Server:   "https://connectgateway.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test",
+						ProxyURL: "https://malicious-endpoint.com",
+					},
+				},
+				Contexts: map[string]*api.Context{
+					"default": {
+						Cluster:  "default",
+						AuthInfo: "default",
+					},
+				},
+			},
+			want: api.Config{
+				AuthInfos: map[string]*api.AuthInfo{
+					"gcp": {
+						AuthProvider: &api.AuthProviderConfig{
+							Name:   "gcp",
+							Config: map[string]string{},
+						},
+					},
+				},
+				Clusters: map[string]*api.Cluster{
+					"cgw": {
+						Server: "https://connectgateway.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test",
+					},
+				},
+				Contexts: map[string]*api.Context{
+					"cgw": {
+						Cluster:  "cgw",
+						AuthInfo: "gcp",
+					},
+				},
+				CurrentContext: "cgw",
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			err := sanitizeKubeConfig(tt.config, tt.allowlist)
+			sanitized, err := sanitizedKubeConfig(tt.config, tt.allowlist)
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("sanitizeKubeConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("sanitizedKubeConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(tt.config, tt.want); diff != "" {
+			if diff := cmp.Diff(sanitized, tt.want); diff != "" {
 				t.Fatal(diff)
+			}
+		})
+	}
+}
+
+func TestConnectGatewayKubeConfig(t *testing.T) {
+	cases := []struct {
+		server  string
+		wantErr bool
+	}{
+		{
+			server:  "https://connectgateway.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
+			wantErr: false,
+		},
+		{
+			server:  "https://staging-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
+			wantErr: false,
+		},
+		{
+			server:  "https://autopush-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
+			wantErr: false,
+		},
+		{
+			server:  "https://us-west1-staging-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/us-west1/gkeMemberships/test-membership",
+			wantErr: false,
+		},
+		{
+			server:  "https://staging-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/us-west1/gkeMemberships/test-membership",
+			wantErr: false,
+		},
+		{
+			server:  "https://us-west1-connectgateway.googleapis.com/v1/projects/123/locations/us-west1/gkeMemberships/test-membership",
+			wantErr: false,
+		},
+		{
+			server:  "https://malicious-site.com",
+			wantErr: true,
+		},
+		{
+			server:  "https://malicious-site.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
+			wantErr: true,
+		},
+		{
+			server:  "https://connectgateway.googleapis.com.malicious-site.com",
+			wantErr: true,
+		},
+		{
+			server:  "https://connectgateway.googleapis.com.malicious-site.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
+			wantErr: true,
+		},
+		{
+			server:  "https://staging-connectgateway.sandbox.googleapis.com.malicious-site.com",
+			wantErr: true,
+		},
+		{
+			server:  "nonsense-server-value",
+			wantErr: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.server, func(t *testing.T) {
+			cluster := &api.Cluster{
+				Server: tt.server,
+			}
+			config, err := connectGatewayKubeConfig(cluster)
+			if err != nil {
+				if !tt.wantErr {
+					t.Fatalf("sanitizedKubeConfig() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				return
+			}
+
+			if len(config.Clusters) != 1 {
+				t.Fatalf("expected 1 cluster in config, got %d", len(config.Clusters))
+			}
+			var server string
+			for _, c := range config.Clusters {
+				server = c.Server
+			}
+			if server != tt.server {
+				t.Fatalf("expected constructed server %s, got %s", tt.server, server)
 			}
 		})
 	}
