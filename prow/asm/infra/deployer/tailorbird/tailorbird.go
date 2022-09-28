@@ -141,9 +141,9 @@ func (d *Instance) Run() error {
 	log.Println("Will run kubetest2 tailorbird deployer to create the clusters...")
 
 	// If clustertype is on-prem, clean up stale hub memberships that are older
-	// than 8-hour to avoid exceeding quota
+	// than 4-hours to avoid exceeding quota.
 	// See http://b/195998781#comment10
-	if string(d.cfg.Cluster) == string(types.GKEOnPrem) {
+	if string(d.cfg.Cluster) == string(types.GKEOnPrem) || string(d.cfg.Cluster) == string(types.HybridGKEAndEKS) || string(d.cfg.Cluster) == string(types.HybridGKEAndGKEOnBareMetal) {
 		hubEnvs := []string{
 			"https://staging-gkehub.sandbox.googleapis.com/",
 			"https://gkehub.googleapis.com/",
@@ -179,13 +179,16 @@ func (d *Instance) Run() error {
 	return exec.Run(cmd, exec.WithWorkingDir(d.cfg.RepoRootDir))
 }
 
+// Delete hub memberships with update time older than 4 hours on onPremHubDevProject.
+// hubEnv is the gkehub endpoint where the project is present.
+// 4 hours is chosen as the tests can take upto 3 hours until it times out.
 func cleanMembership(hubEnv string) error {
 	if err := exec.Run(fmt.Sprintf("gcloud config set api_endpoint_overrides/gkehub %s", hubEnv)); err != nil {
 		return fmt.Errorf("error setting gke hub endpoint to %s: %w", hubEnv, err)
 	}
 
 	log.Printf("Cleaning up stale hub memberships in the project %s", onPremHubDevProject)
-	hms, err := exec.Output(fmt.Sprintf("gcloud container hub memberships list --format='value(name)' --filter='updateTime<-P8H' --project=%s", onPremHubDevProject))
+	hms, err := exec.Output(fmt.Sprintf("gcloud container hub memberships list --format='value(name)' --filter='updateTime<-P4H' --project=%s", onPremHubDevProject))
 	if err != nil {
 		return err
 	}
