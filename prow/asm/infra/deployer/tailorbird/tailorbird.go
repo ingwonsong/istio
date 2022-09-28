@@ -69,6 +69,8 @@ const (
 
 	statusCheckInterval = 30
 	statusCheckMaxRetry = 140
+
+	adminHubCleanupScriptPath = "scripts/admin-membership-cleanup.sh"
 )
 
 var (
@@ -149,6 +151,9 @@ func (d *Instance) Run() error {
 			if err := cleanMembership(v); err != nil {
 				return err
 			}
+			if err := cleanAdminMembership(v); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -201,6 +206,16 @@ func cleanMembership(hubEnv string) error {
 		return fmt.Errorf("error unsetting gke hub endpoint: %w", err)
 	}
 
+	return nil
+}
+
+func cleanAdminMembership(hubEnv string) error {
+	log.Printf("Cleaning up stale *admin cluster* hub memberships in the project %s", onPremHubDevProject)
+	out, err := exec.Output(adminHubCleanupScriptPath + ` "` + hubEnv + `" "` + onPremHubDevProject + `" "12 hour"`)
+	log.Printf("%s", out)
+	if err != nil {
+		return fmt.Errorf("error cleaning up stale *admin cluster* hub memberships: %w", err)
+	}
 	return nil
 }
 
