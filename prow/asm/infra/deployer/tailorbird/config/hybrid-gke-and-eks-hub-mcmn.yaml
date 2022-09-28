@@ -31,7 +31,7 @@ spec:
               networkOptions:
                 network: default
               clusterOptions:
-                clusters: asm-ci-gcp-eks-hybrid-gcp-cluster01
+                clusters: asm-ci-gcp-eks-hybrid-gcp-cluster01-{{ randNumeric 3 }}
                 regions: us-west1
                 gcloudExtraFlags: --enable-ip-alias --subnetwork=default
                 workloadIdentityEnabled: true

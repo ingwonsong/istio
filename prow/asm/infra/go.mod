@@ -3,6 +3,7 @@ module istio.io/istio/prow/asm/infra
 go 1.15
 
 require (
+	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51

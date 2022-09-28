@@ -26,6 +26,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v2"
 
@@ -540,7 +541,7 @@ func (d *Instance) rookeryFile() (string, error) {
 	}
 
 	// Create the template from the template file.
-	tmpl, err := template.New(path.Base(tmplFile)).ParseFiles(tmplFile)
+	tmpl, err := template.New(path.Base(tmplFile)).Funcs(sprig.GenericFuncMap()).ParseFiles(tmplFile)
 	if err != nil {
 		return "", fmt.Errorf("error parsing the Tailorbird rookery template file %s: %w", tmplFile, err)
 	}
