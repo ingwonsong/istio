@@ -44,7 +44,7 @@ const (
 	tracConfigRelDir = "../../team/anthos-trac-team/configs/tailorbird/asm/"
 
 	// GCS path for downloading kubetest2-tailorbird binary
-	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2022-07-27-172450/kubetest2-tailorbird"
+	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2022-09-22-185608/kubetest2-tailorbird"
 
 	installawsIamAuthenticatorCmd = `curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/aws-iam-authenticator \
 			&& chmod +x ./aws-iam-authenticator \

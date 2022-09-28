@@ -43,10 +43,8 @@ spec:
            gkectlConfigSeedVersion: "v1"
            vipNetwork: "fe"
            gkeConnectProject: "tairan-asm-multi-cloud-dev"
+           stackdriverProjectId: "tairan-asm-multi-cloud-dev"
            herculesEnvTtl: "4h"
-           # GKE connect version has to be specified when using a non-prod GKE hub endpoint.
-           # It may not required anymore once b/202282595 is closed. Note that before the bug
-           # lands, we have to update the GKE connect version every ~2 month because of the
-           # GKE connect support window:
-           # google3/configs/production/cdpush/cloud-gkehub/staging/connect_agent_release.gcl.
-           userExtraConfig: internal.overrideGKEHubEndpoint=staging,internal.overrideGKEConnectVersion=20220318-01-00
+           vsphereVersion: "7.0"
+           esxiVersion: "7.0"
+           userExtraConfig: internal.overrideGKEHubEndpoint=staging
