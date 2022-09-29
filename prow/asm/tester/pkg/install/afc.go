@@ -342,18 +342,17 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 				return fmt.Errorf("%s: %s (%s)", pref, bs, resp.Status)
 			}
 			cp := struct {
-				Name    string `json:"name"`
-				State   string `json:"state"`
-				VPCMode string `json:"vpcscMode"`
+				Name      string `json:"name"`
+				State     string `json:"state"`
+				VPCSCMode string `json:"vpcscMode"`
 			}{}
 			if err := json.NewDecoder(resp.Body).Decode(&cp); err != nil {
 				return fmt.Errorf("failed to decode HTTP response for MCP VPCSC installation verification: %w", err)
 			}
-			const expectedVPCSCMode = "COMPATIBLE"
-			if cp.VPCMode != expectedVPCSCMode {
-				return fmt.Errorf("MCP VPCSC installation via AFC failed, got: %v, want: %v", cp.VPCMode, expectedVPCSCMode)
+			if cp.VPCSCMode != "COMPATIBLE" && cp.VPCSCMode != "SEAMLESS" {
+				return fmt.Errorf("MCP VPCSC installation via AFC failed, got: %v, want COMPATIBLE or SEAMLESS", cp.VPCSCMode)
 			}
-			contextLogger.Printf("Done verification. MCP VPCSC is installed in %v mode\n", cp.VPCMode)
+			contextLogger.Printf("Done verification. MCP VPCSC is installed in %v mode\n", cp.VPCSCMode)
 		}
 
 		testUserAuth := c.settings.FeaturesToTest.Has(string(resource.UserAuth))
