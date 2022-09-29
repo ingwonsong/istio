@@ -215,7 +215,7 @@ func cleanMembership(hubEnv string) error {
 
 func cleanAdminMembership(hubEnv string) error {
 	log.Printf("Cleaning up stale *admin cluster* hub memberships in the project %s", onPremHubDevProject)
-	out, err := exec.Output(adminHubCleanupScriptPath + ` "` + hubEnv + `" "` + onPremHubDevProject + `" "12 hour"`)
+	out, err := exec.Output(adminHubCleanupScriptPath + ` "` + hubEnv + `" "` + onPremHubDevProject + `" "5 hour"`)
 	log.Printf("%s", out)
 	if err != nil {
 		return fmt.Errorf("error cleaning up stale *admin cluster* hub memberships: %w", err)
