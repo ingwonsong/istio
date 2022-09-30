@@ -19,14 +19,21 @@ package mcpinit
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	container "cloud.google.com/go/container/apiv1"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	containerpb "google.golang.org/genproto/googleapis/container/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -36,6 +43,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // Import client auth libraries
 	"k8s.io/client-go/rest"
 
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/schema/resource"
 	kubelib "istio.io/istio/pkg/kube"
@@ -45,22 +53,38 @@ import (
 
 var LocalMCP = env.RegisterBoolVar("LOCAL_MCP", false, "If true, use local files and cluster for MCP.").Get()
 
+// KubeConfigParameters represents the set of inputs to construct kubeconfig file.
+type KubeConfigParameters struct {
+	Project            string
+	Location           string
+	Cluster            string
+	FleetProjectNumber string
+	HubMembership      string
+	OutputFile         string
+}
+
+type gkeHubMembership struct {
+	endpoint string
+	location string
+	name     string
+}
+
 // ConstructKubeConfigFile constructs a kubeconfig file that can be
 // used to access the cluster referenced by the project/location/cluster.
 // This will lookup up the cluster information from the GKE api, and
 // construct a "fake" kubeconfig file that will later be read. See
 // https://ahmet.im/blog/authenticating-to-gke-without-gcloud/
-func ConstructKubeConfigFile(ctx context.Context, project, location, cluster, outFile string) error {
-	if project == "" {
+func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) error {
+	if p.Project == "" {
 		return fmt.Errorf("project is empty")
 	}
-	if location == "" {
+	if p.Location == "" {
 		return fmt.Errorf("location is empty")
 	}
-	if cluster == "" {
+	if p.Cluster == "" {
 		return fmt.Errorf("cluster is empty")
 	}
-	if outFile == "" {
+	if p.OutputFile == "" {
 		return fmt.Errorf("outFile is empty")
 	}
 
@@ -68,7 +92,7 @@ func ConstructKubeConfigFile(ctx context.Context, project, location, cluster, ou
 		return err
 	}
 	t0 := time.Now()
-	c, err := container.NewClusterManagerClient(ctx, option.WithQuotaProject(project))
+	c, err := container.NewClusterManagerClient(ctx, option.WithQuotaProject(p.Project))
 	if err != nil {
 		return fmt.Errorf("create cluster manager client: %v", err)
 	}
@@ -78,7 +102,7 @@ func ConstructKubeConfigFile(ctx context.Context, project, location, cluster, ou
 	// to downstream services yet, etc, so we need to retry on all calls.
 	for attempts := 0; attempts < 50; attempts++ {
 		cl, err = c.GetCluster(ctx, &containerpb.GetClusterRequest{
-			Name: fmt.Sprintf("projects/%s/locations/%s/clusters/%s", project, location, cluster),
+			Name: fmt.Sprintf("projects/%s/locations/%s/clusters/%s", p.Project, p.Location, p.Cluster),
 		})
 		if err == nil {
 			break
@@ -89,14 +113,23 @@ func ConstructKubeConfigFile(ctx context.Context, project, location, cluster, ou
 	if cl == nil {
 		return fmt.Errorf("exceeded retry budget fetching cluster: %v", err)
 	}
-	publicEndpoint := cl.Endpoint
-	// For private cluster with public endpoint disabled, the default API server endpoint
-	// is a private IP address.
-	// https://cloud.google.com/kubernetes-engine/docs/concepts/private-cluster-concept#overview
-	// Replace the default Kubernetes API server endpoint (private endpoint),
-	// with its public endpoint.
-	if pcc := cl.GetPrivateClusterConfig(); pcc != nil {
-		publicEndpoint = pcc.PublicEndpoint
+	endpoint := cl.Endpoint
+	caCertificate := cl.MasterAuth.ClusterCaCertificate
+
+	if cl.GetPrivateClusterConfig() != nil {
+		endpoint = cl.GetPrivateClusterConfig().GetPublicEndpoint()
+		// For GKE private clusters, after migration, we rely on Connect Gateway to provide API
+		// server access from CloudRun.
+		// http://cloud/anthos/multicluster-management/gateway
+		if asm.IsConnectGateway() {
+			cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
+			if err != nil {
+				log.Errorf("failed to setup Connect Gateway: %v", err)
+			} else {
+				endpoint = strings.TrimPrefix(cgwURL, "https://")
+				caCertificate = ""
+			}
+		}
 	}
 	kubeConfig := fmt.Sprintf(`
 apiVersion: v1
@@ -109,13 +142,67 @@ clusters:
   cluster:
     server: "https://%s"
     certificate-authority-data: "%s"
-`, publicEndpoint, cl.MasterAuth.ClusterCaCertificate)
+`, endpoint, caCertificate)
 
-	log.Infof("Fetched cluster endpoint in %s: %v", time.Since(t0), cl.Endpoint)
-	if err := os.WriteFile(outFile, []byte(kubeConfig), 0o644); err != nil {
+	log.Infof("Fetched cluster endpoint in %s: %v", time.Since(t0), endpoint)
+	if err := os.WriteFile(p.OutputFile, []byte(kubeConfig), 0o644); err != nil {
 		return err
 	}
 	return nil
+}
+
+func connectGatewayURL(ctx context.Context, fleetProjectNum, hubMembership string) (string, error) {
+	if fleetProjectNum == "" {
+		return "", errors.New("environment variable FLEET_PROJECT_NUMBER is required")
+	}
+	if hubMembership == "" {
+		return "", errors.New("environment variable GKE_HUB_MEMBERSHIP is required")
+	}
+	components, err := parseGKEHubMembership(hubMembership)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse GKE Hub membership: %v", err)
+	}
+	// TODO(ruigu): Obtain fleet project number from CloudResourceManager.
+	// nolint: lll
+	cgwURL, err := url.JoinPath("https://"+connectGatewayEndpointFromHubEndpoint(components.endpoint), "v1", "projects", fleetProjectNum, "locations", components.location, "gkeMemberships", components.name)
+	if err != nil {
+		return "", fmt.Errorf("failed to create Connect Gateway URL: %v", err)
+	}
+	if err := validateCGWAccess(ctx, cgwURL); err != nil {
+		return "", fmt.Errorf("failed to validate Connect Gateway URL: %v", err)
+	}
+
+	return cgwURL, nil
+}
+
+func parseGKEHubMembership(membership string) (*gkeHubMembership, error) {
+	u, err := url.Parse(membership)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse GKE Hub membership %v: %v", membership, err)
+	}
+
+	cgwPathRegex := regexp.MustCompile(`^/projects/([^/]+)/locations/([^/]+)/memberships/([^/]+)$`)
+	pathMatches := cgwPathRegex.FindStringSubmatch(u.Path)
+	if len(pathMatches) == 0 {
+		return nil, fmt.Errorf("cannot parse path regex from path: %s", u.Path)
+	}
+
+	return &gkeHubMembership{
+		endpoint: u.Host,
+		location: pathMatches[2],
+		name:     pathMatches[3],
+	}, nil
+}
+
+func connectGatewayEndpointFromHubEndpoint(hubEndpoint string) string {
+	switch {
+	case strings.HasPrefix(hubEndpoint, "autopush-"):
+		return "autopush-connectgateway.sandbox.googleapis.com"
+	case strings.HasPrefix(hubEndpoint, "staging-"):
+		return "staging-connectgateway.sandbox.googleapis.com"
+	default:
+		return "connectgateway.googleapis.com"
+	}
 }
 
 // pollIAMPropagation waits until the default service account token is available, to workaround
@@ -141,6 +228,24 @@ func pollIAMPropagation() error {
 		time.Sleep(time.Second * 5)
 	}
 	return nil
+}
+
+// validateCGWAccess tests the following:
+// 1) If the CGW API is enabled.
+// 2) Whether the caller has permission to call CGW and permission to access the API server resource.
+// 3) Whether the resource exists.
+func validateCGWAccess(ctx context.Context, url string) error {
+	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		return err
+	}
+	// ConnectGateway doesn't support gRPC client.
+	resp, err := oauth2.NewClient(ctx, creds.TokenSource).Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return googleapi.CheckResponse(resp)
 }
 
 func checkIAM() error {

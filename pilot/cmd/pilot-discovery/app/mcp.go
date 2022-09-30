@@ -150,7 +150,15 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	log.Infof("Initializing MCP with options %+v", p)
 
-	if err := mcpinit.ConstructKubeConfigFile(context.Background(), p.Project, p.Zone, p.Cluster, "/tmp/kubeconfig.yaml"); err != nil {
+	param := mcpinit.KubeConfigParameters{
+		Project:            p.Project,
+		Location:           p.Zone,
+		Cluster:            p.Cluster,
+		FleetProjectNumber: p.FleetProjectNumber,
+		HubMembership:      p.GKEHubMembership,
+		OutputFile:         "/tmp/kubeconfig.yaml",
+	}
+	if err := mcpinit.ConstructKubeConfigFile(context.Background(), param); err != nil {
 		return nil, fmt.Errorf("construct kube config: %v", err)
 	}
 	// Configure Istiod to read or configured kubeconfig file
@@ -620,6 +628,7 @@ type MCPParameters struct {
 	GKEClusterURL      string
 	FleetProjectNumber string
 	AFCManagedWebhook  bool
+	GKEHubMembership   string
 }
 
 type ProxyResourceParameters struct {
@@ -668,8 +677,15 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	if p.XDSAuthProvider == "" {
 		p.XDSAuthProvider = "gcp"
 	}
+	// TODO(ruigu): Obtain IdentityProvider on the fly.
+	// Currently, Thetis construct IdentityProvider URL and pass it to Istiod through env.
+	// It was suggested to directly obtain this info from hub instead of constructing it
+	// by ourself.
 	p.GKEClusterURL = os.Getenv("GKE_CLUSTER_URL")
 	p.FleetProjectNumber = os.Getenv("FLEET_PROJECT_NUMBER")
+	// GKE Hub membership full resource name (https://google.aip.dev/122) with owning API prepended.
+	// e.g. //gkehub.googleapis.com/project/foo/locations/global/memberships/bar
+	p.GKEHubMembership = os.Getenv("GKE_HUB_MEMBERSHIP")
 	p.Tag = os.Getenv("TAG")
 	p.Hub = os.Getenv("HUB")
 	tdProj := os.Getenv("FLEET_PROJECT_ID")

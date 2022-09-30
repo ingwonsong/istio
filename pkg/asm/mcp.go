@@ -28,6 +28,8 @@ var (
 	cloudRunServiceVar = env.RegisterStringVar("K_SERVICE", "", "cloud run service name")
 	enableCloudESFEnv  = env.RegisterBoolVar("ENABLE_CLOUD_ESF", false,
 		"If this is set to true, cloudesf based gateway is enabled.").Get()
+	enableConnectGateway = env.RegisterBoolVar("ENABLE_CONNECT_GATEWAY", false,
+		"If enabled, Connect Gateway will be used to communicate with GKE Private Cluster").Get()
 )
 
 func IsCloudRun() bool {
@@ -39,6 +41,10 @@ func IsCloudRun() bool {
 
 func IsCloudESF() bool {
 	return enableCloudESFEnv
+}
+
+func IsConnectGateway() bool {
+	return enableConnectGateway
 }
 
 var CloudProfilerEnabled = env.RegisterBoolVar("CLOUD_PROFILER_ENABLED", false, "").Get()

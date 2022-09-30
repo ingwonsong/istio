@@ -197,7 +197,14 @@ func (s *server) createKubeClient(ctx context.Context, project, location, cluste
 	kubecfgName := fmt.Sprintf("/tmp/%s-%s-%s-kubeconfig.yaml", project, location, cluster)
 
 	if !s.kubeconfigs[kubecfgName] {
-		if err := mcpinit.ConstructKubeConfigFile(ctx, project, location, cluster, kubecfgName); err != nil {
+		// TODO(ruigu): Migrate MCPUtil to use CGW for private clusters.
+		param := mcpinit.KubeConfigParameters{
+			Project:    project,
+			Location:   location,
+			Cluster:    cluster,
+			OutputFile: "/tmp/kubeconfig.yaml",
+		}
+		if err := mcpinit.ConstructKubeConfigFile(ctx, param); err != nil {
 			return nil, "", fmt.Errorf("could not construct kube config: %v", err)
 		}
 		s.kubeconfigs[kubecfgName] = true
