@@ -831,13 +831,7 @@ arg_required() {
   fi
 }
 
-# TODO(iamwen)
-rollback_all() {
-  heading "Start rolling back to Istio addon"
-  MG_STATE="$(kube get cm -n istio-system asm-addon-migration-state -ojsonpath='{.data.migrationStatus}' || true)"
-  if [[ -z "${MG_STATE}" ]]; then
-    die "There was no prior migration effort, skip rollback"
-  fi
+rollback_mutatingwebhook() {
   # rollback webook
   cat <<EOF | kube apply -f -
 apiVersion: admissionregistration.k8s.io/v1
@@ -876,6 +870,16 @@ webhooks:
     - pods
 EOF
   kube delete mutatingwebhookconfigurations/istio-revision-tag-default || true
+}
+
+# TODO(iamwen)
+rollback_all() {
+  heading "Start rolling back to Istio addon"
+  MG_STATE="$(kube get cm -n istio-system asm-addon-migration-state -ojsonpath='{.data.migrationStatus}' || true)"
+  if [[ -z "${MG_STATE}" ]]; then
+    die "There was no prior migration effort, skip rollback"
+  fi
+  rollback_mutatingwebhook
   rollback_mesh_ca
   rollback_gateway
   enable_galley_webhook
