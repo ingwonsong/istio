@@ -24,3 +24,5 @@ spec:
             kubernetesVersion: "1.21"
             username: asm-svc-acct
             compressArtifacts: "true"
+            nodeType: "m5.2xlarge"
+            nodeCount: "2"
