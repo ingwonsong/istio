@@ -269,8 +269,9 @@ func (p *PodCache) addPodUnsafe(object rtclient.Object) string {
 		return ""
 	}
 	if !p.podIsEnabled(pod, rev) {
-		// the cache only cares about managed pods, discard this one.
-		return ""
+		// The cache only cares about managed pods, discard this one.
+		// Return the correct rev though to trigger a reconciliation and perform any required metrics change.
+		return rev
 	}
 	// get proxy version before locking
 	proxyVersion, _ := util.ProxyVersion(pod)
@@ -473,6 +474,15 @@ func (p *PodCache) RecalculateNamespaceMembers(ns string, oldrev string, client 
 			result = append(result, rev)
 			unique.Insert(rev)
 		}
+	}
+	// Add the old revision to trigger reconciliation.
+	// 1. If the current set has oldrev, that means the namespace still have pods being managed by the old revision,
+	// so the behavior doesn't change.
+	// 2. If the current set does not have oldrev, that means the entire namespace has moved to the newrev and no pods
+	// are managed by the old revision. In this case, we want to trigger the reconciliation on oldrev anyway to reset
+	// the proxy metrics.
+	if !unique.Has(oldrev) {
+		result = append(result, oldrev)
 	}
 	return result
 }

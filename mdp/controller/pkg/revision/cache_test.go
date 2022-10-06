@@ -500,6 +500,27 @@ func TestPodMapper(t *testing.T) {
 			expectedRev = rapid
 		}
 		g.Expect(actualrev).To(gomega.Equal(expectedRev))
+
+		// Test Namespace revisions.
+		if pod.GetNamespace() == constants.KubeSystemNamespace {
+			continue
+		}
+		ns := &v1.Namespace{}
+		err := cl.Get(context.TODO(), types.NamespacedName{Name: pod.GetNamespace()}, ns)
+		if err != nil {
+			t.Fatalf("error getting the associated namespace %s for pod %s: %v", pod.GetNamespace(), pod.GetName(), err)
+		}
+		nsActualRev, _ := nc.RevisionForNamespace(context.TODO(), ns)
+		var nsExpectedRev string
+		switch ns := ns.GetName(); ns {
+		case noRev:
+			nsExpectedRev = ""
+		case rapid:
+			nsExpectedRev = rapid
+		default:
+			nsExpectedRev = regularRevision
+		}
+		g.Expect(nsActualRev).To(gomega.Equal(nsExpectedRev))
 	}
 	_, err = nc.PodsFromRevision(context.TODO(), "foo")
 	g.Expect(err).To(gomega.HaveOccurred())

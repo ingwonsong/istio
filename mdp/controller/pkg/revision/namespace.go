@@ -19,6 +19,7 @@ package revision
 import (
 	"context"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -50,12 +51,23 @@ func (n *NameSpaceHandler) Create(event event.CreateEvent, limitingInterface wor
 // Update Implements EventHandler Interface
 func (n *NameSpaceHandler) Update(event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 	// if label controlling revision has changed, need to update cache.
-	oldrev := event.ObjectOld.GetLabels()[name.IstioRevisionLabel]
-	newrev := event.ObjectNew.GetLabels()[name.IstioRevisionLabel]
+	// We can't use the namespace labels directly since the default tag might not be an explicit revision name.
+	// Even if the pods in the ns are not managed, we will still get the revision name and trigger a reconciliation to
+	// calculate the correct proxy metrics.
+	oldrev, err := n.mapper.RevisionForNamespace(context.Background(), event.ObjectOld.(*v1.Namespace))
+	if err != nil {
+		log.Errorf("Error getting namespace old revision: %v", err)
+		return
+	}
+	newrev, err := n.mapper.RevisionForNamespace(context.Background(), event.ObjectNew.(*v1.Namespace))
+	if err != nil {
+		log.Errorf("Error getting namespace new revision: %v", err)
+		return
+	}
 	oldann := event.ObjectOld.GetAnnotations()[name.MDPEnabledAnnotation]
 	newann := event.ObjectNew.GetAnnotations()[name.MDPEnabledAnnotation]
 	if newrev != oldrev || newann != oldann {
-		//  all pods from oldrev in namespace should be removed from cache, recalculated
+		// All pods from oldrev in namespace should be removed from cache, recalculated.
 		log.Infof("Namespace %s has moved to revision %s, annotation %s", event.ObjectOld.GetName(), newrev, newann)
 		revs := n.podCache.RecalculateNamespaceMembers(event.ObjectOld.GetName(), oldrev, n.client)
 		for _, rev := range revs {
@@ -67,7 +79,7 @@ func (n *NameSpaceHandler) Update(event event.UpdateEvent, limitingInterface wor
 			empty := reconcile.Request{}
 			if dpc == empty {
 				log.Infof("Revision %s has no corresponding DataPlaneControl, skipping", rev)
-				return
+				continue
 			}
 			log.Debugf("Enqueueing change for DPC %s from namespace event", dpc.Name)
 			limitingInterface.Add(dpc)

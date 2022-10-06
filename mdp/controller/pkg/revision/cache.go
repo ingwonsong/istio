@@ -43,6 +43,8 @@ import (
 type Mapper interface {
 	// RevisionForPod uses the pod's controller's podTemplate to identify which revision a newly created pod will point to.
 	RevisionForPod(ctx context.Context, pod *v1.Pod) (string, error)
+	// RevisionForNamespace uses the namespace labels to identify which revision a newly created pod will point to.
+	RevisionForNamespace(ctx context.Context, ns *v1.Namespace) (string, error)
 	// PodsFromRevision iterates over all namespaces and controllers to identify pods which belong to controllers
 	// that create pods belonging to the specified revision.
 	PodsFromRevision(ctx context.Context, rev string) ([]*v1.Pod, error)
@@ -105,7 +107,7 @@ func (n *naiveCache) RevisionForPod(ctx context.Context, pod *v1.Pod) (string, e
 	}
 	for _, whc := range webhooks.Items {
 		for _, wh := range whc.Webhooks {
-			if n.hookMatchesObj(&wh, ns, rs.Spec.Template.Labels) {
+			if n.hookMatchesLabels(&wh, ns.GetLabels(), rs.Spec.Template.GetLabels()) {
 				return whc.Labels[name.IstioRevisionLabel], nil
 			}
 		}
@@ -113,19 +115,38 @@ func (n *naiveCache) RevisionForPod(ctx context.Context, pod *v1.Pod) (string, e
 	return "", nil
 }
 
-func (n *naiveCache) hookMatchesObj(wh *v1admission.MutatingWebhook, ns *v1.Namespace, podLabels map[string]string) bool {
-	var namespaceMatch, objectMatch bool
-	namespaceMatch, err := n.lsCache.Matches(wh.NamespaceSelector, ns.Labels)
+// RevisionForNamespace implements the Mapper interface. Returns the revision which will handle injection for the new pod
+// when any pod is evicted, deleted, or otherwise killed in this namespace.
+// In the event of no revision, that is a namespace which is not labeled with any revision, returns empty string.
+func (n *naiveCache) RevisionForNamespace(ctx context.Context, ns *v1.Namespace) (string, error) {
+	webhooks := &v1admission.MutatingWebhookConfigurationList{}
+	whlabels := map[string]string{appKey: injectorValue}
+	if err := n.client.List(ctx, webhooks, client.MatchingLabels(whlabels)); err != nil {
+		return "", err
+	}
+	for _, whc := range webhooks.Items {
+		for _, wh := range whc.Webhooks {
+			if n.hookMatchesLabels(&wh, ns.GetLabels(), ns.GetLabels()) {
+				return whc.Labels[name.IstioRevisionLabel], nil
+			}
+		}
+	}
+	return "", nil
+}
+
+func (n *naiveCache) hookMatchesLabels(wh *v1admission.MutatingWebhook, nsLabels, objLabels map[string]string) bool {
+	namespaceMatch, err := n.lsCache.Matches(wh.NamespaceSelector, nsLabels)
 	if err != nil {
-		log.Errorf("Failed to parse label selector %v: %s", wh.NamespaceSelector, err)
+		log.Errorf("Failed to parse namespace label selector %v: %s", wh.NamespaceSelector, err)
 		return false
 	}
 	if !namespaceMatch {
 		return false
 	}
-	objectMatch, err = n.lsCache.Matches(wh.ObjectSelector, podLabels)
+
+	objectMatch, err := n.lsCache.Matches(wh.ObjectSelector, objLabels)
 	if err != nil {
-		log.Errorf("Failed to parse label selector %v: %s", wh.ObjectSelector, err)
+		log.Errorf("Failed to parse object label selector %v: %s", wh.ObjectSelector, err)
 		return false
 	}
 	return objectMatch
@@ -174,7 +195,7 @@ func (n *naiveCache) PodsFromRevision(ctx context.Context, rev string) ([]*v1.Po
 					continue
 				}
 				for _, hook := range wh.Webhooks {
-					if n.hookMatchesObj(&hook, &ns, rs.Spec.Template.Labels) {
+					if n.hookMatchesLabels(&hook, ns.GetLabels(), rs.Spec.Template.GetLabels()) {
 						pods := &v1.PodList{}
 						sel, ierr := v12.LabelSelectorAsSelector(rs.Spec.Selector)
 						if ierr != nil {
