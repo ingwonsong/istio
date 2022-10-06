@@ -1,7 +1,7 @@
-0682ac06f5bb457e98a94f9822ccad584652fb8d
+5050a5a65876454c1be9d69808f117babdd0110a
 ========================================
-Clay
-Wed Sep 14 10:36:35 2022 -0700
+Xinnan Wen
+Thu Sep 29 17:05:34 2022 -0700
 
-Always canonicalize kubeconfig file (#1322)
+sync recent updates to the migrate addon script (#1327)
 
