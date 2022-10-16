@@ -71,122 +71,114 @@ func (c *mockCache) Cleanup() {}
 func TestWasmConvert(t *testing.T) {
 	cases := []struct {
 		name       string
-		input      []*core.TypedExtensionConfig
-		wantOutput []*core.TypedExtensionConfig
+		input      []configSpec
+		wantOutput []configSpec
 		wantNack   bool
 	}{
 		{
-			name: "remote load success",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-success"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-success-local-file"],
-			},
-			wantNack: false,
+			name:       "remote-load-success",
+			input:      []configSpec{{tName: "remote-load-success"}},
+			wantOutput: []configSpec{{tName: "remote-load-success-local-file"}},
+			wantNack:   false,
 		},
 		{
-			name: "remote load fail",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-fail"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-fail"],
-			},
-			wantNack: true,
+			name:       "remote-load-fail",
+			input:      []configSpec{{tName: "remote-load-fail"}},
+			wantOutput: []configSpec{{tName: "remote-load-deny"}},
+			wantNack:   true,
 		},
 		{
 			name: "mix",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-fail"],
-				extensionConfigMap["remote-load-success"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-fail"],
-				extensionConfigMap["remote-load-success-local-file"],
-			},
+			input: []configSpec{
+				{tName: "remote-load-fail", eName: "remote-load-mix-fail"},
+				{tName: "remote-load-success", eName: "remote-load-mix-success"}},
+			wantOutput: []configSpec{
+				{tName: "remote-load-deny", eName: "remote-load-mix-fail"},
+				{tName: "remote-load-success-local-file", eName: "remote-load-mix-success"}},
 			wantNack: true,
 		},
 		{
-			name: "remote load fail open",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-fail-open"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-allow"],
-			},
-			wantNack: false,
+			name:       "remote-load-fail-open",
+			input:      []configSpec{{tName: "remote-load-fail-open"}},
+			wantOutput: []configSpec{{tName: "remote-load-allow"}},
+			wantNack:   false,
 		},
 		{
-			name: "no typed struct",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["empty"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["empty"],
-			},
-			wantNack: false,
+			name:       "no-typed-struct",
+			input:      []configSpec{{tName: "empty"}},
+			wantOutput: []configSpec{{tName: "empty"}},
+			wantNack:   false,
 		},
 		{
-			name: "no wasm",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["no-wasm"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["no-wasm"],
-			},
-			wantNack: false,
+			name:       "no-wasm",
+			input:      []configSpec{{tName: "no-wasm"}},
+			wantOutput: []configSpec{{tName: "no-wasm"}},
+			wantNack:   false,
 		},
 		{
-			name: "no remote load",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["no-remote-load"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["no-remote-load"],
-			},
-			wantNack: false,
+			name:       "no-remote-load",
+			input:      []configSpec{{tName: "no-remote-load"}},
+			wantOutput: []configSpec{{tName: "no-remote-load"}},
+			wantNack:   false,
 		},
 		{
-			name: "no uri",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["no-http-uri"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["no-http-uri"],
-			},
-			wantNack: true,
+			name:       "no-http-uri",
+			input:      []configSpec{{tName: "no-http-uri"}},
+			wantOutput: []configSpec{{tName: "remote-load-deny"}},
+			wantNack:   true,
 		},
 		{
-			name: "secret",
-			input: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-secret"],
-			},
-			wantOutput: []*core.TypedExtensionConfig{
-				extensionConfigMap["remote-load-success-local-file"],
-			},
-			wantNack: false,
+			name:       "remote-load-secret",
+			input:      []configSpec{{tName: "remote-load-secret"}},
+			wantOutput: []configSpec{{tName: "remote-load-success-local-file"}},
+			wantNack:   false,
+		},
+		{
+			// First part of "fail after success test"
+			// This should run before the test below
+			name:       "remote-load-fail-after-success-1",
+			input:      []configSpec{{tName: "remote-load-success", eName: "fail-after-success"}},
+			wantOutput: []configSpec{{tName: "remote-load-success-local-file", eName: "fail-after-success"}},
+			wantNack:   false,
+		},
+		{
+			// Second part of "fail after success test"
+			// This should run after the test above
+			//
+			// After success for a filter, ECDS should not be sent if downloading fails.
+			name: "remote-load-fail-after-success-2",
+			input: []configSpec{
+				{tName: "remote-load-fail", eName: "fail-after-success"},
+				{tName: "remote-load-success", eName: "success-anyway"}},
+			wantOutput: []configSpec{{tName: "remote-load-success-local-file", eName: "success-anyway"}},
+			wantNack:   true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			resources := make([]*anypb.Any, 0, len(c.input))
-			for _, i := range c.input {
-				resources = append(resources, protoconv.MessageToAny(i))
+			for _, input := range c.input {
+				if len(input.eName) == 0 {
+					input.eName = c.name
+				}
+				resources = append(resources, protoconv.MessageToAny(getExtensionConfig(t, input)))
 			}
 			mc := &mockCache{}
-			gotNack := MaybeConvertWasmExtensionConfig(resources, mc)
-			if len(resources) != len(c.wantOutput) {
-				t.Fatalf("wasm config conversion number of configuration got %v want %v", len(resources), len(c.wantOutput))
+			converted, gotNack := MaybeConvertWasmExtensionConfig(resources, mc)
+			if len(converted) != len(c.wantOutput) {
+				t.Fatalf("wasm config conversion number of configuration got %v want %v", len(converted), len(c.wantOutput))
 			}
-			for i, output := range resources {
+			for i, output := range converted {
 				ec := &core.TypedExtensionConfig{}
 				if err := output.UnmarshalTo(ec); err != nil {
 					t.Errorf("wasm config conversion output %v failed to unmarshal", output)
 					continue
 				}
-				if !proto.Equal(ec, c.wantOutput[i]) {
+				if len(c.wantOutput[i].eName) == 0 {
+					c.wantOutput[i].eName = c.name
+				}
+				if !proto.Equal(ec, getExtensionConfig(t, c.wantOutput[i])) {
 					t.Errorf("wasm config conversion output index %d got %v want %v", i, ec, c.wantOutput[i])
 				}
 			}
@@ -196,11 +188,9 @@ func TestWasmConvert(t *testing.T) {
 		})
 	}
 }
-
-func buildTypedStructExtensionConfig(name string, wasm *wasm.Wasm) *core.TypedExtensionConfig {
+func buildTypedStructExtensionConfig(wasm *wasm.Wasm) *core.TypedExtensionConfig {
 	ws, _ := conversion.MessageToStruct(wasm)
 	return &core.TypedExtensionConfig{
-		Name: name,
 		TypedConfig: protoconv.MessageToAny(
 			&udpa.TypedStruct{
 				TypeUrl: xds.WasmHTTPFilterType,
@@ -210,14 +200,27 @@ func buildTypedStructExtensionConfig(name string, wasm *wasm.Wasm) *core.TypedEx
 	}
 }
 
-func buildAnyExtensionConfig(name string, msg proto.Message) *core.TypedExtensionConfig {
+func buildAnyExtensionConfig(msg proto.Message) *core.TypedExtensionConfig {
 	return &core.TypedExtensionConfig{
-		Name:        name,
 		TypedConfig: protoconv.MessageToAny(msg),
 	}
 }
 
-var extensionConfigMap = map[string]*core.TypedExtensionConfig{
+type configSpec struct {
+	tName string
+	eName string
+}
+
+func getExtensionConfig(t *testing.T, ioParam configSpec) *core.TypedExtensionConfig {
+	tc := proto.Clone(extensionConfigTemplateMap[ioParam.tName]).(*core.TypedExtensionConfig)
+	if tc == nil {
+		t.Fatalf("configSpec %+v is not valid", t)
+	}
+	tc.Name = ioParam.eName
+	return tc
+}
+
+var extensionConfigTemplateMap = map[string]*core.TypedExtensionConfig{
 	"empty": {
 		Name: "empty",
 		TypedConfig: protoconv.MessageToAny(
@@ -230,7 +233,7 @@ var extensionConfigMap = map[string]*core.TypedExtensionConfig{
 			&udpa.TypedStruct{TypeUrl: resource.APITypePrefix + "sometype"},
 		),
 	},
-	"no-remote-load": buildTypedStructExtensionConfig("no-remote-load", &wasm.Wasm{
+	"no-remote-load": buildTypedStructExtensionConfig(&wasm.Wasm{
 		Config: &v3.PluginConfig{
 			Vm: &v3.PluginConfig_VmConfig{
 				VmConfig: &v3.VmConfig{
@@ -246,7 +249,7 @@ var extensionConfigMap = map[string]*core.TypedExtensionConfig{
 			},
 		},
 	}),
-	"no-http-uri": buildTypedStructExtensionConfig("no-remote-load", &wasm.Wasm{
+	"no-http-uri": buildTypedStructExtensionConfig(&wasm.Wasm{
 		Config: &v3.PluginConfig{
 			Vm: &v3.PluginConfig_VmConfig{
 				VmConfig: &v3.VmConfig{
@@ -257,7 +260,7 @@ var extensionConfigMap = map[string]*core.TypedExtensionConfig{
 			},
 		},
 	}),
-	"remote-load-success": buildTypedStructExtensionConfig("remote-load-success", &wasm.Wasm{
+	"remote-load-success": buildTypedStructExtensionConfig(&wasm.Wasm{
 		Config: &v3.PluginConfig{
 			Vm: &v3.PluginConfig_VmConfig{
 				VmConfig: &v3.VmConfig{
@@ -272,7 +275,7 @@ var extensionConfigMap = map[string]*core.TypedExtensionConfig{
 			},
 		},
 	}),
-	"remote-load-success-local-file": buildAnyExtensionConfig("remote-load-success", &wasm.Wasm{
+	"remote-load-success-local-file": buildAnyExtensionConfig(&wasm.Wasm{
 		Config: &v3.PluginConfig{
 			Vm: &v3.PluginConfig_VmConfig{
 				VmConfig: &v3.VmConfig{
@@ -287,7 +290,7 @@ var extensionConfigMap = map[string]*core.TypedExtensionConfig{
 			},
 		},
 	}),
-	"remote-load-fail": buildTypedStructExtensionConfig("remote-load-fail", &wasm.Wasm{
+	"remote-load-fail": buildTypedStructExtensionConfig(&wasm.Wasm{
 		Config: &v3.PluginConfig{
 			Vm: &v3.PluginConfig_VmConfig{
 				VmConfig: &v3.VmConfig{
@@ -302,7 +305,7 @@ var extensionConfigMap = map[string]*core.TypedExtensionConfig{
 			},
 		},
 	}),
-	"remote-load-fail-open": buildTypedStructExtensionConfig("remote-load-fail", &wasm.Wasm{
+	"remote-load-fail-open": buildTypedStructExtensionConfig(&wasm.Wasm{
 		Config: &v3.PluginConfig{
 			Vm: &v3.PluginConfig_VmConfig{
 				VmConfig: &v3.VmConfig{
@@ -318,8 +321,9 @@ var extensionConfigMap = map[string]*core.TypedExtensionConfig{
 			FailOpen: true,
 		},
 	}),
-	"remote-load-allow": buildAnyExtensionConfig("remote-load-fail", &rbac.RBAC{}),
-	"remote-load-secret": buildTypedStructExtensionConfig("remote-load-success", &wasm.Wasm{
+	"remote-load-allow": buildAnyExtensionConfig(&rbac.RBAC{}),
+	"remote-load-deny":  buildAnyExtensionConfig(denyWasmHTTPFilter),
+	"remote-load-secret": buildTypedStructExtensionConfig(&wasm.Wasm{
 		Config: &v3.PluginConfig{
 			Vm: &v3.PluginConfig_VmConfig{
 				VmConfig: &v3.VmConfig{

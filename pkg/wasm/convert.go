@@ -22,8 +22,9 @@ import (
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	rbac "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/rbac/v3"
 	wasm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/wasm/v3"
+	wasmv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/wasm/v3"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/conversion"
-	"go.uber.org/atomic"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 
 	extensions "istio.io/api/extensions/v1alpha1"
@@ -32,24 +33,70 @@ import (
 	"istio.io/istio/pkg/config/xds"
 )
 
-var allowTypedConfig = protoconv.MessageToAny(&rbac.RBAC{})
-
-func createAllowAllFilter(name string) (*anypb.Any, error) {
-	ec := &core.TypedExtensionConfig{
-		Name:        name,
-		TypedConfig: allowTypedConfig,
+var (
+	allowTypedConfig   = protoconv.MessageToAny(&rbac.RBAC{})
+	denyWasmHTTPFilter = &wasm.Wasm{
+		Config: &wasmv3.PluginConfig{
+			Vm: &wasmv3.PluginConfig_VmConfig{
+				VmConfig: &wasmv3.VmConfig{
+					Code:    nil, // cause fail-fast
+					Runtime: "envoy.wasm.runtime.null",
+				},
+			},
+		},
 	}
-	return anypb.New(ec)
+	denyTypedConfig           = protoconv.MessageToAny(denyWasmHTTPFilter)
+	visitedRemoteWasmResource = make(map[string]bool)
+)
+
+func createDummyFilter(name string, denyAll bool) *anypb.Any {
+	tc := allowTypedConfig
+	if denyAll {
+		tc = denyTypedConfig
+	}
+	return protoconv.MessageToAny(&core.TypedExtensionConfig{
+		Name:        name,
+		TypedConfig: tc,
+	})
 }
 
 // MaybeConvertWasmExtensionConfig converts any presence of module remote download to local file.
 // It downloads the Wasm module and stores the module locally in the file system.
-func MaybeConvertWasmExtensionConfig(resources []*anypb.Any, cache Cache) bool {
+func MaybeConvertWasmExtensionConfig(resources []*anypb.Any, cache Cache) ([]*anypb.Any, bool) {
+	sendNack := convertWasmExtensionConfig(resources, cache)
+	convertedResources := make([]*anypb.Any, 0, len(resources))
+	for _, res := range resources {
+		if res != nil {
+			convertedResources = append(convertedResources, res)
+		}
+	}
+	return convertedResources, sendNack
+}
+
+func MaybeConvertWasmExtensionConfigDelta(deltaResources []*discovery.Resource, cache Cache) ([]*discovery.Resource, bool) {
+	resources := make([]*anypb.Any, 0, len(deltaResources))
+	for i := range deltaResources {
+		resources = append(resources, deltaResources[i].Resource)
+	}
+	sendNack := convertWasmExtensionConfig(resources, cache)
+	convertedDeltaResources := make([]*discovery.Resource, 0, len(resources))
+	for i, res := range resources {
+		if res != nil {
+			deltaResources[i].Resource = res
+			convertedDeltaResources = append(convertedDeltaResources, deltaResources[i])
+		}
+	}
+	return convertedDeltaResources, sendNack
+}
+
+func convertWasmExtensionConfig(resources []*anypb.Any, cache Cache) bool {
 	var wg sync.WaitGroup
 	numResources := len(resources)
 	wg.Add(numResources)
-	sendNack := atomic.NewBool(false)
 	startTime := time.Now()
+
+	var mu sync.Mutex
+	sendNack := false
 	defer func() {
 		wasmConfigConversionDuration.Record(float64(time.Since(startTime).Milliseconds()))
 	}()
@@ -57,21 +104,20 @@ func MaybeConvertWasmExtensionConfig(resources []*anypb.Any, cache Cache) bool {
 	for i := 0; i < numResources; i++ {
 		go func(i int) {
 			defer wg.Done()
-
-			newExtensionConfig, nack := convert(resources[i], cache)
-			if nack {
-				sendNack.Store(true)
-				return
-			}
+			newExtensionConfig, resourceName, nack := convert(resources[i], cache)
 			resources[i] = newExtensionConfig
+			mu.Lock()
+			visitedRemoteWasmResource[resourceName] = true
+			sendNack = sendNack || nack
+			mu.Unlock()
 		}(i)
 	}
 
 	wg.Wait()
-	return sendNack.Load()
+	return sendNack
 }
 
-func convert(resource *anypb.Any, cache Cache) (newExtensionConfig *anypb.Any, sendNack bool) {
+func convert(resource *anypb.Any, cache Cache) (newExtensionConfig *anypb.Any, resourceName string, sendNack bool) {
 	ec := &core.TypedExtensionConfig{}
 	newExtensionConfig = resource
 	sendNack = false
@@ -81,13 +127,13 @@ func convert(resource *anypb.Any, cache Cache) (newExtensionConfig *anypb.Any, s
 			With(resultTag.Value(status)).
 			Increment()
 
-		if newExtensionConfig == resource && !sendNack && status != noRemoteLoad {
-			var err error
-			newExtensionConfig, err = createAllowAllFilter(ec.GetName())
-			if err != nil {
-				// If the fallback is failing, send the Nack regardless of fail_open.
-				wasmLog.Infof("failed to create allow-all filter as a fallback of %s Wasm Module.", ec.GetName())
-				sendNack = true
+		if status != noRemoteLoad {
+			if newExtensionConfig == resource {
+				if sendNack && visitedRemoteWasmResource[ec.GetName()] {
+					newExtensionConfig = nil
+				} else {
+					newExtensionConfig = createDummyFilter(ec.GetName(), sendNack)
+				}
 			}
 		}
 	}()
@@ -95,7 +141,7 @@ func convert(resource *anypb.Any, cache Cache) (newExtensionConfig *anypb.Any, s
 		wasmLog.Debugf("failed to unmarshal extension config resource: %v", err)
 		return
 	}
-
+	resourceName = ec.GetName()
 	wasmHTTPFilterConfig := &wasm.Wasm{}
 	// Wasm filter can be configured using typed struct and Wasm filter type
 	if ec.GetTypedConfig() != nil && ec.GetTypedConfig().TypeUrl == xds.WasmHTTPFilterType {
