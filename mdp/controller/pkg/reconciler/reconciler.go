@@ -153,7 +153,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		return result, fmt.Errorf("unable to determine control plane injection version for revision %s, "+
 			"cannot reconcile: %v", dpc.Spec.Revision, err)
 	}
-	if dpc.Spec.ProxyVersion == "" || cpVersion != dpc.Spec.ProxyVersion {
+	if dpc.Spec.ProxyVersion == "" || !expectedProxyVersion(dpc.Spec.ProxyVersion, cpVersion) {
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.VersionError
 		err := fmt.Errorf("DataPlaneControl for revision %s expects version '%s', but Control Plane is "+
@@ -211,6 +211,11 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 
 	resultMetricLabel = metrics.Success
 	return result, nil
+}
+
+// expectedProxyVersion reports whether the injectedVersion is expected for the given MDP version.
+func expectedProxyVersion(mdpProxyVersion, injectedVersion string) bool {
+	return injectedVersion == mdpProxyVersion || injectedVersion == fmt.Sprintf("%s-distroless", mdpProxyVersion)
 }
 
 func (n *NewReconciler) stopUpdateWorkerForDPR(dprNsName types.NamespacedName) {
