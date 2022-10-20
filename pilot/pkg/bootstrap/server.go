@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/textproto"
 	"os"
 	"path"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	prom "github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
@@ -479,6 +481,7 @@ func (s *Server) Start(stop <-chan struct{}) error {
 			// Otherwise, this is meant for the standard HTTP server
 			s.httpMux.ServeHTTP(w, r)
 		}), h2s)
+		multiplexHandler = denyH2cUpdate(multiplexHandler)
 		s.httpServer.Handler = multiplexHandler
 	}
 
@@ -1338,4 +1341,20 @@ func (s *Server) serveHTTP() error {
 		}
 	}()
 	return nil
+}
+
+func denyH2cUpdate(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isH2CUpgrade(r.Header) {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write([]byte("h2c upgrade not allowed"))
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func isH2CUpgrade(h http.Header) bool {
+	return httpguts.HeaderValuesContainsToken(h[textproto.CanonicalMIMEHeaderKey("Upgrade")], "h2c") &&
+		httpguts.HeaderValuesContainsToken(h[textproto.CanonicalMIMEHeaderKey("Connection")], "HTTP2-Settings")
 }
