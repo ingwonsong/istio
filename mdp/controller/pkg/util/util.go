@@ -30,10 +30,12 @@ import (
 	"istio.io/pkg/log"
 )
 
-// dont' allow more than 1000 entries in the cache
-const maxCacheEntries = 1000 // TODO: tune max entries
-// expire unused cache entries after an hour
-const cacheDefaultExpiration = time.Hour
+// dont't allow more than 1000 entries in the cache
+const (
+	maxCacheEntries = 1000 // TODO: tune max entries
+	// expire unused cache entries after an hour
+	cacheDefaultExpiration = time.Hour
+)
 
 // check for expirations every minute
 const cacheEvictionInterval = time.Minute

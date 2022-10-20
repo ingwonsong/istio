@@ -33,8 +33,13 @@ import (
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/framework/resource/config/apply"
-	"istio.io/istio/pkg/test/shell"
 	"istio.io/istio/pkg/test/util/retry"
+)
+
+const (
+	saGSAKey   = "iam.gke.io/gcp-service-account"
+	saGSAValue = "cloudesf-asm-e2e-sa@cloudesf-testing.iam.gserviceaccount.com"
+	testID     = "cloudesf"
 )
 
 var (
@@ -49,7 +54,6 @@ var (
 	//  cloudesf-asm-e2e-sa@cloudesf-testing.iam.gserviceaccount.com
 	clientNamespace = "cloudesf-test-client-ns"
 	clientKSA       = "cloudesf-test-client-ksa"
-	clientGSA       = "iam.gke.io/gcp-service-account=cloudesf-asm-e2e-sa@cloudesf-testing.iam.gserviceaccount.com"
 	clientPod       = "cloudesf-test-client-pod"
 	clientContainer = "cloudesf-test-client-container"
 
@@ -309,6 +313,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 ) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
 		// Deploy CloudESF config.
+		settings, _ := resource.SettingsFromCommandLine("cloudesf")
 		for _, configPath := range cloudESFConfigs {
 			retry.UntilSuccessOrFail(t, func() error {
 				t.Logf("deploy config %s", configPath)
@@ -320,7 +325,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 				if isCustomBootstrap(configPath) {
 					namespace = "istio-system"
 				}
-				if err := t.Clusters().Default().ApplyYAMLFiles(namespace, configPath); err != nil {
+				if err := t.ConfigKube(t.Clusters().Default()).File(namespace, configPath).Apply(apply.CleanupConditionally); err != nil {
 					return fmt.Errorf("fail to deploy CloudESF config %s: %v", configPath, err)
 				}
 				return nil
@@ -333,7 +338,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		}
 
 		t.Logf("Deploying Cloud ESF based ingress gateway.")
-		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t, apply.Wait, apply.NoCleanup)
+		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t, apply.Wait, apply.CleanupConditionally)
 
 		// Get the ingress address.
 		name := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "istio-system"}
@@ -356,22 +361,40 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 			time.Sleep(time.Second * 60)
 		}
 
-		// Create test client namespace.
-		defer func() {
-			_ = t.Clusters().Default().Kube().CoreV1().Namespaces().Delete(context.TODO(), clientNamespace, metav1.DeleteOptions{})
-		}()
-
-		if _, err := t.Clusters().Default().Kube().CoreV1().Namespaces().Create(context.TODO(), &kubeApiCore.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: clientNamespace},
-		}, metav1.CreateOptions{}); err != nil {
-			t.Fatalf("fail to create test client namespace(%s)  , err: %v", clientNamespace, err)
+		if _, err := t.Clusters().Default().Kube().CoreV1().Namespaces().Get(context.TODO(), clientNamespace, metav1.GetOptions{}); err != nil {
+			t.Logf("Get clientNamespace %q error: %v; trying to create a new one.", clientNamespace, err)
+			if _, err := t.Clusters().Default().Kube().CoreV1().Namespaces().Create(context.TODO(), &kubeApiCore.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: clientNamespace},
+			}, metav1.CreateOptions{}); err != nil {
+				t.Fatalf("Failed to create test client namespace(%s)  , err: %v", clientNamespace, err)
+			}
 		}
 
+		// Delete test client namespace.
+		defer func() {
+			if settings.NoCleanup {
+				t.Log("NoCleanup is true: skip cleaning up clientNamespace: %q.", clientNamespace)
+				return
+			}
+			err := t.Clusters().Default().Kube().CoreV1().Namespaces().Delete(context.TODO(), clientNamespace, metav1.DeleteOptions{})
+			if err != nil {
+				t.Logf("Failed to clean up clientNamespace %q: %v", clientNamespace, err)
+			}
+		}()
+
 		// Create KSA inside the cluster and bind it with the precreated identity.
-		executeShell(t, "create KSA",
-			fmt.Sprintf(`kubectl create serviceaccount --namespace %s %s`, clientNamespace, clientKSA))
-		executeShell(t, "annotate KSA",
-			fmt.Sprintf(`kubectl annotate serviceaccount --namespace %s %s %s`, clientNamespace, clientKSA, clientGSA))
+		if _, err := t.Clusters().Default().Kube().CoreV1().ServiceAccounts(clientNamespace).Get(context.TODO(), clientKSA, metav1.GetOptions{}); err != nil {
+			if _, err := t.Clusters().Default().Kube().CoreV1().ServiceAccounts(clientNamespace).Create(context.TODO(), &kubeApiCore.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: clientKSA,
+					Annotations: map[string]string{
+						saGSAKey: saGSAValue,
+					},
+				},
+			}, metav1.CreateOptions{}); err != nil {
+				t.Fatalf("Failed to create test client namespace(%s)  , err: %v", clientNamespace, err)
+			}
+		}
 
 		// Start the test client container.
 		yamlConfig := fmt.Sprintf(`
@@ -395,7 +418,7 @@ spec:
 		retry.UntilSuccessOrFail(t, func() error {
 			pod, err := t.Clusters().Default().Kube().CoreV1().Pods(clientNamespace).Get(context.TODO(), clientPod, metav1.GetOptions{})
 			if err != nil {
-				t.Fatalf("Fail to get the test client pod: %v", err)
+				t.Fatalf("Failed to get the test client pod: %v", err)
 			}
 			t.Logf("Get status: %v", pod.Status.Phase)
 			switch pod.Status.Phase {
@@ -406,7 +429,7 @@ spec:
 				if log, err := t.Clusters().Default().PodLogs(context.TODO(), clientPod, clientNamespace, clientContainer, false); err == nil {
 					failError = fmt.Sprintf("%s with log:\n%s", failError, log)
 				} else {
-					t.Errorf("Fail to get test client container log: %v", err)
+					t.Errorf("Failed to get test client container log: %v", err)
 				}
 				t.Fatal(failError)
 			default:
@@ -417,7 +440,7 @@ spec:
 }
 
 func cloudEsfImage() string {
-	s, _ := resource.SettingsFromCommandLine("cloudesf")
+	s, _ := resource.SettingsFromCommandLine(testID)
 	hub := "gcr.io/cloudesf-testing/asm"
 	if s.Image.Hub != "gcr.io/istio-testing" {
 		hub = s.Image.Hub
@@ -441,17 +464,4 @@ func healthCheck(t framework.TestContext, i istio.Instance, address string, expe
 		}
 		return fmt.Errorf("ingress gateway is still unhealthy")
 	}, retry.Delay(5*time.Second), retry.Timeout(60*time.Second))
-}
-
-func executeShell(t framework.TestContext, operation, cmd string) string {
-	t.Logf("start %s", operation)
-	t.Logf("cmd is:\n%s", cmd)
-	var ret string
-	var err error
-	if ret, err = shell.Execute(true, cmd); err != nil {
-		t.Fatalf("fail to %s, result: %s, err: %v", operation, ret, err)
-	}
-
-	t.Logf("succeed %s with result:\n%s", operation, ret)
-	return ret
 }
