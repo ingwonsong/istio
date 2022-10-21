@@ -38,6 +38,16 @@ type DataPlaneControlSpec struct {
 	// the nearest value, but never rounded to zero if positive.
 	// +optional
 	ProxyTargetBasisPoints int32 `json:"proxyTargetBasisPoints,omitempty"`
+
+	// InstanceUpgradeDurationHours is the duration for proxy upgrades. This controls
+	// the rate of evictions.
+	// +optional
+	InstanceUpgradeDurationHours int32 `json:"instanceUpgradeDurationHours,omitempty"`
+
+	// UpgradeDurationValidUntil is the timestamp after which the instance upgrade duration
+	// becomes invalid.
+	// +optional
+	UpgradeDurationValidUntil string `json:"upgradeDurationValidUntil,omitempty"`
 }
 
 // DataPlaneControlStatus defines the observed state of data plane revisions.

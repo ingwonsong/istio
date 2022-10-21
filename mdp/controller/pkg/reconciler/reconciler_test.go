@@ -265,3 +265,57 @@ func Test_calculateStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestMaxTimeToReconcile(t *testing.T) {
+	testCases := []struct {
+		name           string
+		dpc            *v1alpha1.DataPlaneControl
+		expectDuration int64
+	}{
+		{
+			name: "default",
+			dpc: &v1alpha1.DataPlaneControl{
+				Spec: v1alpha1.DataPlaneControlSpec{},
+			},
+			expectDuration: int64(MaxTimeToReconcile),
+		},
+		{
+			name: "duration from dpc unexpired",
+			dpc: &v1alpha1.DataPlaneControl{
+				Spec: v1alpha1.DataPlaneControlSpec{
+					InstanceUpgradeDurationHours: 1,
+					UpgradeDurationValidUntil:    time.Now().Add(time.Hour).Format(time.RFC3339),
+				},
+			},
+			expectDuration: int64(time.Hour),
+		},
+		{
+			name: "duration from dpc expired",
+			dpc: &v1alpha1.DataPlaneControl{
+				Spec: v1alpha1.DataPlaneControlSpec{
+					InstanceUpgradeDurationHours: 1,
+					UpgradeDurationValidUntil:    time.Now().Format(time.RFC3339),
+				},
+			},
+			expectDuration: int64(MaxTimeToReconcile),
+		},
+		{
+			name: "duration from dpc capped",
+			dpc: &v1alpha1.DataPlaneControl{
+				Spec: v1alpha1.DataPlaneControlSpec{
+					InstanceUpgradeDurationHours: 24,
+					UpgradeDurationValidUntil:    time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+				},
+			},
+			expectDuration: int64(MaxTimeToReconcile),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := maxTimeToReconcile(tc.dpc); got != tc.expectDuration {
+				t.Errorf("maxTimeToReconcile(#%v) failed, got %v, want %v", tc.dpc, got, tc.expectDuration)
+			}
+		})
+	}
+}

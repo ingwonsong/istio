@@ -30,15 +30,14 @@ import (
 	"istio.io/pkg/log"
 )
 
-// dont't allow more than 1000 entries in the cache
 const (
+	// dont't allow more than 1000 entries in the cache
 	maxCacheEntries = 1000 // TODO: tune max entries
 	// expire unused cache entries after an hour
 	cacheDefaultExpiration = time.Hour
+	// check for expirations every minute
+	cacheEvictionInterval = time.Minute
 )
-
-// check for expirations every minute
-const cacheEvictionInterval = time.Minute
 
 // LabelSelectorCache caches the results of selector.Matches against label signatures, providing a performant way
 // to check lots of labels against lots of selectors.  The cache uses LRU to limit the total used memory to 1000 entries.

@@ -59,12 +59,11 @@ type metricsRecord struct {
 	firstUnReadyTime timeEntry
 }
 
-// MaxTimeToReconcile is the maximum time we can allow one cluster to reconcile.
-var MaxTimeToReconcile = 12 * time.Hour
-
-// var MaxTimeToReconcile = 24*time.Hour
 // these vars allow for test injection
 var (
+	// MaxTimeToReconcile is the maximum time we can allow one cluster to reconcile.
+	MaxTimeToReconcile = 12 * time.Hour
+
 	workerBuilder   = proxyupdater.NewWorker
 	upgraderBuilder = proxyupdater.NewEvictorUpgrader
 )
@@ -186,7 +185,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		resultMetricLabel = metrics.Success
 		return result, nil
 	}
-	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, dpc.Spec.ProxyVersion, limitFor24HourRollout(total))
+	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, dpc.Spec.ProxyVersion, rateLimitForRollout(dpc, total))
 	projectedActual := versions[dpc.Spec.ProxyVersion] + u.Len()
 	log.Debugf("update count projected: %v, desired: %v", projectedActual, desired)
 	if projectedActual < desired {
@@ -234,9 +233,30 @@ func getControlPlaneExpectedVersion(ctx context.Context, cl client.Client, chann
 	return cm.Data[dpTagKey], nil
 }
 
-func limitFor24HourRollout(podCount int) rate.Limit {
-	x := int64(MaxTimeToReconcile)
-	return rate.Every(time.Duration(x / int64(podCount)))
+// rateLimitForRollout rate limits based on the duration of the upgrade and the # of pods to be upgraded.
+func rateLimitForRollout(dpc *v1alpha1.DataPlaneControl, podCount int) rate.Limit {
+	return rate.Every(time.Duration(maxTimeToReconcile(dpc) / int64(podCount)))
+}
+
+// maxTimeToReconcile computes the upgrade duration. If InstanceUpgradeDurationHours is set in DPC and unexpired,
+// we will use that. Otherwise we will use the default global variable.
+func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl) (maxTimeToReconcile int64) {
+	defer log.Infof("using %d hours as max time to reconcile.", maxTimeToReconcile)
+	if dpc.Spec.InstanceUpgradeDurationHours > 0 {
+		upgradeDurationValidUntil, err := time.Parse(time.RFC3339, dpc.Spec.UpgradeDurationValidUntil)
+		if err != nil {
+			log.Errorf("parsing upgrade duration valid timestamp failed: %v, falling back to the default.", err)
+			return int64(MaxTimeToReconcile)
+		}
+		if !time.Now().Before(upgradeDurationValidUntil) {
+			// Invalid upgrade start timestamp or the duration has expired, revert back to default.
+			log.Infof("upgrade duration expired, falling back to the default.")
+			return int64(MaxTimeToReconcile)
+		}
+		// Cap the maxTimeToReconcile to be the default global.
+		return min(int64(dpc.Spec.InstanceUpgradeDurationHours)*int64(time.Hour), int64(MaxTimeToReconcile))
+	}
+	return int64(MaxTimeToReconcile)
 }
 
 func (n *NewReconciler) getOrMakeUpdater(ctx context.Context, dprNsName types.NamespacedName, rev, version string, limit rate.Limit) proxyupdater.UpdateWorker {
@@ -295,4 +315,11 @@ func calculateStatus(dpc *v1alpha1.DataPlaneControl, total int, actual int, fail
 			ManagedProxyCount: int32(total),
 		},
 	}
+}
+
+func min(x, y int64) int64 {
+	if x < y {
+		return x
+	}
+	return y
 }
