@@ -1,0 +1,11 @@
+FROM google/cloud-sdk:alpine
+
+RUN gcloud components install gke-gcloud-auth-plugin
+RUN gcloud components install kubectl
+RUN gcloud components install alpha --quiet
+
+ENV WD=/usr/local/bin
+COPY mdp_chaos.sh $WD/mdp_chaos
+
+WORKDIR $WD
+ENTRYPOINT ["./mdp_chaos"]
