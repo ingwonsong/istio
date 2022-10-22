@@ -300,7 +300,7 @@ func (d *Instance) installTools() error {
 		}
 	}
 
-	if d.cfg.Cluster == types.GKEOnEKS || d.cfg.Cluster == types.HybridGKEAndEKS {
+	if d.cfg.Cluster == types.EKSOnAWS || d.cfg.Cluster == types.HybridGKEAndEKS {
 		if err := exec.Run("bash -c '" + installawsIamAuthenticatorCmd + "'"); err != nil {
 			return fmt.Errorf("error installing aws-iam-authenticator for testing with eks")
 		}
@@ -613,16 +613,20 @@ func (d *Instance) tracRookeryPath() (string, error) {
 func platformName(cluster string) string {
 	platform := cluster
 	switch types.Cluster(cluster) {
+	case types.GKEOnAWS:
+		platform = "gke-on-aws-v1"
+	case types.GKEOnAzure:
+		platform = "gke-on-azure"
+	case types.GKEOnBareMetal:
+		platform = "gke-on-bare-metal"
 	case types.GKEOnPrem:
 		platform = "gke-on-vmware"
-	case types.GKEOnBareMetal:
-		platform = "gke-on-baremetal"
-	case types.GKEOnAWS:
-		platform = "gke-on-aws"
-	case types.GKEOnEKS:
-		platform = "gke-on-eks"
 	case types.GKEOnGCP:
 		platform = "gke-on-gcp"
+	case types.EKSOnAWS:
+		platform = "aws-eks"
+	case types.AKSOnAzure:
+		platform = "azure-aks"
 	}
 	return platform
 }
