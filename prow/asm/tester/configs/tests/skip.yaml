@@ -869,6 +869,94 @@ tests:
       - TestTelemetryAPIStats/mockprom-to-metrics
       reason: unable to share istio-proxy certs to kubevirt vms
 
+  # Smoke test
+  - selectors:
+      test_type: test.integration.asm.smoke
+    targets:
+    # pilot tests
+    - names:
+      - TestFileOnly
+      - TestDirectory.*
+      - TestInvalidFileError
+      - TestJson.*
+      - TestKubeOnly
+      - TestFileAndKubeCombined
+      - TestAllNamespaces
+      - TestErrorLine
+      - TestCNIRaceRepair
+      - TestCompositeGateway
+      - TestRevisionTraffic
+      - TestGatewayConformance
+      - TestGRPCProbe
+      - TestXFFGateway
+      - TestIngress
+      - TestCustomGateway
+      - TestWait
+      - TestVersion
+      - TestXdsVersion
+      - TestDescribe
+      - TestAddToAndRemoveFromMesh
+      - TestXdsProxyStatus
+      - TestAuthZCheck
+      - TestKubeInject
+      - TestRemoteClusters
+      - TestLocality
+      - TestMirroring
+      - TestMirroringExternalService
+      - TestMultiVersionRevision
+      - TestClusterLocal
+      - TestBadRemoteSecret
+      - TestTproxy
+      - TestPiggyback
+      - TestRevisionedUpgrade
+      - TestTraffic/jwt-claim-route
+      - TestTraffic/sniffing
+      - TestTraffic/selfcall
+      - TestTraffic/serverfirst
+      - TestTraffic/gateway
+      - TestTraffic/autopassthrough
+      - TestTraffic/loop
+      - TestTraffic/tls-origination
+      - TestTraffic/instanceip
+      - TestTraffic/services
+      - TestTraffic/host
+      - TestTraffic/envoyfilter
+      - TestTraffic/consistent-hash
+      - TestTraffic/use-client-protocol
+      - TestTraffic/destinationrule
+      - TestTraffic/vm
+      - TestTraffic/dns
+      - TestTcpProbe
+      - TestTunnelingOutboundTraffic
+      - TestEnsureNoMissingCRDs
+      - TestVmOSPost
+      - TestVMRegistrationLifecycle
+    # security tests
+    - names:
+      - TestAuthz_Principal
+      - TestAuthz_DenyPrincipal
+      - TestAuthz_Namespace
+      - TestAuthz_DenyNamespace
+      - TestAuthz_NotNamespace
+      - TestAuthz_NotHost
+      - TestAuthz_NotMethod
+      - TestAuthz_NotPort
+      - TestAuthz_DenyPlaintext
+      - TestAuthz_JWT
+      - TestAuthz_WorkloadSelector
+      - TestAuthz_PathPrecedence
+      - TestAuthz_IngressGateway
+      - TestAuthz_EgressGateway
+      - TestAuthz_PathNormalization
+      - TestAuthz_CustomServer
+      - TestSimpleTlsOrigination
+      - TestMutualTlsOrigination
+      - TestIngressRequestAuthentication
+      - TestMtlsHealthCheck
+      - TestNormalization
+      - TestPassThroughFilterChain
+      - TestReachability
+
 packages:
 
   # skip endpointslice package

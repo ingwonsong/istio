@@ -137,4 +137,13 @@ test.integration.asm.policyconstraint: | $(JUNIT_REPORT)
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
-
+# Custom test target for running smoke tests. Many of the tests in the below packages are skipped in skip.yaml
+.PHONY: test.integration.asm.smoke
+test.integration.asm.smoke: | $(JUNIT_REPORT)
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ \
+    ./tests/integration/pilot/ \
+	./tests/integration/security/ \
+	./tests/integration/telemetry/stats/prometheus/api/ \
+	-timeout 30m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
