@@ -146,6 +146,10 @@ func run() {
 	mapper := revision.NewMapper(mgr.GetClient())
 	cprhandler, cprcache := revision.NewCPRHandler(mapper)
 	pcache := revision.NewPodCache(mapper, cprcache)
+	if runLocal {
+		// For local debug, refresh the cache much faster, otherwise controller will take minutes to react.
+		pcache.RebuildInterval = 5 * time.Second
+	}
 	cprhandler.SetPodCache(pcache)
 	nscache := revision.NewNamespaceHandler(pcache, mgr.GetClient(), mapper)
 	sw := status.NewWorker(rate.Every(10*time.Second), mgr.GetClient())

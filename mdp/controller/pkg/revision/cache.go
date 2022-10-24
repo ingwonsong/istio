@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	v1admission "k8s.io/api/admissionregistration/v1"
@@ -63,8 +64,9 @@ type Mapper interface {
 }
 
 const (
-	appKey        = "app"
-	injectorValue = "sidecar-injector"
+	appKey                      = "app"
+	injectorValue               = "sidecar-injector"
+	defaultCacheRefreshInterval = 5 * time.Minute
 )
 
 // NewMapper returns a Mapper for navigating from Pods to Control Plane and Data Plane Revisions.
@@ -269,8 +271,14 @@ func parseEnabledAnnotation(val string) (*bool, error) {
 		return nil, outErr
 	}
 	enabled := parsed["managed"]
-	result := strings.EqualFold(enabled, "true")
-	return &result, nil
+	var result *bool
+	switch {
+	case strings.EqualFold(enabled, "true"):
+		result = boolPtr(true)
+	case strings.EqualFold(enabled, "false"):
+		result = boolPtr(false)
+	}
+	return result, nil
 }
 
 func (n *naiveCache) ObjectIsMDPEnabled(object client.Object) (*bool, error) {
@@ -343,4 +351,9 @@ func (n *naiveCache) controllingReplicaset(ctx context.Context, pod *v1.Pod) (*a
 		return nil, err
 	}
 	return rs, nil
+}
+
+func boolPtr(a bool) *bool {
+	ret := a
+	return &ret
 }

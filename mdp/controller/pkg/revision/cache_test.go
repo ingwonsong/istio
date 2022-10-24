@@ -60,11 +60,17 @@ var (
 			Name:      regularRevision,
 			Namespace: name.IstioSystemNamespace,
 		},
+		Spec: v1alpha1.ControlPlaneRevisionSpec{
+			Channel: v1alpha1.ChannelRegular,
+		},
 	}
 	otherRevCPR = &v1alpha1.ControlPlaneRevision{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      rapidRevision,
 			Namespace: name.IstioSystemNamespace,
+		},
+		Spec: v1alpha1.ControlPlaneRevisionSpec{
+			Channel: v1alpha1.ChannelRapid,
 		},
 	}
 )
@@ -670,11 +676,6 @@ func enabledAnnotation(isOn *bool) map[string]string {
 		val = enabledAnnotationOnValue
 	}
 	return map[string]string{name.MDPEnabledAnnotation: val}
-}
-
-func boolPtr(b bool) *bool {
-	out := b
-	return &out
 }
 
 func makeSet(in []*v1.Pod) []client.ObjectKey {

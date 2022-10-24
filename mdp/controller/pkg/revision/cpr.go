@@ -33,6 +33,12 @@ type CPRHandler struct {
 	mapper   Mapper
 }
 
+var mdpEnabledByDefaultMap = map[v1alpha1.ReleaseChannel]*bool{
+	v1alpha1.ChannelRapid:   boolPtr(true),
+	v1alpha1.ChannelRegular: boolPtr(false),
+	v1alpha1.ChannelStable:  boolPtr(false),
+}
+
 // NewCPRHandler returns an event handler designed to handle only events for
 func NewCPRHandler(mapper Mapper) (*CPRHandler, *EnablementCache) {
 	result := &CPRHandler{
@@ -64,8 +70,11 @@ func (c *CPRHandler) Generic(event event.GenericEvent, limitingInterface workque
 }
 
 func (c *CPRHandler) updateEnablement(object client.Object) {
+	cpr := object.(*v1alpha1.ControlPlaneRevision)
 	// typedRevisionEnabled errors on json parsing, which effectively means enablement is not specified
-	enabled, _ := c.mapper.ObjectIsMDPEnabled(object.(*v1alpha1.ControlPlaneRevision))
+	enabled, _ := c.mapper.ObjectIsMDPEnabled(cpr)
+	enabled = applyDefaultIfUnset(enabled, mdpEnabledByDefault(cpr.Spec.Channel))
+
 	// Any time CPR enablement is touched, invalidate the entire pod cache.
 	// These are rare events so it's not worth checking for state changes, given the ambiguity with using
 	// bool pointers for enablement.
@@ -102,4 +111,19 @@ func (rec *EnablementCache) UpdateRevisionEnablement(rev string, enabled *bool) 
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	rec.cache[rev] = enabled
+}
+
+func applyDefaultIfUnset(userVal, defaultVal *bool) *bool {
+	if userVal == nil {
+		return defaultVal
+	}
+	return userVal
+}
+
+func mdpEnabledByDefault(ch v1alpha1.ReleaseChannel) *bool {
+	ret, ok := mdpEnabledByDefaultMap[ch]
+	if ok {
+		return ret
+	}
+	return boolPtr(false)
 }

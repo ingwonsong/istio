@@ -162,14 +162,16 @@ type ReadWritePodCache interface {
 
 // PodCache is a cache for Pods.
 type PodCache struct {
+	// RebuildInterval is the interval between cache rebuilds, if cache is dirty.
+	RebuildInterval time.Duration
+
 	state  perRevisionNamespace
 	mapper Mapper
 	mu     sync.RWMutex
 	rec    *EnablementCache
 
-	dirtymu         sync.Mutex
-	dirty           bool
-	rebuildInterval time.Duration
+	dirtymu sync.Mutex
+	dirty   bool
 }
 
 type (
@@ -184,7 +186,7 @@ func NewPodCache(mapper Mapper, rec *EnablementCache) *PodCache {
 		state:           make(perRevisionNamespace),
 		mapper:          mapper,
 		rec:             rec,
-		rebuildInterval: 5 * time.Minute,
+		RebuildInterval: defaultCacheRefreshInterval,
 	}
 }
 
@@ -212,7 +214,7 @@ func (p *PodCache) MarkDirty() {
 
 // Start implements WritePodCache
 func (p *PodCache) Start(ctx context.Context) {
-	t := time.NewTicker(p.rebuildInterval)
+	t := time.NewTicker(p.RebuildInterval)
 	go func() {
 		for {
 			select {
@@ -238,6 +240,7 @@ func (p *PodCache) maybeRebuildCache(ctx context.Context) {
 		return
 	}
 	tempCache := NewPodCache(p.mapper, p.rec)
+	tempCache.RebuildInterval = p.RebuildInterval
 	for _, rev := range revisions {
 		pods, err := p.mapper.PodsFromRevision(ctx, rev)
 		if err != nil {
