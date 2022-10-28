@@ -232,7 +232,7 @@
                     "backendProtocol": "grpc",
                     "jwtPayloadMetadataName": "jwt_payloads",
                     "producerProjectId": "cloud-api-proxy-testing",
-                    "serviceConfigId": "latest",
+                    "serviceConfigId": "1-c79b863b-32931e4f-f236fec5-5859f04f-970c3221",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   }
                 ]

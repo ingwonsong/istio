@@ -218,7 +218,7 @@
                     "backendProtocol": "grpc",
                     "jwtPayloadMetadataName": "jwt_payloads",
                     "producerProjectId": "cloudesf-testing",
-                    "serviceConfigId": "latest",
+		    "serviceConfigId": "1-be753c98-637372ef-943eb424-56cc64bf-8506f4e0",
                     "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
                   }
                 ]
