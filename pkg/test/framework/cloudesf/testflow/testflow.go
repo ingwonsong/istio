@@ -302,6 +302,43 @@ spec:
     istio: ingressgateway
     app: istio-ingressgateway
   type: LoadBalancer`
+
+	backendTempalte = `
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-esf-asm-e2e
+spec:
+  type: ClusterIP
+  selector:
+    app: cloud-esf-asm-e2e
+  ports:
+  # Istio needs the prefix "grpc-" to set the protocol explicitly to grpc
+  # https://istio.io/latest/docs/ops/configuration/traffic-management/protocol-selection/#explicit-protocol-selection
+  - name: grpc-8080
+    port: 8080 # The port of the service
+    targetPort: 26000 # The port of the backend.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-esf-asm-e2e
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloud-esf-asm-e2e
+  template:
+    metadata:
+      labels:
+        app: cloud-esf-asm-e2e
+    spec:
+      containers:
+      - name: backend-server
+        image: {{ .backendContainerImage }}
+        ports:
+        - containerPort: 26000
+`
 )
 
 func isCustomBootstrap(path string) bool {
@@ -309,7 +346,7 @@ func isCustomBootstrap(path string) bool {
 }
 
 func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageAddr,
-	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs string,
+	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs string, backendImageAddr string,
 ) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
 		// Deploy CloudESF config.
@@ -339,6 +376,8 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 
 		t.Logf("Deploying Cloud ESF based ingress gateway.")
 		t.ConfigKube().Eval("istio-system", templateParams, gatewayTemplate).ApplyOrFail(t, apply.Wait, apply.CleanupConditionally)
+
+		deployBackend(t, backendImageAddr)
 
 		// Get the ingress address.
 		name := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "istio-system"}
@@ -464,4 +503,12 @@ func healthCheck(t framework.TestContext, i istio.Instance, address string, expe
 		}
 		return fmt.Errorf("ingress gateway is still unhealthy")
 	}, retry.Delay(5*time.Second), retry.Timeout(60*time.Second))
+}
+
+func deployBackend(t framework.TestContext, backendAddress string) {
+	t.Logf("Deploying API backend.")
+	templateParams := map[string]string{
+		"backendContainerImage": backendAddress,
+	}
+	t.ConfigKube().Eval("default", templateParams, backendTempalte).ApplyOrFail(t, apply.Wait, apply.CleanupConditionally)
 }

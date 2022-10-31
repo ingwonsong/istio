@@ -57,12 +57,12 @@ func TestCloudESFGrpcEcho(t *testing.T) {
 					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_gateway.json",
 					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_virtual_service.json",
 					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_service_entry.json",
-					grpcEchoTestConfigFolder + "/asm_backend.yaml",
 					grpcEchoTestConfigFolder + "/grpc_echo_asm_e2e_config_custom_bootstrap.json",
 				},
 				"gcr.io/cloudesf-testing/grpc_echo_asm_e2e_config_ic_image:"+cloudesf.Version(),
 				"",
 				"us.gcr.io/cloudesf-testing/e2e_grpc_echo_test_client",
 				"",
+				"us.gcr.io/cloudesf-testing/e2e_grpc_echo_test_server:"+cloudesf.Version(),
 			))
 }

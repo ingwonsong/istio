@@ -139,6 +139,56 @@
               }
             },
             "uri": {
+              "exact": "/echo4ratelimit"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo4RateLimit",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echo4ratelimit/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo4RateLimit",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
               "exact": "/echoreport"
             }
           }
@@ -219,6 +269,56 @@
           }
         ],
         "name": "test.grpc.Test.EchoStream",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echostream4ratelimit"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream4RateLimit",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/echostream4ratelimit/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream4RateLimit",
         "route": [
           {
             "destination": {
@@ -377,6 +477,56 @@
               }
             },
             "uri": {
+              "exact": "/test.grpc.Test/Echo4RateLimit"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo4RateLimit",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/Echo4RateLimit/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.Echo4RateLimit",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
               "exact": "/test.grpc.Test/EchoReport"
             }
           }
@@ -457,6 +607,56 @@
           }
         ],
         "name": "test.grpc.Test.EchoStream",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/EchoStream4RateLimit"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream4RateLimit",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/test.grpc.Test/EchoStream4RateLimit/"
+            }
+          }
+        ],
+        "name": "test.grpc.Test.EchoStream4RateLimit",
         "route": [
           {
             "destination": {

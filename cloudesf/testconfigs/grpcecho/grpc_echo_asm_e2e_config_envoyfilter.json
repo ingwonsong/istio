@@ -31,7 +31,9 @@
             "typedConfig": {
               "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
               "typeUrl": "type.googleapis.com/net.envoy.proto.ErrorDetailsPatchFilterConfig",
-              "value": {}
+              "value": {
+                "enableOpError": true
+              }
             }
           }
         }
@@ -200,6 +202,18 @@
                     "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
                   },
                   {
+                    "apiName": "test.grpc.Test",
+                    "apiVersion": "v1",
+                    "operationName": "test.grpc.Test.Echo4RateLimit",
+                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                  },
+                  {
+                    "apiName": "test.grpc.Test",
+                    "apiVersion": "v1",
+                    "operationName": "test.grpc.Test.EchoStream4RateLimit",
+                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                  },
+                  {
                     "apiName": "google.discovery.Discovery",
                     "apiVersion": "v1",
                     "operationName": "google.discovery.Discovery.GetDiscovery",
@@ -218,7 +232,7 @@
                     "backendProtocol": "grpc",
                     "jwtPayloadMetadataName": "jwt_payloads",
                     "producerProjectId": "cloudesf-testing",
-		    "serviceConfigId": "1-be753c98-637372ef-943eb424-56cc64bf-8506f4e0",
+                    "serviceConfigId": "1-010472e3_62b87bfe_5030527d_030e1ba1_0b143d96",
                     "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
                   }
                 ]
@@ -247,6 +261,54 @@
                     "serviceConfigPath": "/etc/istio/proxy/_grpc_echo_asm_e2e_config_service.txtpb"
                   }
                 }
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "NETWORK_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager"
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "MERGE",
+          "value": {
+            "name": "envoy.filters.network.http_connection_manager",
+            "typedConfig": {
+              "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+              "localReplyConfig": {
+                "mappers": [
+                  {
+                    "bodyFormatOverride": {
+                      "jsonFormat": {
+                        "error": {
+                          "code": "%RESPONSE_CODE%",
+                          "message": "%LOCAL_REPLY_BODY%",
+                          "status": "%FILTER_STATE(net.envoy.error_details_patch.GrpcStatusEnumStr:PLAIN)%"
+                        }
+                      }
+                    },
+                    "filter": {
+                      "extensionFilter": {
+                        "name": "envoy.access_loggers.extension_filters.not_grpc_downstream",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+                          "typeUrl": "type.googleapis.com/net.envoy.proto.NotGrpcDownstreamConfig",
+                          "value": {}
+                        }
+                      }
+                    }
+                  }
+                ]
               }
             }
           }

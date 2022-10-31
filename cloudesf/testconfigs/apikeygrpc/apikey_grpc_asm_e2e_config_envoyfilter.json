@@ -31,7 +31,9 @@
             "typedConfig": {
               "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
               "typeUrl": "type.googleapis.com/net.envoy.proto.ErrorDetailsPatchFilterConfig",
-              "value": {}
+              "value": {
+                "enableOpError": true
+              }
             }
           }
         }
@@ -232,7 +234,7 @@
                     "backendProtocol": "grpc",
                     "jwtPayloadMetadataName": "jwt_payloads",
                     "producerProjectId": "cloud-api-proxy-testing",
-                    "serviceConfigId": "1-c79b863b-32931e4f-f236fec5-5859f04f-970c3221",
+                    "serviceConfigId": "1-68ba4ff2-412d32db-71ea56f4-53b1b17d-eef233de",
                     "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
                   }
                 ]
@@ -261,6 +263,54 @@
                     "serviceConfigPath": "/etc/istio/proxy/_apikey_grpc_asm_e2e_config_service.txtpb"
                   }
                 }
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "NETWORK_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager"
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "MERGE",
+          "value": {
+            "name": "envoy.filters.network.http_connection_manager",
+            "typedConfig": {
+              "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+              "localReplyConfig": {
+                "mappers": [
+                  {
+                    "bodyFormatOverride": {
+                      "jsonFormat": {
+                        "error": {
+                          "code": "%RESPONSE_CODE%",
+                          "message": "%LOCAL_REPLY_BODY%",
+                          "status": "%FILTER_STATE(net.envoy.error_details_patch.GrpcStatusEnumStr:PLAIN)%"
+                        }
+                      }
+                    },
+                    "filter": {
+                      "extensionFilter": {
+                        "name": "envoy.access_loggers.extension_filters.not_grpc_downstream",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+                          "typeUrl": "type.googleapis.com/net.envoy.proto.NotGrpcDownstreamConfig",
+                          "value": {}
+                        }
+                      }
+                    }
+                  }
+                ]
               }
             }
           }

@@ -61,12 +61,12 @@ func TestCloudESFApiKeyGrpc(t *testing.T) {
 					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_gateway.json",
 					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_virtual_service.json",
 					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_service_entry.json",
-					apiKeyGrpcTestConfigFolder + "/asm_backend.yaml",
 					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_custom_bootstrap.json",
 				},
 				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image:"+cloudesf.Version(),
 				"http://%s:80/v1/projects/random-project/apiKeys",
 				cloudESFTestClientImage,
 				`"--only_validate_resp_error_code"`,
+				"us.gcr.io/cloudesf-testing/e2e_apikey_grpc_test_server:"+cloudesf.Version(),
 			))
 }
