@@ -234,8 +234,8 @@ check_prerequisites() {
 }
 
 configure_mesh_ca() {
-  configure_mesh_ca_14
   configure_mesh_ca_16
+  configure_mesh_ca_14
 }
 
 MESH_CA_ROOT="
@@ -282,6 +282,7 @@ xjb8UkCmyjU=
 configure_mesh_ca_16() {
   prompt "Configuring Istio Addon 1.6 to trust Anthos Service Mesh..."
   #
+  pushd "${TMP_DIR}" > /dev/null
   ISTIOD_16_REPLICA="$(kubectl get deployment/istiod-istio-1611 -n istio-system -ojsonpath='{.status.availableReplicas}' --ignore-not-found)"
   if [[ -z "${ISTIOD_16_REPLICA}" || "${ISTIOD_16_REPLICA}" == "0" ]];then
     echo "Skip because Istio Addon 1.6 control plane does not exists"
@@ -314,7 +315,7 @@ configure_mesh_ca_16() {
   # Next we insert the mesh ca root cert so that it is trusted
   orig="$(kube -n istio-system get secret istio-ca-secret -ojsonpath='{.data.ca-cert\.pem}' | base64 -d)"
   encoded="$(echo "${orig}" "${MESH_CA_ROOT}" | base64 -w 0)"
-  patchfile="${TMP_DIR}/cacert.yaml"
+  patchfile="cacert.yaml"
   cat <<EOF > "${patchfile}"
 data:
   ca-cert.pem: ${encoded}
@@ -380,6 +381,7 @@ EOF
   echo "Waiting for proxies to pick up the new root certificate..."; sleep 15
   kube delete envoyfilter trigger-root-cert -n istio-system
   echo -e "${green}OK${clr}"
+  popd > /dev/null
 }
 
 configure_mesh_ca_14() {
@@ -465,6 +467,7 @@ EOF
     echo "Waiting for proxies to pick up the new root certificate..."; sleep 15
   fi
   echo -e "${green}OK${clr}"
+  popd > /dev/null
 }
 
 rollback_mesh_ca() {
