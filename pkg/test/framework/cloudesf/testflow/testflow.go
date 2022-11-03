@@ -19,6 +19,7 @@ package testflow
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"strings"
@@ -43,6 +44,13 @@ const (
 )
 
 var (
+	cloudESFTestRun = flag.String("cloudesf.test.run", "",
+		"For debugging test only. The value of this flag will be passed to test client via '-test.run' as a filter to run a subset of tests only.")
+	cloudESFInitContainerVersionOverride = flag.String("cloudesf.test.initcontainer.tag", "",
+		"For debugging test only. If the value is not empty, it'll supersede the default init container tag.")
+)
+
+var (
 	// The test client image has to run with certain IAM roles, in order to generate
 	// access token by impersonating other identities.
 	//
@@ -54,7 +62,7 @@ var (
 	//  cloudesf-asm-e2e-sa@cloudesf-testing.iam.gserviceaccount.com
 	clientNamespace = "cloudesf-test-client-ns"
 	clientKSA       = "cloudesf-test-client-ksa"
-	clientPod       = "cloudesf-test-client-pod"
+	clientPodName   = "cloudesf-test-client-pod"
 	clientContainer = "cloudesf-test-client-container"
 
 	// The gateway config is based on the sample template from
@@ -345,8 +353,8 @@ func isCustomBootstrap(path string) bool {
 	return strings.Contains(path, "custom_bootstrap.json")
 }
 
-func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageAddr,
-	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs string, backendImageAddr string,
+func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImagePath,
+	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs []string, backendImageAddr string,
 ) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
 		// Deploy CloudESF config.
@@ -369,8 +377,13 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 			}, retry.Delay(5*time.Second), retry.Timeout(60*time.Second))
 		}
 
+		initContainerTag := cloudesf.Version()
+		if *cloudESFInitContainerVersionOverride != "" {
+			initContainerTag = *cloudESFInitContainerVersionOverride
+		}
+
 		templateParams := map[string]string{
-			"initContainerImage": initContainerImageAddr,
+			"initContainerImage": strings.Join([]string{initContainerImagePath, initContainerTag}, ":"),
 			"gatewayImage":       cloudEsfImage(),
 		}
 
@@ -412,7 +425,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 		// Delete test client namespace.
 		defer func() {
 			if settings.NoCleanup {
-				t.Log("NoCleanup is true: skip cleaning up clientNamespace: %q.", clientNamespace)
+				t.Logf("NoCleanup is true: skip cleaning up clientNamespace: %q.", clientNamespace)
 				return
 			}
 			err := t.Clusters().Default().Kube().CoreV1().Namespaces().Delete(context.TODO(), clientNamespace, metav1.DeleteOptions{})
@@ -435,37 +448,68 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageA
 			}
 		}
 
+		if *cloudESFTestRun != "" {
+			testClientImageExtraArgs = append(testClientImageExtraArgs, "-test.run="+(*cloudESFTestRun))
+		}
+
 		// Start the test client container.
-		yamlConfig := fmt.Sprintf(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: %s
-  namespace: %s
-spec:
-  restartPolicy: Never
-  serviceAccountName: %s
-  containers:
-  - image: %s:%s
-    name: %s
-    args: ["-host=%s:80", %s]
-`, clientPod, clientNamespace, clientKSA, testClientImageAddr, cloudesf.Version(), clientContainer, address, testClientImageExtraArgs)
-		t.Logf("test client config:\n%s", yamlConfig)
-		t.ConfigKube().YAML(clientNamespace, yamlConfig).ApplyOrFail(t)
+		var clientPod *kubeApiCore.Pod
+		var err error
+		clientPod = &kubeApiCore.Pod{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Pod",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clientPodName,
+				Namespace: clientNamespace,
+			},
+			Spec: kubeApiCore.PodSpec{
+				RestartPolicy:      kubeApiCore.RestartPolicyNever,
+				ServiceAccountName: clientKSA,
+				Containers: []kubeApiCore.Container{
+					{
+						Image: fmt.Sprintf("%s:%s", testClientImageAddr, cloudesf.Version()),
+						Name:  clientContainer,
+						Args:  append(testClientImageExtraArgs, fmt.Sprintf("-host=%s:80", address)),
+					},
+				},
+			},
+		}
+
+		clientPod, err = t.Clusters().Default().Kube().CoreV1().Pods(clientNamespace).Create(context.TODO(), clientPod, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Failed to start test client pod: %v.", err)
+		}
+
+		defer func() {
+			// Because we dump the logs already, we can delete the client which is useful for the next run.
+			t.Logf("Delete client pod %q in namespace %q.", clientPodName, clientNamespace)
+			err := t.Clusters().Default().Kube().CoreV1().Pods(clientNamespace).Delete(context.TODO(), clientPodName, metav1.DeleteOptions{})
+			if err != nil {
+				t.Logf("Failed to delete client pod %q in namespace %q. Err: %v.", err)
+			}
+		}()
 
 		// Wait the test client container finish.
 		retry.UntilSuccessOrFail(t, func() error {
-			pod, err := t.Clusters().Default().Kube().CoreV1().Pods(clientNamespace).Get(context.TODO(), clientPod, metav1.GetOptions{})
+			clientPod, err = t.Clusters().Default().Kube().CoreV1().Pods(clientNamespace).Get(context.TODO(), clientPodName, metav1.GetOptions{})
 			if err != nil {
 				t.Fatalf("Failed to get the test client pod: %v", err)
 			}
-			t.Logf("Get status: %v", pod.Status.Phase)
-			switch pod.Status.Phase {
+			t.Logf("Get status: %v", clientPod.Status.Phase)
+			switch clientPod.Status.Phase {
 			case kubeApiCore.PodSucceeded:
+				log, err := t.Clusters().Default().PodLogs(context.TODO(), clientPodName, clientNamespace, clientContainer, false)
+				if err != nil {
+					t.Logf("Test succeeded; however it failed to pull the test logs: %v", err)
+				} else {
+					t.Logf(log)
+				}
 				return nil
 			case kubeApiCore.PodFailed:
 				failError := "Fail to run the test client container"
-				if log, err := t.Clusters().Default().PodLogs(context.TODO(), clientPod, clientNamespace, clientContainer, false); err == nil {
+				if log, err := t.Clusters().Default().PodLogs(context.TODO(), clientPodName, clientNamespace, clientContainer, false); err == nil {
 					failError = fmt.Sprintf("%s with log:\n%s", failError, log)
 				} else {
 					t.Errorf("Failed to get test client container log: %v", err)
