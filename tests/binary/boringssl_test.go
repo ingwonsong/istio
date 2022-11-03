@@ -24,12 +24,6 @@ import (
 	"istio.io/istio/pkg/asm/bcheck/version"
 )
 
-var dynamicallyLinked = map[string]bool{
-	// For unknown reasons, pilot-agent is not linked dynamically. While we should figure out why, this
-	// is actually perfect fine (arguably better) since we run it alongside Envoy which is dynamically linked anyway.
-	"pilot-agent": true,
-}
-
 // Test that binary sizes do not bloat
 func TestBoringssl(t *testing.T) {
 	runBinariesTest(t, func(t *testing.T, name string) {
@@ -47,14 +41,8 @@ func TestBoringssl(t *testing.T) {
 			t.Fatalf("check failed: %v", err)
 		}
 
-		if dynamicallyLinked[name] {
-			if static {
-				t.Fatalf("expected dynamic linking")
-			}
-		} else {
-			if !static {
-				t.Fatalf("binary not statically compiled")
-			}
+		if !static {
+			t.Fatalf("binary not statically compiled")
 		}
 	})
 }

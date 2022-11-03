@@ -262,12 +262,12 @@ func RunMake(args Args, arch string, c ...string) error {
 	env := StandardEnv(args)
 	env = append(env, archToGoFlags(arch)...)
 	// Special Cases
-	if arch == "arm64" {
+	if arch == "linux/arm64" {
 		// If Env contains duplicate environment keys, only the last
 		// value in the slice for each duplicate key is used.
 		// Therefore, create an empty GOEXPERIMENT for arm64 until
 		// goboring supports arm64 targets.
-		env = append(env, `GOEXPERIMENT=""`)
+		env = append(env, `GOEXPERIMENT=none`, `CGO_ENABLED=0`)
 	}
 	makeArgs := []string{"--no-print-directory"}
 	makeArgs = append(makeArgs, c...)
