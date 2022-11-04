@@ -30,6 +30,7 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/kube/multicluster/translation"
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/istio/pkg/util/sets"
@@ -99,7 +100,7 @@ func resetCallbackData() {
 }
 
 func Test_SecretController(t *testing.T) {
-	BuildClientsFromConfig = func(kubeConfig []byte) (kube.Client, error) {
+	BuildClientsFromConfig = func(kubeConfig []byte, cache translation.Cache) (kube.Client, error) {
 		return kube.NewFakeClient(), nil
 	}
 	test.SetForTest(t, &features.RemoteClusterTimeout, 10*time.Nanosecond)
@@ -197,11 +198,12 @@ func Test_SecretController(t *testing.T) {
 
 func TestSanitizeKubeConfig(t *testing.T) {
 	cases := []struct {
-		name      string
-		config    api.Config
-		allowlist sets.Set
-		want      api.Config
-		wantErr   bool
+		name            string
+		config          api.Config
+		allowlist       sets.Set
+		ipConfigMapping map[string]api.Config
+		want            api.Config
+		wantErr         bool
 	}{
 		{
 			name:    "empty",
@@ -310,10 +312,51 @@ func TestSanitizeKubeConfig(t *testing.T) {
 				CurrentContext: "cgw",
 			},
 		},
+		{
+			name: "IP based remote secret translated with match",
+			config: api.Config{
+				Clusters: map[string]*api.Cluster{
+					"default": {
+						Server: "https://1.2.3.4",
+					},
+				},
+				Contexts: map[string]*api.Context{
+					"default": {
+						Cluster: "default",
+					},
+				},
+			},
+			ipConfigMapping: map[string]api.Config{
+				"1.2.3.4": {
+					Clusters: map[string]*api.Cluster{
+						"cgw": {
+							Server: "https://cached-endpoint.com",
+						},
+					},
+					Contexts: map[string]*api.Context{
+						"cgw": {
+							Cluster: "cgw",
+						},
+					},
+				},
+			},
+			want: api.Config{
+				Clusters: map[string]*api.Cluster{
+					"cgw": {
+						Server: "https://cached-endpoint.com",
+					},
+				},
+				Contexts: map[string]*api.Context{
+					"cgw": {
+						Cluster: "cgw",
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			sanitized, err := sanitizedKubeConfig(tt.config, tt.allowlist)
+			sanitized, err := sanitizedKubeConfig(tt.config, tt.allowlist, translation.NewMockMembershipCache(tt.ipConfigMapping))
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("sanitizedKubeConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}

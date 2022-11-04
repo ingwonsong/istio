@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -42,7 +43,9 @@ import (
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/controllers"
+	"istio.io/istio/pkg/kube/multicluster/translation"
 	"istio.io/istio/pkg/util/sets"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 	"istio.io/pkg/monitoring"
 )
@@ -60,6 +63,8 @@ const (
 func init() {
 	monitoring.MustRegister(timeouts)
 	monitoring.MustRegister(clustersCount)
+	monitoring.MustRegister(ipBasedRemoteSecretsCount)
+	monitoring.MustRegister(ipBasedRemoteSecretsTranslatedCount)
 }
 
 var (
@@ -76,11 +81,24 @@ var (
 		monitoring.WithLabels(clusterType),
 	)
 
+	ipBasedRemoteSecretsCount = monitoring.NewGauge(
+		"istiod_ip_based_remote_secrets",
+		"Number of remote secrets with IP for server field",
+	)
+
+	ipBasedRemoteSecretsTranslatedCount = monitoring.NewGauge(
+		"istiod_ip_based_remote_secrets_translated",
+		"Number of remote secrets with IP for server field translated to use connect gateway endpoint",
+	)
+
 	localClusters  = clustersCount.With(clusterType.Value("local"))
 	remoteClusters = clustersCount.With(clusterType.Value("remote"))
 
 	cgwHostRegex = regexp.MustCompile(`^([^\.]*)-?(autopush|staging)?\-?connectgateway.(?:sandbox\.)?googleapis.com$`)
 	cgwPathRegex = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/gkeMemberships/([^/]+)$`)
+
+	enableTranslationCache = env.RegisterBoolVar("ENABLE_TRANSLATION_CACHE", false,
+		"If enabled, attempt to translated remote secrets with IP endpoints to CGW endpoint.").Get()
 )
 
 type ClusterHandler interface {
@@ -97,7 +115,8 @@ type Controller struct {
 	queue               controllers.Queue
 	informer            cache.SharedIndexInformer
 
-	cs *ClusterStore
+	cs                *ClusterStore
+	ipMembershipCache translation.Cache
 
 	handlers []ClusterHandler
 }
@@ -144,12 +163,24 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 	// init gauges
 	localClusters.Record(1.0)
 	remoteClusters.Record(0.0)
+	ipBasedRemoteSecretsCount.Record(0.0)
+	ipBasedRemoteSecretsTranslatedCount.Record(0.0)
+
+	var cache translation.Cache
+	if enableTranslationCache {
+		var err error
+		cache, err = translation.NewIPMembershipCache()
+		if err != nil {
+			log.Errorf("Failed to create translation cache: %v", err)
+		}
+	}
 
 	controller := &Controller{
 		namespace:           namespace,
 		configClusterID:     clusterID,
 		configClusterClient: kubeclientset,
 		cs:                  newClustersStore(),
+		ipMembershipCache:   cache,
 		informer:            secretsInformer,
 	}
 
@@ -238,7 +269,7 @@ func (c *Controller) processItem(key types.NamespacedName) error {
 }
 
 // BuildClientsFromConfig creates kube.Clients from the provided kubeconfig. This is overridden for testing only
-var BuildClientsFromConfig = func(kubeConfig []byte) (kube.Client, error) {
+var BuildClientsFromConfig = func(kubeConfig []byte, cache translation.Cache) (kube.Client, error) {
 	if len(kubeConfig) == 0 {
 		return nil, errors.New("kubeconfig is empty")
 	}
@@ -251,7 +282,7 @@ var BuildClientsFromConfig = func(kubeConfig []byte) (kube.Client, error) {
 	if err := clientcmd.Validate(*rawConfig); err != nil {
 		return nil, fmt.Errorf("kubeconfig is not valid: %v", err)
 	}
-	config, err := sanitizedKubeConfig(*rawConfig, features.InsecureKubeConfigOptions)
+	config, err := sanitizedKubeConfig(*rawConfig, features.InsecureKubeConfigOptions, cache)
 	if err != nil {
 		return nil, fmt.Errorf("kubeconfig is not allowed: %v", err)
 	}
@@ -268,7 +299,7 @@ var BuildClientsFromConfig = func(kubeConfig []byte) (kube.Client, error) {
 // sanitizedKubeConfig sanitizes a kubeconfig file to strip out insecure settings which may leak
 // confidential materials.
 // See https://github.com/kubernetes/kubectl/issues/697
-func sanitizedKubeConfig(config api.Config, allowlist sets.Set) (api.Config, error) {
+func sanitizedKubeConfig(config api.Config, allowlist sets.Set, cache translation.Cache) (api.Config, error) {
 	for k, auths := range config.AuthInfos {
 		if ap := auths.AuthProvider; ap != nil {
 			// We currently are importing 5 authenticators: gcp, azure, exec, and openstack
@@ -336,11 +367,30 @@ func sanitizedKubeConfig(config api.Config, allowlist sets.Set) (api.Config, err
 		//   entirely local
 	}
 
+	// Translate secrets with raw IP to use connect gateway endpoint if possible.
+	if cache != nil {
+		for _, cluster := range config.Clusters {
+			serverURL, err := url.Parse(cluster.Server)
+			if err != nil {
+				continue
+			}
+			if net.ParseIP(serverURL.Host) != nil {
+				ipBasedRemoteSecretsCount.Increment()
+				config, found := cache.Get(serverURL.Host)
+				if found {
+					log.Infof("Translated secret with host: %s\nconfig: %v", serverURL.Host, config)
+					ipBasedRemoteSecretsTranslatedCount.Increment()
+					return config, nil
+				}
+			}
+		}
+	}
+
 	return config, nil
 }
 
 func (c *Controller) createRemoteCluster(kubeConfig []byte, clusterID string) (*Cluster, error) {
-	clients, err := BuildClientsFromConfig(kubeConfig)
+	clients, err := BuildClientsFromConfig(kubeConfig, c.ipMembershipCache)
 	if err != nil {
 		return nil, err
 	}
