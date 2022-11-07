@@ -64,7 +64,6 @@ func TestCloudESFApiKeyGrpc(t *testing.T) {
 					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_custom_bootstrap.json",
 				},
 				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image",
-				"http://%s:80/v1/projects/random-project/apiKeys",
 				cloudESFTestClientImage,
 				[]string{
 					"--only_validate_resp_error_code",

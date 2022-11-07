@@ -354,7 +354,7 @@ func isCustomBootstrap(path string) bool {
 }
 
 func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImagePath,
-	healthCheckPath, testClientImageAddr string, testClientImageExtraArgs []string, backendImageAddr string,
+	testClientImageAddr string, testClientImageExtraArgs []string, backendImageAddr string,
 ) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
 		// Deploy CloudESF config.
@@ -398,20 +398,7 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageP
 		t.Logf("The ingress address is: %v", address)
 
 		// Wait for CloudESF to be healthy.
-		//
-		// The common ingress gateway healthcheck(:15021/healthz/ready) won't work
-		// as the CloudESF's related filters may not be ready(returns 503).
-		// Workaround by calling the path exposed by CloudESF's test services and
-		// it should return 401 as expected.
-		// TODO(b/197691552): ASM CloudESF is healthy while the CloudESF exposed paths return 503
-		if healthCheckPath != "" {
-			// Expected status code is 400 because of missing consumer ID.
-			healthCheck(t, i, fmt.Sprintf(healthCheckPath, address), 400)
-		} else {
-			// Just simply sleep instead of doing healthcheck on grpc-echo, otherwise we need to
-			// introduce its grpc library from google3.
-			time.Sleep(time.Second * 60)
-		}
+		healthCheck(t, i, fmt.Sprintf("http://%s:15021/healthz/ready", address))
 
 		if _, err := t.Clusters().Default().Kube().CoreV1().Namespaces().Get(context.TODO(), clientNamespace, metav1.GetOptions{}); err != nil {
 			t.Logf("Get clientNamespace %q error: %v; trying to create a new one.", clientNamespace, err)
@@ -537,11 +524,11 @@ func cloudEsfImage() string {
 	return fmt.Sprintf("%s/cloudesf:%s", hub, tag)
 }
 
-func healthCheck(t framework.TestContext, i istio.Instance, address string, expectedStatusCode int) {
+func healthCheck(t framework.TestContext, i istio.Instance, address string) {
 	retry.UntilSuccessOrFail(t, func() error {
 		resp, err := http.Get(address)
 		t.Logf("%vth health check on %s, got resp: %v, error: %v", i, address, resp, err)
-		if resp != nil && resp.StatusCode == expectedStatusCode {
+		if resp != nil && resp.StatusCode == 200 {
 			t.Logf("Ingress gateway is healthy")
 			return nil
 		}
