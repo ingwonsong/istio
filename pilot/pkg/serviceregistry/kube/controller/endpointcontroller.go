@@ -22,10 +22,11 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/serviceregistry/kube"
-	"istio.io/istio/pilot/pkg/serviceregistry/kube/controller/filter"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/schema/kind"
+	"istio.io/istio/pkg/kube/informer"
+	"istio.io/istio/pkg/util/sets"
 )
 
 // Pilot can get EDS information from Kubernetes from two mutually exclusive sources, Endpoints and
@@ -34,7 +35,7 @@ import (
 type kubeEndpointsController interface {
 	HasSynced() bool
 	Run(stopCh <-chan struct{})
-	getInformer() filter.FilteredSharedIndexInformer
+	getInformer() informer.FilteredSharedIndexInformer
 	onEvent(curr any, event model.Event) error
 	InstancesByPort(c *Controller, svc *model.Service, reqSvcPort int, labelsList labels.Instance) []*model.ServiceInstance
 	GetProxyServiceInstances(c *Controller, proxy *model.Proxy) []*model.ServiceInstance
@@ -48,7 +49,7 @@ type kubeEndpointsController interface {
 // kubeEndpoints abstracts the common behavior across endpoint and endpoint slices.
 type kubeEndpoints struct {
 	c        *Controller
-	informer filter.FilteredSharedIndexInformer
+	informer informer.FilteredSharedIndexInformer
 }
 
 func (e *kubeEndpoints) HasSynced() bool {
@@ -72,11 +73,8 @@ func processEndpointEvent(c *Controller, epc kubeEndpointsController, name strin
 					c.opts.XDSUpdater.ConfigUpdate(&model.PushRequest{
 						Full: true,
 						// TODO: extend and set service instance type, so no need to re-init push context
-						ConfigsUpdated: map[model.ConfigKey]struct{}{{
-							Kind:      kind.ServiceEntry,
-							Name:      modelSvc.Hostname.String(),
-							Namespace: svc.Namespace,
-						}: {}},
+						ConfigsUpdated: sets.New(model.ConfigKey{Kind: kind.ServiceEntry, Name: modelSvc.Hostname.String(), Namespace: svc.Namespace}),
+
 						Reason: []model.TriggerReason{model.EndpointUpdate},
 					})
 					return nil

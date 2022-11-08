@@ -25,10 +25,10 @@ import (
 	"time"
 
 	container "cloud.google.com/go/container/apiv1"
+	"cloud.google.com/go/container/apiv1/containerpb"
 	gkehub "cloud.google.com/go/gkehub/apiv1beta1"
 	"cloud.google.com/go/gkehub/apiv1beta1/gkehubpb"
 	"google.golang.org/api/option"
-	containerpb "google.golang.org/genproto/googleapis/container/v1"
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"istio.io/pkg/log"

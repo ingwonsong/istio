@@ -102,7 +102,7 @@ type XdsCache interface {
 	// whether the entry exists in the cache.
 	Get(entry XdsCacheEntry) (*discovery.Resource, bool)
 	// Clear removes the cache entries that are dependent on the configs passed.
-	Clear(map[ConfigKey]struct{})
+	Clear(sets.Set[ConfigKey])
 	// ClearAll clears the entire cache.
 	ClearAll()
 	// Keys returns all currently configured keys. This is for testing/debug only
@@ -115,8 +115,8 @@ type XdsCache interface {
 func NewXdsCache() XdsCache {
 	cache := &lruCache{
 		enableAssertions: features.EnableUnsafeAssertions,
-		configIndex:      map[ConfigHash]sets.Set{},
-		typesIndex:       map[kind.Kind]sets.Set{},
+		configIndex:      map[ConfigHash]sets.String{},
+		typesIndex:       map[kind.Kind]sets.String{},
 	}
 	cache.store = newLru(cache.onEvict)
 
@@ -127,8 +127,8 @@ func NewXdsCache() XdsCache {
 func NewLenientXdsCache() XdsCache {
 	cache := &lruCache{
 		enableAssertions: false,
-		configIndex:      map[ConfigHash]sets.Set{},
-		typesIndex:       map[kind.Kind]sets.Set{},
+		configIndex:      map[ConfigHash]sets.String{},
+		typesIndex:       map[kind.Kind]sets.String{},
 	}
 	cache.store = newLru(cache.onEvict)
 
@@ -142,8 +142,8 @@ type lruCache struct {
 	// It is refreshed when Clear or ClearAll are called
 	token       CacheToken
 	mu          sync.RWMutex
-	configIndex map[ConfigHash]sets.Set
-	typesIndex  map[kind.Kind]sets.Set
+	configIndex map[ConfigHash]sets.String
+	typesIndex  map[kind.Kind]sets.String
 
 	// mark whether a key is evicted on Clear call, passively.
 	evictedOnClear bool
@@ -192,7 +192,7 @@ func (l *lruCache) onEvict(k any, v any) {
 func (l *lruCache) updateConfigIndex(k string, dependentConfigs []ConfigHash) {
 	for _, cfg := range dependentConfigs {
 		if l.configIndex[cfg] == nil {
-			l.configIndex[cfg] = sets.New()
+			l.configIndex[cfg] = sets.New[string]()
 		}
 		l.configIndex[cfg].Insert(k)
 	}
@@ -215,7 +215,7 @@ func (l *lruCache) clearConfigIndex(k string, dependentConfigs []ConfigHash) {
 func (l *lruCache) updateTypesIndex(k string, dependentTypes []kind.Kind) {
 	for _, t := range dependentTypes {
 		if l.typesIndex[t] == nil {
-			l.typesIndex[t] = sets.New()
+			l.typesIndex[t] = sets.New[string]()
 		}
 		l.typesIndex[t].Insert(k)
 	}
@@ -276,7 +276,7 @@ func (l *lruCache) Add(entry XdsCacheEntry, pushReq *PushRequest, value *discove
 	cur, f := l.store.Get(k)
 	if f {
 		// This is the stale resource
-		if token < cur.(cacheValue).token || token < l.token {
+		if token <= cur.(cacheValue).token || token < l.token {
 			// entry may be stale, we need to drop it. This can happen when the cache is invalidated
 			// after we call Get.
 			return
@@ -335,7 +335,7 @@ func (l *lruCache) Get(entry XdsCacheEntry) (*discovery.Resource, bool) {
 	return cv.value, true
 }
 
-func (l *lruCache) Clear(configs map[ConfigKey]struct{}) {
+func (l *lruCache) Clear(configs sets.Set[ConfigKey]) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.token = CacheToken(time.Now().UnixNano())
@@ -366,8 +366,8 @@ func (l *lruCache) ClearAll() {
 	// it runs the function for every key in the store, might be better to just
 	// create a new store.
 	l.store = newLru(l.onEvict)
-	l.configIndex = map[ConfigHash]sets.Set{}
-	l.typesIndex = map[kind.Kind]sets.Set{}
+	l.configIndex = map[ConfigHash]sets.String{}
+	l.typesIndex = map[kind.Kind]sets.String{}
 	size(l.store.Len())
 }
 
@@ -409,7 +409,7 @@ func (d DisabledCache) Get(XdsCacheEntry) (*discovery.Resource, bool) {
 	return nil, false
 }
 
-func (d DisabledCache) Clear(configsUpdated map[ConfigKey]struct{}) {}
+func (d DisabledCache) Clear(configsUpdated sets.Set[ConfigKey]) {}
 
 func (d DisabledCache) ClearAll() {}
 

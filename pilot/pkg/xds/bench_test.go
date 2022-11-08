@@ -49,6 +49,7 @@ import (
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/util/yml"
 	"istio.io/istio/pkg/util/protomarshal"
+	"istio.io/istio/pkg/util/sets"
 	"istio.io/pkg/env"
 	istiolog "istio.io/pkg/log"
 )
@@ -367,12 +368,14 @@ func setupTest(t testing.TB, config ConfigInput) (*FakeDiscoveryServer, *model.P
 				"istio.io/benchmark": "true",
 			},
 			ClusterID:    "Kubernetes",
-			IstioVersion: "1.16.0",
+			IstioVersion: "1.17.0",
 		},
 		ConfigNamespace:  "default",
 		VerifiedIdentity: &spiffe.Identity{Namespace: "default"},
 	}
 	proxy.IstioVersion = model.ParseIstioVersion(proxy.Metadata.IstioVersion)
+	// need to call DiscoverIPMode to check the ipMode of the proxy
+	proxy.DiscoverIPMode()
 
 	configs, k8sConfig := getConfigsWithCache(t, config)
 	m := mesh.DefaultMeshConfig()
@@ -561,7 +564,7 @@ func BenchmarkPushRequest(b *testing.B) {
 		for i := 0; i < pushesMerged; i++ {
 			trigger := allTriggers[i%len(allTriggers)]
 			nreq := &model.PushRequest{
-				ConfigsUpdated: map[model.ConfigKey]struct{}{},
+				ConfigsUpdated: sets.New[model.ConfigKey](),
 				Reason:         []model.TriggerReason{trigger},
 			}
 			for c := 0; c < configs; c++ {

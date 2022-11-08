@@ -167,11 +167,13 @@ func newHTTPTransportGetter(cfg *Config) (httpTransportGetter, func()) {
 			DisableKeepAlives: true,
 			TLSClientConfig:   cfg.tlsConfig,
 			DialContext:       dialContext,
-			Proxy:             http.ProxyFromEnvironment,
 		}
 
 		// Set the proxy in the transport, if specified.
-		out.Proxy = cfg.proxyURL
+		// for socks5 proxy is setup is done in the newDialer function.
+		if !strings.HasPrefix(cfg.Proxy, "socks5://") {
+			out.Proxy = cfg.proxyURL
+		}
 		return out
 	}
 	noCloseFn := func() {}

@@ -72,6 +72,8 @@ var conformanceNamespaces = []string{
 
 var skippedTests = map[string]string{
 	"GatewaySecretMissingReferencedSecret": "https://github.com/istio/istio/issues/40714",
+	// Broken upstream
+	"HTTPRouteResponseHeaderModifier": "https://github.com/kubernetes-sigs/gateway-api/pull/1472",
 }
 
 const gatewayConformanceTimeoutScaler = 3
@@ -120,8 +122,12 @@ func TestGatewayConformance(t *testing.T) {
 				GatewayClassName:     "istio",
 				Debug:                scopes.Framework.DebugEnabled(),
 				CleanupBaseResources: gatewayConformanceInputs.Cleanup,
-				SupportedFeatures:    []suite.SupportedFeature{suite.SupportReferenceGrant},
-				TimeoutConfig:        timeoutConfig,
+				SupportedFeatures: []suite.SupportedFeature{
+					suite.SupportHTTPRouteQueryParamMatching,
+					suite.SupportHTTPRouteMethodMatching,
+					suite.SupportHTTPResponseHeaderModification,
+				},
+				TimeoutConfig: timeoutConfig,
 			}
 			if rev := ctx.Settings().Revisions.Default(); rev != "" {
 				opts.NamespaceLabels = map[string]string{
@@ -164,7 +170,7 @@ func DeployGatewayAPICRD(ctx framework.TestContext) {
 	// Wait until our GatewayClass is ready
 	retry.UntilSuccessOrFail(ctx, func() error {
 		for _, c := range ctx.Clusters().Configs() {
-			_, err := c.GatewayAPI().GatewayV1alpha2().GatewayClasses().Get(context.Background(), "istio", metav1.GetOptions{})
+			_, err := c.GatewayAPI().GatewayV1beta1().GatewayClasses().Get(context.Background(), "istio", metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
