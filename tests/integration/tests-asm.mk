@@ -2,7 +2,7 @@
 # Target: test.integration.asm.*
 #-----------------------------------------------------------------------------
 
-_MCP_TEST_TIMEOUT = 30m
+_MCP_TEST_TIMEOUT = 60m
 ifneq ($(MCP_TEST_TIMEOUT),)
 	_MCP_TEST_TIMEOUT = $(MCP_TEST_TIMEOUT)
 endif

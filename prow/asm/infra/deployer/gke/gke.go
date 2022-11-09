@@ -277,6 +277,14 @@ func (d *Instance) multiClusterFlags(releaseChannel types.ReleaseChannel) ([]str
 		"--release-channel="+string(releaseChannel),
 		"--version="+d.getClusterVersion())
 
+	if d.cfg.Features.Has(string(types.PrivateClusterUnrestrictedAccess)) {
+		flags = append(flags, "--private-cluster-access-level=unrestricted", "--private-cluster-master-ip-range=172.16.0.32/28,172.16.1.32/28,172.16.2.32/28,172.16.3.32/28,172.16.4.32/28,172.16.5.32/28")
+	} else if d.cfg.Features.Has(string(types.PrivateClusterLimitedAccess)) {
+		flags = append(flags, "--private-cluster-access-level=limited", "--private-cluster-master-ip-range=172.16.0.32/28,172.16.1.32/28,172.16.2.32/28,172.16.3.32/28,172.16.4.32/28,172.16.5.32/28")
+	} else if d.cfg.Features.Has(string(types.PrivateClusterNoAccess)) {
+		flags = append(flags, "--private-cluster-access-level=no", "--private-cluster-master-ip-range=172.16.0.32/28,172.16.1.32/28,172.16.2.32/28,172.16.3.32/28,172.16.4.32/28,172.16.5.32/28")
+	}
+
 	return flags, nil
 }
 

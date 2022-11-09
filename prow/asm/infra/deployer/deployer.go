@@ -31,10 +31,15 @@ type Instance interface {
 func New(cfg config.Instance) Instance {
 	// GKE-on-GCP cluster with VPC_SC/COMPOSITE_GATEWAY features still need to be
 	// migrated to Tailorbird.
-	if (cfg.Cluster == types.GKEOnGCP &&
-		(cfg.Features.Has(string(types.VPCServiceControls)) ||
-			cfg.Features.Has(string(types.CompositeGateway)))) ||
-		cfg.Cluster == types.GKEOnGCPWithAutoPilot {
+	switch cfg.Cluster {
+	case types.GKEOnGCP:
+		if cfg.Features.Has(string(types.VPCServiceControls)) || cfg.Features.Has(string(types.CompositeGateway)) {
+			return gke.NewInstance(cfg)
+		}
+		if cfg.Features.Has(string(types.PrivateClusterUnrestrictedAccess)) && cfg.Topology == types.MultiCluster {
+			return gke.NewInstance(cfg)
+		}
+	case types.GKEOnGCPWithAutoPilot:
 		return gke.NewInstance(cfg)
 	}
 	return tailorbird.NewInstance(cfg)
