@@ -42,6 +42,9 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 				}
 				testFlags = append(testFlags,
 					"--istio.test.revision="+revisionLabel)
+			} else if settings.ControlPlane == resource.ManagedLocal {
+				testFlags = append(testFlags,
+					"--istio.test.revision=asm-managed")
 			} else {
 				testFlags = append(testFlags,
 					// install_asm will install the image to all three channels.

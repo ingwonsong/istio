@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -60,48 +61,91 @@ func (c *installer) installASMManagedLocalControlPlane(rev *revision.Config) err
 		return fmt.Errorf("error enabling hub mesh feature: %w", err)
 	}
 
+	for _, kubeconfig := range kubeconfigs {
+		if err := registerOffGCPCluster(kubeconfig, c.settings.ClusterType); err != nil {
+			return err
+		}
+	}
+
 	for i, context := range contexts {
 		if err := retry.UntilSuccess(func() error {
-			return exec.Run(fmt.Sprintf("kubectl get crd/controlplanerevisions.mesh.cloud.google.com --context=%s", context))
+			return exec.Run(fmt.Sprintf("kubectl get crd/controlplanerevisions.mesh.cloud.google.com --context=%s --kubeconfig=%s", context, kubeconfigs[i]))
 		}, retry.Timeout(time.Second*600), retry.Delay(time.Second*10)); err != nil {
 			return fmt.Errorf("error waiting for ControlPlaneRevision CRD: %w", err)
 		}
 
-		if err := exec.Run(fmt.Sprintf(`bash -c 'cat <<EOF | kubectl apply --context=%s -f -
+		if err := exec.Run(fmt.Sprintf(`bash -c 'cat <<EOF | kubectl apply --context=%s --kubeconfig=%s -f -
 apiVersion: mesh.cloud.google.com/v1alpha1
 kind: ControlPlaneRevision
 metadata:
-  name: asm-managed-rapid
+  name: asm-managed
   namespace: istio-system
+  annotations:
+    mesh.cloud.google.com/shared-resources-template: staging-shared-resources-regular-template-1.14.4
+    mesh.cloud.google.com/managed-local-template: staging-managed-local-regular-template-1.14.4
 spec:
   type: managed_local
-  channel: rapid
-EOF'`, context)); err != nil {
+  channel: regular
+EOF'`, context, kubeconfigs[i])); err != nil {
 			return fmt.Errorf("error creating Control Plane Revision CR")
 		}
 
-		if err := exec.Run(fmt.Sprintf("kubectl -n istio-system wait controlplanerevision asm-managed-rapid --for condition=reconciled --timeout=600s --context=%s", context)); err != nil {
+		if err := exec.Run(fmt.Sprintf("kubectl -n istio-system wait controlplanerevision asm-managed --for condition=reconciled --timeout=600s --context=%s --kubeconfig=%s", context, kubeconfigs[i])); err != nil {
 			return fmt.Errorf("error waiting for ControlPlaneRevision CR: %w", err)
 		}
 
+		if err := exec.Run(fmt.Sprintf("kubectl label namespace istio-system istio-injection- istio.io/rev=asm-managed --overwrite --context=%s --kubeconfig=%s", context, kubeconfigs[i])); err != nil {
+			return fmt.Errorf("error labeling namespace: %w", err)
+		}
+
 		// Install Gateway
-		if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
+		if err := exec.Run(fmt.Sprintf("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=%s --kubeconfig=%s", context, kubeconfigs[i])); err != nil {
 			return fmt.Errorf("error installing injected-gateway: %w", err)
 		}
 
-		if err := exec.Dispatch(c.settings.RepoRootDir, "onprem::configure_ingress_ip",
-			[]string{kubeconfigs[i]},
-			exec.WithAdditionalEnvs(
-				[]string{"HERCULES_CLI_LAB=atl_shared"})); err != nil {
-			return err
+		if c.settings.ClusterType == resource.OnPrem {
+			if err := exec.Dispatch(c.settings.RepoRootDir, "onprem::configure_ingress_ip",
+				[]string{kubeconfigs[i]},
+				exec.WithAdditionalEnvs(
+					[]string{"HERCULES_CLI_LAB=atl_shared"})); err != nil {
+				return err
+			}
 		}
 
 		// Override CRD to 1.14
-		if err := exec.Run("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
+		if err := exec.Run(fmt.Sprintf("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=%s --kubeconfig=%s", context, kubeconfigs[i])); err != nil {
 			return fmt.Errorf("error installing 1.14 CRD: %w", err)
 		}
 	}
 
+	return nil
+}
+
+func registerOffGCPCluster(kubeconfig string, clusterType resource.ClusterType) error {
+	dat, err := os.ReadFile(kubeconfig)
+	if err != nil {
+		return fmt.Errorf("error reading file %s: %v", kubeconfig, err)
+	}
+	if clusterType == resource.EKS {
+		r, _ := regexp.Compile("server: https://([A-Z0-9]+).[a-z0-9]+.us-east-2.eks.amazonaws.com")
+		res := r.FindStringSubmatch(string(dat))
+		if len(res) != 2 {
+			return fmt.Errorf("error matching EKS OIDC: %s", string(dat))
+		}
+		url := fmt.Sprintf("https://oidc.eks.us-east-2.amazonaws.com/id/%s", res[1])
+		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register eks-%s --context=default --kubeconfig=%s --enable-workload-identity --public-issuer-url=%s --project=%s", strings.ToLower(res[1]), kubeconfig, url, OnPremFleetProject)); err != nil {
+			return fmt.Errorf("error registering cluster: %w", err)
+		}
+	} else if clusterType == resource.AKS {
+		r, _ := regexp.Compile("current-context: ([a-z0-9]+-admin)")
+		res := r.FindStringSubmatch(string(dat))
+		if len(res) != 2 {
+			return fmt.Errorf("error matching AKS context: %s", string(dat))
+		}
+		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register aks-%s --context=%s --kubeconfig=%s --enable-workload-identity --has-private-issuer --project=%s", strings.ToLower(res[1]), res[1], kubeconfig, OnPremFleetProject)); err != nil {
+			return fmt.Errorf("error registering cluster: %w", err)
+		}
+	}
 	return nil
 }
 

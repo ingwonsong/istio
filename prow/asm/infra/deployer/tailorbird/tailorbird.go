@@ -143,7 +143,7 @@ func (d *Instance) Run() error {
 	// If clustertype is on-prem, clean up stale hub memberships that are older
 	// than 4-hours to avoid exceeding quota.
 	// See http://b/195998781#comment10
-	if string(d.cfg.Cluster) == string(types.GKEOnPrem) || string(d.cfg.Cluster) == string(types.HybridGKEAndEKS) || string(d.cfg.Cluster) == string(types.HybridGKEAndGKEOnBareMetal) {
+	if string(d.cfg.Cluster) == string(types.GKEOnPrem) || string(d.cfg.Cluster) == string(types.HybridGKEAndEKS) || string(d.cfg.Cluster) == string(types.HybridGKEAndGKEOnBareMetal) || string(d.cfg.Cluster) == string(types.EKSOnAWS) {
 		hubEnvs := []string{
 			"https://staging-gkehub.sandbox.googleapis.com/",
 			"https://gkehub.googleapis.com/",

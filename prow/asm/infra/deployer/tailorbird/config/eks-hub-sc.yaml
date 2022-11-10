@@ -1,0 +1,28 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-eks-hub-sc
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 7200 # 2 hours
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-ci-eks-hub-sc-knest
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-eks-hub-sc-cluster
+        spec:
+          provider: aws
+          distribution: eks
+          provisionerArgs:
+            auth: "SAToken"
+            kubernetesVersion: "1.23"
+            username: asm-svc-acct
+            compressArtifacts: "true"
+            nodeType: "m5.2xlarge"
+            nodeCount: "2"
