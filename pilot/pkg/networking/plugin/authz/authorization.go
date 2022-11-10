@@ -15,8 +15,8 @@
 package authz
 
 import (
-	tcppb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking"
@@ -37,8 +37,8 @@ type Builder struct {
 	// Lazy load
 	httpBuilt, tcpBuilt bool
 
-	httpFilters []*httppb.HttpFilter
-	tcpFilters  []*tcppb.Filter
+	httpFilters []*hcm.HttpFilter
+	tcpFilters  []*listener.Filter
 	builder     *builder.Builder
 }
 
@@ -46,14 +46,13 @@ func NewBuilder(actionType ActionType, push *model.PushContext, proxy *model.Pro
 	tdBundle := trustdomain.NewBundle(push.Mesh.TrustDomain, push.Mesh.TrustDomainAliases)
 	option := builder.Option{
 		IsCustomBuilder: actionType == Custom,
-		Logger:          &builder.AuthzLogger{},
 	}
 	policies := push.AuthzPolicies.ListAuthorizationPolicies(proxy.ConfigNamespace, proxy.Labels)
 	b := builder.New(tdBundle, push, policies, option)
 	return &Builder{builder: b}
 }
 
-func (b *Builder) BuildTCP() []*tcppb.Filter {
+func (b *Builder) BuildTCP() []*listener.Filter {
 	if b == nil || b.builder == nil {
 		return nil
 	}
@@ -66,7 +65,7 @@ func (b *Builder) BuildTCP() []*tcppb.Filter {
 	return b.tcpFilters
 }
 
-func (b *Builder) BuildHTTP(class networking.ListenerClass) []*httppb.HttpFilter {
+func (b *Builder) BuildHTTP(class networking.ListenerClass) []*hcm.HttpFilter {
 	if b == nil || b.builder == nil {
 		return nil
 	}

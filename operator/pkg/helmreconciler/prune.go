@@ -153,18 +153,30 @@ func (h *HelmReconciler) PruneControlPlaneByRevisionWithController(iopSpec *v1al
 	}
 	// If istiod is enabled, check if it has any proxies connected.
 	if pilotEnabled {
-		// TODO(ramaraochavali): Find a better alternative instead of using debug interface
-		// of istiod as it is typically not recommended in production environments.
-		pids, err := proxy.GetIDsFromProxyInfo("", "", iopSpec.Revision, ns)
+		cfg := h.kubeClient.RESTConfig()
+		kubeClient, err := kube.NewCLIClient(kube.NewClientConfigForRestConfig(cfg), iopSpec.Revision)
 		if err != nil {
-			return errStatus,
-				fmt.Errorf("failed to check proxy infos: %v", err)
+			return errStatus, err
 		}
-		if len(pids) != 0 {
-			msg := fmt.Sprintf("there are proxies still pointing to the pruned control plane: %s.",
-				strings.Join(pids, " "))
-			st := &v1alpha1.InstallStatus{Status: v1alpha1.InstallStatus_ACTION_REQUIRED, Message: msg}
-			return st, nil
+
+		pilotExists, err := h.pilotExists(kubeClient, ns)
+		if err != nil {
+			return errStatus, fmt.Errorf("failed to check istiod extist: %v", err)
+		}
+
+		if pilotExists {
+			// TODO(ramaraochavali): Find a better alternative instead of using debug interface
+			// of istiod as it is typically not recommended in production environments.
+			pids, err := proxy.GetIDsFromProxyInfo("", "", iopSpec.Revision, ns)
+			if err != nil {
+				return errStatus, fmt.Errorf("failed to check proxy infos: %v", err)
+			}
+			if len(pids) != 0 {
+				msg := fmt.Sprintf("there are proxies still pointing to the pruned control plane: %s.",
+					strings.Join(pids, " "))
+				st := &v1alpha1.InstallStatus{Status: v1alpha1.InstallStatus_ACTION_REQUIRED, Message: msg}
+				return st, nil
+			}
 		}
 	}
 
@@ -179,6 +191,18 @@ func (h *HelmReconciler) PruneControlPlaneByRevisionWithController(iopSpec *v1al
 		}
 	}
 	return &v1alpha1.InstallStatus{Status: v1alpha1.InstallStatus_HEALTHY}, nil
+}
+
+func (h *HelmReconciler) pilotExists(cliClient kube.CLIClient, istioNamespace string) (bool, error) {
+	istiodPods, err := cliClient.GetIstioPods(context.TODO(), istioNamespace, map[string]string{
+		"labelSelector": "app=istiod",
+		"fieldSelector": "status.phase=Running",
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return len(istiodPods) > 0, nil
 }
 
 // DeleteObjectsList removed resources that are in the slice of UnstructuredList.

@@ -555,7 +555,7 @@ func (p *XdsProxy) handleUpstreamResponse(con *ProxyConnection) {
 					forwardToEnvoy(con, resp)
 				}
 			default:
-				if strings.HasPrefix(resp.TypeUrl, "istio.io/debug") {
+				if strings.HasPrefix(resp.TypeUrl, v3.DebugType) {
 					p.forwardToTap(resp)
 				} else {
 					forwardToEnvoy(con, resp)
@@ -685,7 +685,9 @@ func (p *XdsProxy) buildUpstreamClientDialOpts(sa *Agent) ([]grpc.DialOption, er
 		keepaliveOption, initialWindowSizeOption, initialConnWindowSizeOption, msgSizeOption,
 	}
 
-	dialOptions = append(dialOptions, grpc.WithPerRPCCredentials(caclient.NewXDSTokenProvider(sa.secOpts)))
+	if sa.secOpts.CredFetcher != nil {
+		dialOptions = append(dialOptions, grpc.WithPerRPCCredentials(caclient.NewXDSTokenProvider(sa.secOpts)))
+	}
 	return dialOptions, nil
 }
 
@@ -730,7 +732,7 @@ func (p *XdsProxy) getTLSDialOption(agent *Agent) (grpc.DialOption, error) {
 		MinVersion: tls.VersionTLS12,
 	}
 
-	if host, _, err := net.SplitHostPort(agent.proxyConfig.DiscoveryAddress); err != nil {
+	if host, _, err := net.SplitHostPort(agent.proxyConfig.DiscoveryAddress); err == nil {
 		config.ServerName = host
 	}
 	// For debugging on localhost (with port forward)

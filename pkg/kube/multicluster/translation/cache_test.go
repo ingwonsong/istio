@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"testing"
 
+	"cloud.google.com/go/container/apiv1/containerpb"
 	"cloud.google.com/go/gkehub/apiv1beta1/gkehubpb"
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleapis/gax-go/v2"
-	containerpb "google.golang.org/genproto/googleapis/container/v1"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 

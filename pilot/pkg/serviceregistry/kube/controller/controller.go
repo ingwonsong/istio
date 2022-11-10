@@ -35,7 +35,6 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 	"istio.io/istio/pilot/pkg/serviceregistry/kube"
-	"istio.io/istio/pilot/pkg/serviceregistry/kube/controller/filter"
 	"istio.io/istio/pilot/pkg/serviceregistry/provider"
 	"istio.io/istio/pilot/pkg/serviceregistry/util/workloadinstances"
 	"istio.io/istio/pilot/pkg/util/informermetric"
@@ -45,6 +44,8 @@ import (
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/protocol"
 	kubelib "istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/kube/informer"
+	filter "istio.io/istio/pkg/kube/namespace"
 	"istio.io/istio/pkg/network"
 	"istio.io/istio/pkg/queue"
 	istiolog "istio.io/pkg/log"
@@ -217,7 +218,7 @@ type Controller struct {
 	nsInformer cache.SharedIndexInformer
 	nsLister   listerv1.NamespaceLister
 
-	serviceInformer filter.FilteredSharedIndexInformer
+	serviceInformer informer.FilteredSharedIndexInformer
 	serviceLister   listerv1.ServiceLister
 
 	endpoints kubeEndpointsController
@@ -332,7 +333,7 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 	_ = c.nsInformer.SetTransform(kubelib.StripUnusedFields)
 	c.nsLister = kubeClient.KubeInformer().Core().V1().Namespaces().Lister()
 	if c.opts.SystemNamespace != "" {
-		nsInformer := filter.NewFilteredSharedIndexInformer(func(obj any) bool {
+		nsInformer := informer.NewFilteredSharedIndexInformer(func(obj any) bool {
 			ns, ok := obj.(*v1.Namespace)
 			if !ok {
 				log.Warnf("Namespace watch getting wrong type in event: %T", obj)
@@ -349,7 +350,8 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 
 	c.initDiscoveryHandlers(kubeClient, options.EndpointMode, options.MeshWatcher, c.opts.DiscoveryNamespacesFilter)
 
-	c.serviceInformer = filter.NewFilteredSharedIndexInformer(c.opts.DiscoveryNamespacesFilter.Filter, kubeClient.KubeInformer().Core().V1().Services().Informer())
+	c.serviceInformer = informer.NewFilteredSharedIndexInformer(c.opts.DiscoveryNamespacesFilter.Filter,
+		kubeClient.KubeInformer().Core().V1().Services().Informer())
 	c.serviceLister = listerv1.NewServiceLister(c.serviceInformer.GetIndexer())
 
 	c.registerHandlers(c.serviceInformer, "Services", c.onServiceEvent, nil)
@@ -366,11 +368,14 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 
 	// This is for getting the node IPs of a selected set of nodes
 	c.nodeInformer = kubeClient.KubeInformer().Core().V1().Nodes().Informer()
-	_ = c.nodeInformer.SetTransform(kubelib.StripUnusedFields)
+	_ = c.nodeInformer.SetTransform(stripNodeUnusedFields)
 	c.nodeLister = kubeClient.KubeInformer().Core().V1().Nodes().Lister()
-	c.registerHandlers(c.nodeInformer, "Nodes", c.onNodeEvent, nil)
+	nodeInformer := informer.NewFilteredSharedIndexInformer(nil, c.nodeInformer)
+	c.registerHandlers(nodeInformer, "Nodes", c.onNodeEvent, nil)
 
-	podInformer := filter.NewFilteredSharedIndexInformer(c.opts.DiscoveryNamespacesFilter.Filter, kubeClient.KubeInformer().Core().V1().Pods().Informer())
+	sharedPodInformer := kubeClient.KubeInformer().Core().V1().Pods().Informer()
+	_ = sharedPodInformer.SetTransform(stripPodUnusedFields)
+	podInformer := informer.NewFilteredSharedIndexInformer(c.opts.DiscoveryNamespacesFilter.Filter, sharedPodInformer)
 	c.pods = newPodCache(c, podInformer, func(key string) {
 		item, exists, err := c.endpoints.getInformer().GetIndexer().GetByKey(key)
 		if err != nil {
@@ -664,16 +669,14 @@ func (c *Controller) onNodeEvent(obj any, event model.Event) error {
 type FilterOutFunc func(old, cur any) bool
 
 func (c *Controller) registerHandlers(
-	informer filter.FilteredSharedIndexInformer, otype string,
+	informer informer.FilteredSharedIndexInformer, otype string,
 	handler func(any, model.Event) error, filter FilterOutFunc,
 ) {
 	wrappedHandler := func(obj any, event model.Event) error {
 		obj = tryGetLatestObject(informer, obj)
 		return handler(obj, event)
 	}
-	if informer, ok := informer.(cache.SharedInformer); ok {
-		_ = informer.SetWatchErrorHandler(informermetric.ErrorHandlerForCluster(c.Cluster()))
-	}
+	_ = informer.SetWatchErrorHandler(informermetric.ErrorHandlerForCluster(c.Cluster()))
 	informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
@@ -715,7 +718,7 @@ func (c *Controller) registerHandlers(
 
 // tryGetLatestObject attempts to fetch the latest version of the object from the cache.
 // Changes may have occurred between queuing and processing.
-func tryGetLatestObject(informer filter.FilteredSharedIndexInformer, obj any) any {
+func tryGetLatestObject(informer informer.FilteredSharedIndexInformer, obj any) any {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		log.Warnf("failed creating key for informer object: %v", err)
@@ -802,7 +805,7 @@ func (c *Controller) syncNodes() error {
 
 func (c *Controller) syncServices() error {
 	var err *multierror.Error
-	services := c.serviceInformer.GetIndexer().List()
+	services, _ := c.serviceInformer.List(metav1.NamespaceAll)
 	log.Debugf("initializing %d services", len(services))
 	for _, s := range services {
 		err = multierror.Append(err, c.onServiceEvent(s, model.EventAdd))
@@ -812,7 +815,7 @@ func (c *Controller) syncServices() error {
 
 func (c *Controller) syncPods() error {
 	var err *multierror.Error
-	pods := c.pods.informer.GetIndexer().List()
+	pods, _ := c.pods.informer.List(metav1.NamespaceAll)
 	log.Debugf("initializing %d pods", len(pods))
 	for _, s := range pods {
 		err = multierror.Append(err, c.pods.onEvent(s, model.EventAdd))
@@ -1403,4 +1406,61 @@ func (c *Controller) AppendServiceHandler(f func(*model.Service, model.Event)) {
 // AppendWorkloadHandler implements a service catalog operation
 func (c *Controller) AppendWorkloadHandler(f func(*model.WorkloadInstance, model.Event)) {
 	c.handlers.AppendWorkloadHandler(f)
+}
+
+// stripPodUnusedFields is the transform function for shared pod informers,
+// it removes unused fields from objects before they are stored in the cache to save memory.
+func stripPodUnusedFields(obj any) (any, error) {
+	t, ok := obj.(metav1.ObjectMetaAccessor)
+	if !ok {
+		// shouldn't happen
+		return obj, nil
+	}
+	// ManagedFields is large and we never use it
+	t.GetObjectMeta().SetManagedFields(nil)
+	// Annotation is never used
+	t.GetObjectMeta().SetAnnotations(nil)
+	// only container ports can be used
+	if pod := obj.(*v1.Pod); pod != nil {
+		containers := []v1.Container{}
+		for _, c := range pod.Spec.Containers {
+			if len(c.Ports) > 0 {
+				containers = append(containers, v1.Container{
+					Ports: c.Ports,
+				})
+			}
+		}
+		pod.Spec.Containers = containers
+		pod.Spec.InitContainers = nil
+		pod.Spec.Volumes = nil
+		pod.Status.InitContainerStatuses = nil
+		pod.Status.ContainerStatuses = nil
+	}
+
+	return obj, nil
+}
+
+// stripNodeUnusedFields is the transform function for shared pod informers,
+// it removes unused fields from objects before they are stored in the cache to save memory.
+func stripNodeUnusedFields(obj any) (any, error) {
+	t, ok := obj.(metav1.ObjectMetaAccessor)
+	if !ok {
+		// shouldn't happen
+		return obj, nil
+	}
+	// ManagedFields is large and we never use it
+	t.GetObjectMeta().SetManagedFields(nil)
+	// Annotation is never used
+	t.GetObjectMeta().SetAnnotations(nil)
+	// OwnerReference is never used
+	t.GetObjectMeta().SetOwnerReferences(nil)
+	// only node labels and addressed are useful
+	if node := obj.(*v1.Node); node != nil {
+		node.Status.Allocatable = nil
+		node.Status.Capacity = nil
+		node.Status.Images = nil
+		node.Status.Conditions = nil
+	}
+
+	return obj, nil
 }

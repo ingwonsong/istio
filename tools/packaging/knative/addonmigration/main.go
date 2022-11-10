@@ -29,10 +29,8 @@ import (
 )
 
 var (
-	projectNumber       string
-	clusterName         string
-	location            string
-	mcpEnvConfigMapName = "env-asm-managed"
+	clusterName string
+	location    string
 )
 
 const (
@@ -61,9 +59,6 @@ func main() {
 	flag.Parse()
 	if err := validateFlag(*channel, *mode); err != nil {
 		log.Fatalf("Failed to verify flag: %v", err)
-	}
-	if *channel != regularChannel {
-		mcpEnvConfigMapName = fmt.Sprintf("env-asm-managed-%s", *channel)
 	}
 	loggingOptions := log.DefaultOptions()
 	if err := log.Configure(loggingOptions); err != nil {
@@ -109,14 +104,9 @@ func validateFlag(channel, mode string) error {
 }
 
 // setProjectMetadata set target cluster metadata.
-// projectNumber, clusterName and location are required since they are used to check against target cluster list.
+// clusterName and location are required since they are used to check against target cluster list.
 func setProjectMetadata() {
 	gcpMetadata := platform.NewGCP().Metadata()
-	if pi, ok := gcpMetadata[platform.GCPProjectNumber]; ok {
-		projectNumber = pi
-	} else {
-		log.Fatalf("No project number found from gcp metadata")
-	}
 	if cn, ok := gcpMetadata[platform.GCPCluster]; ok {
 		clusterName = cn
 	} else {

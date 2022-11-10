@@ -68,7 +68,7 @@ const (
 	// "reporter" prefix is for istio standard metrics.
 	// "component" suffix is for istio_build metric.
 	v2Prefixes = "reporter=,"
-	v2Suffix   = ",component"
+	v2Suffix   = ",component,istio"
 )
 
 // Config for creating a bootstrap file.
@@ -94,7 +94,6 @@ func (cfg Config) toTemplateParams() (map[string]any, error) {
 		option.NodeType(cfg.ID),
 		option.PilotSubjectAltName(cfg.Metadata.PilotSubjectAltName),
 		option.OutlierLogPath(cfg.Metadata.OutlierLogPath),
-		option.ProvCert(cfg.Metadata.ProvCert),
 		option.DiscoveryHost(discHost),
 		option.Metadata(cfg.Metadata),
 		option.XdsType(xdsType))
@@ -518,7 +517,6 @@ type MetadataOptions struct {
 	CredentialSocketExists      bool
 	XDSRootCert                 string
 	OutlierLogPath              string
-	ProvCert                    string
 	annotationFilePath          string
 	EnvoyStatusPort             int
 	EnvoyPrometheusPort         int
@@ -636,7 +634,6 @@ func GetNodeMetaData(options MetadataOptions) (*model.Node, error) {
 	meta.PilotSubjectAltName = options.PilotSubjectAltName
 	meta.XDSRootCert = options.XDSRootCert
 	meta.OutlierLogPath = options.OutlierLogPath
-	meta.ProvCert = options.ProvCert
 	if options.CredentialSocketExists {
 		untypedMeta[security.CredentialMetaDataName] = "true"
 	}
@@ -759,11 +756,10 @@ func ParseDownwardAPI(i string) (map[string]string, error) {
 }
 
 func removeDuplicates(values []string) []string {
-	set := sets.New()
+	set := sets.New[string]()
 	newValues := make([]string, 0, len(values))
 	for _, v := range values {
-		if !set.Contains(v) {
-			set.Insert(v)
+		if !set.InsertContains(v) {
 			newValues = append(newValues, v)
 		}
 	}

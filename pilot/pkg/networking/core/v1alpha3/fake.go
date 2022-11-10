@@ -45,6 +45,7 @@ import (
 	"istio.io/istio/pkg/config/schema/collections"
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/util/retry"
+	"istio.io/istio/pkg/util/sets"
 )
 
 type TestOptions struct {
@@ -132,7 +133,7 @@ func NewConfigGenTest(t test.Failer, opts TestOptions) *ConfigGenTest {
 
 	serviceDiscovery := aggregate.NewController(aggregate.Options{})
 	se := serviceentry.NewController(
-		configController, model.MakeIstioStore(configStore),
+		configController,
 		&FakeXdsUpdater{}, serviceentry.WithClusterID(opts.ClusterID))
 	// TODO allow passing in registry, for k8s, mem reigstry
 	serviceDiscovery.AddRegistry(se)
@@ -158,7 +159,7 @@ func NewConfigGenTest(t test.Failer, opts TestOptions) *ConfigGenTest {
 		opts.NetworksWatcher = mesh.NewFixedNetworksWatcher(nil)
 	}
 	env.ServiceDiscovery = serviceDiscovery
-	env.ConfigStore = model.MakeIstioStore(configController)
+	env.ConfigStore = configController
 	env.NetworksWatcher = opts.NetworksWatcher
 	env.Init()
 
@@ -215,7 +216,7 @@ func (f *ConfigGenTest) SetupProxy(p *model.Proxy) *model.Proxy {
 		p.Metadata = &model.NodeMetadata{}
 	}
 	if p.Metadata.IstioVersion == "" {
-		p.Metadata.IstioVersion = "1.16.0"
+		p.Metadata.IstioVersion = "1.17.0"
 	}
 	if p.IstioVersion == nil {
 		p.IstioVersion = model.ParseIstioVersion(p.Metadata.IstioVersion)
@@ -267,7 +268,7 @@ func (f *ConfigGenTest) Clusters(p *model.Proxy) []*cluster.Cluster {
 
 func (f *ConfigGenTest) DeltaClusters(
 	p *model.Proxy,
-	configUpdated map[model.ConfigKey]struct{},
+	configUpdated sets.Set[model.ConfigKey],
 	watched *model.WatchedResource,
 ) ([]*cluster.Cluster, []string, bool) {
 	raw, removed, _, delta := f.ConfigGen.BuildDeltaClusters(p,

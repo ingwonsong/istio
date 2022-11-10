@@ -41,6 +41,7 @@ import (
 	"istio.io/istio/pkg/network"
 	"istio.io/istio/pkg/queue"
 	"istio.io/istio/pkg/util/protomarshal"
+	"istio.io/istio/pkg/util/sets"
 	istiolog "istio.io/pkg/log"
 )
 
@@ -54,6 +55,11 @@ var (
 type instancesKey struct {
 	hostname  host.Name
 	namespace string
+}
+
+type octetPair struct {
+	thirdOctet  int
+	fourthOctet int
 }
 
 func makeInstanceKey(i *model.ServiceInstance) instancesKey {
@@ -123,10 +129,10 @@ func WithNetworkIDCb(cb func(endpointIP string, labels labels.Instance) network.
 }
 
 // NewController creates a new ServiceEntry discovery service.
-func NewController(configController model.ConfigStoreController, store model.ConfigStore, xdsUpdater model.XDSUpdater,
+func NewController(configController model.ConfigStoreController, xdsUpdater model.XDSUpdater,
 	options ...Option,
 ) *Controller {
-	s := newController(store, xdsUpdater, options...)
+	s := newController(configController, xdsUpdater, options...)
 	if configController != nil {
 		configController.RegisterEventHandler(gvk.ServiceEntry, s.serviceEntryHandler)
 		configController.RegisterEventHandler(gvk.WorkloadEntry, s.workloadEntryHandler)
@@ -136,10 +142,10 @@ func NewController(configController model.ConfigStoreController, store model.Con
 }
 
 // NewWorkloadEntryController creates a new WorkloadEntry discovery service.
-func NewWorkloadEntryController(configController model.ConfigStoreController, store model.ConfigStore, xdsUpdater model.XDSUpdater,
+func NewWorkloadEntryController(configController model.ConfigStoreController, xdsUpdater model.XDSUpdater,
 	options ...Option,
 ) *Controller {
-	s := newController(store, xdsUpdater, options...)
+	s := newController(configController, xdsUpdater, options...)
 	// Disable service entry processing for workload entry controller.
 	s.workloadEntryController = true
 	for _, o := range options {
@@ -229,7 +235,7 @@ func (s *Controller) workloadEntryHandler(old, curr config.Config, event model.E
 	instancesUpdated := []*model.ServiceInstance{}
 	instancesDeleted := []*model.ServiceInstance{}
 	fullPush := false
-	configsUpdated := map[model.ConfigKey]struct{}{}
+	configsUpdated := sets.New[model.ConfigKey]()
 
 	addConfigs := func(se *networking.ServiceEntry, services []*model.Service) {
 		// If serviceentry's resolution is DNS, make a full push
@@ -323,14 +329,14 @@ func (s *Controller) workloadEntryHandler(old, curr config.Config, event model.E
 }
 
 // getUpdatedConfigs returns related service entries when full push
-func getUpdatedConfigs(services []*model.Service) map[model.ConfigKey]struct{} {
-	configsUpdated := map[model.ConfigKey]struct{}{}
+func getUpdatedConfigs(services []*model.Service) sets.Set[model.ConfigKey] {
+	configsUpdated := sets.New[model.ConfigKey]()
 	for _, svc := range services {
-		configsUpdated[model.ConfigKey{
+		configsUpdated.Insert(model.ConfigKey{
 			Kind:      kind.ServiceEntry,
 			Name:      string(svc.Hostname),
 			Namespace: svc.Attributes.Namespace,
-		}] = struct{}{}
+		})
 	}
 	return configsUpdated
 }
@@ -340,7 +346,7 @@ func (s *Controller) serviceEntryHandler(_, curr config.Config, event model.Even
 	log.Debugf("Handle event %s for service entry %s/%s", event, curr.Namespace, curr.Name)
 	currentServiceEntry := curr.Spec.(*networking.ServiceEntry)
 	cs := convertServices(curr)
-	configsUpdated := map[model.ConfigKey]struct{}{}
+	configsUpdated := sets.New[model.ConfigKey]()
 	key := types.NamespacedName{Namespace: curr.Namespace, Name: curr.Name}
 
 	s.mutex.Lock()
@@ -495,7 +501,7 @@ func (s *Controller) WorkloadInstanceHandler(wi *model.WorkloadInstance, event m
 
 	instances := []*model.ServiceInstance{}
 	instancesDeleted := []*model.ServiceInstance{}
-	configsUpdated := map[model.ConfigKey]struct{}{}
+	configsUpdated := sets.New[model.ConfigKey]()
 	fullPush := false
 	for _, cfg := range cfgs {
 		se := cfg.Spec.(*networking.ServiceEntry)
@@ -880,6 +886,8 @@ func autoAllocateIPs(services []*model.Service) []*model.Service {
 	// So we bump X to 511, so that the resulting IP is 240.240.2.1
 	maxIPs := 255 * 255 // are we going to exceed this limit by processing 64K services?
 	x := 0
+	hnMap := make(map[string]octetPair)
+
 	for _, svc := range services {
 		// we can allocate IPs only if
 		// 1. the service has resolution set to static/dns. We cannot allocate
@@ -888,27 +896,43 @@ func autoAllocateIPs(services []*model.Service) []*model.Service {
 		// 3. the hostname is not a wildcard
 		if svc.DefaultAddress == constants.UnspecifiedIP && !svc.Hostname.IsWildCarded() &&
 			svc.Resolution != model.Passthrough {
-			x++
-			if x%255 == 0 {
-				x++
-			}
-			if x >= maxIPs {
-				log.Errorf("out of IPs to allocate for service entries")
-				return services
-			}
-			thirdOctet := x / 255
-			fourthOctet := x % 255
+			n := svc.Hostname.String()
+			if v, ok := hnMap[n]; ok {
+				log.Debugf("Reuse IP for domain %s", n)
 
-			svc.AutoAllocatedIPv4Address = fmt.Sprintf("240.240.%d.%d", thirdOctet, fourthOctet)
-			// if the service of service entry has IPv6 address, then allocate the IPv4-Mapped IPv6 Address for it
-			if thirdOctet == 0 {
-				svc.AutoAllocatedIPv6Address = fmt.Sprintf("2001:2::f0f0:%x", fourthOctet)
+				setAutoAllocatedIPs(svc, v)
 			} else {
-				svc.AutoAllocatedIPv6Address = fmt.Sprintf("2001:2::f0f0:%x%x", thirdOctet, fourthOctet)
+				x++
+				if x%255 == 0 {
+					x++
+				}
+				if x >= maxIPs {
+					log.Errorf("out of IPs to allocate for service entries")
+					return services
+				}
+
+				pair := octetPair{x / 255, x % 255}
+
+				setAutoAllocatedIPs(svc, pair)
+
+				hnMap[n] = pair
 			}
 		}
 	}
 	return services
+}
+
+func setAutoAllocatedIPs(svc *model.Service, octets octetPair) {
+	a := octets.thirdOctet
+	b := octets.fourthOctet
+
+	svc.AutoAllocatedIPv4Address = fmt.Sprintf("240.240.%d.%d", a, b)
+
+	if a == 0 {
+		svc.AutoAllocatedIPv6Address = fmt.Sprintf("2001:2::f0f0:%x", b)
+	} else {
+		svc.AutoAllocatedIPv6Address = fmt.Sprintf("2001:2::f0f0:%x%x", a, b)
+	}
 }
 
 func makeConfigKey(svc *model.Service) model.ConfigKey {

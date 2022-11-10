@@ -24,7 +24,6 @@ import (
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"istio.io/istio/mdp/controller/pkg/apis/mdp/v1alpha1"
@@ -38,16 +37,6 @@ type Worker interface {
 	Len() int
 }
 
-// limitWorker allows for rate limited updates to the status field of DataPlaneControl.
-type limitWorker struct {
-	queue  workqueue.RateLimitingInterface
-	cancel context.CancelFunc
-	client client.Client
-	mu     sync.Mutex
-	// cache holds the desired status value so that two calls to EnqueueStatus don't result in two separate writes to K8s
-	cache map[types.NamespacedName]*v1alpha1.DataPlaneControl
-}
-
 // NewWorker creates a status worker based on a BucketRateLimiter with the provided limit.
 func NewWorker(limit rate.Limit, cl client.Client) Worker {
 	rl := rate.NewLimiter(limit, 1)
@@ -58,66 +47,6 @@ func NewWorker(limit rate.Limit, cl client.Client) Worker {
 		cache:    make(map[types.NamespacedName]*v1alpha1.DataPlaneControl),
 		interval: rl.Reserve().Delay(),
 	}
-}
-
-func (sw *limitWorker) Start(ctx context.Context) {
-	sctx, can := context.WithCancel(ctx)
-	sw.cancel = can
-	go func() {
-		<-sctx.Done()
-		sw.queue.ShutDown()
-	}()
-	go func() {
-		for sw.processNextWorkItem(sctx) {
-		}
-	}()
-}
-
-func (sw *limitWorker) Stop() {
-	if sw.cancel == nil {
-		log.Errorf("Stop() called on unstarted Updater")
-	}
-	sw.cancel()
-}
-
-func (sw *limitWorker) processNextWorkItem(ctx context.Context) bool {
-	obj, shutdown := sw.queue.Get()
-	if shutdown {
-		// Stop working
-		return false
-	}
-
-	// We call Done here so the workqueue knows we have finished
-	// processing this item. We also must remember to call Forget if we
-	// do not want this work item being re-queued. For example, we do
-	// not call Forget if a transient error occurs, instead the item is
-	// put back on the workqueue and attempted again after a back-off
-	// period.
-	defer sw.queue.Done(obj)
-	nsn := obj.(types.NamespacedName)
-	sw.mu.Lock()
-	dpc, ok := sw.cache[nsn]
-	sw.mu.Unlock()
-	if ok {
-		log.Debugf("writing status for dpc %s", dpc.Name)
-		err := sw.client.Status().Update(ctx, dpc)
-		runtime.HandleError(err)
-	}
-	return true
-}
-
-// EnqueueStatus will cause the given status field to be written eventually, depending on the limit provided at init
-func (sw *limitWorker) EnqueueStatus(dpc *v1alpha1.DataPlaneControl) {
-	nsn := types.NamespacedName{Name: dpc.Name, Namespace: dpc.Namespace}
-	sw.mu.Lock()
-	sw.cache[nsn] = dpc.DeepCopy()
-	sw.mu.Unlock()
-	log.Debugf("adding to status update for dpc %s to queue", dpc.Name)
-	sw.queue.AddRateLimited(nsn)
-}
-
-func (sw *limitWorker) Len() int {
-	return sw.queue.Len()
 }
 
 type tickWorker struct {

@@ -29,6 +29,7 @@ import (
 
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pkg/cluster"
+	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/multicluster/translation"
 	"istio.io/istio/pkg/test"
@@ -139,7 +140,7 @@ func Test_SecretController(t *testing.T) {
 
 	// Start the secret controller and sleep to allow secret process to start.
 	stopCh := test.NewStop(t)
-	c := NewController(clientset, secretNamespace, "")
+	c := NewController(clientset, secretNamespace, "", mesh.NewFixedWatcher(nil))
 	c.AddHandler(&handler{})
 	_ = c.Run(stopCh)
 	t.Run("sync timeout", func(t *testing.T) {
@@ -200,7 +201,7 @@ func TestSanitizeKubeConfig(t *testing.T) {
 	cases := []struct {
 		name            string
 		config          api.Config
-		allowlist       sets.Set
+		allowlist       sets.String
 		ipConfigMapping map[string]api.Config
 		want            api.Config
 		wantErr         bool

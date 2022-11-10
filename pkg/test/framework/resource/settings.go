@@ -163,6 +163,9 @@ type Settings struct {
 	// MaxDumps is the maximum number of full test dumps that are allowed to occur within a test suite.
 	MaxDumps uint64
 
+	// EnableDualStack indicates the test should have dual stack enabled or not.
+	EnableDualStack bool
+
 	// UseDefaultInjectionLabels determines whether to use the "istio-injection=enabled" and
 	// "sidecar.istio.io/inject" labels for workload injection
 	UseDefaultInjectionLabels bool
@@ -178,11 +181,11 @@ func (s Settings) Skip(class string) bool {
 	return false
 }
 
-func (s *Settings) SkipWorkloadClassesAsSet() sets.Set {
+func (s *Settings) SkipWorkloadClassesAsSet() sets.String {
 	return sets.New(s.SkipWorkloadClasses...)
 }
 
-func (s *Settings) OnlyWorkloadClassesAsSet() sets.Set {
+func (s *Settings) OnlyWorkloadClassesAsSet() sets.String {
 	return sets.New(s.OnlyWorkloadClasses...)
 }
 

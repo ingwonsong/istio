@@ -18,11 +18,11 @@ package translation
 import (
 	"context"
 
+	"cloud.google.com/go/container/apiv1/containerpb"
 	gkehub "cloud.google.com/go/gkehub/apiv1beta1"
 	"cloud.google.com/go/gkehub/apiv1beta1/gkehubpb"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
-	containerpb "google.golang.org/genproto/googleapis/container/v1"
 
 	"istio.io/pkg/log"
 )
