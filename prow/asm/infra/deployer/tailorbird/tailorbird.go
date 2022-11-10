@@ -614,7 +614,7 @@ func platformName(cluster string) string {
 	platform := cluster
 	switch types.Cluster(cluster) {
 	case types.GKEOnAWS:
-		platform = "gke-on-aws-v1"
+		platform = "gke-on-aws-v2"
 	case types.GKEOnAzure:
 		platform = "gke-on-azure"
 	case types.GKEOnBareMetal:
