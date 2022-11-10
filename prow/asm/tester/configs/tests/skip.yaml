@@ -1,5 +1,11 @@
 tests:
   - selectors:
+      is_autopilot: true
+    targets:
+    - names:
+        - TestGatewayConformance
+      reason: "Not working in autopilot yet (b/257303663)"
+  - selectors:
       control_plane: unmanaged
     targets:
     - names:

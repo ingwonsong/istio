@@ -17,6 +17,7 @@ package tests
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -26,6 +27,7 @@ import (
 )
 
 const (
+	autoPilotSkipLabel       = "is_autopilot"
 	controlPlaneSkipLabel    = "control_plane"
 	clusterTypeSkipLabel     = "cluster_type"
 	clusterTopologySkipLabel = "cluster_topology"
@@ -151,6 +153,10 @@ func skipLabels(settings *resource.Settings) SkipLabels {
 	} else {
 		labelMap[deploymentType] = "container"
 	}
+
+	// check if test is an autopilot test
+	labelMap[autoPilotSkipLabel] = strconv.FormatBool(settings.FeaturesToTest.Has(string(resource.Autopilot)))
+
 	// a common label to easily allow selecting every test without having an empty selector
 	labelMap["all"] = "true"
 	return labelMap
