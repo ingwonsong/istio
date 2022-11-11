@@ -42,18 +42,19 @@ func apiConfigFromMembership(membership *gkehubpb.Membership, hubEndpoint, proje
 		return api.Config{}, fmt.Errorf("failed to generate connect gateway endpoint: %v", err)
 	}
 
+	cgwURL := fmt.Sprintf("https://%s", cgwEndpoint)
 	if validateEndpoint {
-		err = validateCGWAccess(ctx, cgwEndpoint)
+		err = validateCGWAccess(ctx, cgwURL)
 		if err != nil {
 			return api.Config{}, fmt.Errorf("failed to validate config gateway endpoint %s: %v",
-				cgwEndpoint, err)
+				cgwURL, err)
 		}
 	}
 
 	return api.Config{
 		Clusters: map[string]*api.Cluster{
 			"cgw": {
-				Server: fmt.Sprintf("https://%s", cgwEndpoint),
+				Server: cgwURL,
 			},
 		},
 		AuthInfos: map[string]*api.AuthInfo{

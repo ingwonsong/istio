@@ -211,6 +211,7 @@ func (m *membershipCache) apiConfig(ip string) (api.Config, bool) {
 		config, err := apiConfigFromMembership(
 			cachedMembership, m.opts.hubEndpoint, m.opts.projectNumber, m.validateEndpoint)
 		if err != nil {
+			log.Errorf("Failed to get apiConfig from membership: %v", err)
 			return api.Config{}, false
 		}
 
