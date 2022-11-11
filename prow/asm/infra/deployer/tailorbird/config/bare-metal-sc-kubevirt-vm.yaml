@@ -33,7 +33,7 @@ spec:
           provider: baremetal
           distribution: gke
           provisionerArgs:
-            username: prowuser
+            username: asm-svc-acct
             bmctlVersion: "{{ .Version }}"
             bmctlVersionPrefix: "{{ .VersionPrefix }}"
             passthroughEnv: |

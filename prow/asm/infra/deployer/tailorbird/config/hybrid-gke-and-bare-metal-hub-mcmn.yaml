@@ -47,7 +47,7 @@ spec:
             proxyPort: "8218"
             scriptsVersion: latest
             scriptsVersionPrefix: "0.0"
-            username: prowuser
+            username: asm-svc-acct
         status: {}
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
