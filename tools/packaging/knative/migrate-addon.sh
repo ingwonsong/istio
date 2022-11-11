@@ -234,8 +234,8 @@ check_prerequisites() {
 }
 
 configure_mesh_ca() {
-  configure_mesh_ca_16
   configure_mesh_ca_14
+  configure_mesh_ca_16
 }
 
 MESH_CA_ROOT="
@@ -895,7 +895,6 @@ run_all() {
   disable_galley_webhook
   migrate_configs
   if [[ -n $ZERO_DOWNTIME ]]; then
-    configure_mesh_ca_16
     configure_mesh_ca
   fi
   replace_gateway
