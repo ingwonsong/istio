@@ -19,5 +19,5 @@ defaultConfig:
     {{if .GKEClusterURL}}GKE_CLUSTER_URL: "{{.GKEClusterURL}}"{{end}}
     {{if .FleetProjectNumber}}FLEET_PROJECT_NUMBER: "{{.FleetProjectNumber}}"{{end}}
 
-  meshId: "proj-{{.ProjectNumber}}"
+  meshId: "proj-{{.FleetProjectNumber}}"
   discoveryAddress: "{{.XDSAddr}}"

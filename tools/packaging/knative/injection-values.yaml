@@ -275,7 +275,7 @@ global:
   # If the mesh admin does not specify a value, Istio will use the value of the
   # mesh's Trust Domain. The best practice is to select a proper Trust Domain
   # value.
-  meshID: "proj-{{.ProjectNumber}}"
+  meshID: "proj-{{.FleetProjectNumber}}"
 
 
   # The namespace where globally shared configurations should be present.
