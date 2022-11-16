@@ -175,7 +175,6 @@
                   "clientRootCertPath": "/roots.pem",
                   "targetUri": "servicecontrol.googleapis.com:443"
                 },
-                "generatedHeaderPrefix": "X-Endpoint-",
                 "imdsUri": {
                   "cluster": "metadata-cluster",
                   "timeout": "30s",
@@ -184,60 +183,31 @@
                 "reportBatchConfig": {},
                 "requirements": [
                   {
-                    "apiName": "google.example.apikeys.v1.ApiKeys",
-                    "apiVersion": "v1",
-                    "operationName": "google.example.apikeys.v1.ApiKeys.ListApiKeys",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.example.apikeys.v1.ApiKeys.ListApiKeys"
                   },
                   {
-                    "apiName": "google.example.apikeys.v1.ApiKeys",
-                    "apiVersion": "v1",
-                    "operationName": "google.example.apikeys.v1.ApiKeys.GetApiKey",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.example.apikeys.v1.ApiKeys.GetApiKey"
                   },
                   {
-                    "apiName": "google.example.apikeys.v1.ApiKeys",
-                    "apiVersion": "v1",
-                    "operationName": "google.example.apikeys.v1.ApiKeys.CreateApiKey",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.example.apikeys.v1.ApiKeys.CreateApiKey"
                   },
                   {
-                    "apiName": "google.example.apikeys.v1.ApiKeys",
-                    "apiVersion": "v1",
-                    "operationName": "google.example.apikeys.v1.ApiKeys.UpdateApiKey",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.example.apikeys.v1.ApiKeys.UpdateApiKey"
                   },
                   {
-                    "apiName": "google.example.apikeys.v1.ApiKeys",
-                    "apiVersion": "v1",
-                    "operationName": "google.example.apikeys.v1.ApiKeys.DeleteApiKey",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.example.apikeys.v1.ApiKeys.DeleteApiKey"
                   },
                   {
-                    "apiName": "google.discovery.Discovery",
-                    "apiVersion": "v1",
                     "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
-                    "operationName": "google.discovery.Discovery.GetDiscovery",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.discovery.Discovery.GetDiscovery"
                   },
                   {
-                    "apiName": "google.discovery.Discovery",
-                    "apiVersion": "v1",
                     "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
-                    "operationName": "google.discovery.Discovery.GetDiscoveryRest",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.discovery.Discovery.GetDiscoveryRest"
                   }
                 ],
                 "scCallingConfig": {},
-                "services": [
-                  {
-                    "backendProtocol": "grpc",
-                    "jwtPayloadMetadataName": "jwt_payloads",
-                    "producerProjectId": "cloud-api-proxy-testing",
-                    "serviceConfigId": "1-68ba4ff2-412d32db-71ea56f4-53b1b17d-eef233de",
-                    "serviceName": "cap-e2e-codelabapikeys.sandbox.googleapis.com"
-                  }
-                ]
+                "service": {}
               }
             }
           }
@@ -260,6 +230,7 @@
                   "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
                   "typeUrl": "type.googleapis.com/net.envoy.proto.cloudesf.ServiceConfigDataSource",
                   "value": {
+                    "serviceConfigId": "1-68ba4ff2-412d32db-71ea56f4-53b1b17d-eef233de",
                     "serviceConfigPath": "/etc/istio/proxy/_apikey_grpc_asm_e2e_config_service.txtpb"
                   }
                 }

@@ -175,7 +175,6 @@
                   "clientRootCertPath": "/roots.pem",
                   "targetUri": "servicecontrol.googleapis.com:443"
                 },
-                "generatedHeaderPrefix": "X-Endpoint-",
                 "imdsUri": {
                   "cluster": "metadata-cluster",
                   "timeout": "30s",
@@ -184,58 +183,29 @@
                 "reportBatchConfig": {},
                 "requirements": [
                   {
-                    "apiName": "test.grpc.Test",
-                    "apiVersion": "v1",
-                    "operationName": "test.grpc.Test.Echo",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "test.grpc.Test.Echo"
                   },
                   {
-                    "apiName": "test.grpc.Test",
-                    "apiVersion": "v1",
-                    "operationName": "test.grpc.Test.EchoStream",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "test.grpc.Test.EchoStream"
                   },
                   {
-                    "apiName": "test.grpc.Test",
-                    "apiVersion": "v1",
-                    "operationName": "test.grpc.Test.EchoReport",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "test.grpc.Test.EchoReport"
                   },
                   {
-                    "apiName": "test.grpc.Test",
-                    "apiVersion": "v1",
-                    "operationName": "test.grpc.Test.Echo4RateLimit",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "test.grpc.Test.Echo4RateLimit"
                   },
                   {
-                    "apiName": "test.grpc.Test",
-                    "apiVersion": "v1",
-                    "operationName": "test.grpc.Test.EchoStream4RateLimit",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "test.grpc.Test.EchoStream4RateLimit"
                   },
                   {
-                    "apiName": "google.discovery.Discovery",
-                    "apiVersion": "v1",
-                    "operationName": "google.discovery.Discovery.GetDiscovery",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.discovery.Discovery.GetDiscovery"
                   },
                   {
-                    "apiName": "google.discovery.Discovery",
-                    "apiVersion": "v1",
-                    "operationName": "google.discovery.Discovery.GetDiscoveryRest",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
+                    "operationName": "google.discovery.Discovery.GetDiscoveryRest"
                   }
                 ],
                 "scCallingConfig": {},
-                "services": [
-                  {
-                    "backendProtocol": "grpc",
-                    "jwtPayloadMetadataName": "jwt_payloads",
-                    "producerProjectId": "cloudesf-testing",
-                    "serviceConfigId": "1-010472e3_62b87bfe_5030527d_030e1ba1_0b143d96",
-                    "serviceName": "cloudesf-grpc-echo-codelabapikeys.sandbox.googleapis.com"
-                  }
-                ]
+                "service": {}
               }
             }
           }
@@ -258,6 +228,7 @@
                   "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
                   "typeUrl": "type.googleapis.com/net.envoy.proto.cloudesf.ServiceConfigDataSource",
                   "value": {
+                    "serviceConfigId": "1-010472e3_62b87bfe_5030527d_030e1ba1_0b143d96",
                     "serviceConfigPath": "/etc/istio/proxy/_grpc_echo_asm_e2e_config_service.txtpb"
                   }
                 }
