@@ -251,7 +251,7 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 				len(c.settings.KubeContexts), mdpReady)
 		}
 		return nil
-	}, retry.Timeout(time.Second*900), retry.Delay(time.Second*25)); err != nil {
+	}, retry.Timeout(time.Second*1800), retry.Delay(time.Second*25)); err != nil {
 		return fmt.Errorf("error waiting for revision readiness in feature state: %w", err)
 	}
 
