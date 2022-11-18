@@ -75,9 +75,24 @@ rules:
 - apiGroups:
   - mesh.cloud.google.com
   resources:
-  - '*'
+  - 'controlplanerevisions'
+  - 'dataplanecontrols'
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+- apiGroups:
+  - mesh.cloud.google.com
+  resources:
+  - 'dataplanecontrols/status'
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
+  - patch
+  - update
+  - create
 - apiGroups:
   - apps
   - extensions
@@ -100,7 +115,13 @@ rules:
   resources:
   - leases
   verbs:
-  - "*"
+  - get
+  - list
+  - watch
+  - delete
+  - patch
+  - update
+  - create
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
@@ -116,7 +137,13 @@ rules:
   - pods
   - pods/eviction
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - delete
+  - patch
+  - update
+  - create
 ---
 # Source: cni/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
