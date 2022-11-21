@@ -319,8 +319,16 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 func generateASMCreateMeshFlags(settings *resource.Settings) []string {
 
 	var createMeshFlags []string
-	if settings.ClusterType == resource.HybridGKEAndEKS {
-		createMeshFlags = append(createMeshFlags, "create-mesh", OnPremFleetProject)
+	if settings.ClusterType == resource.HybridGKEAndEKS || settings.ClusterType == resource.EKS {
+		environProject := ProxiedClusterFleetProject
+		if settings.ClusterType == resource.HybridGKEAndEKS {
+			environProject = OnPremFleetProject
+		}
+		if settings.MulticloudOverrideEnvironProject {
+			environProject = settings.GCPProjects[0]
+		}
+		createMeshFlags = append(createMeshFlags, "create-mesh", environProject)
+
 		kubeconfigs := filepath.SplitList(settings.Kubeconfig)
 		for _, kubeconfig := range kubeconfigs {
 			createMeshFlags = append(createMeshFlags, kubeconfig)
