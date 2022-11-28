@@ -319,7 +319,7 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 func generateASMCreateMeshFlags(settings *resource.Settings) []string {
 
 	var createMeshFlags []string
-	if settings.ClusterType == resource.HybridGKEAndEKS || settings.ClusterType == resource.EKS {
+	if settings.ClusterType == resource.HybridGKEAndEKS || settings.ClusterType == resource.EKS || settings.ClusterType == resource.AKS {
 		environProject := ProxiedClusterFleetProject
 		if settings.ClusterType == resource.HybridGKEAndEKS {
 			environProject = OnPremFleetProject

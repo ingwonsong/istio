@@ -1,0 +1,40 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-aks-mcmn-rookery
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 7200 # 2 hours
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-ci-aks-mcmn-knest
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-aks-mcmn-cluster1
+          namespace: tailorbird-users
+        spec:
+          distribution: aks
+          provider: azure
+          provisionerArgs:
+            compressArtifacts: "true"
+            kubernetesVersion: "1.23"
+            username: asm-svc-acct
+            region: centralus
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-aks-mcmn-cluster2
+          namespace: tailorbird-users
+        spec:
+          distribution: aks
+          provider: azure
+          provisionerArgs:
+            compressArtifacts: "true"
+            username: asm-svc-acct
+            region: centralus
+            kubernetesVersion: "1.23"

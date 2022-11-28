@@ -155,7 +155,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 					fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
 				}),
 			)
-		} else if c.settings.ClusterType == resource.HybridGKEAndEKS || c.settings.ClusterType == resource.EKS {
+		} else if c.settings.ClusterType == resource.HybridGKEAndEKS || c.settings.ClusterType == resource.EKS || c.settings.ClusterType == resource.AKS {
 			return createRemoteSecrets(c.settings, rev, scriptPath)
 		}
 	}
