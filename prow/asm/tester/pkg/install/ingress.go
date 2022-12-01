@@ -142,8 +142,12 @@ func listGatewayInstallationFiles(kubectlFlags []string, rev *revision.Config) (
 			if strings.Contains(f.Name(), "serviceaccount") && saExists.ingressSA {
 				continue
 			}
-			// TODO(iamwen) remove this part when we test on 1.23+ clusters
-			if strings.Contains(f.Name(), "autoscalingv2") {
+			// Skip v2beta1 since we test on 1.23+ clusters
+			if strings.Contains(f.Name(), "autoscaling-v2beta1") {
+				continue
+			}
+			// Skip v1beta1 since we test on 1.23+ clusters
+			if strings.Contains(f.Name(), "pdb-v1beta1") {
 				continue
 			}
 			gatewayManifests = append(gatewayManifests, filepath.Join(ingressDir, f.Name()))
@@ -161,8 +165,12 @@ func listGatewayInstallationFiles(kubectlFlags []string, rev *revision.Config) (
 			if strings.Contains(f.Name(), "serviceaccount") && saExists.egressSA {
 				continue
 			}
-			// TODO(iamwen) remove this part when we test on 1.23+ clusters
-			if strings.Contains(f.Name(), "autoscaling-v2") {
+			// Skip v2beta1 since we test on 1.23+ clusters
+			if strings.Contains(f.Name(), "autoscaling-v2beta1") {
+				continue
+			}
+			// Skip v1beta1 since we test on 1.23+ clusters
+			if strings.Contains(f.Name(), "pdb-v1beta1") {
 				continue
 			}
 			gatewayManifests = append(gatewayManifests, filepath.Join(egressDir, f.Name()))
