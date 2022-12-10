@@ -52,6 +52,8 @@ var (
 
 	// GCPQuotaProjectVar holds the value of the `GCP_QUOTA_PROJECT` environment variable.
 	GCPQuotaProjectVar = env.Register("GCP_QUOTA_PROJECT", "", "Allows specification of a quota project to be used in requests to GCP APIs.").Get()
+
+	GCPGKEEndpoint = env.Register("GCP_GKE_ENDPOINT", "https://container.googleapis.com", "Set the endpoint of GKE API").Get()
 )
 
 var (
@@ -107,8 +109,8 @@ var (
 		if !found {
 			return "", fmt.Errorf("error constructing GKE cluster url: %s not found in GCP Metadata", GCPCluster)
 		}
-		return fmt.Sprintf("https://container.googleapis.com/v1/projects/%s/locations/%s/clusters/%s",
-			projectID, clusterLocation, clusterName), nil
+		return fmt.Sprintf("%s/v1/projects/%s/locations/%s/clusters/%s",
+			GCPGKEEndpoint, projectID, clusterLocation, clusterName), nil
 	}
 )
 
