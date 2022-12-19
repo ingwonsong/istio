@@ -26,6 +26,7 @@ import (
 	"text/template"
 	"time"
 
+	"cloud.google.com/go/container/apiv1/containerpb"
 	"github.com/Masterminds/sprig/v3"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -116,7 +117,7 @@ func newMCPCommand() *cobra.Command {
 	}
 }
 
-func generateTemplateParameters(p MCPParameters, options AsmOptions, client kubelib.Client) (TemplateParameters, error) {
+func generateTemplateParameters(p MCPParameters, options AsmOptions, client kubelib.Client, cluster *containerpb.Cluster) (TemplateParameters, error) {
 	cniEnabled, err := getCniEnabled(options, client)
 	if err != nil {
 		return TemplateParameters{}, err
@@ -124,7 +125,7 @@ func generateTemplateParameters(p MCPParameters, options AsmOptions, client kube
 	templateParams := TemplateParameters{
 		MCPParameters:           p,
 		CNIEnabled:              cniEnabled,
-		ProxyResourceParameters: createProxyParameters(client),
+		ProxyResourceParameters: createProxyParameters(cluster),
 	}
 	if options.CAOptions.CAType == PrivatecaOption {
 		templateParams.CA = string(PrivatecaOption)
@@ -158,7 +159,8 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 		HubMembership:      p.GKEHubMembership,
 		OutputFile:         "/tmp/kubeconfig.yaml",
 	}
-	if err := mcpinit.ConstructKubeConfigFile(context.Background(), param); err != nil {
+	cl, err := mcpinit.ConstructKubeConfigFile(context.Background(), param)
+	if err != nil {
 		return nil, fmt.Errorf("construct kube config: %v", err)
 	}
 	// Configure Istiod to read or configured kubeconfig file
@@ -231,7 +233,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	// Old script allowed detecting Mesh CA vs Citadel; since we don't plan to do that any longer we only do mesh ca
 	features.EnableCAServer = false
 
-	templateParams, err := generateTemplateParameters(p, asmOptions, client)
+	templateParams, err := generateTemplateParameters(p, asmOptions, client, cl)
 	if err != nil {
 		return nil, err
 	}
@@ -705,8 +707,8 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	return p, nil
 }
 
-func createProxyParameters(client kubelib.Client) ProxyResourceParameters {
-	isAutopilot := getIfAutopilot(client)
+func createProxyParameters(cluster *containerpb.Cluster) ProxyResourceParameters {
+	isAutopilot := getIfAutopilot(cluster)
 
 	proxyCPURequest := "100m"
 	proxyMemoryRequest := "128Mi"
@@ -728,14 +730,9 @@ func createProxyParameters(client kubelib.Client) ProxyResourceParameters {
 	}
 }
 
-func getIfAutopilot(client kubelib.Client) bool {
-	// TODO: wait till https://pkg.go.dev/google.golang.org/genproto/googleapis/container/v1#Cluster
-	// publish the `Autopilot` field
-	// This is a temporary workaround to check if a cluster is Autopilot or GKE
-	// This CRD will be installed only if the cluster is Autopilot
-	autoPilotCRD := "allowlistedworkloads.auto.gke.io"
-	if _, err := client.Ext().ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), autoPilotCRD, metav1.GetOptions{}); err == nil {
-		return true
+func getIfAutopilot(cluster *containerpb.Cluster) bool {
+	if cluster != nil {
+		return cluster.GetAutopilot().GetEnabled()
 	}
 	return false
 }

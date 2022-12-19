@@ -74,27 +74,27 @@ type gkeHubMembership struct {
 // This will lookup up the cluster information from the GKE api, and
 // construct a "fake" kubeconfig file that will later be read. See
 // https://ahmet.im/blog/authenticating-to-gke-without-gcloud/
-func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) error {
+func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*containerpb.Cluster, error) {
 	if p.Project == "" {
-		return fmt.Errorf("project is empty")
+		return nil, fmt.Errorf("project is empty")
 	}
 	if p.Location == "" {
-		return fmt.Errorf("location is empty")
+		return nil, fmt.Errorf("location is empty")
 	}
 	if p.Cluster == "" {
-		return fmt.Errorf("cluster is empty")
+		return nil, fmt.Errorf("cluster is empty")
 	}
 	if p.OutputFile == "" {
-		return fmt.Errorf("outFile is empty")
+		return nil, fmt.Errorf("outFile is empty")
 	}
 
 	if err := pollIAMPropagation(); err != nil {
-		return err
+		return nil, err
 	}
 	t0 := time.Now()
 	c, err := container.NewClusterManagerClient(ctx, option.WithQuotaProject(p.Project))
 	if err != nil {
-		return fmt.Errorf("create cluster manager client: %v", err)
+		return nil, fmt.Errorf("create cluster manager client: %v", err)
 	}
 	defer c.Close()
 	var cl *containerpb.Cluster
@@ -111,7 +111,7 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) error 
 		time.Sleep(time.Second)
 	}
 	if cl == nil {
-		return fmt.Errorf("exceeded retry budget fetching cluster: %v", err)
+		return nil, fmt.Errorf("exceeded retry budget fetching cluster: %v", err)
 	}
 	endpoint := cl.Endpoint
 	caCertificate := cl.MasterAuth.ClusterCaCertificate
@@ -146,9 +146,9 @@ clusters:
 
 	log.Infof("Fetched cluster endpoint in %s: %v", time.Since(t0), endpoint)
 	if err := os.WriteFile(p.OutputFile, []byte(kubeConfig), 0o644); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return cl, nil
 }
 
 func connectGatewayURL(ctx context.Context, fleetProjectNum, hubMembership string) (string, error) {

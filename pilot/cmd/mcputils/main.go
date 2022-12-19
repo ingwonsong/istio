@@ -204,7 +204,7 @@ func (s *server) createKubeClient(ctx context.Context, project, location, cluste
 			Cluster:    cluster,
 			OutputFile: "/tmp/kubeconfig.yaml",
 		}
-		if err := mcpinit.ConstructKubeConfigFile(ctx, param); err != nil {
+		if _, err := mcpinit.ConstructKubeConfigFile(ctx, param); err != nil {
 			return nil, "", fmt.Errorf("could not construct kube config: %v", err)
 		}
 		s.kubeconfigs[kubecfgName] = true
