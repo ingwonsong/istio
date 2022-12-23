@@ -115,7 +115,7 @@ func TestLongRunning(t *testing.T) {
 			}).Start()
 
 			if url := os.Getenv("TEST_START_EVENT_URL"); url != "" {
-				client := &http.Client{Timeout: 1 * time.Hour}
+				client := &http.Client{Timeout: 3 * time.Hour}
 				log.Printf("firing test start event to %s", url)
 				resp, err := client.Get(url)
 				if err != nil {
@@ -123,7 +123,7 @@ func TestLongRunning(t *testing.T) {
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
-					log.Printf("HTTP call (%s) returned non-ok status: %d", url, resp.StatusCode)
+					t.Fatalf("HTTP call (%s) returned non-ok status: %d", url, resp.StatusCode)
 				}
 			}
 			// Stop the traffic generator and get the result.

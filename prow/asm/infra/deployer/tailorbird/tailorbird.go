@@ -45,7 +45,7 @@ const (
 	tracConfigRelDir = "../../team/anthos-trac-team/configs/tailorbird/asm/"
 
 	// GCS path for downloading kubetest2-tailorbird binary
-	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2022-09-22-185608/kubetest2-tailorbird"
+	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2022-12-16-192919/kubetest2-tailorbird"
 
 	installawsIamAuthenticatorCmd = `curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/aws-iam-authenticator \
 			&& chmod +x ./aws-iam-authenticator \
@@ -284,6 +284,8 @@ func (d *Instance) installTools() error {
 	if err := exec.Run("gcloud components install gke-gcloud-auth-plugin --quiet"); err != nil {
 		return fmt.Errorf("error installing gke-gcloud-auth-plugin: %w", err)
 	}
+	// add this env variable as suggested here go/gke-kubectl-exec-auth#verify-installation
+	os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "True")
 
 	// GKE-on-AWS needs terraform for generation of kubeconfigs
 	// TODO(chizhg): remove the terraform installation after b/171729099 is solved.
@@ -718,7 +720,9 @@ func (d *Instance) waitForUpgradeToFinish(clusterName string) error {
 // Otherwise, returns false (if status is Pending or Failed). If failed, an
 // error is also returned.
 func (d *Instance) IsUpgradeDone(clusterName string) (bool, error) {
-	s, err := d.getUpgradeStatus(clusterName)
+	// TODO(aayushtyagi): change this back to getUpgradeStatusUsingKubetest when b/261093252 gets resolved
+	// changed the method through which upgrade status is retrieved, using kubectl instead of kt2-tb
+	s, err := d.getUpgradeStatusUsingKubectl(clusterName)
 	if err != nil {
 		return false, err
 	}
@@ -735,7 +739,7 @@ func (d *Instance) IsUpgradeDone(clusterName string) (bool, error) {
 
 // getUpgradeStatus returns the cluster upgrade process status by calling
 // kubetest2-tailorbird
-func (d *Instance) getUpgradeStatus(clusterName string) (types.Type, error) {
+func (d *Instance) getUpgradeStatusUsingKubetest(clusterName string) (types.Type, error) {
 	workdir := filepath.Dir(d.cfg.RookeryRequestFile)
 	upgradeConfigFile := filepath.Join(workdir, fmt.Sprintf("%s-upgrade.yaml", clusterName))
 	upgradeStatusCmd := fmt.Sprintf("kubetest2-tailorbird --up "+
@@ -755,4 +759,24 @@ func (d *Instance) getUpgradeStatus(clusterName string) (types.Type, error) {
 		return types.Failed, fmt.Errorf("fail to find the upgrade status")
 	}
 	return types.Type(matches[1]), nil
+}
+
+// getUpgradeStatus returns the cluster upgrade process status by calling
+// kubectl
+func (d *Instance) getUpgradeStatusUsingKubectl(clusterName string) (types.Type, error) {
+	workdir := filepath.Dir(d.cfg.RookeryRequestFile)
+	upgradeConfigFile := filepath.Join(workdir, fmt.Sprintf("%s-upgrade.yaml", clusterName))
+	upgradeStatusCmd := fmt.Sprintf("kubectl get -f %s --no-headers "+
+		"-o=custom-columns=STATE:.status.clusterVersionUpdateState",
+		upgradeConfigFile)
+
+	upgradeStatus, err := exec.CombinedOutput(upgradeStatusCmd)
+	if err != nil {
+		return types.Failed, err
+	}
+	if upgradeStatus == nil {
+		return types.Failed, fmt.Errorf("fail to find the upgrade status")
+	}
+
+	return types.Type(upgradeStatus), nil
 }
