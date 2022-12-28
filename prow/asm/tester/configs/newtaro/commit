@@ -1,7 +1,7 @@
-8c4b2e40cb7007d0e218c61cae4f1326683a309f
+26c409bc605152e27203b1570ca78530c1ebddf9
 ========================================
-Clay
-Mon Nov 21 14:20:36 2022 -0800
+Zhengzhe Yang
+Tue Dec 20 16:34:54 2022 -0800
 
-Add dry run logic for meshconfig init (#1365)
+fix the bug when the cluster info is not populated (#1379)
 
