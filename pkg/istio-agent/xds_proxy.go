@@ -705,7 +705,8 @@ func (p *XdsProxy) getTLSDialOption(agent *Agent) (grpc.DialOption, error) {
 	}
 
 	config := tls.Config{
-		InsecureSkipVerify: xdsInsecure,
+		// Explicitly opting in to insecure, so disable gosec lint.
+		InsecureSkipVerify: xdsInsecure, // nolint: gosec
 		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			var certificate tls.Certificate
 			key, cert := agent.GetKeyCertsForXDS()

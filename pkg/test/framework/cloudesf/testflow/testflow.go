@@ -226,7 +226,7 @@ spec:
           optional: false
         name: custom-bootstrap-volume
 ---
-apiVersion: policy/v1beta1
+apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: istio-ingressgateway
@@ -261,7 +261,7 @@ subjects:
 - kind: ServiceAccount
   name: istio-ingressgateway-service-account
 ---
-apiVersion: autoscaling/v2beta1
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: istio-ingressgateway
@@ -269,10 +269,12 @@ metadata:
 spec:
   maxReplicas: 1
   metrics:
-  - resource:
+  - type: Resource
+    resource:
       name: cpu
-      targetAverageUtilization: 80
-    type: Resource
+      target:
+        type: Utilization
+        averageUtilization: 80
   minReplicas: 1
   scaleTargetRef:
     apiVersion: apps/v1
