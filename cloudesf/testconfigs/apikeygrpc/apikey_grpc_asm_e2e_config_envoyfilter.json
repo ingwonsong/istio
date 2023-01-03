@@ -198,6 +198,9 @@
                     "operationName": "google.example.apikeys.v1.ApiKeys.DeleteApiKey"
                   },
                   {
+                    "operationName": "google.example.apikeys.v1.ApiKeys.UndeleteApiKey"
+                  },
+                  {
                     "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
                     "operationName": "google.discovery.Discovery.GetDiscovery"
                   },
@@ -207,7 +210,9 @@
                   }
                 ],
                 "scCallingConfig": {},
-                "service": {}
+                "service": {
+                  "removeAuthorizationHeader": true
+                }
               }
             }
           }
@@ -272,10 +277,10 @@
                     },
                     "filter": {
                       "extensionFilter": {
-                        "name": "envoy.access_loggers.extension_filters.not_grpc_downstream",
+                        "name": "envoy.access_loggers.extension_filters.http_error_response",
                         "typedConfig": {
                           "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
-                          "typeUrl": "type.googleapis.com/net.envoy.proto.NotGrpcDownstreamConfig",
+                          "typeUrl": "type.googleapis.com/net.envoy.proto.HttpErrorResponseConfig",
                           "value": {}
                         }
                       }

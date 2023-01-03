@@ -377,6 +377,56 @@
               }
             },
             "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/UndeleteApiKey"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.UndeleteApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "exact": "/google.example.apikeys.v1.ApiKeys/UndeleteApiKey/"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.UndeleteApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
               "exact": "/google.example.apikeys.v1.ApiKeys/UpdateApiKey"
             }
           }
@@ -532,6 +582,31 @@
           }
         ],
         "name": "google.example.apikeys.v1.ApiKeys.UpdateApiKey",
+        "route": [
+          {
+            "destination": {
+              "host": "cloud-esf-asm-e2e.default.svc.cluster.local",
+              "port": {
+                "number": 8080
+              }
+            }
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "headers": {
+              ":method": {
+                "exact": "POST"
+              }
+            },
+            "uri": {
+              "regex": "^/v1/projects/[^\\/:]+/apiKeys/[^\\/:]+\\/?:undelete$"
+            }
+          }
+        ],
+        "name": "google.example.apikeys.v1.ApiKeys.UndeleteApiKey",
         "route": [
           {
             "destination": {
