@@ -4,6 +4,13 @@ ARG BASE_VERSION=latest
 # The following section is used as base image if BASE_DISTRIBUTION=distroless
 FROM gcr.io/istio-release/distroless:${BASE_VERSION} as distroless
 
+ARG TARGETARCH=amd64
+
+FROM gcr.io/asm-staging-images/asm/build-tools:master-latest-${TARGETARCH} as build_tools
+
+FROM distroless
+COPY --from=build_tools /usr/local/google-cloud-sdk/bin/gke-gcloud-auth-plugin /usr/bin/gke-gcloud-auth-plugin
+
 # The libc distroless image runs as non-root, but our image expects root.
 # We could probably get it running as non-root, but for now just override it back to root.
 # hadolint ignore=DL3002
@@ -12,7 +19,6 @@ WORKDIR /
 
 COPY mesh_template.yaml /etc/istio/config/mesh_template.yaml
 
-ARG TARGETARCH
 COPY ${TARGETARCH:-amd64}/pilot-discovery /usr/local/bin/pilot-discovery
 
 COPY injection-template.yaml /var/lib/istio/inject/config
