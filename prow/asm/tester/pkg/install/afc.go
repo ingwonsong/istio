@@ -322,6 +322,15 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 		contextLogger.Println("Performing ASM installation via AFC...")
 		cluster := kube.GKEClusterSpecFromContext(context)
 
+		// Using Kubernetes Gateway API with GKE requires cluster update.
+		// https://cloud.google.com/kubernetes-engine/docs/how-to/deploying-gateways#enable-gateway-existing-cluster
+		if c.settings.FeaturesToTest.Has(string(resource.CompositeGateway)) {
+			if err := exec.Run(fmt.Sprintf("gcloud container clusters update %s --gateway-api=standard --project %s --region %s",
+				cluster.Name, cluster.ProjectID, cluster.Location)); err != nil {
+				return fmt.Errorf("failed updating gateway-api for cluster %s: %w", cluster.Name, err)
+			}
+		}
+
 		contextLogger.Println("Running installation using install script...")
 		// Running the test with offline mode because we need to test with custome images built on the fly.
 		// However, the annotation in the ControlPlaneRevision is not user-facing. Therefore, we need to
