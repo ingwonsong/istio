@@ -707,9 +707,11 @@ func (d *Instance) waitForUpgradeToFinish(clusterName string) error {
 		if err != nil {
 			return err
 		}
-
-		if clusterReady || (statusCheckAttempt >= statusCheckMaxRetry) {
+		if clusterReady {
 			break
+		}
+		if statusCheckAttempt >= statusCheckMaxRetry {
+			return fmt.Errorf("Cluster not ready within the maximum status check retry limit: %d", statusCheckMaxRetry)
 		}
 	}
 
@@ -778,5 +780,6 @@ func (d *Instance) getUpgradeStatusUsingKubectl(clusterName string) (types.Type,
 		return types.Failed, fmt.Errorf("fail to find the upgrade status")
 	}
 
-	return types.Type(upgradeStatus), nil
+	// Trimming the result string as it has an extra new line character at the end
+	return types.Type(strings.TrimRight(string(upgradeStatus), "\n")), nil
 }
