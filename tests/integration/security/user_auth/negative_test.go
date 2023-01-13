@@ -132,13 +132,13 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to load sign in page %v", err)
 				}
 				// Get a reference to the text box containing code.
-				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section/header/div/h2/span")
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"headingText\"]/span")
 				tx, err := elem.Text()
 				if err != nil {
 					ctx.Fatalf("unable to get the text from sign in page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Error 401: invalid_client") {
+				if !strings.Contains(tx, "Access blocked: Authorization Error") {
 					ctx.Fatalf("Cannot find invalid client id text.")
 				}
 			})
@@ -304,13 +304,13 @@ func TestMisconfiguration(t *testing.T) {
 					ctx.Fatalf("unable to load sign in page %v", err)
 				}
 				// Get a reference to the text box containing code.
-				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"view_container\"]/div/div/div[2]/div/div[1]/div/form/span/section/header/div/h2/span")
+				elem := selenium.FindElementByXPathOrFail(ctx, wd, "//*[@id=\"headingText\"]/span")
 				tx, err := elem.Text()
 				if err != nil {
 					ctx.Fatalf("unable to get the text from sign in page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Error 400: invalid_scope") {
+				if !strings.Contains(tx, "Access blocked: Authorization Error") {
 					ctx.Fatalf("Cannot find invalid_scope text.")
 				}
 			})
