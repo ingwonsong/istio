@@ -18,8 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	//  import GKE cluster authentication plugin
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth/gcp" // Import client auth libraries TODO(b/265068117)
 )
 
 func NewClient(kubeconfig string) (*kubernetes.Clientset, error) {

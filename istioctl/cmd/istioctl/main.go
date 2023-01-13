@@ -18,10 +18,8 @@ import (
 	"fmt"
 	"os"
 
-	// import all known client auth plugins
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"istio.io/istio/istioctl/cmd"
+	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth" // import all known client auth plugins
 	"istio.io/pkg/log"
 )
 

@@ -16,8 +16,8 @@ package migration
 
 import (
 	"k8s.io/client-go/kubernetes"
-	_ "k8s.io/client-go/plugin/pkg/client/auth" // Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 
+	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth" // Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	"istio.io/istio/pkg/kube"
 )
 

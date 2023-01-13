@@ -40,9 +40,9 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // Import client auth libraries
 	"k8s.io/client-go/rest"
 
+	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth/gcp" // Import client auth libraries TODO(b/265068117)
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/schema/resource"

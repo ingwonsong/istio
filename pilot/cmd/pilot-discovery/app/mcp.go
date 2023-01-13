@@ -34,11 +34,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // Import client auth libraries
 	"sigs.k8s.io/yaml"
 
 	"istio.io/istio/pilot/cmd/pilot-discovery/app/mcpinit"
 	"istio.io/istio/pilot/pkg/bootstrap"
+	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth/gcp" // Import client auth libraries TODO(b/265068117)
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pilot/pkg/xds"
