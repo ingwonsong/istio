@@ -516,6 +516,15 @@ var (
 	WorkloadEntryAutoRegistration = env.Register("PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION", true,
 		"Enables auto-registering WorkloadEntries based on associated WorkloadGroups upon XDS connection by the workload.").Get()
 
+	// This is a temporary flag to disable Istio Authn filter.
+	// In Cloud ESF mode, we turn off Istio Authn filter by default.
+	// This flag will be removed after Istio implemented a generic way to allow
+	// custom Envoy builds. Please see
+	// https://github.com/istio/istio/pull/42904 for details.
+	EnableCloudESF = env.Register("ENABLE_CLOUD_ESF", false,
+		"If this is set to true, cloudesf based gateway is enabled.",
+	).Get()
+
 	WorkloadEntryCleanupGracePeriod = env.Register("PILOT_WORKLOAD_ENTRY_GRACE_PERIOD", 10*time.Second,
 		"The amount of time an auto-registered workload can remain disconnected from all Pilot instances before the "+
 			"associated WorkloadEntry is cleaned up.").Get()
