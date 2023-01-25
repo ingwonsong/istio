@@ -3,6 +3,7 @@ ARG BASE_DISTRIBUTION=debug
 
 # Version is the base image version from the TLD Makefile
 ARG BASE_VERSION=latest
+ARG ISTIO_BASE_REGISTRY=gcr.io/istio-release
 
 ARG CLOUDESF_VERSION
 FROM gcr.io/cloudesf-release/proxy:${CLOUDESF_VERSION} as cloudesf_gcr
@@ -15,7 +16,7 @@ FROM gcr.io/cloudesf-release/proxy:${CLOUDESF_VERSION} as cloudesf_gcr
 # FROM gcr.io/istio-release/iptables@sha256:e8f940d0d0163ec4563ee070188c1d97308ac08f4a711152ff55f3a81e525140 as distroless
 
 # The following section is used as base image if BASE_DISTRIBUTION=debug
-FROM gcr.io/istio-release/base:${BASE_VERSION} as debug
+FROM ${ISTIO_BASE_REGISTRY}/base:${BASE_VERSION} as debug
 
 # This will build the final image based on either default or distroless from above
 # hadolint ignore=DL3006

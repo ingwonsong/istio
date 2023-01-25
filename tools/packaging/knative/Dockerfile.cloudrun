@@ -1,8 +1,9 @@
 # Version is the base image version from the TLD Makefile
 ARG BASE_VERSION=latest
+ARG ISTIO_BASE_REGISTRY=gcr.io/istio-release
 
 # The following section is used as base image if BASE_DISTRIBUTION=distroless
-FROM gcr.io/istio-release/distroless:${BASE_VERSION} as distroless
+FROM ${ISTIO_BASE_REGISTRY}/distroless:${BASE_VERSION} as distroless
 
 # The libc distroless image runs as non-root, but our image expects root.
 # We could probably get it running as non-root, but for now just override it back to root.
