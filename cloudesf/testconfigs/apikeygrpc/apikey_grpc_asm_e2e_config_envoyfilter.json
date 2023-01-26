@@ -31,9 +31,7 @@
             "typedConfig": {
               "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
               "typeUrl": "type.googleapis.com/net.envoy.proto.ErrorDetailsPatchFilterConfig",
-              "value": {
-                "enableOpError": true
-              }
+              "value": {}
             }
           }
         }
