@@ -117,7 +117,7 @@ func newMCPCommand() *cobra.Command {
 	}
 }
 
-func generateTemplateParameters(p MCPParameters, options AsmOptions, client kubelib.Client, cluster *containerpb.Cluster) (TemplateParameters, error) {
+func generateTemplateParameters(p MCPParameters, options *AsmOptions, client kubelib.Client, cluster *containerpb.Cluster) (TemplateParameters, error) {
 	cniEnabled, err := getCniEnabled(options, client)
 	if err != nil {
 		return TemplateParameters{}, err
@@ -179,6 +179,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	overwriteOptionsFromArgs(p, asmOptions)
 	log.Infof("Fetched ASM options in %v: %+v", time.Since(asmOptsStartTime), asmOptions)
 
 	setupInjectEnvironment(client)
@@ -461,7 +462,7 @@ func createConfigmap(client kubelib.Client, name string, data map[string]string,
 	return false, mcpinit.IgnoreConflict(err)
 }
 
-func getCniEnabled(options AsmOptions, client kubelib.Client) (bool, error) {
+func getCniEnabled(options *AsmOptions, client kubelib.Client) (bool, error) {
 	switch options.CNI {
 	case CheckOption:
 		// If we are in check mode, look to see if there is any CNI pods. If there is, we will enable CNI
@@ -484,8 +485,8 @@ func getCniEnabled(options AsmOptions, client kubelib.Client) (bool, error) {
 }
 
 // fetchAsmOptions fetches and parses internal options configmap, which conditionally enables certain features
-func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
-	defaultOpts := AsmOptions{
+func fetchAsmOptions(client kubelib.Client) (*AsmOptions, error) {
+	defaultOpts := &AsmOptions{
 		CNI: OffOption,
 	}
 	// We add retries to account for IAM propagation delays. Even with pollIAMPropagation, sometimes it doesn't universally apply
@@ -510,7 +511,7 @@ func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
 	if !f {
 		return defaultOpts, nil
 	}
-	var option AsmOptions
+	option := &AsmOptions{}
 	for _, cmOption := range strings.Split(opts, ";") {
 		if strings.Contains(cmOption, "CNI=check") {
 			option.CNI = CheckOption
@@ -532,6 +533,15 @@ func fetchAsmOptions(client kubelib.Client) (AsmOptions, error) {
 		}
 	}
 	return option, nil
+}
+
+func overwriteOptionsFromArgs(params MCPParameters, options *AsmOptions) {
+	if params.CAAddr != "" {
+		options.CAOptions.CAAddr = params.CAAddr
+	}
+	if params.CAType != "" {
+		options.CAOptions.CAType = CAType(params.CAType)
+	}
 }
 
 // executeTemplate executes a go template over fromFile, with inputs from params
@@ -631,6 +641,8 @@ type MCPParameters struct {
 	FleetProjectNumber string
 	AFCManagedWebhook  bool
 	GKEHubMembership   string
+	CAAddr             string
+	CAType             string
 }
 
 type ProxyResourceParameters struct {
@@ -696,7 +708,8 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	}
 	p.TrustDomain = fmt.Sprintf("%s.svc.id.goog", tdProj)
 	p.PodName = fmt.Sprintf("%s-%d", p.KRevision, time.Now().Nanosecond())
-
+	p.CAAddr = os.Getenv("CAAddr")
+	p.CAType = os.Getenv("CA")
 	if v := os.Getenv("AFC_MANAGED_WEBHOOK"); v != "" {
 		var err error
 		p.AFCManagedWebhook, err = strconv.ParseBool(v)
