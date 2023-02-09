@@ -24,7 +24,7 @@ spec:
                 gcsBucket: "{{ .GCSBucket }}"
                 anthosVersion: "{{ .Version }}"
                 commonOptionsAnthosVersionPrefix: "{{ .VersionPrefix }}"
-                nodeCount: "6"
+                nodeCount: "2"
                 commonOptionsWaitTimeout: "3600000000000"
                 nodeType: m5.xlarge
                 username: asm-svc-acct
