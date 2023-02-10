@@ -368,7 +368,7 @@ func setupTest(t testing.TB, config ConfigInput) (*FakeDiscoveryServer, *model.P
 				"istio.io/benchmark": "true",
 			},
 			ClusterID:    "Kubernetes",
-			IstioVersion: "1.17.0",
+			IstioVersion: "1.18.0",
 		},
 		ConfigNamespace:  "default",
 		VerifiedIdentity: &spiffe.Identity{Namespace: "default"},
@@ -525,7 +525,7 @@ func createEndpoints(numEndpoints, numServices, numNetworks int) []config.Config
 			},
 			Spec: &networking.ServiceEntry{
 				Hosts: []string{fmt.Sprintf("foo-%d.com", s)},
-				Ports: []*networking.Port{
+				Ports: []*networking.ServicePort{
 					{Number: 80, Name: "http-port", Protocol: "http"},
 				},
 				Endpoints:  endpoints,

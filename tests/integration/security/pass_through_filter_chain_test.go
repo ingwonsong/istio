@@ -41,7 +41,7 @@ func TestPassThroughFilterChain(t *testing.T) {
 		Features("security.filterchain").
 		Run(func(t framework.TestContext) {
 			type expect struct {
-				port string
+				port echo.Port
 				// Plaintext will be sent from Naked pods.
 				plaintextSucceeds bool
 				// MTLS will be sent from all pods other than Naked.
@@ -398,7 +398,8 @@ spec:
 						ConditionallyTo(echotest.SameNetwork).
 						Run(func(t framework.TestContext, from echo.Instance, to echo.Target) {
 							for _, expect := range tc.expected {
-								p := to.PortForName(expect.port)
+								expect := expect
+								p := expect.port
 								// TODO: https://buganizer.corp.google.com/issues/185244363
 								if os.Getenv("CLUSTER_TYPE") == "aws" && from.Config().IsNaked() && p.Protocol == protocol.HTTPS && expect.plaintextSucceeds {
 									continue

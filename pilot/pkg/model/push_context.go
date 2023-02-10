@@ -728,16 +728,13 @@ func virtualServiceDestinations(v *networking.VirtualService) map[string]sets.Se
 	out := make(map[string]sets.Set[int])
 
 	addDestination := func(host string, port *networking.PortSelector) {
-		if _, ok := out[host]; !ok {
-			out[host] = sets.New[int]()
-		}
+		// Use the value 0 as a sentinel indicating that one of the destinations
+		// in the Virtual Service does not specify a port for this host.
+		pn := 0
 		if port != nil {
-			out[host].Insert(int(port.Number))
-		} else {
-			// Use the value 0 as a sentinel indicating that one of the destinations
-			// in the Virtual Service does not specify a port for this host.
-			out[host].Insert(0)
+			pn = int(port.Number)
 		}
+		sets.InsertOrNew(out, host, pn)
 	}
 
 	for _, h := range v.Http {
@@ -801,13 +798,17 @@ func (ps *PushContext) GatewayServices(proxy *Proxy) []*Service {
 }
 
 func (ps *PushContext) ServiceAttachedToGateway(hostname string, proxy *Proxy) bool {
+	gw := proxy.MergedGateway
 	// MergedGateway will be nil when there are no configs in the
 	// system during initial installation.
-	if proxy.MergedGateway == nil {
+	if gw == nil {
 		return false
 	}
-	for _, gw := range proxy.MergedGateway.GatewayNameForServer {
-		if hosts := ps.virtualServiceIndex.destinationsByGateway[gw]; hosts != nil {
+	if gw.ContainsAutoPassthroughGateways {
+		return true
+	}
+	for _, g := range gw.GatewayNameForServer {
+		if hosts := ps.virtualServiceIndex.destinationsByGateway[g]; hosts != nil {
 			if hosts.Contains(hostname) {
 				return true
 			}
@@ -827,6 +828,7 @@ func addHostsFromMeshConfig(ps *PushContext, hosts sets.String) {
 			hosts.Insert(p.EnvoyExtAuthzGrpc.Service)
 		case *meshconfig.MeshConfig_ExtensionProvider_Zipkin:
 			hosts.Insert(p.Zipkin.Service)
+		//nolint: staticcheck  // Lightstep deprecated
 		case *meshconfig.MeshConfig_ExtensionProvider_Lightstep:
 			hosts.Insert(p.Lightstep.Service)
 		case *meshconfig.MeshConfig_ExtensionProvider_Datadog:
@@ -1397,7 +1399,7 @@ func (ps *PushContext) initServiceRegistry(env *Environment) error {
 				ps.ServiceIndex.instancesByPort[svcKey] = make(map[int][]*ServiceInstance)
 			}
 			instances := make([]*ServiceInstance, 0)
-			instances = append(instances, env.InstancesByPort(s, port.Port, nil)...)
+			instances = append(instances, env.InstancesByPort(s, port.Port)...)
 			ps.ServiceIndex.instancesByPort[svcKey][port.Port] = instances
 		}
 
@@ -1596,11 +1598,8 @@ func (ps *PushContext) initVirtualServices(env *Environment) error {
 				if gw == constants.IstioMeshGateway {
 					continue
 				}
-				if _, f := ps.virtualServiceIndex.destinationsByGateway[gw]; !f {
-					ps.virtualServiceIndex.destinationsByGateway[gw] = sets.New[string]()
-				}
 				for host := range virtualServiceDestinations(rule) {
-					ps.virtualServiceIndex.destinationsByGateway[gw].Insert(host)
+					sets.InsertOrNew(ps.virtualServiceIndex.destinationsByGateway, gw, host)
 				}
 				addHostsFromMeshConfig(ps, ps.virtualServiceIndex.destinationsByGateway[gw])
 			}

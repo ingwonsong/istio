@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 
@@ -40,6 +41,8 @@ const (
 	summaryOutput          = "short"
 	prometheusOutput       = "prom"
 	prometheusMergedOutput = "prom-merged"
+
+	defaultProxyAdminPort = 15000
 )
 
 var (
@@ -55,6 +58,8 @@ var (
 
 	// output format (yaml or short)
 	outputFormat string
+
+	proxyAdminPort int
 )
 
 // Level is an enumeration of all supported log levels.
@@ -161,7 +166,7 @@ func extractConfigDump(podName, podNamespace string, eds bool) ([]byte, error) {
 	if eds {
 		path += "?include_eds=true"
 	}
-	debug, err := kubeClient.EnvoyDo(context.TODO(), podName, podNamespace, "GET", path)
+	debug, err := kubeClient.EnvoyDoWithPort(context.TODO(), podName, podNamespace, "GET", path, proxyAdminPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute command on %s.%s sidecar: %v", podName, podNamespace, err)
 	}
@@ -220,7 +225,7 @@ func setupEnvoyClusterStatsConfig(podName, podNamespace string, outputFormat str
 		// for yaml output we will convert the json to yaml when printed
 		path += "?format=json"
 	}
-	result, err := kubeClient.EnvoyDo(context.TODO(), podName, podNamespace, "GET", path)
+	result, err := kubeClient.EnvoyDoWithPort(context.TODO(), podName, podNamespace, "GET", path, proxyAdminPort)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute command on Envoy: %v", err)
 	}
@@ -260,7 +265,7 @@ func setupEnvoyLogConfig(param, podName, podNamespace string) (string, error) {
 	if param != "" {
 		path = path + "?" + param
 	}
-	result, err := kubeClient.EnvoyDo(context.TODO(), podName, podNamespace, "POST", path)
+	result, err := kubeClient.EnvoyDoWithPort(context.TODO(), podName, podNamespace, "POST", path, proxyAdminPort)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute command on Envoy: %v", err)
 	}
@@ -293,7 +298,7 @@ func setupPodClustersWriter(podName, podNamespace string, out io.Writer) (*clust
 		return nil, fmt.Errorf("failed to create k8s client: %v", err)
 	}
 	path := "clusters?format=json"
-	debug, err := kubeClient.EnvoyDo(context.TODO(), podName, podNamespace, "GET", path)
+	debug, err := kubeClient.EnvoyDoWithPort(context.TODO(), podName, podNamespace, "GET", path, proxyAdminPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute command on Envoy: %v", err)
 	}
@@ -301,16 +306,7 @@ func setupPodClustersWriter(podName, podNamespace string, out io.Writer) (*clust
 }
 
 func setupFileClustersWriter(filename string, out io.Writer) (*clusters.ConfigWriter, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			log.Errorf("failed to close %s: %s", filename, err)
-		}
-	}()
-	data, err := io.ReadAll(file)
+	data, err := readFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -662,7 +658,7 @@ func statsConfigCmd() *cobra.Command {
 }
 
 func logCmd() *cobra.Command {
-	var podName, podNamespace string
+	var podNamespace string
 	var podNames []string
 
 	logCmd := &cobra.Command{
@@ -707,17 +703,16 @@ func logCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if len(podNames) > 0 {
-					podName = podNames[0]
-				}
 			} else {
-				if podName, podNamespace, err = getPodName(args[0]); err != nil {
+				if podNames, podNamespace, err = getPodNames(args[0]); err != nil {
 					return err
 				}
-				name, err := setupEnvoyLogConfig("", podName, podNamespace)
-				loggerNames = append(loggerNames, name)
-				if err != nil {
-					return err
+				for _, podName := range podNames {
+					name, err := setupEnvoyLogConfig("", podName, podNamespace)
+					loggerNames = append(loggerNames, name)
+					if err != nil {
+						return err
+					}
 				}
 			}
 
@@ -762,22 +757,31 @@ func logCmd() *cobra.Command {
 			}
 
 			var resp string
-			if len(destLoggerLevels) == 0 {
-				resp, err = setupEnvoyLogConfig("", podName, podNamespace)
-			} else {
-				if ll, ok := destLoggerLevels[defaultLoggerName]; ok {
-					// update levels of all loggers first
-					resp, err = setupEnvoyLogConfig(defaultLoggerName+"="+levelToString[ll], podName, podNamespace)
-					delete(destLoggerLevels, defaultLoggerName)
+			var errs *multierror.Error
+			for _, podName := range podNames {
+				if len(destLoggerLevels) == 0 {
+					resp, err = setupEnvoyLogConfig("", podName, podNamespace)
+				} else {
+					if ll, ok := destLoggerLevels[defaultLoggerName]; ok {
+						// update levels of all loggers first
+						resp, err = setupEnvoyLogConfig(defaultLoggerName+"="+levelToString[ll], podName, podNamespace)
+					}
+					for lg, ll := range destLoggerLevels {
+						if lg == defaultLoggerName {
+							continue
+						}
+						resp, err = setupEnvoyLogConfig(lg+"="+levelToString[ll], podName, podNamespace)
+					}
 				}
-				for lg, ll := range destLoggerLevels {
-					resp, err = setupEnvoyLogConfig(lg+"="+levelToString[ll], podName, podNamespace)
+				if err != nil {
+					errs = multierror.Append(errs, fmt.Errorf("error configuring log level for %v.%v: %v", podName, podNamespace, err))
+				} else {
+					_, _ = fmt.Fprintf(c.OutOrStdout(), "%v.%v:\n%v", podName, podNamespace, resp)
 				}
 			}
-			if err != nil {
+			if err := multierror.Flatten(errs.ErrorOrNil()); err != nil {
 				return err
 			}
-			_, _ = fmt.Fprint(c.OutOrStdout(), resp)
 			return nil
 		},
 		ValidArgsFunction: validPodsNameArgs,
@@ -1228,6 +1232,7 @@ func proxyConfig() *cobra.Command {
 	}
 
 	configCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", summaryOutput, "Output format: one of json|yaml|short")
+	configCmd.PersistentFlags().IntVar(&proxyAdminPort, "proxy-admin-port", defaultProxyAdminPort, "Envoy proxy admin port")
 
 	configCmd.AddCommand(clusterConfigCmd())
 	configCmd.AddCommand(allConfigCmd())
@@ -1242,6 +1247,21 @@ func proxyConfig() *cobra.Command {
 	configCmd.AddCommand(ecdsConfigCmd())
 
 	return configCmd
+}
+
+func getPodNames(podflag string) ([]string, string, error) {
+	kubeClient, err := kubeClient(kubeconfig, configContext)
+	if err != nil {
+		return []string{}, "", fmt.Errorf("failed to create k8s client: %w", err)
+	}
+	podNames, ns, err := handlers.InferPodsFromTypedResource(podflag,
+		handlers.HandleNamespace(namespace, defaultNamespace),
+		kubeClient.UtilFactory())
+	if err != nil {
+		log.Errorf("pods lookup failed")
+		return []string{}, "", err
+	}
+	return podNames, ns, nil
 }
 
 func getPodName(podflag string) (string, string, error) {

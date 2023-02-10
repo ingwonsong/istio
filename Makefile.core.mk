@@ -35,10 +35,10 @@ ISTIO_GO := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 export ISTIO_GO
 SHELL := /bin/bash -o pipefail
 
-export VERSION ?= 1.17-dev
+export VERSION ?= 1.18-dev
 
 # Base version of Istio image to use
-BASE_VERSION ?= master-2022-12-05T19-01-23
+BASE_VERSION ?= master-2023-02-08T19-00-55
 ISTIO_BASE_REGISTRY ?= gcr.io/istio-release
 
 export GO111MODULE ?= on
