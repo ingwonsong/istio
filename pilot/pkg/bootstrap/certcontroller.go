@@ -157,7 +157,7 @@ func (s *Server) initDNSCerts() error {
 		s.addStartFunc(func(stop <-chan struct{}) error {
 			go func() {
 				// Track TTL of DNS cert and renew cert in accordance to grace period.
-				s.RotateDNSCertForK8sCA(stop, defaultCACertPath, "", true, SelfSignedCACertTTL.Get())
+				s.RotateDNSCertForK8sCA(stop, defaultCACertPath, k8sSigner, approveCSR, SelfSignedCACertTTL.Get())
 			}()
 			return nil
 		})
