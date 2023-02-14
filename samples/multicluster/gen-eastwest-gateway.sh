@@ -90,6 +90,9 @@ IOP=$(cat <<EOF
 $IOP
         enabled: true
         k8s:
+          replicaCount: 2
+          hpaSpec:
+            minReplicas: 2
 EOF
 )
 if [[ "${SINGLE_CLUSTER}" -eq 0 ]]; then
