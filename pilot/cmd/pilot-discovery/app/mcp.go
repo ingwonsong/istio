@@ -48,6 +48,7 @@ import (
 	"istio.io/istio/pkg/cmd"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/file"
+	"istio.io/istio/pkg/jwt"
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/security"
 	"istio.io/pkg/log"
@@ -192,7 +193,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 
 	// Disable webhook config patching - manual configs used, proper DNS certs means no cert patching needed.
 	// TODO: oss bug, cannot disable validation
-	features.EnableRemoteJwks = true
+	features.JwksFetchMode = jwt.Hybrid
 	features.InjectionWebhookConfigName = ""
 	bootstrap.Revision = p.Revision
 	bootstrap.PodName = p.PodName

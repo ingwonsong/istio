@@ -23,8 +23,8 @@ spec:
           provisionerArgs:
             auth: SAToken
             compressArtifacts: "true"
-            nodeCount: "2"
-            nodeType: "m5.2xlarge"
+            nodeCount: "4"
+            nodeType: "t3.medium"
             username: asm-svc-acct
             region: us-east-2
       - apiVersion: sut.tailorbird.io/v1alpha1
@@ -38,7 +38,7 @@ spec:
           provisionerArgs:
             auth: SAToken
             compressArtifacts: "true"
-            nodeCount: "2"
-            nodeType: "m5.2xlarge"
+            nodeCount: "4"
+            nodeType: "t3.medium"
             username: asm-svc-acct
             region: us-east-2

@@ -110,7 +110,7 @@ func TestGatewayConformance(t *testing.T) {
 				GatewayStatusMustHaveListeners: 60 * time.Second * gatewayConformanceTimeoutScaler,
 				HTTPRouteMustNotHaveParents:    60 * time.Second * gatewayConformanceTimeoutScaler,
 				HTTPRouteMustHaveCondition:     60 * time.Second * gatewayConformanceTimeoutScaler,
-				HTTPRouteMustHaveParents:       60 * time.Second * gatewayConformanceTimeoutScaler,
+				RouteMustHaveParents:           60 * time.Second * gatewayConformanceTimeoutScaler,
 			}
 			config.SetupTimeoutConfig(&timeoutConfig)
 			opts := suite.Options{
