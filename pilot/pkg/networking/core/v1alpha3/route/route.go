@@ -47,7 +47,6 @@ import (
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/labels"
-	"istio.io/istio/pkg/proto"
 	"istio.io/istio/pkg/util/grpc"
 	"istio.io/pkg/log"
 )
@@ -477,7 +476,20 @@ func applyHTTPRouteDestination(
 	out.Action = &route.Route_Route{Route: action}
 
 	if in.Rewrite != nil {
-		action.PrefixRewrite = in.Rewrite.GetUri()
+		action.ClusterSpecifier = &route.RouteAction_Cluster{
+			Cluster: in.Name,
+		}
+		uri := in.Rewrite.GetUri()
+		if fullURI, isFullPathRewrite := cutPrefix(uri, "%FULLREPLACE()%"); isFullPathRewrite && model.UseGatewaySemantics(vs) {
+			action.RegexRewrite = &matcher.RegexMatchAndSubstitute{
+				Pattern: &matcher.RegexMatcher{
+					Regex: "/.+",
+				},
+				Substitution: fullURI,
+			}
+		} else {
+			action.PrefixRewrite = uri
+		}
 		if in.Rewrite.GetAuthority() != "" {
 			authority = in.Rewrite.GetAuthority()
 		}
@@ -498,7 +510,6 @@ func applyHTTPRouteDestination(
 		}
 	}
 
-	var totalWeight uint32
 	// TODO: eliminate this logic and use the total_weight option in envoy route
 	weighted := make([]*route.WeightedCluster_ClusterWeight, 0)
 	for _, dst := range in.Route {
@@ -518,7 +529,6 @@ func applyHTTPRouteDestination(
 			Name:   n,
 			Weight: weight,
 		}
-		totalWeight += weight.GetValue()
 		if dst.Headers != nil {
 			operations := translateHeadersOperations(dst.Headers)
 			clusterWeight.RequestHeadersToAdd = operations.requestHeadersToAdd
@@ -560,8 +570,7 @@ func applyHTTPRouteDestination(
 	} else {
 		action.ClusterSpecifier = &route.RouteAction_WeightedClusters{
 			WeightedClusters: &route.WeightedCluster{
-				Clusters:    weighted,
-				TotalWeight: wrappers.UInt32(totalWeight),
+				Clusters: weighted,
 			},
 		}
 	}
@@ -578,7 +587,7 @@ func applyRedirect(out *route.Route, redirect *networking.HTTPRedirect, port int
 	}
 
 	if useGatewaySemantics {
-		if uri, isPrefixReplace := cutPrefix(redirect.Uri, "*prefix*"); isPrefixReplace {
+		if uri, isPrefixReplace := cutPrefix(redirect.Uri, "%PREFIX()%"); isPrefixReplace {
 			action.Redirect.PathRewriteSpecifier = &route.RedirectAction_PrefixRewrite{
 				PrefixRewrite: uri,
 			}
@@ -660,7 +669,7 @@ func buildHTTP3AltSvcHeader(port int, h3Alpns []string) *core.HeaderValueOption 
 	}
 	headerVal := strings.Join(valParts, ", ")
 	return &core.HeaderValueOption{
-		Append: proto.BoolTrue,
+		AppendAction: core.HeaderValueOption_APPEND_IF_EXISTS_OR_ADD,
 		Header: &core.HeaderValue{
 			Key:   util.AltSvcHeader,
 			Value: headerVal,
@@ -734,13 +743,18 @@ func translateAppendHeaders(headers map[string]string, appendFlag bool) ([]*core
 		if isInternalHeader(key) {
 			continue
 		}
-		headerValueOptionList = append(headerValueOptionList, &core.HeaderValueOption{
+		headerValueOption := &core.HeaderValueOption{
 			Header: &core.HeaderValue{
 				Key:   key,
 				Value: value,
 			},
-			Append: &wrappers.BoolValue{Value: appendFlag},
-		})
+		}
+		if appendFlag {
+			headerValueOption.AppendAction = core.HeaderValueOption_APPEND_IF_EXISTS_OR_ADD
+		} else {
+			headerValueOption.AppendAction = core.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD
+		}
+		headerValueOptionList = append(headerValueOptionList, headerValueOption)
 	}
 	sort.Stable(SortHeaderValueOption(headerValueOptionList))
 	return headerValueOptionList, authority
@@ -853,8 +867,7 @@ func translateRouteMatch(node *model.Proxy, vs config.Config, in *networking.HTT
 					// use regex.
 					out.PathSpecifier = &route.RouteMatch_SafeRegex{
 						SafeRegex: &matcher.RegexMatcher{
-							EngineType: util.RegexEngine,
-							Regex:      regexp.QuoteMeta(path) + prefixMatchRegex,
+							Regex: regexp.QuoteMeta(path) + prefixMatchRegex,
 						},
 					}
 				}
@@ -864,8 +877,7 @@ func translateRouteMatch(node *model.Proxy, vs config.Config, in *networking.HTT
 		case *networking.StringMatch_Regex:
 			out.PathSpecifier = &route.RouteMatch_SafeRegex{
 				SafeRegex: &matcher.RegexMatcher{
-					EngineType: util.RegexEngine,
-					Regex:      m.Regex,
+					Regex: m.Regex,
 				},
 			}
 		}
@@ -912,8 +924,7 @@ func translateQueryParamMatch(name string, in *networking.StringMatch) *route.Qu
 			StringMatch: &matcher.StringMatcher{
 				MatchPattern: &matcher.StringMatcher_SafeRegex{
 					SafeRegex: &matcher.RegexMatcher{
-						EngineType: util.RegexEngine,
-						Regex:      m.Regex,
+						Regex: m.Regex,
 					},
 				},
 			},

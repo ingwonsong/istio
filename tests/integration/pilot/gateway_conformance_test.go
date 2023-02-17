@@ -118,14 +118,8 @@ func TestGatewayConformance(t *testing.T) {
 				GatewayClassName: "istio",
 				Debug:            scopes.Framework.DebugEnabled(),
 				// CleanupBaseResources: gatewayConformanceInputs.Cleanup,
-				SupportedFeatures: map[suite.SupportedFeature]bool{
-					suite.SupportReferenceGrant:                 true,
-					suite.SupportTLSRoute:                       true,
-					suite.SupportHTTPRouteQueryParamMatching:    true,
-					suite.SupportHTTPRouteMethodMatching:        true,
-					suite.SupportHTTPResponseHeaderModification: true,
-				},
-				TimeoutConfig: timeoutConfig,
+				SupportedFeatures: suite.AllFeatures,
+				TimeoutConfig:     timeoutConfig,
 			}
 			if rev := ctx.Settings().Revisions.Default(); rev != "" {
 				opts.NamespaceLabels = map[string]string{

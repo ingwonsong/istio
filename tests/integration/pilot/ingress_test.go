@@ -197,6 +197,7 @@ spec:
 									Path:    path,
 									Headers: headers.New().WithHost("my.domain.example").Build(),
 								},
+								Check: check.OK(),
 							})
 						}
 					})
@@ -210,6 +211,7 @@ spec:
 								Path:    "/",
 								Headers: headers.New().WithHost("my.domain.example").Build(),
 							},
+							Check: check.OK(),
 						})
 					})
 					t.NewSubTest("mesh").Run(func(t framework.TestContext) {
@@ -272,7 +274,7 @@ spec:
 					HTTP: echo.HTTP{
 						Headers: headers.New().WithHost("bar.example.com").Build(),
 					},
-					Address: fmt.Sprintf("gateway.%s.svc.cluster.local", apps.Namespace.Name()),
+					Address: fmt.Sprintf("gateway-istio.%s.svc.cluster.local", apps.Namespace.Name()),
 					Check:   check.OK(),
 					Retry: echo.Retry{
 						Options: []retry.Option{retry.Timeout(time.Minute)},
