@@ -256,7 +256,7 @@ func setGcpPermissions(settings *resource.Settings) error {
 // TODO: use kubernetes client-go library instead of kubectl.
 func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config) error {
 	secretName := "test-gcr-secret"
-	cred := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	cred := os.Getenv("GCR_SA")
 	configs := filepath.SplitList(settings.Kubeconfig)
 	for i, config := range configs {
 		if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {

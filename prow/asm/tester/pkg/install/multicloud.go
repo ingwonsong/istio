@@ -173,21 +173,6 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 		"--verbose",
 	)
 	installFlags = append(installFlags, getInstallEnableFlags()...)
-
-	if keyfile := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); keyfile != "" {
-		installFlags = append(installFlags,
-			"--key-file", keyfile)
-	} else {
-		return nil, fmt.Errorf("could not retrieve key file from GOOGLE_APPLICATION_CREDENTIALS")
-	}
-
-	if serviceAccount, err := gcp.GetServiceAccount(); err != nil {
-		return nil, fmt.Errorf("failed to retrieve service account: %w", err)
-	} else {
-		installFlags = append(installFlags,
-			"--service-account", serviceAccount)
-	}
-
 	installFlags = append(installFlags, "--fleet_id", environProject)
 
 	ca := settings.CA

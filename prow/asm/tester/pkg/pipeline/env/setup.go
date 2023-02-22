@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	SharedGCPProject    = "istio-prow-build"
+	SharedGCPProject    = "asm-prow-build"
 	configDir           = "prow/asm/tester/configs"
 	newtaroCommitConfig = "newtaro/commit"
 	KubevirtVMGcsBucket = "asm_testing_on_kubevirtvm_artifacts"
