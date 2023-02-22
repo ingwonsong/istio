@@ -186,6 +186,7 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 	}
 	caFlags, _ := GenCaFlags(ca, settings, nil, citadelPluginCerts)
 	installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/custom_istio.yaml"))
+	installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/multicloud.yaml"))
 	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev, pkgPath)...)
 	installFlags = append(installFlags, caFlags...)
 	return installFlags, nil

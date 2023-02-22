@@ -66,6 +66,7 @@ type Instance struct {
 	Rookery               string
 	RookeryRequestFile    string
 	SyncUpgrade           bool
+	AttachedV2            bool
 }
 
 // Default provides a config Instance with defaults filled in.
@@ -112,6 +113,9 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 		"--feature="+strings.Join(c.Features.List(), ","))
 	if c.UseOnePlatform {
 		testerFlags = append(testerFlags, "--use-oneplatform")
+	}
+	if c.AttachedV2 {
+		testerFlags = append(testerFlags, "--use-attached-v2")
 	}
 	if c.UseKubevirtVM {
 		testerFlags = append(testerFlags, "--use-kubevirt-vm")

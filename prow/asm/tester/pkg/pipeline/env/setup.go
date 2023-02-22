@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	oexec "os/exec"
@@ -35,6 +36,10 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+)
+
+var (
+	contextRegexp = regexp.MustCompile(`current-context: (\S*)`)
 )
 
 const (
@@ -95,6 +100,14 @@ func Setup(settings *resource.Settings) error {
 	// Inject system env vars that are required for the test flow.
 	if err := injectEnvVars(settings); err != nil {
 		return err
+	}
+
+	// Use v2 api to attach clusters
+	if settings.UseAttachedV2 && (settings.ClusterType == resource.AKS || settings.ClusterType == resource.EKS) {
+		log.Printf("Registering attached cluster with v2")
+		if err := registerAttachedV2(settings); err != nil {
+			return err
+		}
 	}
 
 	log.Println("ASM Test Framework Settings:")
@@ -329,8 +342,8 @@ func fixGKE(settings *resource.Settings) error {
 			log.Println("test-router already exists")
 		}
 		if err := exec.Run("gcloud compute routers nats create test-nat" +
-				" --router=test-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges" +
-				" --router-region=us-central1 --enable-logging"); err != nil {
+			" --router=test-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges" +
+			" --router-region=us-central1 --enable-logging"); err != nil {
 			log.Println("test-nat already exists")
 		}
 
@@ -353,7 +366,7 @@ func fixGKE(settings *resource.Settings) error {
 	}
 
 	if settings.FeaturesToTest.Has(string(resource.PrivateClusterLimitedAccess)) ||
-			settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
+		settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
 		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
 			return fmt.Errorf("error adding ips to authorized networks: %w", err)
 		}
@@ -499,21 +512,21 @@ func getTestRunnerCidr() (string, error) {
 
 func getPodIpCidr(clusterName, project, zone string) (string, error) {
 	getPodIpCidrCmd := fmt.Sprintf("gcloud container clusters describe %s"+
-			" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
+		" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
 		clusterName, project, zone)
 	return exec.RunWithOutput(getPodIpCidrCmd)
 }
 
 func getClusterSubnetPrimaryIpCidr(clusterName, project, networkProject, zone string) (string, error) {
 	getSubnetCmd := fmt.Sprintf("gcloud container clusters describe %s"+
-			" --project %s --zone %s --format \"value(subnetwork)\"",
+		" --project %s --zone %s --format \"value(subnetwork)\"",
 		clusterName, project, zone)
 	subnetName, err := exec.RunWithOutput(getSubnetCmd)
 	if err != nil {
 		return "", err
 	}
 	getPrimaryIpCidrCmd := fmt.Sprintf("gcloud compute networks subnets describe %s"+
-			" --project %s --region %s --format \"value(ipCidrRange)\"",
+		" --project %s --region %s --format \"value(ipCidrRange)\"",
 		strings.TrimSpace(subnetName), networkProject, zone)
 	return exec.RunWithOutput(getPrimaryIpCidrCmd)
 }
@@ -798,7 +811,7 @@ func configMulticloudSOCKS5ClusterProxy(settings *resource.Settings, mcConf mult
 	}
 	// create a SOCKS5 proxy
 	socksCmdStr := fmt.Sprintf("ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "+
-			"-N -D %d -i %s %s", port, bootstrapHostSSHKey, bootstrapUser)
+		"-N -D %d -i %s %s", port, bootstrapHostSSHKey, bootstrapUser)
 	c, _ := shell.Split(socksCmdStr)
 	socksCmd := oexec.Command(c[0], c[1:]...)
 	socksCmd.Env = os.Environ()
@@ -960,5 +973,86 @@ func EnableKubevirtRuntime(settings *resource.Settings) error {
 		}
 	}
 
+	return nil
+}
+
+func registerAttachedV2(settings *resource.Settings) error {
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		dat, err := os.ReadFile(config)
+		if err != nil {
+			return fmt.Errorf("error reading file %s: %v", config, err)
+		}
+
+		log.Printf("Kubeconfig %s:\n%s", config, dat)
+
+		var name = ""
+		contextMatches := contextRegexp.FindSubmatch([]byte(dat))
+		log.Printf("Matches: %#v; len(cM): %d", contextMatches, len(contextMatches))
+		if len(contextMatches) > 1 {
+			name = string(contextMatches[1])
+		} else {
+			name = "default"
+		}
+
+		log.Printf("Using cluster context: %s", name)
+
+		const hubProject string = "tailorbird"
+		var randHubBindingName string = "tb"
+		rand.Seed(time.Now().UnixNano())
+		for x := 0; x < 20; x++ {
+			randHubBindingName = randHubBindingName + strconv.Itoa(rand.Intn(10))
+		}
+
+		if settings.ClusterType == resource.EKS {
+			r, _ := regexp.Compile("server: https://([A-Z0-9]+).[a-z0-9]+.us-east-2.eks.amazonaws.com")
+			res := r.FindStringSubmatch(string(dat))
+			if len(res) != 2 {
+				return fmt.Errorf("error matching EKS OIDC: %s", string(dat))
+			}
+			url := fmt.Sprintf("https://oidc.eks.us-east-2.amazonaws.com/id/%s", res[1])
+			// TODO: Query the cluster for kube version and then figure out the matching platform-version
+			if err := exec.Run(fmt.Sprintf(
+				"gcloud container attached clusters register %s"+
+					" --location=%s"+
+					" --fleet-project=%s"+
+					" --platform-version=%s"+
+					" --distribution=eks"+
+					" --issuer-url=%s"+
+					" --context=%s"+
+					" --kubeconfig=%s",
+				randHubBindingName,
+				"us-west1",
+				hubProject,
+				"1.23.0-gke.1",
+				url,
+				name,
+				config)); err != nil {
+				return fmt.Errorf("error registering cluster: %w", err)
+			}
+		} else if settings.ClusterType == resource.AKS {
+			r, _ := regexp.Compile("current-context: ([a-z0-9]+-admin)")
+			res := r.FindStringSubmatch(string(dat))
+			if len(res) != 2 {
+				return fmt.Errorf("error matching AKS context: %s", string(dat))
+			}
+			if err := exec.Run(fmt.Sprintf("gcloud container attached clusters register %s"+
+				" --location=%s"+
+				" --fleet-project=%s"+
+				" --platform-version=%s"+
+				" --distribution=aks"+
+				" --context=%s"+
+				" --has-private-issuer"+
+				" --kubeconfig=%s",
+				randHubBindingName,
+				"us-west1",
+				hubProject,
+				"1.23.0-gke.1",
+				name,
+				config)); err != nil {
+				return fmt.Errorf("error registering cluster: %w", err)
+			}
+		}
+	}
 	return nil
 }

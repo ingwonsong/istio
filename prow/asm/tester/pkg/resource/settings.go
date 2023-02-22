@@ -125,6 +125,9 @@ type Settings struct {
 	// due to removal of binary from base image)
 	UseAWSIptablesHack bool `flag:"use-aws-iptables-hack" desc:"Enables Anthos-on-AWS iptables hack. Installs iptables on base images missing it."`
 
+	// Use v2 API to attach clusters
+	UseAttachedV2 bool `flag:"use-attached-v2" desc:"Whether to use v2 API to attach EKS and AKS clusters."`
+
 	VMSettings
 
 	MCPSettings
