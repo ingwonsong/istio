@@ -100,6 +100,9 @@ func main() {
 	// going into the taaa-specific logic.
 	if len(os.Args) > 1 && os.Args[1] != "taaa" {
 		if gac := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); gac != "" {
+			if gcrsa := os.Getenv("GCR_SA"); gcrsa == "" {
+				os.Setenv("GCR_SA", gac)
+			}
 			out, err := exec.Command("gcloud", "auth", "activate-service-account", fmt.Sprintf("--key-file=%s", gac)).CombinedOutput()
 			if err != nil {
 				log.Fatalf("failed to activate service account for gcloud %v:\n%s", err, string(out))
