@@ -1,0 +1,9 @@
+keyUsage:
+  baseKeyUsage:
+    digitalSignature: true
+    keyEncipherment: true
+  extendedKeyUsage:
+    serverAuth: true
+    clientAuth: true
+caOptions:
+  isCa: false
