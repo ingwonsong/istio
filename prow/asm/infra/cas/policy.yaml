@@ -1,0 +1,15 @@
+baselineValues:
+  keyUsage:
+    baseKeyUsage:
+      digitalSignature: true
+      keyEncipherment: true
+    extendedKeyUsage:
+      serverAuth: true
+      clientAuth: true
+  caOptions:
+    isCa: false
+identityConstraints:
+  allowSubjectPassthrough: false
+  allowSubjectAltNamesPassthrough: true
+  celExpression:
+    expression: subject_alt_names.all(san, san.type == URI)
