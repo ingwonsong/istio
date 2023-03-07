@@ -40,10 +40,10 @@ func TestGCPMonitoringPilotK8sRegEvents(t *testing.T) {
 		exp.Lock()
 		defer exp.Unlock()
 
-		if len(exp.Rows["config_event_count"]) < 1 {
+		if len(exp.Rows["control/config_event_count"]) < 1 {
 			return errors.New("wanted metrics not received")
 		}
-		for _, r := range exp.Rows["config_event_count"] {
+		for _, r := range exp.Rows["control/config_event_count"] {
 			got := float64(0)
 			if findTagWithValue("operation", "bar", r.Tags) && findTagWithValue("type", "foo", r.Tags) {
 				if sd, ok := r.Data.(*view.SumData); ok {

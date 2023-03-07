@@ -78,7 +78,7 @@ func TestGCPMonitoringGalleyValidation(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.increment(tt.req)
-			wantMetric := "config_validation_count"
+			wantMetric := "control/config_validation_count"
 			if err := retry.UntilSuccess(func() error {
 				exp.Lock()
 				defer exp.Unlock()

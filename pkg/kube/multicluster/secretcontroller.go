@@ -84,14 +84,19 @@ var (
 	)
 
 	ipBasedRemoteSecretsCount = monitoring.NewGauge(
-		"istiod_ip_based_remote_secrets",
+		"ip_based_remote_secrets",
 		"Number of remote secrets with IP for server field",
 	)
 
 	ipBasedRemoteSecretsTranslatedCount = monitoring.NewGauge(
-		"istiod_ip_based_remote_secrets_translated",
+		"ip_based_remote_secrets_translated",
 		"Number of remote secrets with IP for server field translated to use connect gateway endpoint",
+		monitoring.WithLabels(success),
 	)
+
+	success                = monitoring.MustCreateLabel("success")
+	successfulTranslations = ipBasedRemoteSecretsTranslatedCount.With(success.Value("true"))
+	failedTranslations     = ipBasedRemoteSecretsTranslatedCount.With(success.Value("false"))
 
 	localClusters  = clustersCount.With(clusterType.Value("local"))
 	remoteClusters = clustersCount.With(clusterType.Value("remote"))
@@ -166,8 +171,6 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 	// init gauges
 	localClusters.Record(1.0)
 	remoteClusters.Record(0.0)
-	ipBasedRemoteSecretsCount.Record(0.0)
-	ipBasedRemoteSecretsTranslatedCount.Record(0.0)
 
 	var cache translation.Cache
 	if enableTranslationCache {
@@ -375,21 +378,31 @@ func sanitizedKubeConfig(config api.Config, allowlist sets.String, cache transla
 	}
 
 	// Translate secrets with raw IP to use connect gateway endpoint if possible.
-	if cache != nil {
-		for _, cluster := range config.Clusters {
-			serverURL, err := url.Parse(cluster.Server)
-			if err != nil {
+	if cache == nil {
+		return config, nil
+	}
+
+	for _, cluster := range config.Clusters {
+		serverURL, err := url.Parse(cluster.Server)
+		if err != nil {
+			continue
+		}
+
+		if net.ParseIP(serverURL.Host) != nil {
+			ipBasedRemoteSecretsCount.Increment()
+			cgwConfig, found, public := cache.Get(serverURL.Host)
+			if public {
 				continue
 			}
-			if net.ParseIP(serverURL.Host) != nil {
-				ipBasedRemoteSecretsCount.Increment()
-				config, found := cache.Get(serverURL.Host)
-				if found {
-					log.Infof("Translated secret with host: %s\nconfig: %v", serverURL.Host, config)
-					ipBasedRemoteSecretsTranslatedCount.Increment()
-					return config, nil
-				}
+
+			if found {
+				log.Infof("Translated secret with host: %s\nconfig: %v", serverURL.Host, config)
+				successfulTranslations.Increment()
+				return cgwConfig, nil
 			}
+
+			log.Warnf("Failed to translate secret with host: %s\nconfig: %v", serverURL.Host, config)
+			failedTranslations.Increment()
 		}
 	}
 

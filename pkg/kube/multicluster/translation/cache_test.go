@@ -68,6 +68,7 @@ func TestCache(t *testing.T) {
 		existingCacheState         map[string]*gkehubpb.Membership
 		existingKnownPublicIPCache map[string]bool
 		wantFound                  bool
+		wantPublic                 bool
 		wantAPICalls               bool
 		wantAPIConfig              api.Config
 	}{
@@ -80,7 +81,6 @@ func TestCache(t *testing.T) {
 				},
 			},
 			wantFound:     true,
-			wantAPICalls:  false,
 			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/1234/locations/global/gkeMemberships/random"),
 		},
 		{
@@ -93,7 +93,6 @@ func TestCache(t *testing.T) {
 				},
 			},
 			wantFound:     true,
-			wantAPICalls:  false,
 			wantAPIConfig: createAPIConfig("https://autopush-connectgateway.sandbox.googleapis.com/v1/projects/1234/locations/global/gkeMemberships/random"),
 		},
 		{
@@ -108,7 +107,6 @@ func TestCache(t *testing.T) {
 				},
 			},
 			wantFound:     true,
-			wantAPICalls:  false,
 			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/1234/locations/global/gkeMemberships/random"),
 		},
 		{
@@ -119,7 +117,6 @@ func TestCache(t *testing.T) {
 					Name: "projects/example/locations/global/memberships/random",
 				},
 			},
-			wantFound:    false,
 			wantAPICalls: true,
 		},
 		{
@@ -141,8 +138,7 @@ func TestCache(t *testing.T) {
 			name:                       "cache contains IP in known public cluster cache",
 			ip:                         "1.2.3.4",
 			existingKnownPublicIPCache: map[string]bool{"1.2.3.4": true},
-			wantAPICalls:               false,
-			wantFound:                  false,
+			wantPublic:                 true,
 		},
 		{
 			name:                       "IP matches with public cluster but does not get translated",
@@ -157,7 +153,7 @@ func TestCache(t *testing.T) {
 				createPublicCluster("projects/example/locations/us-west1-a/clusters/cluster", "1.2.3.4"),
 			},
 			wantAPICalls: true,
-			wantFound:    false,
+			wantPublic:   true,
 		},
 	}
 
@@ -178,9 +174,12 @@ func TestCache(t *testing.T) {
 				knownPublicIPs:        tc.existingKnownPublicIPCache,
 			}
 
-			config, found := c.Get(tc.ip)
+			config, found, public := c.Get(tc.ip)
 			if found != tc.wantFound {
 				t.Errorf("expected translation found: %t, got: %t", tc.wantFound, found)
+			}
+			if public != tc.wantPublic {
+				t.Errorf("expected public: %t, got: %t", tc.wantPublic, public)
 			}
 			if (mockLister.called || mockFetcher.called) != tc.wantAPICalls {
 				t.Errorf("expected API call %t, got membership list called: %t, cluster fetch called: %t",

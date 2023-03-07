@@ -31,20 +31,22 @@ var (
 	resourceHookTag = tag.MustNewKey("resource")
 	versionHookTag  = tag.MustNewKey("version")
 
-	pilotK8sCfgEvents            = "pilot_k8s_cfg_events"
-	pilotK8sRegEvents            = "pilot_k8s_reg_events"
-	galleyValidationPassed       = "galley/validation/passed"
-	galleyValidationFailed       = "galley/validation/failed"
-	pilotXDSPushes               = "pilot_xds_pushes"
-	pilotXDSEDSReject            = "pilot_xds_eds_reject"
-	pilotXDSRDSReject            = "pilot_xds_rds_reject"
-	pilotXDSLDSReject            = "pilot_xds_lds_reject"
-	pilotXDSCDSReject            = "pilot_xds_cds_reject"
-	pilotProxyConvergenceTime    = "pilot_proxy_convergence_time"
-	pilotXDS                     = "pilot_xds"
-	sidecarInjectionSuccessTotal = "sidecar_injection_success_total"
-	sidecarInjectionFailureTotal = "sidecar_injection_failure_total"
-	sidecarInjectionSkipTotal    = "sidecar_injection_skip_total"
+	pilotK8sCfgEvents              = "pilot_k8s_cfg_events"
+	pilotK8sRegEvents              = "pilot_k8s_reg_events"
+	galleyValidationPassed         = "galley/validation/passed"
+	galleyValidationFailed         = "galley/validation/failed"
+	pilotXDSPushes                 = "pilot_xds_pushes"
+	pilotXDSEDSReject              = "pilot_xds_eds_reject"
+	pilotXDSRDSReject              = "pilot_xds_rds_reject"
+	pilotXDSLDSReject              = "pilot_xds_lds_reject"
+	pilotXDSCDSReject              = "pilot_xds_cds_reject"
+	pilotProxyConvergenceTime      = "pilot_proxy_convergence_time"
+	pilotXDS                       = "pilot_xds"
+	sidecarInjectionSuccessTotal   = "sidecar_injection_success_total"
+	sidecarInjectionFailureTotal   = "sidecar_injection_failure_total"
+	sidecarInjectionSkipTotal      = "sidecar_injection_skip_total"
+	ipBasedRemoteSecrets           = "ip_based_remote_secrets"
+	ipBasedRemoteSecretsTranslated = "ip_based_remote_secrets_translated"
 )
 
 type gcpRecordHook struct{}
@@ -73,6 +75,10 @@ func (r gcpRecordHook) OnRecordFloat64Measure(f *stats.Float64Measure, tags []ta
 		onPilotXDS(f, tags, value)
 	case sidecarInjectionSuccessTotal, sidecarInjectionFailureTotal, sidecarInjectionSkipTotal:
 		onSidecarInjection(f, tags, value)
+	case ipBasedRemoteSecrets:
+		onIPBasedRemoteSecretProcessed(f, tags, value)
+	case ipBasedRemoteSecretsTranslated:
+		onIPBasedRemoteSecretTranslated(f, tags, value)
 	}
 }
 
@@ -92,6 +98,8 @@ func registerHook() {
 	monitoring.RegisterRecordHook(sidecarInjectionSuccessTotal, hook)
 	monitoring.RegisterRecordHook(sidecarInjectionFailureTotal, hook)
 	monitoring.RegisterRecordHook(sidecarInjectionSkipTotal, hook)
+	monitoring.RegisterRecordHook(ipBasedRemoteSecrets, hook)
+	monitoring.RegisterRecordHook(ipBasedRemoteSecretsTranslated, hook)
 }
 
 func onPilotK8sCfgEvents(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
@@ -213,6 +221,28 @@ func onSidecarInjection(f *stats.Float64Measure, _ []tag.Mutator, value float64)
 		return
 	}
 	stats.Record(ctx, sidecarInjectionMeasure.M(int64(value)))
+}
+
+func onIPBasedRemoteSecretProcessed(_ *stats.Float64Measure, _ []tag.Mutator, value float64) {
+	stats.Record(context.Background(), ipBasedRemoteSecretsMeasure.M(int64(value)))
+}
+
+func onIPBasedRemoteSecretTranslated(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
+	tm := getOriginalTagMap(tags)
+	if tm == nil {
+		return
+	}
+	success, found := tm.Value(successKey)
+	if !found {
+		return
+	}
+
+	ctx, err := tag.New(context.Background(), tag.Insert(successKey, success))
+	if err != nil {
+		return
+	}
+
+	stats.Record(ctx, ipBasedRemoteSecretsTranslatedMeasure.M(int64(value)))
 }
 
 func getOriginalTagMap(tags []tag.Mutator) *tag.Map {

@@ -42,7 +42,7 @@ const (
 	authScope                 = "https://www.googleapis.com/auth/cloud-platform"
 	workloadIdentitySuffix    = "svc.id.goog"
 	hubWorkloadIdentitySuffix = "hub.id.goog"
-	cpMetricsPrefix           = "istio.io/control/"
+	cpMetricsPrefix           = "istio.io/"
 	istiodContainerName       = "discovery"
 	cniMetricsPrefix          = "istio.io/internal/mdp/cni/"
 	mdpMetricsPrefix          = "istio.io/internal/mdp/controller/"

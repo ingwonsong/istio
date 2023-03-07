@@ -30,12 +30,12 @@ func NewMockMembershipCache(ipConfigMapping map[string]api.Config) *MockMembersh
 	}
 }
 
-func (m *MockMembershipCache) Get(ip string) (api.Config, bool) {
+func (m *MockMembershipCache) Get(ip string) (api.Config, bool, bool) {
 	config, ok := m.ipConfigMapping[ip]
 	if !ok {
-		return api.Config{}, false
+		return api.Config{}, false, false
 	}
-	return config, ok
+	return config, ok, false
 }
 
 func (m *MockMembershipCache) Run(stop <-chan struct{}) {

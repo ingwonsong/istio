@@ -40,7 +40,7 @@ const (
 
 // Cache returns an API config cached for the given IP.
 type Cache interface {
-	Get(ip string) (api.Config, bool)
+	Get(ip string) (api.Config, bool, bool)
 	Run(stop <-chan struct{})
 }
 
@@ -103,34 +103,39 @@ func NewIPMembershipCache() (Cache, error) {
 		},
 	}
 	if err := mc.refreshCache(); err != nil {
-		log.Errorf("Failed to seed translation cache: %v", err)
+		log.Warnf("Failed to seed translation cache: %v", err)
 	}
 
 	return mc, nil
 }
 
-func (m *membershipCache) Get(ip string) (api.Config, bool) {
+// Get accepts an IP and returns an API config if translated, whether the secret was translated,
+// and then whether or not the secret mapped to a public IP.
+func (m *membershipCache) Get(ip string) (api.Config, bool, bool) {
 	if _, ok := m.knownPublicIPs[ip]; ok {
 		log.Infof("Skipping cache refresh for public cluster with endpoint %s", ip)
-		return api.Config{}, false
+		return api.Config{}, false, true
 	}
-
 	apiConfig, ok := m.apiConfig(ip)
 	if ok {
-		return apiConfig, true
+		return apiConfig, true, false
 	}
 
 	if err := m.refreshCache(); err != nil {
-		log.Errorf("Failed to refresh translation cache: %v", err)
-		return api.Config{}, false
+		log.Warnf("Failed to refresh translation cache: %v", err)
+		return api.Config{}, false, false
 	}
 
+	if _, ok := m.knownPublicIPs[ip]; ok {
+		log.Infof("Skipping cache refresh for public cluster with endpoint %s", ip)
+		return api.Config{}, false, true
+	}
 	apiConfig, ok = m.apiConfig(ip)
 	if ok {
-		return apiConfig, true
+		return apiConfig, true, false
 	}
 
-	return api.Config{}, false
+	return api.Config{}, false, false
 }
 
 func (m *membershipCache) Run(stop <-chan struct{}) {
@@ -153,7 +158,7 @@ func (m *membershipCache) refreshCache() error {
 	for _, membership := range memberships {
 		cluster, err := m.clusterFromMembership(membership)
 		if err != nil {
-			log.Errorf("Failed to retrieve cluster for membership %s: %v", membership.GetName(), err)
+			log.Warnf("Failed to retrieve cluster for membership %s: %v", membership.GetName(), err)
 			continue
 		}
 
@@ -211,7 +216,7 @@ func (m *membershipCache) apiConfig(ip string) (api.Config, bool) {
 		config, err := apiConfigFromMembership(
 			cachedMembership, m.opts.hubEndpoint, m.opts.projectNumber, m.validateEndpoint)
 		if err != nil {
-			log.Errorf("Failed to get apiConfig from membership: %v", err)
+			log.Warnf("Failed to get apiConfig from membership: %v", err)
 			return api.Config{}, false
 		}
 

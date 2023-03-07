@@ -52,50 +52,50 @@ func TestGCPMonitoringPilotXDSMetrics(t *testing.T) {
 		wantMetric string
 		wantVal    *view.Row
 	}{
-		{"cdsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.ClusterType))), true, 0, "config_push_count", &view.Row{
+		{"cdsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.ClusterType))), true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "true"}, {Key: typeTestTag, Value: "CDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"edsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.EndpointType))), true, 0, "config_push_count", &view.Row{
+		{"edsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.EndpointType))), true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "true"}, {Key: typeTestTag, Value: "EDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"ldsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.ListenerType))), true, 0, "config_push_count", &view.Row{
+		{"ldsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.ListenerType))), true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "true"}, {Key: typeTestTag, Value: "LDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"rdsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.RouteType))), true, 0, "config_push_count", &view.Row{
+		{"rdsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.RouteType))), true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "true"}, {Key: typeTestTag, Value: "RDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
 
-		{"cdsSendErrPushes", cdsSendErrPushes, true, 0, "config_push_count", &view.Row{
+		{"cdsSendErrPushes", cdsSendErrPushes, true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "false"}, {Key: typeTestTag, Value: "CDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"edsSendErrPushes", edsSendErrPushes, true, 0, "config_push_count", &view.Row{
+		{"edsSendErrPushes", edsSendErrPushes, true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "false"}, {Key: typeTestTag, Value: "EDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"ldsSendErrPushes", ldsSendErrPushes, true, 0, "config_push_count", &view.Row{
+		{"ldsSendErrPushes", ldsSendErrPushes, true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "false"}, {Key: typeTestTag, Value: "LDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"rdsSendErrPushes", rdsSendErrPushes, true, 0, "config_push_count", &view.Row{
+		{"rdsSendErrPushes", rdsSendErrPushes, true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "false"}, {Key: typeTestTag, Value: "RDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
 
-		{"cdsReject", cdsReject, true, 0, "rejected_config_count", &view.Row{
+		{"cdsReject", cdsReject, true, 0, "control/rejected_config_count", &view.Row{
 			Tags: []tag.Tag{{Key: typeTestTag, Value: "CDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"edsReject", edsReject, true, 0, "rejected_config_count", &view.Row{
+		{"edsReject", edsReject, true, 0, "control/rejected_config_count", &view.Row{
 			Tags: []tag.Tag{{Key: typeTestTag, Value: "EDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"ldsReject", ldsReject, true, 0, "rejected_config_count", &view.Row{
+		{"ldsReject", ldsReject, true, 0, "control/rejected_config_count", &view.Row{
 			Tags: []tag.Tag{{Key: typeTestTag, Value: "LDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
-		{"rdsReject", rdsReject, true, 0, "rejected_config_count", &view.Row{
+		{"rdsReject", rdsReject, true, 0, "control/rejected_config_count", &view.Row{
 			Tags: []tag.Tag{{Key: typeTestTag, Value: "RDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
 
-		{"xdsClients", xdsClients.With(versionTag.Value("test-version")), false, 10, "proxy_clients", &view.Row{
+		{"xdsClients", xdsClients.With(versionTag.Value("test-version")), false, 10, "control/proxy_clients", &view.Row{
 			Tags: []tag.Tag{{Key: proxyVersionTag, Value: "test-version"}}, Data: &view.LastValueData{Value: 10.0},
 		}},
 
-		{"proxiesConvergeDelay", proxiesConvergeDelay, false, 0.4, "config_convergence_latencies", &view.Row{
+		{"proxiesConvergeDelay", proxiesConvergeDelay, false, 0.4, "control/config_convergence_latencies", &view.Row{
 			Tags: []tag.Tag{},
 			Data: &view.DistributionData{
 				CountPerBucket: []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},

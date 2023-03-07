@@ -55,7 +55,7 @@ func TestGCPMonitoringSidecarInjection(t *testing.T) {
 			exp.Rows = make(map[string][]*view.Row)
 			exp.Unlock()
 			tt.m.Increment()
-			wantMetric := "sidecar_injection_count"
+			wantMetric := "control/sidecar_injection_count"
 			if err := retry.UntilSuccess(func() error {
 				exp.Lock()
 				defer exp.Unlock()
