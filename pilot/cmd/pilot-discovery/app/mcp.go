@@ -75,6 +75,9 @@ func newMCPCommand() *cobra.Command {
 				return err
 			}
 
+			// Set the env var "POD_NAME" for Istiod.
+			os.Setenv("POD_NAME", mcpParams.PodName)
+
 			// For MCP we have custom logging to be compatible with SD and tee to the consumer project's logs
 			if err := configureMCPLogs(mcpParams, loggingOptions); err != nil {
 				return err
