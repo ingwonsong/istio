@@ -1,0 +1,86 @@
+# This manifest installs the ASM managed data plane in-cluster controller.
+{{- if .Values.mdp.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mdp-controller
+  namespace: kube-system
+  labels:
+    app: mdp-controller
+    sidecar.istio.io/inject: "false"
+  annotations:
+    sidecar.istio.io/inject: "false"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mdp-controller
+  template:
+    metadata:
+      labels:
+        app: mdp-controller
+        sidecar.istio.io/inject: "false"
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      # Mark the pod as a critical add-on for rescheduling.
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      priorityClassName: system-node-critical
+      serviceAccountName: istio-cni
+      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
+      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: mdp-controller
+        image: "{{ .Values.mdp.hub | default .Values.global.hub }}/mdp:{{ .Values.mdp.tag | default .Values.global.tag }}"
+        command:
+        - mdp
+        - server
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 1337
+          runAsUser: 1337
+          runAsNonRoot: true
+        imagePullPolicy: IfNotPresent
+        resources:
+{{ toYaml .Values.mdp.resources | trim | indent 10 }}
+        env:
+        - name: WATCH_NAMESPACE
+          value: {{.Values.mdp.istioNamespace | quote}}
+        - name: LEADER_ELECTION_NAMESPACE
+          value: {{.Values.mdp.mdpNamespace | quote}}
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        {{- if eq .Values.global.jwtPolicy "third-party-jwt" }}
+        volumeMounts:
+        - mountPath: /var/run/secrets/tokens
+          name: istio-token
+        {{- end }}
+      {{- if eq .Values.global.jwtPolicy "third-party-jwt" }}
+      volumes:
+      - name: istio-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: istio-token
+              expirationSeconds: 43200
+              audience: {{ .Values.global.sds.token.aud }}
+      {{- end }}
+{{- end }}

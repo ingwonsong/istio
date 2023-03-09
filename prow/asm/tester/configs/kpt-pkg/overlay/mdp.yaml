@@ -9,8 +9,8 @@ spec:
       enabled: true
       k8s:
         overlays:
-          - kind: DaemonSet
-            name: istio-cni-node
+          - kind: Deployment
+            name: mdp-controller
             patches:
               - path: spec.template.spec.containers.[name:mdp-controller].env.[100]
                 value: |

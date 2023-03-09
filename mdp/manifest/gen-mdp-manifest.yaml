@@ -303,45 +303,6 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
-        - name: mdp-controller
-          image: "{{ .MDP_HUB }}/mdp:{{ .MDP_TAG }}"
-          command:
-            - mdp
-            - server
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            privileged: false
-            readOnlyRootFilesystem: true
-            runAsGroup: 1337
-            runAsUser: 1337
-            runAsNonRoot: true
-          imagePullPolicy: IfNotPresent
-          resources:
-            limits:
-              cpu: 400m
-              memory: 1Gi
-            requests:
-              cpu: 50m
-              memory: 128Mi
-          env:
-            - name: WATCH_NAMESPACE
-              value: "istio-system"
-            - name: LEADER_ELECTION_NAMESPACE
-              value: "istio-system"
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          volumeMounts:
-          - mountPath: /var/run/secrets/tokens
-            name: istio-token
       volumes:
         # Used to install CNI.
         - name: cni-bin-dir
@@ -354,10 +315,90 @@ spec:
         - name: cni-log-dir
           hostPath:
             path: /var/run/istio-cni
-        - name: istio-token
-          projected:
-            sources:
-            - serviceAccountToken:
-                path: istio-token
-                expirationSeconds: 43200
-                audience: {{ .PROJECT_ID }}.svc.id.goog
+---
+# Source: cni/templates/deployment-mdp.yaml
+# This manifest installs the ASM managed data plane in-cluster controller.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mdp-controller
+  namespace: kube-system
+  labels:
+    app: mdp-controller
+    sidecar.istio.io/inject: "false"
+  annotations:
+    sidecar.istio.io/inject: "false"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mdp-controller
+  template:
+    metadata:
+      labels:
+        app: mdp-controller
+        sidecar.istio.io/inject: "false"
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      # Mark the pod as a critical add-on for rescheduling.
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      priorityClassName: system-node-critical
+      serviceAccountName: istio-cni
+      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
+      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: mdp-controller
+        image: "{{ .MDP_HUB }}/mdp:{{ .MDP_TAG }}"
+        command:
+        - mdp
+        - server
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 1337
+          runAsUser: 1337
+          runAsNonRoot: true
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 400m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        env:
+        - name: WATCH_NAMESPACE
+          value: "istio-system"
+        - name: LEADER_ELECTION_NAMESPACE
+          value: "istio-system"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - mountPath: /var/run/secrets/tokens
+          name: istio-token
+      volumes:
+      - name: istio-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: istio-token
+              expirationSeconds: 43200
+              audience: {{ .PROJECT_ID }}.svc.id.goog

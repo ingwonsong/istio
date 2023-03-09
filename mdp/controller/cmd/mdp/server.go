@@ -109,7 +109,7 @@ func run() {
 
 	mgrOpt := manager.Options{
 		MetricsBindAddress:      fmt.Sprintf("%s:%d", metricsHost, metricsPort),
-		LeaderElection:          !runLocal,
+		LeaderElection:          false,
 		LeaderElectionNamespace: "istio-system",
 		LeaderElectionID:        "mdp-eviction-leader",
 		NewClient: func(_ cache.Cache, config *rest.Config, options client.Options, _ ...client.Object) (client.Client, error) {

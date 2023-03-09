@@ -161,7 +161,7 @@ func applyGenMDPManifest(t framework.TestContext) {
 	data["PROJECT_ID"] = os.Getenv(GcrProjectIDENV)
 	createAndApplyTemplate(t, genManifestPath, name.KubeSystemNamespace, data)
 	retryFunc := func() error {
-		updateEnvCmd := fmt.Sprintf("kubectl set env daemonset/istio-cni-node -c mdp-controller MDP_RECONCILE_TIME=1m -n %s", name.KubeSystemNamespace)
+		updateEnvCmd := fmt.Sprintf("kubectl set env deployment/mdp-controller -c mdp-controller MDP_RECONCILE_TIME=1m -n %s", name.KubeSystemNamespace)
 		if _, err := shell.Execute(true, updateEnvCmd); err != nil {
 			return fmt.Errorf("failed to update MDP_RECONCILE_TIME of mdp: %v", err)
 		}
