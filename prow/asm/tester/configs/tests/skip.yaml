@@ -36,9 +36,6 @@ tests:
     - names:
       - TestReachability/beta-mtls-on/.*/.*multiversion
       buganizerID: 237680146
-    - names:
-      - TestValidation/networking-v1beta1-WorkloadGroup-*
-      buganizerID: 265414768
 
 # Multiversion test skips.
   - selectors:
