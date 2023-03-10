@@ -143,7 +143,7 @@ test.integration.asm.smoke: | $(JUNIT_REPORT)
 	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ \
     ./tests/integration/pilot/ \
 	./tests/integration/security/ \
-	./tests/integration/telemetry/stats/prometheus/api/ \
+	./tests/integration/telemetry/api/ \
 	-timeout 30m \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
