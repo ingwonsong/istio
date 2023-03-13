@@ -23,7 +23,7 @@ import (
 
 const (
 	CasSubCaIdPrefix        = "asm-testci-sub-pool"
-	CasCertTemplateIdPrefix = "asm-testci-cert-template"
+	CasCertTemplateIdPrefix = "asm-prow-testci-cert-template"
 	CasRootCaLoc            = "us-central1"
 )
 

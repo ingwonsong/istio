@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-CT_PREFIX="asm-testci-cert-template"
-PROJECT="istio-prow-build"
+CT_PREFIX="asm-prow-testci-cert-template"
+PROJECT="asm-prow-build"
 #PROJECT="liwenhao-project"
 
 declare -a regions=("asia-east1" "asia-northeast1" "asia-southeast1"
