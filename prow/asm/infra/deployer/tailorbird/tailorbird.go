@@ -96,6 +96,7 @@ type TemplateParameters struct {
 	GCSBucket                    string
 	Version                      string
 	VersionPrefix                string
+	UpgradeVersionPrefix	     string
 	ProjectName                  string
 	ErrorPatterns                string
 	ClusterNames                 []string
@@ -368,6 +369,14 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 	return
 }
 
+
+func (d* Instance) getUpgradeVersionPrefix() (upgradeVersionPrefix string){
+
+	if(len(d.cfg.UpgradeClusterVersion) == 0)  { return "" }
+
+	return strings.Join(strings.Split(d.cfg.UpgradeClusterVersion[len(d.cfg.UpgradeClusterVersion)-1],".")[:2], ".")
+}
+
 func (d *Instance) getReleaseChannel() types.ReleaseChannel {
 	if d.cfg.ReleaseChannel != "" {
 		return d.cfg.ReleaseChannel
@@ -559,10 +568,12 @@ func (d *Instance) rookeryFile() (string, error) {
 
 	// Struct providing template parameters for the YAML.
 	version, versionPrefix := d.getVersionAndPrefix()
+	upgradeVersionPrefix := d.getUpgradeVersionPrefix()
 	rep := TemplateParameters{
-		GCSBucket:     d.getGCSBucket(),
-		Version:       version,
-		VersionPrefix: versionPrefix,
+		GCSBucket:     	      d.getGCSBucket(),
+		Version:              version,
+		VersionPrefix:        versionPrefix,
+		UpgradeVersionPrefix: upgradeVersionPrefix,
 	}
 
 	if d.cfg.Cluster == types.GKEOnGCP {
