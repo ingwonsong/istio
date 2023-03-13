@@ -21,6 +21,7 @@ spec:
               distribution: gke
               provisionerArgs:
                 region: westus2
-                nodeCount: "3"
-                kubernetesVersion: 1.25.5-gke.2000
+                nodeCount: "6"
+                kubernetesVersion: "{{ .Version }}"
+                # kubernetesVersion: 1.25.5-gke.2000
                 username: asm-svc-acct

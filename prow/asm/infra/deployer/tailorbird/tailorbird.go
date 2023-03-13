@@ -644,6 +644,23 @@ func platformName(cluster string) string {
 	return platform
 }
 
+func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion string, rookeryRequestFile string) string{
+	var upgradeCommand string
+	if(d.cfg.Cluster == types.GKEOnBareMetal){
+	upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
+		"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
+		"--upgrade-target-platform-version %s --upgrade-resource-config %s",
+		clusterName, targetVersion, rookeryRequestFile)
+	}
+	if(d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.GKEOnAzure){
+	upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
+		"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
+		"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
+		clusterName, targetVersion, rookeryRequestFile)
+	}
+	return upgradeCommand
+}
+
 func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {
 
 	upgradeFunc := func(w http.ResponseWriter, _ *http.Request) {
@@ -667,10 +684,7 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 			for _, cluster := range knest.Spec.Clusters {
 				log.Printf("cluster to upgrade: %s", cluster.Metadata.Name)
 				for _, version := range d.cfg.UpgradeClusterVersion {
-					upgradeCmd := fmt.Sprintf("kubetest2-tailorbird --up "+
-						"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
-						"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
-						cluster.Metadata.Name, version, d.cfg.RookeryRequestFile)
+					upgradeCmd := d.generateUpgradeCommand(cluster.Metadata.Name, version, d.cfg.RookeryRequestFile)
 
 					if err := exec.Run(upgradeCmd); err != nil {
 						log.Printf("error: %+v, while upgrading the cluster to version %s", err.Error(), version)
