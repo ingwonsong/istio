@@ -52,6 +52,11 @@ ${TARGET_OUT}/release/istioctl-osx-arm64: depend
 ${TARGET_OUT}/release/istioctl-win.exe: depend
 	GOOS=windows LDFLAGS=$(RELEASE_LDFLAGS_NOLINKMODE) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 
+.PHONY: racetest
+racetest: $(JUNIT_REPORT)
+	CGO_ENABLED=1 go test ${GOBUILDFLAGS} ${T} -race ./... 2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+	$(MAKE) tester-unit-tests
+
 include mdp/manifest/gen.mk
 
 #-----------------------------------------------------------------------------

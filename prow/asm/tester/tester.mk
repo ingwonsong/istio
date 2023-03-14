@@ -22,4 +22,4 @@ lint-skip-config:
 
 .PHONY: tester-unit-tests
 tester-unit-tests:
-	cd $(TESTER_PATH) && go test -v -race ./... 2>&1
+	cd $(TESTER_PATH) && CGO_ENABLED=1 go test -v -race ./... 2>&1
