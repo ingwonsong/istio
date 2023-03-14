@@ -73,6 +73,9 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 				return fmt.Errorf("error generating multicloud install flags: %w", err)
 			}
 			additionalFlags = append(additionalFlags, "--network_id", networkID)
+			if isEKSCluster(kubeconfig) {
+				additionalFlags = append(additionalFlags, "--option", "attached-cluster")
+			}
 
 			additionalEnvVars := generateASMInstallEnvvars(c.settings, rev, "")
 			if i < len(c.settings.ClusterProxy) && c.settings.ClusterProxy[i] != "" {
