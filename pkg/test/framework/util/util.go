@@ -16,15 +16,13 @@ package util
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 
 	"istio.io/istio/pkg/test/scopes"
 )
 
 const (
-	ServiceAccountCreadentialEnv = "E2E_GOOGLE_APPLICATION_CREDENTIALS"
-	cloudSDKCIRepo               = "https://storage.googleapis.com/cloud-sdk-testing/ci/staging/components-2.json"
+	cloudSDKCIRepo = "https://storage.googleapis.com/cloud-sdk-testing/ci/staging/components-2.json"
 )
 
 // UpdateCloudSDKToPiperHead updates gcloud SDK to piper head.
@@ -63,16 +61,6 @@ func updateCloudSDK(repo string) error {
 	if out, err := exec.Command("gcloud", "components", "update", "-q").CombinedOutput(); err != nil {
 		scopes.Framework.Infof("failed updating CloudSDK components:\n%s", string(out))
 		return fmt.Errorf("failed to update CloudSDK components %v:\n%s", err, string(out))
-	}
-
-	if cred := os.Getenv(ServiceAccountCreadentialEnv); cred != "" {
-		if out, err := exec.Command("gcloud", "auth", "activate-service-account", fmt.Sprintf("--key-file=%s", cred)).CombinedOutput(); err != nil {
-			scopes.Framework.Infof("failed activating service account for gcloud:\n%s", string(out))
-			return fmt.Errorf("failed to activate service account for gcloud %v:\n%s", err, string(out))
-		}
-	} else {
-		scopes.Framework.Infof("%s environment variable does not exist", ServiceAccountCreadentialEnv)
-		return fmt.Errorf("%s environment variable does not exist", ServiceAccountCreadentialEnv)
 	}
 
 	// Restore the previous project configs.
