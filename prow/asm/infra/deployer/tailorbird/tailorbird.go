@@ -646,12 +646,6 @@ func platformName(cluster string) string {
 
 func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion string, rookeryRequestFile string) string{
 	var upgradeCommand string
-	if(d.cfg.Cluster == types.GKEOnBareMetal){
-	upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
-		"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
-		"--upgrade-target-platform-version %s --upgrade-resource-config %s",
-		clusterName, targetVersion, rookeryRequestFile)
-	}
 	if(d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.GKEOnAzure){
 	upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
 		"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
@@ -661,7 +655,7 @@ func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion stri
 	return upgradeCommand
 }
 
-func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Request), error) {
+func (d *Instance) upgradeHandler() (func(http.ResponseWriter, *http.Request), error) {
 
 	upgradeFunc := func(w http.ResponseWriter, _ *http.Request) {
 
@@ -713,7 +707,7 @@ func (d *Instance) newGkeUpgradeHandler() (func(http.ResponseWriter, *http.Reque
 func (d *Instance) supportedHandlers() map[string]func() (func(http.ResponseWriter, *http.Request), error) {
 	supportedHandler := map[string]func() (func(http.ResponseWriter, *http.Request), error){}
 	if len(d.cfg.UpgradeClusterVersion) != 0 {
-		supportedHandler[common.UpgradePath] = d.newGkeUpgradeHandler
+		supportedHandler[common.UpgradePath] = d.upgradeHandler
 	}
 	return supportedHandler
 }

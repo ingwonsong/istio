@@ -20,8 +20,10 @@ spec:
               provider: azure
               distribution: gke
               provisionerArgs:
-                region: westus2
-                nodeCount: "6"
+                nodeCount: "3"
+                {{- if .Version }}
                 kubernetesVersion: "{{ .Version }}"
-                # kubernetesVersion: 1.25.5-gke.2000
+                {{- else }}
+                kubernetesVersion: 1.25.5-gke.2000
+                {{- end }}
                 username: asm-svc-acct
