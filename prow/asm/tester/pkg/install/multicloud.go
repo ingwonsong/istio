@@ -141,10 +141,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 					fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
 				}),
 			)
-		}
-
-		// TODO(samnaser) should we use `asmcli create-mesh`?
-		if c.settings.ClusterType == resource.OnPrem {
+		} else if c.settings.ClusterType == resource.OnPrem { // TODO(samnaser) should we use `asmcli create-mesh`?
 			return createRemoteSecretsMulticloud(c.settings, kubeconfigs)
 		} else if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
 			return exec.Dispatch(
@@ -155,7 +152,7 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 					fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
 				}),
 			)
-		} else if c.settings.ClusterType == resource.HybridGKEAndEKS || c.settings.ClusterType == resource.EKS || c.settings.ClusterType == resource.AKS {
+		} else {
 			return createRemoteSecrets(c.settings, rev, scriptPath)
 		}
 	}

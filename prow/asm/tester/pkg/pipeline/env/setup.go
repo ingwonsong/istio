@@ -574,6 +574,7 @@ func fixBareMetal(settings *resource.Settings) error {
 			scriptRelPath:        "tunnel.sh",
 			regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
 			sshKeyRelPath:        "id_rsa",
+			kubeconfig:           config,
 		}); err != nil {
 			return err
 		}
@@ -636,6 +637,7 @@ func fixAPM(settings *resource.Settings) error {
 		scriptRelPath:        "tunnel.sh",
 		regexMatcher:         `.*\-L([0-9]*):localhost.* (nonroot@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
 		sshKeyRelPath:        "id_rsa",
+		kubeconfig:           settings.Kubeconfig,
 	}); err != nil {
 		return err
 	}
@@ -654,6 +656,7 @@ func fixAWS(settings *resource.Settings) error {
 			scriptRelPath:        ".deployer/tunnel.sh",
 			regexMatcher:         `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
 			sshKeyRelPath:        ".deployer/id_rsa",
+			kubeconfig:           settings.Kubeconfig,
 		}); err != nil {
 			return err
 		}
@@ -671,6 +674,7 @@ func fixAWS(settings *resource.Settings) error {
 			scriptRelPath:        "tunnel-script.sh",
 			regexMatcher:         `.*\-L([0-9]*):localhost.* (ubuntu@.*compute\.amazonaws\.com)`,
 			sshKeyRelPath:        ".ssh/anthos-gke",
+			kubeconfig:           settings.Kubeconfig,
 		}); err != nil {
 			return err
 		}
@@ -704,15 +708,19 @@ func fixAzure(settings *resource.Settings) error {
 	if !settings.UseOnePlatform {
 		return errors.New("GKEOnAzure should use OnePlatform!")
 	}
-
-	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
-		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
-		clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
-		scriptRelPath:        ".deployer/tunnel.sh",
-		regexMatcher:         `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
-		sshKeyRelPath:        ".deployer/id_rsa",
-	}); err != nil {
-		return err
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		if err := configMulticloudSOCKS5ClusterProxy(settings, multicloudClusterConfig{
+			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
+			clusterArtifactsPath:     filepath.Dir(config),
+			scriptRelPath:            ".deployer/tunnel.sh",
+			regexMatcher:             `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
+			sshKeyRelPath:            ".deployer/id_rsa",
+			kubeconfig:               config,
+			connectivityMetadataPath: filepath.Dir(config) + "/connectivity-metadata/connectivity_metadata.json",
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -728,6 +736,7 @@ func fixHybridGKEAndBareMetal(settings *resource.Settings) error {
 				scriptRelPath:        "tunnel.sh",
 				regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
 				sshKeyRelPath:        "id_rsa",
+				kubeconfig:           config,
 			}); err != nil {
 				return err
 			}
@@ -772,6 +781,10 @@ type multicloudClusterConfig struct {
 	// regex to find the PORT_NUMBER and BOOTSTRAP_HOST_SSH_USER from the tunnel
 	// script.
 	regexMatcher string
+	// path to kubeconfig
+	kubeconfig string
+	// connectivity metadata path
+	connectivityMetadataPath string
 }
 
 func newPort() (int, error) {
@@ -788,7 +801,10 @@ func configMulticloudSOCKS5ClusterProxy(settings *resource.Settings, mcConf mult
 
 	// get connectivity_metadata.json, kubeconfig and ssh key paths
 	connectivityMetadataPath := filepath.Join(mcConf.clusterArtifactsPath, "../connectivity-metadata/connectivity_metadata.json")
-	kubeconfigPath := filepath.Join(mcConf.clusterArtifactsPath, "kubeconfig")
+	if mcConf.connectivityMetadataPath != "" {
+		connectivityMetadataPath = mcConf.connectivityMetadataPath
+	}
+	kubeconfigPath := mcConf.kubeconfig
 	bootstrapHostSSHKey := filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath)
 
 	// get user and hostname for the bootstrap node
@@ -882,6 +898,12 @@ func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloud
 		if err := os.Setenv(name, val); err != nil {
 			return fmt.Errorf("error setting env var %q to %q: %w", name, val, err)
 		}
+	}
+
+	// add proxy-url to the kubeconfig file. This helps to not worry about http_proxy env variables.
+	err = exec.Run(fmt.Sprintf("sed -i 's/- cluster:/- cluster:\\n    proxy-url: http:\\/\\/localhost:%s/' %s", portNum, mcConf.kubeconfig))
+	if err != nil {
+		return fmt.Errorf("Unable to set proxy url in kubeconfig %w", err)
 	}
 
 	//  Increase proxy's max connection setup to avoid too many connections error
