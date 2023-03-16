@@ -257,6 +257,9 @@ func setGcpPermissions(settings *resource.Settings) error {
 func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config) error {
 	secretName := "test-gcr-secret"
 	cred := os.Getenv("GCR_SA")
+	if cred == "" {
+		cred = os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	}
 	configs := filepath.SplitList(settings.Kubeconfig)
 	for i, config := range configs {
 		if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {
