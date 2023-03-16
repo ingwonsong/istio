@@ -22,5 +22,9 @@ spec:
               provisionerArgs:
                 region: us-east-2
                 nodeCount: "3"
+                {{- if .Version }}
+                kubernetesVersion: "{{ .Version }}"
+                {{- else }}
                 kubernetesVersion: 1.25.5-gke.2000
+         	{{- end }}
                 username: asm-svc-acct
