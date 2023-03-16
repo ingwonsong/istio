@@ -194,9 +194,12 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	serverArgs.ServerOptions.MonitoringAddr = ""
 	serverArgs.ServerOptions.GRPCAddr = ""
 
+	if _, ok := os.LookupEnv("PILOT_JWT_ENABLE_REMOTE_JWKS"); !ok {
+		// Allow overriding, but keep the default aligned with previous MCP releases.
+		features.JwksFetchMode = jwt.Hybrid
+	}
 	// Disable webhook config patching - manual configs used, proper DNS certs means no cert patching needed.
 	// TODO: oss bug, cannot disable validation
-	features.JwksFetchMode = jwt.Hybrid
 	features.InjectionWebhookConfigName = ""
 	bootstrap.Revision = p.Revision
 	bootstrap.PodName = p.PodName
