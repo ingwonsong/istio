@@ -21,7 +21,9 @@ spec:
               distribution: gke
               provisionerArgs:
                 nodeCount: "3"
-                {{- if .Version }}
+                {{- if eq .Version "latest" }}
+                kubernetesVersion: 1.25.5-gke.2000
+                {{- else if .Version }}
                 kubernetesVersion: "{{ .Version }}"
                 {{- else }}
                 kubernetesVersion: 1.25.5-gke.2000
