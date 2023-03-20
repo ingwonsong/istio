@@ -137,8 +137,10 @@ func (c *installer) installASM(rev *revision.Config) error {
 		}
 	}
 
-	if err := createRemoteSecrets(c.settings, rev, scriptPath); err != nil {
-		return fmt.Errorf("failed to create remote secrets: %w", err)
+	if len(contexts) > 1 {
+		if err := createRemoteSecrets(c.settings, rev, scriptPath); err != nil {
+			return fmt.Errorf("failed to create remote secrets: %w", err)
+		}
 	}
 	return nil
 }
