@@ -80,6 +80,7 @@ func newMCPServeCommand() *cobra.Command {
 			mux.Handle("/mcp-update-webhooks", handler{s.updateWebhooks})
 			mux.Handle("/mcp-is-afc-owned", handler{s.isAFCOwned})
 			mux.Handle("/mcp-check-multiproject", handler{s.isMultiProject})
+			mux.Handle("/mcp-add-cacertificate", handler{s.addCACertificate})
 
 			addr := fmt.Sprintf(":%s", params.port)
 			log.Infof("Listening on: %s", addr)
