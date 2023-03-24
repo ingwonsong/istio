@@ -957,6 +957,16 @@ tests:
       - TestPassThroughFilterChain
       - TestReachability
 
+  # MCP multi-project with private cluster tests skips the following packages that's skipped by multi-cluster.
+  - selectors:
+      control_plane: managed
+      cluster_topology: mp
+      feature_to_test: PRIVATE_CLUSTER_UNRESTRICTED_ACCESS
+    targets:
+    - names:
+      - TestTraffic/jwt-claim-route
+      buganizerID: 274833325
+
 packages:
 
   # skip endpointslice package

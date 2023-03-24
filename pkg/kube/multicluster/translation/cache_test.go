@@ -81,7 +81,7 @@ func TestCache(t *testing.T) {
 				},
 			},
 			wantFound:     true,
-			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/1234/locations/global/gkeMemberships/random"),
+			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name:        "config exists in cache with autopush hub endpoint",
@@ -93,7 +93,7 @@ func TestCache(t *testing.T) {
 				},
 			},
 			wantFound:     true,
-			wantAPIConfig: createAPIConfig("https://autopush-connectgateway.sandbox.googleapis.com/v1/projects/1234/locations/global/gkeMemberships/random"),
+			wantAPIConfig: createAPIConfig("https://autopush-connectgateway.sandbox.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name: "config exists in cache with multiple entries",
@@ -107,7 +107,7 @@ func TestCache(t *testing.T) {
 				},
 			},
 			wantFound:     true,
-			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/1234/locations/global/gkeMemberships/random"),
+			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name: "config does not exist in cache or in existing memberships",
@@ -132,7 +132,7 @@ func TestCache(t *testing.T) {
 			},
 			wantFound:     true,
 			wantAPICalls:  true,
-			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/1234/locations/global/gkeMemberships/random"),
+			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name:                       "cache contains IP in known public cluster cache",
@@ -163,8 +163,9 @@ func TestCache(t *testing.T) {
 			mockLister := &mockMembershipLister{memberships: tc.existingMemberships}
 			c := &membershipCache{
 				opts: environmentOpts{
-					projectNumber: "1234",
-					hubEndpoint:   tc.hubEndpoint,
+					clusterProjectNumber: "1234",
+					fleetProjectNumber:   "5678",
+					hubEndpoint:          tc.hubEndpoint,
 				},
 				clusterFetcher:        mockFetcher,
 				membershipLister:      mockLister,

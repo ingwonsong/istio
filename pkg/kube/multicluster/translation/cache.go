@@ -63,10 +63,11 @@ type membershipCache struct {
 }
 
 type environmentOpts struct {
-	projectNumber     string
-	hubEndpoint       string
-	hubMembershipName string
-	fleetProjectID    string
+	fleetProjectNumber   string
+	clusterProjectNumber string
+	hubEndpoint          string
+	hubMembershipName    string
+	fleetProjectID       string
 }
 
 // NewIPMembershipCache returns a cache that correlates remote secret IPs to their connect gateway endpoints.
@@ -79,12 +80,12 @@ func NewIPMembershipCache() (Cache, error) {
 		return nil, fmt.Errorf("failed to read required opts from environment: %v", err)
 	}
 
-	cc, err := container.NewClusterManagerClient(ctx, option.WithQuotaProject(opts.projectNumber))
+	cc, err := container.NewClusterManagerClient(ctx, option.WithQuotaProject(opts.clusterProjectNumber))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cluster manager client: %v", err)
 	}
 	hc, err := gkehub.NewGkeHubMembershipRESTClient(ctx,
-		option.WithQuotaProject(opts.projectNumber), option.WithEndpoint(opts.hubEndpoint))
+		option.WithQuotaProject(opts.fleetProjectNumber), option.WithEndpoint(opts.hubEndpoint))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create hub membership client: %v", err)
 	}
@@ -214,7 +215,7 @@ func (m *membershipCache) apiConfig(ip string) (api.Config, bool) {
 	if ok {
 		log.Infof("Found cached membership %s for IP %s", cachedMembership.GetName(), ip)
 		config, err := apiConfigFromMembership(
-			cachedMembership, m.opts.hubEndpoint, m.opts.projectNumber, m.validateEndpoint)
+			cachedMembership, m.opts.hubEndpoint, m.opts.fleetProjectNumber, m.validateEndpoint)
 		if err != nil {
 			log.Warnf("Failed to get apiConfig from membership: %v", err)
 			return api.Config{}, false
@@ -237,9 +238,14 @@ func (m *membershipCache) cachedMembership(ip string) (*gkehubpb.Membership, boo
 }
 
 func optsFromEnvironment() (environmentOpts, error) {
-	projectNumber := os.Getenv("PROJECT_NUMBER")
-	if projectNumber == "" {
-		return environmentOpts{}, fmt.Errorf("could not read tenant project number from environment")
+	fleetProjectNumber := os.Getenv("FLEET_PROJECT_NUMBER")
+	if fleetProjectNumber == "" {
+		return environmentOpts{}, fmt.Errorf("could not read fleet project number from environment")
+	}
+
+	clusterProjectNumber := os.Getenv("PROJECT_NUMBER")
+	if clusterProjectNumber == "" {
+		return environmentOpts{}, fmt.Errorf("could not read cluster project number from environment")
 	}
 
 	// GKE Hub membership full resource name (https://google.aip.dev/122) with owning API prepended.
@@ -261,9 +267,10 @@ func optsFromEnvironment() (environmentOpts, error) {
 	}
 
 	return environmentOpts{
-		projectNumber:     projectNumber,
-		fleetProjectID:    pathMatches[1],
-		hubMembershipName: pathMatches[3],
-		hubEndpoint:       u.Host,
+		fleetProjectNumber:   fleetProjectNumber,
+		clusterProjectNumber: clusterProjectNumber,
+		fleetProjectID:       pathMatches[1],
+		hubMembershipName:    pathMatches[3],
+		hubEndpoint:          u.Host,
 	}, nil
 }

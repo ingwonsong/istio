@@ -33,11 +33,11 @@ var (
 	validateTimeout     = time.Second * 5
 )
 
-func apiConfigFromMembership(membership *gkehubpb.Membership, hubEndpoint, projectNumber string, validateEndpoint bool) (api.Config, error) {
+func apiConfigFromMembership(membership *gkehubpb.Membership, hubEndpoint, fleetProjectNumber string, validateEndpoint bool) (api.Config, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), validateTimeout)
 	defer cancel()
 
-	cgwEndpoint, err := connectEndpointFromMembership(membership, hubEndpoint, projectNumber)
+	cgwEndpoint, err := connectEndpointFromMembership(membership, hubEndpoint, fleetProjectNumber)
 	if err != nil {
 		return api.Config{}, fmt.Errorf("failed to generate connect gateway endpoint: %v", err)
 	}
