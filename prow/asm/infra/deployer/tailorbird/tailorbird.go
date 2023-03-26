@@ -96,7 +96,7 @@ type TemplateParameters struct {
 	GCSBucket                    string
 	Version                      string
 	VersionPrefix                string
-	UpgradeVersionPrefix	     string
+	UpgradeVersionPrefix         string
 	ProjectName                  string
 	ErrorPatterns                string
 	ClusterNames                 []string
@@ -369,12 +369,13 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 	return
 }
 
+func (d *Instance) getUpgradeVersionPrefix() (upgradeVersionPrefix string) {
 
-func (d* Instance) getUpgradeVersionPrefix() (upgradeVersionPrefix string){
+	if len(d.cfg.UpgradeClusterVersion) == 0 {
+		return ""
+	}
 
-	if(len(d.cfg.UpgradeClusterVersion) == 0)  { return "" }
-
-	return strings.Join(strings.Split(d.cfg.UpgradeClusterVersion[len(d.cfg.UpgradeClusterVersion)-1],".")[:2], ".")
+	return strings.Join(strings.Split(d.cfg.UpgradeClusterVersion[len(d.cfg.UpgradeClusterVersion)-1], ".")[:2], ".")
 }
 
 func (d *Instance) getReleaseChannel() types.ReleaseChannel {
@@ -570,7 +571,7 @@ func (d *Instance) rookeryFile() (string, error) {
 	version, versionPrefix := d.getVersionAndPrefix()
 	upgradeVersionPrefix := d.getUpgradeVersionPrefix()
 	rep := TemplateParameters{
-		GCSBucket:     	      d.getGCSBucket(),
+		GCSBucket:            d.getGCSBucket(),
 		Version:              version,
 		VersionPrefix:        versionPrefix,
 		UpgradeVersionPrefix: upgradeVersionPrefix,
@@ -613,8 +614,11 @@ func (d *Instance) tracRookeryPath() (string, error) {
 		variant = strings.ToLower(string(d.cfg.WIP)) + "-" + string(d.cfg.Topology)
 	}
 
-	// Pattern: /$pathToConfigs/gen-$componentIndex/$platform-$variant-$platformIndex.yaml
+	// Pattern: /$pathToConfigs/gen-$componentIndex/$platform-$variant-$platformIndex[-os-$osIndex].yaml
 	rookeryFileName := fmt.Sprintf("%s-%s-%d.yaml", platform, variant, d.cfg.TRACPlatformIndex)
+	if d.cfg.TRACOSIndex != -1 {
+		rookeryFileName = fmt.Sprintf("%s-%s-%d-os-%d.yaml", platform, variant, d.cfg.TRACPlatformIndex, d.cfg.TRACOSIndex)
+	}
 	f := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDir, genFolderName, rookeryFileName)
 	if _, err := os.Stat(f); err != nil {
 		return "", fmt.Errorf("tailorbird rookery config file %q does not exist in TRAC, "+

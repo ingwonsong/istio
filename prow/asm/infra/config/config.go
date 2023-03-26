@@ -52,6 +52,7 @@ type Instance struct {
 	ClusterVersion        string
 	TRACPlatformIndex     int
 	TRACComponentIndex    int
+	TRACOSIndex           int
 	Cluster               types.Cluster
 	UseOnePlatform        bool
 	UseKubevirtVM         bool
@@ -77,6 +78,7 @@ func Default() Instance {
 		WIP:                types.GKE,
 		TRACPlatformIndex:  -1,
 		TRACComponentIndex: -1,
+		TRACOSIndex:        -1,
 	}
 }
 
