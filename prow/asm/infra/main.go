@@ -61,6 +61,9 @@ func main() {
 		"ASM release index (as defined by go/anthos-trac). Selects the `latest-Nth` version that will be tested. "+
 			"Both (or neither) of --trac-platform-index and --trac-component-index must be defined. "+
 			"If <0 (the default), the manually crafted Tailorbird Rookery files in the ASM repo will be used instead.")
+	flag.IntVar(&cfg.TRACOSIndex, "trac-os-index", cfg.TRACOSIndex,
+		"Anthos platform release index (as defined by go/anthos-trac). Selects the `latest-Nth` version that will be tested. "+
+			"If <0 (the default), the os index will not be appended to the path.")
 	flag.StringSliceVar(&upgradeVersions, "upgrade-cluster-version", []string{},
 		"comma seperated list of versions that clusters will be upgraded to, formatted as x.y1.z,x.y2.z. Clusters will run for a short duration to ensure functionality between the cluster upgrades.")
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
