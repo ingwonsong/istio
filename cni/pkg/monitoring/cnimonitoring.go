@@ -28,13 +28,13 @@ var (
 	pluginInstallCount = monitoring.NewSum(
 		"plugin_installs_count",
 		"Count of Istio CNI network plugin installations done by an Istio CNI daemonset.",
-		monitoring.WithLabels(stateLabel),
+		monitoring.WithLabels(resultLabel),
 	)
 
 	installState = monitoring.NewGauge(
 		"install_state",
 		"The CNI plugin installation state, one of [READY, UNREADY, UNKNOWN]",
-		monitoring.WithLabels(resultLabel),
+		monitoring.WithLabels(stateLabel),
 	)
 
 	raceRepairsCount = monitoring.NewSum(

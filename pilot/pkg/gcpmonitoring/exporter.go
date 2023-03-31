@@ -198,10 +198,16 @@ func NewCNIExporter(viewMap map[string]bool, vs string) (*ASMExporter, error) {
 
 // newASMExporter creates an ASM opencensus exporter.
 func newASMExporter(s sdExporterConfigs) (*ASMExporter, error) {
-	pe, err := ocprom.NewExporter(ocprom.Options{Registry: prometheus.DefaultRegisterer.(*prometheus.Registry)})
-	if err != nil {
-		return nil, fmt.Errorf("could not set up prometheus exporter: %v", err)
+	var err error
+	var pe *ocprom.Exporter
+
+	if s.metricsPrefix != cniMetricsPrefix {
+		pe, err = ocprom.NewExporter(ocprom.Options{Registry: prometheus.DefaultRegisterer.(*prometheus.Registry)})
+		if err != nil {
+			return nil, fmt.Errorf("could not set up prometheus exporter: %v", err)
+		}
 	}
+
 	if !s.sdEnabled {
 		// Stackdriver monitoring is not enabled, return early with only prometheus exporter initialized.
 		return &ASMExporter{
