@@ -20,7 +20,9 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
+	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/install/multiversion"
 	"istio.io/istio/prow/asm/tester/pkg/install/revision"
@@ -74,8 +76,17 @@ func (c *installer) install(r *revision.Config) error {
 func (c *installer) preInstall(rev *revision.Config) error {
 	if !c.settings.InstallOverride.IsSet() {
 		if c.settings.ControlPlane != resource.Managed {
-			if err := exec.Dispatch(c.settings.RepoRootDir,
-				"prepare_images", nil); err != nil {
+			// TODO(hemendrat) :- Remove retry for prepare_images once b/273175430 is fixed
+			/*
+				if err := exec.Dispatch(c.settings.RepoRootDir,
+					"prepare_images", nil); err != nil {
+					return err
+				}
+			*/
+			if err := retry.UntilSuccess(func() error {
+				return exec.Dispatch(c.settings.RepoRootDir,
+					"prepare_images", nil)
+			}, retry.Timeout(time.Second*1800), retry.Delay(time.Second*10)); err != nil {
 				return err
 			}
 		} else {
