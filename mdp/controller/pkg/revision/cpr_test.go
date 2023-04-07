@@ -440,7 +440,19 @@ func TestEnablement(t *testing.T) {
 		wantPods    []string
 	}{
 		{
-			name: "all off",
+			name: "unset", // regular channel is on by default
+			wantPods: []string{
+				"0-ns1_regular-Pod",
+				"1-ns1_regular-Pod",
+				"2-ns1_regular-Pod",
+				"3-ns1_regular-Pod",
+				"0-ns2_regular-Pod",
+				"1-ns2_regular-Pod",
+				"2-ns2_regular-Pod",
+				"3-ns2_regular-Pod",
+				"0-ns4-Pod",
+				"1-ns4-Pod",
+			},
 		},
 		{
 			name:       "only cpr on",
@@ -559,7 +571,7 @@ func TestCPRDefaults(t *testing.T) {
 			name:        "cpr unset, regular channel",
 			cprEnabled:  nil,
 			channel:     v1alpha1.ChannelRegular,
-			wantNumPods: 0,
+			wantNumPods: 20,
 		},
 		{
 			name:        "cpr unset, rapid channel",
