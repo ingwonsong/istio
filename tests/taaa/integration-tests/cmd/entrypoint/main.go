@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
-	shell "github.com/kballard/go-shellquote"
 	"github.com/magefile/mage/sh"
 	"github.com/spf13/cobra"
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/entrypoint"
@@ -24,7 +23,6 @@ import (
 	"gke-internal.git.corp.google.com/taaa/lib.git/pkg/registry"
 	asmpb "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_integration"
 
-	pkgexec "istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests"
@@ -110,7 +108,12 @@ func main() {
 			log.Printf("Activated service account from %q: %v", gac, string(out))
 		}
 		asmTesterArgs := append([]string{"--setup-env", "--setup-system"}, os.Args[1:]...)
-		if err := pkgexec.Run(fmt.Sprintf("asm_tester %s", shell.Join(asmTesterArgs...))); err != nil {
+		cmd := exec.Command("asm_tester", asmTesterArgs...)
+		cmd.Env = os.Environ()
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
 			log.Fatalf("error running asm_tester: %v", err)
 		}
 
