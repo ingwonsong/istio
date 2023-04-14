@@ -8,19 +8,18 @@ ARG ISTIO_BASE_REGISTRY=gcr.io/istio-release
 ARG CLOUDESF_VERSION
 FROM gcr.io/cloudesf-release/proxy:${CLOUDESF_VERSION} as cloudesf_gcr
 # The following section is used as base image if BASE_DISTRIBUTION=distroless
-# This image is a custom built debian10 distroless image with multiarchitecture support.
+# This image is a custom built debian11 distroless image with multiarchitecture support.
 # It is built on the base distroless image, with iptables binary and libraries added
 # The source can be found at https://github.com/istio/distroless/tree/iptables
-#
-# Cloud ESF doesn't need distroless build.
-# FROM gcr.io/istio-release/iptables@sha256:e8f940d0d0163ec4563ee070188c1d97308ac08f4a711152ff55f3a81e525140 as distroless
+# This version is from commit a8b3fb577adb785211ce704fdf892983fc268b11.
+FROM gcr.io/istio-release/iptables@sha256:4be99c4dbc0a158fc4404d66198bf18f321292ffeff55201e9c8fa518a54b81e as distroless
 
 # The following section is used as base image if BASE_DISTRIBUTION=debug
 FROM ${ISTIO_BASE_REGISTRY}/base:${BASE_VERSION} as debug
 
 # This will build the final image based on either default or distroless from above
 # hadolint ignore=DL3006
-FROM debug
+FROM ${BASE_DISTRIBUTION:-debug}
 
 WORKDIR /
 
