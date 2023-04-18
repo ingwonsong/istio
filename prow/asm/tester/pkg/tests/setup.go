@@ -199,13 +199,13 @@ func genTopologyFile(settings *resource.Settings) error {
 				if isBMCluster(kubeconfig) {
 					networkID = "network-bm"
 				} else {
-					networkID = "tairan-asm-multi-cloud-dev-cluster-net"
+					networkID = "asm-ci-mc-cluster-net"
 				}
 			} else if settings.ClusterType == resource.HybridGKEAndEKS {
 				if isEKSCluster(kubeconfig) {
 					networkID = "network-eks"
 				} else {
-					networkID = "tairan-asm-multi-cloud-dev-cluster-net"
+					networkID = "asm-ci-mc-cluster-net"
 				}
 			}
 			cc += fmt.Sprintf("\n  network: %s", networkID)

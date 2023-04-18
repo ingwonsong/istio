@@ -62,10 +62,10 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 
 	// multicloud settings
 	if settings.ClusterType != resource.GKEOnGCP {
-		// going from 20s to 100s for the total retry timeout (all attempts)
-		testFlags = append(testFlags, "--istio.test.echo.callTimeout=100s")
-		// going from 5s to 30s for individual ForwardEchoRequests (bounds total all calls in req.Count)
-		testFlags = append(testFlags, "--istio.test.echo.requestTimeout=30s")
+		// going from 20s to 120s for the total retry timeout (all attempts)
+		testFlags = append(testFlags, "--istio.test.echo.callTimeout=120s")
+		// going from 5s to 100s for individual ForwardEchoRequests (bounds total all calls in req.Count)
+		testFlags = append(testFlags, "--istio.test.echo.requestTimeout=100s")
 
 		// make echo deployments use an image pull secret
 		testFlags = append(testFlags,

@@ -54,11 +54,12 @@ const (
 	terraformVersion = "0.13.6"
 
 	// the host HUB project for testing with on-prem
-	onPremHubDevProject = "tairan-asm-multi-cloud-dev"
+	onPremHubDevProject = "asm-ci-mc"
+	onPremGkeConnectSA  = "tb-vsphere-gke-connect@asm-ci-mc.iam.gserviceaccount.com"
 	// GKE
 	retryableErrorPatterns = ".*does not have enough resources available to fulfill.*" +
-		",.*only \\\\d+ nodes out of \\\\d+ have registered; this is likely due to Nodes failing to start correctly.*" +
-		",.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*"
+			",.*only \\\\d+ nodes out of \\\\d+ have registered; this is likely due to Nodes failing to start correctly.*" +
+			",.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*"
 
 	commonBoskosResource             = "gke-project"
 	vpcSCBoskosResource              = "vpc-sc-gke-project"
@@ -114,6 +115,8 @@ type TemplateParameters struct {
 	IsBoskosProjectRequired      bool
 	ReleaseChannel               types.ReleaseChannel
 	Environment                  types.Environment
+	OnPremHubDevProject          string
+	OnPremGkeConnectSA           string
 }
 
 // Exported types to support unmarshalling rookery Yaml
@@ -439,9 +442,9 @@ func (d *Instance) applyMultiProjectMultiClusterParameters(template *TemplatePar
 	}
 
 	template.SubnetworkRanges = "172.16.4.0/22 172.16.16.0/20 172.20.0.0/14," +
-		"10.0.4.0/22 10.0.32.0/20 10.4.0.0/14,173.16.4.0/22 173.16.16.0/20 173.20.0.0/14," +
-		"11.0.4.0/22 11.0.32.0/20 11.4.0.0/14,174.16.4.0/22 174.16.16.0/20 174.20.0.0/14," +
-		"12.0.4.0/22 12.0.32.0/20 12.4.0.0/14"
+			"10.0.4.0/22 10.0.32.0/20 10.4.0.0/14,173.16.4.0/22 173.16.16.0/20 173.20.0.0/14," +
+			"11.0.4.0/22 11.0.32.0/20 11.4.0.0/14,174.16.4.0/22 174.16.16.0/20 174.20.0.0/14," +
+			"12.0.4.0/22 12.0.32.0/20 12.4.0.0/14"
 }
 
 func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error {
@@ -570,10 +573,15 @@ func (d *Instance) rookeryFile() (string, error) {
 	// Struct providing template parameters for the YAML.
 	version, versionPrefix := d.getVersionAndPrefix()
 	upgradeVersionPrefix := d.getUpgradeVersionPrefix()
+	if err != nil {
+		return "", err
+	}
 	rep := TemplateParameters{
 		GCSBucket:            d.getGCSBucket(),
 		Version:              version,
 		VersionPrefix:        versionPrefix,
+		OnPremHubDevProject:  onPremHubDevProject,
+		OnPremGkeConnectSA:   onPremGkeConnectSA,
 		UpgradeVersionPrefix: upgradeVersionPrefix,
 	}
 
@@ -622,7 +630,7 @@ func (d *Instance) tracRookeryPath() (string, error) {
 	f := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDir, genFolderName, rookeryFileName)
 	if _, err := os.Stat(f); err != nil {
 		return "", fmt.Errorf("tailorbird rookery config file %q does not exist in TRAC, "+
-			"please follow go/trac-guide to generate the config file correctly", f)
+				"please follow go/trac-guide to generate the config file correctly", f)
 	}
 	return f, nil
 }
@@ -648,21 +656,21 @@ func platformName(cluster string) string {
 	return platform
 }
 
-func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion string, rookeryRequestFile string) string{
+func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion string, rookeryRequestFile string) string {
 	var upgradeCommand string
 
-        if(d.cfg.Cluster == types.GKEOnBareMetal){
-        upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
-		"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
-		"--upgrade-target-platform-version %s --upgrade-resource-config %s",
-		clusterName, targetVersion, rookeryRequestFile)
+	if d.cfg.Cluster == types.GKEOnBareMetal {
+		upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
+				"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
+				"--upgrade-target-platform-version %s --upgrade-resource-config %s",
+			clusterName, targetVersion, rookeryRequestFile)
 	}
 
-	if(d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.GKEOnAzure || d.cfg.Cluster == types.GKEOnAWS){
-	upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
-		"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
-		"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
-		clusterName, targetVersion, rookeryRequestFile)
+	if d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.GKEOnAzure || d.cfg.Cluster == types.GKEOnAWS {
+		upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
+				"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
+				"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
+			clusterName, targetVersion, rookeryRequestFile)
 	}
 
 	return upgradeCommand
@@ -777,8 +785,8 @@ func (d *Instance) getUpgradeStatusUsingKubetest(clusterName string) (types.Type
 	workdir := filepath.Dir(d.cfg.RookeryRequestFile)
 	upgradeConfigFile := filepath.Join(workdir, fmt.Sprintf("%s-upgrade.yaml", clusterName))
 	upgradeStatusCmd := fmt.Sprintf("kubetest2-tailorbird --up "+
-		"--verbose --upgrade-cluster --get-upgrade-status "+
-		"--upgrade-cluster-name %s --upgrade-resource-config %s --tbconfig %s",
+			"--verbose --upgrade-cluster --get-upgrade-status "+
+			"--upgrade-cluster-name %s --upgrade-resource-config %s --tbconfig %s",
 		clusterName, d.cfg.RookeryRequestFile, upgradeConfigFile)
 
 	output, err := exec.CombinedOutput(upgradeStatusCmd)
@@ -801,7 +809,7 @@ func (d *Instance) getUpgradeStatusUsingKubectl(clusterName string) (types.Type,
 	workdir := filepath.Dir(d.cfg.RookeryRequestFile)
 	upgradeConfigFile := filepath.Join(workdir, fmt.Sprintf("%s-upgrade.yaml", clusterName))
 	upgradeStatusCmd := fmt.Sprintf("kubectl get -f %s --no-headers "+
-		"-o=custom-columns=STATE:.status.clusterVersionUpdateState",
+			"-o=custom-columns=STATE:.status.clusterVersionUpdateState",
 		upgradeConfigFile)
 
 	upgradeStatus, err := exec.CombinedOutput(upgradeStatusCmd)

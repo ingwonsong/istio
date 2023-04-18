@@ -42,8 +42,9 @@ spec:
            {{- end }}
            gkectlConfigSeedVersion: "v1"
            vipNetwork: "fe"
-           gkeConnectProject: "tairan-asm-multi-cloud-dev"
-           stackdriverProjectId: "tairan-asm-multi-cloud-dev"
+           gkeConnectProject: "{{ .OnPremHubDevProject }}"
+           stackdriverProjectId: "{{ .OnPremHubDevProject }}"
+           # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
            herculesEnvTtl: "4h"
            vsphereVersion: "7.0"
            esxiVersion: "7.0"

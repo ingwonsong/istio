@@ -17,7 +17,7 @@
 
 usage() {
   echo "Usage: $0 [HUBENV] [LOCATION] [DURATION]"
-  echo "e.g. $0 \"https://gkehub.googleapis.com/\" \"tairan-asm-multi-cloud-dev\" \"12 hour\""
+  echo "e.g. $0 \"https://gkehub.googleapis.com/\" \"asm-ci-mc\" \"12 hour\""
 }
 
 delete_admin_membership(){

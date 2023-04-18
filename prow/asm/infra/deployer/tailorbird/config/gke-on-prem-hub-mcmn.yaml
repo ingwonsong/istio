@@ -52,8 +52,9 @@ spec:
                 useVipNetworkLabel: "use=frontend,i-know-what-i-am-doing=true"
                 # useNetworkLabel requires use=private and i-know-what-i-am-doing=true
                 useNetworkLabel: "use=private,i-know-what-i-am-doing=true"
-                gkeConnectProject: "tairan-asm-multi-cloud-dev"
-                stackdriverProjectId: "tairan-asm-multi-cloud-dev"
+                gkeConnectProject: "{{ .OnPremHubDevProject }}"
+                stackdriverProjectId: "{{ .OnPremHubDevProject }}"
+                # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
                 vsphereVersion: "7.0"
                 esxiVersion: "7.0"
                 herculesEnvTtl: "4h"
@@ -88,8 +89,9 @@ spec:
                 useVipNetworkLabel: "use=frontend,i-know-what-i-am-doing=true"
                 # useNetworkLabel requires use=private and i-know-what-i-am-doing=true
                 useNetworkLabel: "use=private,i-know-what-i-am-doing=true"
-                gkeConnectProject: "tairan-asm-multi-cloud-dev"
-                stackdriverProjectId: "tairan-asm-multi-cloud-dev"
+                gkeConnectProject: "{{ .OnPremHubDevProject }}"
+                stackdriverProjectId: "{{ .OnPremHubDevProject }}"
+                # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
                 vsphereVersion: "7.0"
                 esxiVersion: "7.0"
                 herculesEnvTtl: "4h"

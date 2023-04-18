@@ -1,7 +1,7 @@
 apiVersion: sut.tailorbird.io/v1alpha1
 kind: Rookery
 metadata:
-  name: asm-ci-gcp-eks-hybrid-rookery01
+  name: asm-gcp-eks-hybrid-rookery
   namespace: tailorbird-users
 spec:
   ttlSeconds: 10800 # 3 hours
@@ -10,14 +10,14 @@ spec:
     kind: Knest
     metadata:
       creationTimestamp: null
-      name: asm-ci-gcp-eks-hybrid-knest01
+      name: asm-gcp-eks-hybrid-knest
     spec:
       clusters:
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
         metadata:
           creationTimestamp: null
-          name: asm-ci-gcp-eks-hybrid-gcp-cluster01
+          name: asm-gcp-eks-hybrid-gcp-cluster
         spec:
           distribution: gke
           provider: gcp
@@ -27,18 +27,18 @@ spec:
                 # note: this currently leaves orphan firewall rules, needs some sort of janitor
                 skipNetworkTeardowns: true
               projectOptions:
-                projects: tairan-asm-multi-cloud-dev
+                projects: {{ .OnPremHubDevProject }}
               networkOptions:
                 network: default
               clusterOptions:
-                clusters: asm-ci-gcp-eks-hybrid-gcp-cluster01-{{ randNumeric 3 }}
+                clusters: asm-gcp-eks-hybrid-gcp-cluster-{{ randNumeric 3 }}
                 regions: us-west1
                 gcloudExtraFlags: --enable-ip-alias --subnetwork=default
                 workloadIdentityEnabled: true
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
         metadata:
-          name: asm-ci-gcp-eks-hybrid-eks-cluster01
+          name: asm-gcp-eks-hybrid-eks-cluster
         spec:
           provider: aws
           distribution: eks
@@ -47,3 +47,5 @@ spec:
             kubernetesVersion: "1.24"
             username: asm-svc-acct
             compressArtifacts: "true"
+            nodeCount: "4"
+            nodeType: "t3.medium"

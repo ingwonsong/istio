@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	hybridFleetProject = "tairan-asm-multi-cloud-dev"
+	hybridFleetProject = "asm-ci-mc"
 )
 
 func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
@@ -90,9 +90,9 @@ func (c *installer) installASMOnHybridClusters(rev *revision.Config) error {
 		} else {
 			clusterID = "cluster-gcp"
 			if c.settings.ClusterType == resource.HybridGKEAndBareMetal {
-				networkID = "tairan-asm-multi-cloud-dev-cluster-net"
+				networkID = "asm-ci-mc-cluster-net"
 			} else if c.settings.ClusterType == resource.HybridGKEAndEKS {
-				networkID = "tairan-asm-multi-cloud-dev-default"
+				networkID = "asm-ci-mc-default"
 			}
 			gkeContext := ""
 			for _, context := range c.settings.KubeContexts {

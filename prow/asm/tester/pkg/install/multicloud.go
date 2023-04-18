@@ -30,7 +30,7 @@ import (
 
 const (
 	// Use personal test project since there is no project pool for multi-cloud.
-	OnPremFleetProject         = "tairan-asm-multi-cloud-dev"
+	OnPremFleetProject         = "asm-ci-mc"
 	ProxiedClusterFleetProject = "tailorbird"
 )
 
