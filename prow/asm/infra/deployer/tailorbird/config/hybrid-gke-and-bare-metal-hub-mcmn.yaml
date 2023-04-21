@@ -60,7 +60,7 @@ spec:
               networkOptions:
                 network: cluster-net
               clusterOptions:
-                clusters: test-cluster-gkebm-hybrid-01
+                clusters: cluster-gkebm-hybrid-01-{{ randNumeric 4 }}
                 regions: us-central1
                 gcloudExtraFlags: --enable-ip-alias --subnetwork=cluster-internal-01
                 workloadIdentityEnabled: true
