@@ -53,6 +53,7 @@ type Instance struct {
 	TRACPlatformIndex     int
 	TRACComponentIndex    int
 	TRACOSIndex           int
+	TRACCPIndex           int
 	Cluster               types.Cluster
 	UseOnePlatform        bool
 	UseKubevirtVM         bool
@@ -79,6 +80,7 @@ func Default() Instance {
 		TRACPlatformIndex:  -1,
 		TRACComponentIndex: -1,
 		TRACOSIndex:        -1,
+		TRACCPIndex:        -1,
 	}
 }
 

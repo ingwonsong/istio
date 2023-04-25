@@ -623,10 +623,14 @@ func (d *Instance) tracRookeryPath() (string, error) {
 	}
 
 	// Pattern: /$pathToConfigs/gen-$componentIndex/$platform-$variant-$platformIndex[-os-$osIndex].yaml
-	rookeryFileName := fmt.Sprintf("%s-%s-%d.yaml", platform, variant, d.cfg.TRACPlatformIndex)
+	rookeryFileNamePrefix := fmt.Sprintf("%s-%s-%d", platform, variant, d.cfg.TRACPlatformIndex)
 	if d.cfg.TRACOSIndex != -1 {
-		rookeryFileName = fmt.Sprintf("%s-%s-%d-os-%d.yaml", platform, variant, d.cfg.TRACPlatformIndex, d.cfg.TRACOSIndex)
+		rookeryFileNamePrefix = fmt.Sprintf("%s-os-%d", rookeryFileNamePrefix, d.cfg.TRACOSIndex)
 	}
+	if d.cfg.TRACCPIndex != -1 {
+		rookeryFileNamePrefix = fmt.Sprintf("%s-cp-%d", rookeryFileNamePrefix, d.cfg.TRACCPIndex)
+	}
+	rookeryFileName := rookeryFileNamePrefix + ".yaml"
 	f := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDir, genFolderName, rookeryFileName)
 	if _, err := os.Stat(f); err != nil {
 		return "", fmt.Errorf("tailorbird rookery config file %q does not exist in TRAC, "+
