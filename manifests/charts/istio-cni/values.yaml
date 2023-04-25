@@ -61,6 +61,9 @@ cni:
   seccompProfile: {}
 
   resources:
+    limits:
+      cpu: 400m
+      memory: 1Gi
     requests:
       cpu: 100m
       memory: 100Mi
