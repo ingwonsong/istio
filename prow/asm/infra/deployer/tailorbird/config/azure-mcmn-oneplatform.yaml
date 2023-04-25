@@ -22,7 +22,7 @@ spec:
           provisionerArgs:
             region: westus2
             nodeCount: "3"
-            kubernetesVersion: 1.25.4-gke.1300
+            kubernetesVersion: 1.26.2-gke.1001
             username: asm-svc-acct
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
@@ -34,5 +34,5 @@ spec:
           provisionerArgs:
             region: westus2
             nodeCount: "3"
-            kubernetesVersion: 1.25.4-gke.1300
+            kubernetesVersion: 1.26.2-gke.1001
             username: asm-svc-acct
