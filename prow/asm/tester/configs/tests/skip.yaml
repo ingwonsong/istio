@@ -1,5 +1,21 @@
 tests:
   - selectors:
+      all: true
+    targets:
+    - names:
+      - TestAccessLogsFilter
+      reason: enabled waiting for oss sync
+    - names:
+      - TestLocalRateLimitingServiceAccount
+      - TestMetricDefinitions
+      - TestStackdriverHTTPAuditLogging
+      - TestStackdriverAuthzDryRun
+      - TestStackdriverMonitoring
+      - TestProxyTracingOpenCensusMeshConfig
+      - TestProxyTracingOpenTelemetryProvider
+      buganizerID: b/279540983
+
+  - selectors:
       control_plane: unmanaged
     targets:
     - names:
