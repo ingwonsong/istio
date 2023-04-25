@@ -198,6 +198,9 @@ type RuntimeSettings struct {
 	// The commit ID of Newtaro repo to use asmcli to install ASM.
 	NewtaroCommit string `flag:"-"`
 
+	// CleanupFuncs are executed as part of env teardown (--teardown-env).
+	// Note: this is also executed by taaa image, so these funcs should not
+	// be breaking environment in a way that makes ASM or cluster not functional.
 	CleanupFuns []func() error
 }
 

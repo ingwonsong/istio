@@ -107,7 +107,7 @@ func main() {
 			}
 			log.Printf("Activated service account from %q: %v", gac, string(out))
 		}
-		asmTesterArgs := append([]string{"--setup-env", "--setup-system"}, os.Args[1:]...)
+		asmTesterArgs := append([]string{"--setup-env", "--setup-system", "--teardown-env"}, os.Args[1:]...)
 		cmd := exec.Command("asm_tester", asmTesterArgs...)
 		cmd.Env = os.Environ()
 		cmd.Stdin = os.Stdin
