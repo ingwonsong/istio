@@ -23,9 +23,12 @@ features:
       logging:
       stats:
         prometheus:
+          ambient:
           customize-metric:
           merge:
+          grpc:
           http:
+            api:
             nullvm:
             wasm:
           tcp:
@@ -37,6 +40,7 @@ features:
       istioctl:
   # features relating to controlling the traffic of the service mesh.
   traffic:
+    ambient:
     locality:
     reachability:
     shifting:
@@ -173,6 +177,7 @@ features:
       multimaster_telemetry:
       remote:
       centralremotekubeconfig:
+    multiplecontrolplanes:
     istiodremote:
     helm:
       default:

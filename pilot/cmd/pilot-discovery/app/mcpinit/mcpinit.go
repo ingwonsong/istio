@@ -269,7 +269,7 @@ const (
 	MeshTemplateFile      = "mesh_template.yaml"
 	ValuesTemplateFile    = "values_template.yaml"
 	MutatingWebhookFile   = "mutatingwebhook.yaml"
-	CRDsFile              = "gen-istio-cluster.yaml"
+	CRDsFile              = "crd-all.gen.yaml"
 	InjectionTemplateFile = "config"
 
 	InjectDir = "./var/lib/istio/inject"
@@ -336,7 +336,7 @@ func CreateKubeClient(kubeconfig string, qps float32, burst int) (kubelib.Client
 		return nil, err
 	}
 
-	kubeClient, err := kubelib.NewClient(kubelib.NewClientConfigForRestConfig(kubeRestConfig))
+	kubeClient, err := kubelib.NewClient(kubelib.NewClientConfigForRestConfig(kubeRestConfig), "")
 	if err != nil {
 		return nil, fmt.Errorf("failed creating kube client: %v", err)
 	}

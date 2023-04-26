@@ -380,7 +380,7 @@ func TestPodOperations(t *testing.T) {
 
 	// Populate event driven caches
 	n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	cprHandler.Create(event.CreateEvent{Object: &cpr}, n)
+	cprHandler.Create(context.Background(), event.CreateEvent{Object: &cpr}, n)
 	sendNsEvents(cl, NewNamespaceHandler(pc, cl, nc), map[string]*bool{})
 
 	mypods, _ := nc.PodsFromRevision(context.TODO(), regularRevision)
@@ -440,19 +440,7 @@ func TestEnablement(t *testing.T) {
 		wantPods    []string
 	}{
 		{
-			name: "unset", // regular channel is on by default
-			wantPods: []string{
-				"0-ns1_regular-Pod",
-				"1-ns1_regular-Pod",
-				"2-ns1_regular-Pod",
-				"3-ns1_regular-Pod",
-				"0-ns2_regular-Pod",
-				"1-ns2_regular-Pod",
-				"2-ns2_regular-Pod",
-				"3-ns2_regular-Pod",
-				"0-ns4-Pod",
-				"1-ns4-Pod",
-			},
+			name: "all off",
 		},
 		{
 			name:       "only cpr on",
@@ -529,6 +517,7 @@ func TestEnablement(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		ctx := context.Background()
 		t.Run(tt.name, func(t *testing.T) {
 			cpr := *myRevCPR
 			cpr.Annotations = enabledAnnotation(tt.cprEnabled)
@@ -539,15 +528,15 @@ func TestEnablement(t *testing.T) {
 
 			// Populate event driven caches
 			n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-			cprHandler.Create(event.CreateEvent{Object: &cpr}, n)
+			cprHandler.Create(ctx, event.CreateEvent{Object: &cpr}, n)
 
 			sendNsEvents(cl, NewNamespaceHandler(pc, cl, mapper), tt.nsEnabled)
 			mypods, _ := mapper.PodsFromRevision(context.TODO(), regularRevision)
 			got := make(map[string]bool)
 			for _, p := range mypods {
 				p.SetAnnotations(enabledAnnotation(tt.podsEnabled[p.GetName()]))
-				pc.AddPod(p)
-				if pc.podIsEnabled(p, regularRevision) {
+				pc.AddPod(ctx, p)
+				if pc.podIsEnabled(ctx, p, regularRevision) {
 					got[p.GetName()] = true
 				}
 			}
@@ -571,7 +560,7 @@ func TestCPRDefaults(t *testing.T) {
 			name:        "cpr unset, regular channel",
 			cprEnabled:  nil,
 			channel:     v1alpha1.ChannelRegular,
-			wantNumPods: 20,
+			wantNumPods: 0,
 		},
 		{
 			name:        "cpr unset, rapid channel",
@@ -595,6 +584,7 @@ func TestCPRDefaults(t *testing.T) {
 
 	// Note: these tests are dependent on mdpEnabledByDefaultMap which is globally set.
 	for _, tt := range tests {
+		ctx := context.Background()
 		t.Run(tt.name, func(t *testing.T) {
 			cpr := *myRevCPR
 			cpr.Annotations = enabledAnnotation(tt.cprEnabled)
@@ -606,13 +596,13 @@ func TestCPRDefaults(t *testing.T) {
 
 			// Populate event driven caches
 			n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-			cprHandler.Create(event.CreateEvent{Object: &cpr}, n)
+			cprHandler.Create(ctx, event.CreateEvent{Object: &cpr}, n)
 
 			mypods, _ := mapper.PodsFromRevision(context.TODO(), regularRevision)
 			enabledCount := 0
 			for _, p := range mypods {
-				pc.AddPod(p)
-				if pc.podIsEnabled(p, regularRevision) {
+				pc.AddPod(ctx, p)
+				if pc.podIsEnabled(ctx, p, regularRevision) {
 					enabledCount++
 				}
 			}

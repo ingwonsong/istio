@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/viper"
 	"go.opencensus.io/stats/view"
 
+	"istio.io/istio/cni/pkg/ambient"
 	"istio.io/istio/cni/pkg/config"
 	"istio.io/istio/cni/pkg/constants"
 	"istio.io/istio/cni/pkg/install"
@@ -78,6 +79,25 @@ var rootCmd = &cobra.Command{
 		if err = udsLogger.StartUDSLogServer(cfg.InstallConfig.LogUDSAddress, ctx.Done()); err != nil {
 			log.Errorf("Failed to start up UDS Log Server: %v", err)
 			return
+		}
+
+		if cfg.InstallConfig.AmbientEnabled {
+			// Start ambient controller
+			redirectMode := ambient.IptablesMode
+			if cfg.InstallConfig.EbpfEnabled {
+				redirectMode = ambient.EbpfMode
+			}
+			server, err := ambient.NewServer(ctx, ambient.AmbientArgs{
+				SystemNamespace: ambient.PodNamespace,
+				Revision:        ambient.Revision,
+				RedirectMode:    redirectMode,
+				LogLevel:        cfg.InstallConfig.LogLevel,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create ambient informer service: %v", err)
+			}
+			server.Start()
+			defer server.Stop()
 		}
 
 		isReady := install.StartServer()
@@ -162,7 +182,8 @@ func init() {
 		"Binaries that should not be installed. Currently Istio only installs one binary `istio-cni`")
 	registerIntegerParameter(constants.MonitoringPort, 15014, "HTTP port to serve prometheus metrics")
 	registerStringParameter(constants.LogUDSAddress, "/var/run/istio-cni/log.sock", "The UDS server address which CNI plugin will copy log ouptut to")
-
+	registerBooleanParameter(constants.AmbientEnabled, false, "Whether ambient controller is enabled")
+	registerBooleanParameter(constants.EbpfEnabled, false, "Whether ebpf redirection is enabled")
 	// Repair
 	registerBooleanParameter(constants.RepairEnabled, true, "Whether to enable race condition repair or not")
 	registerBooleanParameter(constants.RepairDeletePods, false, "Controller will delete pods when detecting pod broken by race condition")
@@ -251,6 +272,9 @@ func constructConfig() (*config.Config, error) {
 		SkipCNIBinaries:   viper.GetStringSlice(constants.SkipCNIBinaries),
 		MonitoringPort:    viper.GetInt(constants.MonitoringPort),
 		LogUDSAddress:     viper.GetString(constants.LogUDSAddress),
+
+		AmbientEnabled: viper.GetBool(constants.AmbientEnabled),
+		EbpfEnabled:    viper.GetBool(constants.EbpfEnabled),
 	}
 
 	if len(installCfg.K8sNodeName) == 0 {

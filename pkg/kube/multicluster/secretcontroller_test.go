@@ -99,7 +99,7 @@ func resetCallbackData() {
 }
 
 func Test_SecretController(t *testing.T) {
-	BuildClientsFromConfig = func(kubeConfig []byte, cache translation.Cache) (kube.Client, error) {
+	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, cache translation.Cache) (kube.Client, error) {
 		return kube.NewFakeClient(), nil
 	}
 

@@ -555,19 +555,19 @@ func TestPodCacheAndHandlers(t *testing.T) {
 	cpr, otherCPR := *myRevCPR, *otherRevCPR
 	cpr.Annotations = enabledAnnotation(boolPtr(true))
 	otherCPR.Annotations = enabledAnnotation(boolPtr(true))
-	cprHandler.Create(event.CreateEvent{Object: &cpr}, n)
-	cprHandler.Create(event.CreateEvent{Object: &otherCPR}, n)
+	cprHandler.Create(context.Background(), event.CreateEvent{Object: &cpr}, n)
+	cprHandler.Create(context.Background(), event.CreateEvent{Object: &otherCPR}, n)
 	sendNsEvents(cl, NewNamespaceHandler(pc, cl, mapper), map[string]*bool{})
 
 	pods := &v1.PodList{}
 	_ = cl.List(ctx, pods)
 	for _, p := range pods.Items {
-		sut.Create(event.CreateEvent{Object: &p}, n)
+		sut.Create(ctx, event.CreateEvent{Object: &p}, n)
 	}
 	upod := pods.Items[0].DeepCopy()
 	// increment pod to v2
 	upod.Spec.Containers[0].Image = "gcr.io/istio/" + name.IstioProxyImageName + ":0.0.2"
-	sut.Update(event.UpdateEvent{
+	sut.Update(ctx, event.UpdateEvent{
 		ObjectOld: &pods.Items[0],
 		ObjectNew: upod,
 	}, n)
@@ -595,7 +595,7 @@ func TestPodCacheAndHandlers(t *testing.T) {
 	nsnew.Labels[name.IstioRevisionLabel] = rapidRevision
 	err := cl.Update(context.Background(), nsnew)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	nsHandler.Update(event.UpdateEvent{
+	nsHandler.Update(context.Background(), event.UpdateEvent{
 		ObjectOld: ns,
 		ObjectNew: nsnew,
 	}, n)
@@ -606,9 +606,9 @@ func TestPodCacheAndHandlers(t *testing.T) {
 	g.Expect(othertotal).To(gomega.Equal(expectedRapid + len(testNss()) - 1))
 
 	// these functions are no-ops, but they still need coverage
-	nsHandler.Create(event.CreateEvent{Object: ns}, n)
-	nsHandler.Delete(event.DeleteEvent{Object: ns}, n)
-	nsHandler.Generic(event.GenericEvent{Object: ns}, n)
+	nsHandler.Create(context.Background(), event.CreateEvent{Object: ns}, n)
+	nsHandler.Delete(context.Background(), event.DeleteEvent{Object: ns}, n)
+	nsHandler.Generic(context.Background(), event.GenericEvent{Object: ns}, n)
 
 	// delete a pod and check results
 	podToDelete := &v1.Pod{}
@@ -616,7 +616,7 @@ func TestPodCacheAndHandlers(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	err = cl.Delete(ctx, podToDelete)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	sut.Delete(event.DeleteEvent{Object: podToDelete}, n)
+	sut.Delete(ctx, event.DeleteEvent{Object: podToDelete}, n)
 	_, othertotal = pc.GetProxyVersionCount(rapid)
 	g.Expect(othertotal).To(gomega.Equal(expectedRapid + len(testNss()) - 2))
 	podset := pc.GetPodsInRevisionOutOfVersion(rapid, "notmyversion")
@@ -660,7 +660,7 @@ func sendNsEvents(cl client.Client, nsHandler *NameSpaceHandler, enablementMap m
 		nsObjnew := nsObj.DeepCopy()
 		nsObjnew.SetAnnotations(enabledAnnotation(enablementMap[ns.GetName()]))
 		cl.Update(context.Background(), nsObjnew)
-		nsHandler.Update(event.UpdateEvent{
+		nsHandler.Update(context.Background(), event.UpdateEvent{
 			ObjectOld: ns,
 			ObjectNew: nsObjnew,
 		}, n)

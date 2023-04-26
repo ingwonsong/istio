@@ -52,7 +52,7 @@ func TestGCPMonitoringGalleyValidation(t *testing.T) {
 		wantVal   *view.Row
 	}{
 		{
-			"validation_failed", func(req *kube.AdmissionRequest) { reportValidationFailed(req, "") },
+			"validation_failed", func(req *kube.AdmissionRequest) { reportValidationFailed(req, "", false) },
 			&admissionRequest,
 			&view.Row{
 				Tags: []tag.Tag{

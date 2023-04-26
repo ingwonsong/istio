@@ -94,6 +94,7 @@ func TestSingleTlsGateway_SecretRotation(t *testing.T) {
 							CredentialName: credName,
 							Host:           host,
 							ServiceName:    to.Config().Service,
+							GatewayLabel:   inst.Settings().IngressGatewayIstioLabel,
 						})
 						return nil
 					}).
@@ -169,6 +170,7 @@ func TestSingleMTLSGateway_ServerKeyCertRotation(t *testing.T) {
 							CredentialName: credName,
 							Host:           host,
 							ServiceName:    to.Config().Service,
+							GatewayLabel:   inst.Settings().IngressGatewayIstioLabel,
 						})
 						return nil
 					}).
@@ -246,6 +248,7 @@ func TestSingleMTLSGateway_CompoundSecretRotation(t *testing.T) {
 							CredentialName: credName,
 							Host:           host,
 							ServiceName:    to.Config().Service,
+							GatewayLabel:   inst.Settings().IngressGatewayIstioLabel,
 						})
 						return nil
 					}).
@@ -319,6 +322,7 @@ func TestSingleMTLSGatewayAndNotGeneric_CompoundSecretRotation(t *testing.T) {
 							CredentialName: credName,
 							Host:           host,
 							ServiceName:    to.Config().Service,
+							GatewayLabel:   inst.Settings().IngressGatewayIstioLabel,
 						})
 						return nil
 					}).
@@ -504,6 +508,7 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 								CredentialName: c.secretName,
 								Host:           c.hostName,
 								ServiceName:    to.Config().Service,
+								GatewayLabel:   inst.Settings().IngressGatewayIstioLabel,
 							})
 							return nil
 						}).
@@ -613,6 +618,7 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 								CredentialName: c.secretName,
 								Host:           c.hostName,
 								ServiceName:    to.Config().Service,
+								GatewayLabel:   inst.Settings().IngressGatewayIstioLabel,
 							})
 							return nil
 						}).

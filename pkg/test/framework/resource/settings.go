@@ -138,6 +138,9 @@ type Settings struct {
 	// Skip TProxy related parts for all the tests.
 	SkipTProxy bool
 
+	// Ambient mesh is being used
+	Ambient bool
+
 	// Compatibility determines whether we should transparently deploy echo workloads attached to each revision
 	// specified in `Revisions` when creating echo instances. Used primarily for compatibility testing between revisions
 	// on different control plane versions.
@@ -168,6 +171,8 @@ type Settings struct {
 
 	// Helm repo to be used for tests
 	HelmRepo string
+
+	DisableDefaultExternalServiceConnectivity bool
 
 	// UseDefaultInjectionLabels determines whether to use the "istio-injection=enabled" and
 	// "sidecar.istio.io/inject" labels for workload injection
@@ -242,8 +247,8 @@ func (s *Settings) String() string {
 	result += fmt.Sprintf("Tag:                       %s\n", s.Image.Tag)
 	result += fmt.Sprintf("PullPolicy:                %s\n", s.Image.PullPolicy)
 	result += fmt.Sprintf("PullSecret:                %s\n", s.Image.PullSecret)
-	result += fmt.Sprintf("MaxDumps:          %d\n", s.MaxDumps)
-	result += fmt.Sprintf("HelmRepo:          %v\n", s.HelmRepo)
+	result += fmt.Sprintf("MaxDumps:                  %d\n", s.MaxDumps)
+	result += fmt.Sprintf("HelmRepo:                  %v\n", s.HelmRepo)
 	return result
 }
 

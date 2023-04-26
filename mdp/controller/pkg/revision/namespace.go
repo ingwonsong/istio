@@ -45,11 +45,11 @@ func NewNamespaceHandler(cache WritePodCache, client client.Client, mapper Mappe
 }
 
 // Create implements EventHandler Interface.
-func (n *NameSpaceHandler) Create(event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Create(ctx context.Context, event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
 }
 
 // Update Implements EventHandler Interface
-func (n *NameSpaceHandler) Update(event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Update(ctx context.Context, event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 	// if label controlling revision has changed, need to update cache.
 	// We can't use the namespace labels directly since the default tag might not be an explicit revision name.
 	// Even if the pods in the ns are not managed, we will still get the revision name and trigger a reconciliation to
@@ -69,7 +69,7 @@ func (n *NameSpaceHandler) Update(event event.UpdateEvent, limitingInterface wor
 	if newrev != oldrev || newann != oldann {
 		// All pods from oldrev in namespace should be removed from cache, recalculated.
 		log.Infof("Namespace %s has moved to revision %s, annotation %s", event.ObjectOld.GetName(), newrev, newann)
-		revs := n.podCache.RecalculateNamespaceMembers(event.ObjectOld.GetName(), oldrev, n.client)
+		revs := n.podCache.RecalculateNamespaceMembers(ctx, event.ObjectOld.GetName(), oldrev, n.client)
 		for _, rev := range revs {
 			dpc, err := n.mapper.DataPlaneControlFromCPRevision(context.Background(), rev)
 			if err != nil {
@@ -88,9 +88,9 @@ func (n *NameSpaceHandler) Update(event event.UpdateEvent, limitingInterface wor
 }
 
 // Delete Implements EventHandler Interface
-func (n *NameSpaceHandler) Delete(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Delete(ctx context.Context, event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
 }
 
 // Generic Implements EventHandler Interface
-func (n *NameSpaceHandler) Generic(event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Generic(ctx context.Context, event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
 }
