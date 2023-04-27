@@ -276,6 +276,17 @@ func TestGolden(t *testing.T) {
 		{
 			base: "tracing_tls_custom_sni",
 		},
+		{
+			base:    "lrs",
+			stsPort: 15463,
+			platformMeta: map[string]string{
+				"gcp_project": "my-good-project",
+			},
+			envVars: map[string]string{
+				"ISTIO_META_LRS_SERVER_ADDR":         "lrs.server.addr:443",
+				"ISTIO_META_LRS_SSL_CREDENTIAL_JSON": `{ "root_certs": { "filename": "/var/run/secrets/cert.pem" } }`,
+			},
+		},
 	}
 
 	for _, c := range cases {

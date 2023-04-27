@@ -736,12 +736,69 @@
     {{ end }}
   ]
   {{ end }}
-  {{ if .outlier_log_path }}
+  {{ if or .outlier_log_path .lrs_server_addr }}
   ,
   "cluster_manager": {
+    {{- if .outlier_log_path}}
     "outlier_detection": {
       "event_log_path": "{{ .outlier_log_path }}"
     }
+    {{- end}}
+    {{- if and .outlier_log_path .lrs_server_addr }}
+    ,
+    {{- end}}
+    {{- if .lrs_server_addr }}
+    "load_stats_config": {
+      "api_type": "GRPC",
+      "transport_api_version": "V3",
+      "grpc_services": [
+        {
+          "google_grpc": {
+            "target_uri": "{{ .lrs_server_addr }}",
+            "stat_prefix": "googlegrpcxds",
+            "channel_credentials": {
+              {{- if .lrs_ssl_credential_json_str }}
+              "ssl_credentials": {{ .lrs_ssl_credential_json_str }}
+              {{- else }}
+              "ssl_credentials": {}
+              {{- end }}
+            },
+            "call_credentials": [{
+            {{- if .sts }}
+              "sts_service": {
+                "token_exchange_service_uri": "http://localhost:{{ .sts_port }}/token",
+                "subject_token_path": "./var/run/secrets/tokens/istio-token",
+                "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+                "scope": "https://www.googleapis.com/auth/cloud-platform"
+              }
+            {{- end }}
+            }],
+            "channel_args": {
+              "args": {
+                "grpc.http2.max_pings_without_data": {
+                  "int_value": 0
+                },
+                "grpc.keepalive_time_ms": {
+                  "int_value": 10000
+                },
+                "grpc.keepalive_timeout_ms": {
+                  "int_value": 20000
+                }
+              }
+            }
+          },
+          "initial_metadata": [
+          {{- if .gcp_project_id }}
+            {
+              "key": "x-goog-user-project",
+              "value": "{{ .gcp_project_id }}"
+            }
+          {{- end }}
+          ]
+        }
+      ]
+    }
+    {{- end }}
   }
   {{ end }}
 }

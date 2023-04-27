@@ -252,3 +252,20 @@ func DiscoveryHost(value string) Instance {
 func MetadataDiscovery(value bool) Instance {
 	return newOption("metadata_discovery", value)
 }
+
+func LRSServerAddress(rawMeta map[string]any) Instance {
+	// LRS server address for reporting load stats from Envoy.
+	if addr, ok := rawMeta["LRS_SERVER_ADDR"].(string); ok {
+		return newOption("lrs_server_addr", addr)
+	}
+	return skipOption("lrs_server_addr")
+}
+
+func LRSSSLCredentialJsonStr(rawMeta map[string]any) Instance {
+	// JSON string for configuring SSL Credential.
+	// For the details, refer to https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/grpc_service.proto#envoy-v3-api-msg-config-core-v3-grpcservice-googlegrpc-sslcredentials
+	if json, ok := rawMeta["LRS_SSL_CREDENTIAL_JSON"].(string); ok {
+		return newOption("lrs_ssl_credential_json_str", json)
+	}
+	return skipOption("lrs_ssl_credential_json_str")
+}
