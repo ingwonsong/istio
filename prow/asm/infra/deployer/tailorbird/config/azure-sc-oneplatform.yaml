@@ -29,3 +29,9 @@ spec:
                 kubernetesVersion: 1.26.2-gke.1001
                 {{- end }}
                 username: asm-svc-acct
+                nodepoolPatch: |
+                  {
+                    "config": {
+                      "vmSize": "Standard_B2ms"
+                    }
+                  }
