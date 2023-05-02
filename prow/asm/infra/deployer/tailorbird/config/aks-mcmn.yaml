@@ -22,7 +22,7 @@ spec:
           provider: azure
           provisionerArgs:
             compressArtifacts: "true"
-            kubernetesVersion: "1.23"
+            kubernetesVersion: "1.26.3"
             username: asm-svc-acct
             region: centralus
       - apiVersion: sut.tailorbird.io/v1alpha1
@@ -37,4 +37,4 @@ spec:
             compressArtifacts: "true"
             username: asm-svc-acct
             region: centralus
-            kubernetesVersion: "1.23"
+            kubernetesVersion: "1.26.3"
