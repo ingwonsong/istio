@@ -1001,8 +1001,8 @@ packages:
           - /security/ca_migration
         reason: not supported
       - names:
-          - /telemetry/stats/prometheus/nullvm
-          - /telemetry/stats/prometheus/wasm
+          - /telemetry/envoyfilter/nullvm
+          - /telemetry/envoyfilter/wasm
         buganizerID: 184312874
 
  # Managed local CP skips all tests that are skipped by unmanaged.
@@ -1014,8 +1014,8 @@ packages:
           - /security/ca_migration
         reason: not supported
       - names:
-          - /telemetry/stats/prometheus/nullvm
-          - /telemetry/stats/prometheus/wasm
+          - /telemetry/envoyfilter/nullvm
+          - /telemetry/envoyfilter/wasm
         buganizerID: 184312874
 
   # MCP single cluster tests skips the following packages.
@@ -1031,8 +1031,8 @@ packages:
           - /pilot/revisions
           - /pilot/revisioncmd
           - /telemetry/stackdriver/vm
-          - /telemetry/stats/prometheus/customizemetrics
-          - /telemetry/stats/prometheus/wasm
+          - /telemetry/envoyfilter/customizemetrics
+          - /telemetry/envoyfilter/wasm
         reason: not supported
       - names:
           - /pilot/mcs
@@ -1057,8 +1057,8 @@ packages:
           - /pilot/revisions
           - /pilot/revisioncmd
           - /telemetry/stackdriver/vm
-          - /telemetry/stats/prometheus/customizemetrics
-          - /telemetry/stats/prometheus/wasm
+          - /telemetry/envoyfilter/customizemetrics
+          - /telemetry/envoyfilter/wasm
         reason: not supported
       - names:
           - /pilot/mcs
@@ -1082,8 +1082,8 @@ packages:
       - /pilot/revisions
       - /pilot/revisioncmd
       - /telemetry/stackdriver/vm
-      - /telemetry/stats/prometheus/customizemetrics
-      - /telemetry/stats/prometheus/wasm
+      - /telemetry/envoyfilter/customizemetrics
+      - /telemetry/envoyfilter/wasm
       reason: not supported
     - names:
       - /pilot/mcs
@@ -1108,8 +1108,8 @@ packages:
       - /pilot/revisions
       - /pilot/revisioncmd
       - /telemetry/stackdriver/vm
-      - /telemetry/stats/prometheus/customizemetrics
-      - /telemetry/stats/prometheus/wasm
+      - /telemetry/envoyfilter/customizemetrics
+      - /telemetry/envoyfilter/wasm
       reason: not supported
     - names:
       - /pilot/mcs
@@ -1136,8 +1136,8 @@ packages:
       - /pilot/revisions
       - /pilot/revisioncmd
       - /telemetry/stackdriver/vm
-      - /telemetry/stats/prometheus/customizemetrics
-      - /telemetry/stats/prometheus/wasm
+      - /telemetry/envoyfilter/customizemetrics
+      - /telemetry/envoyfilter/wasm
       reason: not supported
     - names:
       - /pilot/mcs
