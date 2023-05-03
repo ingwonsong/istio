@@ -670,7 +670,7 @@ func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion stri
 			clusterName, targetVersion, rookeryRequestFile)
 	}
 
-	if d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.GKEOnAzure || d.cfg.Cluster == types.GKEOnAWS {
+	if d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.GKEOnAzure || d.cfg.Cluster == types.GKEOnAWS || d.cfg.Cluster == types.AKSOnAzure {
 		upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
 				"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
 				"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
