@@ -393,10 +393,6 @@ func (lb *ListenerBuilder) buildHTTPConnectionManager(httpOpts *httpListenerOpts
 		filters = append(filters, xdsfilters.GrpcStats)
 	}
 
-	if !features.EnableCloudESF {
-		filters = append(filters, xdsfilters.GrpcStats)
-	}
-
 	// append ALPN HTTP filter in HTTP connection manager for outbound listener only.
 	if features.ALPNFilter {
 		if httpOpts.class != istionetworking.ListenerClassSidecarInbound {
