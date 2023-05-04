@@ -25,7 +25,6 @@ spec:
                 {{- if eq .Version "latest" }}
                 kubernetesVersion: 1.26.2-gke.1001
                 {{- else if .Version }}
-                {{- else }}
                 kubernetesVersion: "{{ .Version }}"
                 {{- else }}
                 kubernetesVersion: 1.26.2-gke.1001
