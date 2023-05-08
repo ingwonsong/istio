@@ -26,8 +26,11 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"istio.io/istio/security/pkg/pki/util"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
+
+var tlsInsecure = env.RegisterBoolVar("TLS_CLIENT_INSECURE", false, "Disables TLS certificate valiadation in xDS and Citadel client in Istio Agent").Get()
 
 // TLSOptions include TLS options that a grpc client uses to connect with server.
 type TLSOptions struct {
@@ -73,6 +76,9 @@ func getTLSDialOption(opts *TLSOptions) (grpc.DialOption, error) {
 		RootCAs:    rootCert,
 		MinVersion: tls.VersionTLS12,
 	}
+
+	// To reduce the merge-conflict, set this value after creating `config`.
+	config.InsecureSkipVerify = tlsInsecure
 
 	if host, _, err := net.SplitHostPort(opts.ServerAddress); err == nil {
 		config.ServerName = host
