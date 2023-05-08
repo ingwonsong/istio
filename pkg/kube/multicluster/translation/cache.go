@@ -191,6 +191,9 @@ func (m *membershipCache) clusterFromMembership(membership *gkehubpb.Membership)
 
 	// In the form //`<CLUSTER TYPE>.googleapis.com/projects/my-project/locations/us-west1-a/clusters/my-cluster`.
 	resourceLink := endpoint.GetGkeCluster().GetResourceLink()
+	if endpoint.GetGkeCluster().ClusterMissing {
+		return nil, fmt.Errorf("cluster %s no longer exists", resourceLink)
+	}
 
 	// Cluster name required in the form `projects/*/locations/*/clusters/*`.
 	parts := strings.Split(resourceLink, "/")
