@@ -78,7 +78,7 @@ func getTLSDialOption(opts *TLSOptions) (grpc.DialOption, error) {
 	}
 
 	// To reduce the merge-conflict, set this value after creating `config`.
-	config.InsecureSkipVerify = tlsInsecure
+	config.InsecureSkipVerify = tlsInsecure // nolint: gosec
 
 	if host, _, err := net.SplitHostPort(opts.ServerAddress); err == nil {
 		config.ServerName = host
