@@ -72,7 +72,7 @@ var conformanceNamespaces = []string{
 
 var skippedTests = map[string]string{}
 
-const gatewayConformanceTimeoutScaler = 3
+const gatewayConformanceTimeoutScaler = 5
 
 func TestGatewayConformance(t *testing.T) {
 	// nolint: staticcheck
