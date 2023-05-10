@@ -15,6 +15,7 @@
 package app
 
 // nolint: envvarlint
+
 import (
 	"bytes"
 	"context"

@@ -22,6 +22,7 @@ import (
 	"os"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	apierror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -30,7 +31,6 @@ import (
 	"istio.io/istio/security/pkg/adapter/kms"
 	"istio.io/istio/security/pkg/cmd"
 	"istio.io/istio/security/pkg/k8s/controller"
-	k8ssecret "istio.io/istio/security/pkg/k8s/secret"
 	caerror "istio.io/istio/security/pkg/pki/error"
 	"istio.io/istio/security/pkg/pki/util"
 	certutil "istio.io/istio/security/pkg/util"
@@ -55,6 +55,16 @@ const (
 	PrivateKeyFile = "key.pem"
 	// RootCertFile is the ID/name for the CA root certificate file.
 	RootCertFile = "root-cert.pem"
+	// KeyIDName is the ID/name for the Key ID file.
+	KEKID = "kek-id"
+	// EncryptedDEK stores the encrypted DEK.
+	EncryptedDEK = "encrypted-dek"
+	// EncryptedSKey stores the encrypted CA signing key.
+	EncryptedSKey = "encrypted-skey"
+	// EncryptedCSR is the CSR encrypted with the DEK.
+	EncryptedCSR = "encrypted-csr"
+	// CSRID is an id of the CSR.  This is used to visually verify CSR before decrypting and signing.
+	CSRID = "csr-id"
 	// TLSSecretCACertFile is the CA certificate file name as it exists in tls type k8s secret.
 	TLSSecretCACertFile = "tls.crt"
 	// TLSSecretCAPrivateKeyFile is the CA certificate key file name as it exists in tls type k8s secret.
@@ -197,9 +207,8 @@ func NewSelfSignedIstioCAOptions(ctx context.Context,
 			if caOpts.KeyCertBundle, err = util.NewVerifiedKeyCertBundleFromPem(pemCert, pemKey, nil, rootCerts); err != nil {
 				return fmt.Errorf("failed to create CA KeyCertBundle (%v)", err)
 			}
-
-			// Write the key/cert back to secret so they will be persistent when CA restarts.
-			secret := k8ssecret.BuildSecret(CASecret, namespace, nil, nil, nil, pemCert, pemKey, istioIntermediateCASecretType)
+			// Write the key/cert back to secret, so they will be persistent when CA restarts.
+			secret := BuildSecret(CASecret, namespace, nil, nil, nil, pemCert, pemKey, istioIntermediateCASecretType)
 			if _, err = client.Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 				pkiCaLog.Errorf("Failed to write secret to CA (error: %s). Abort.", err)
 				return fmt.Errorf("failed to create CA due to secret write error")
@@ -345,7 +354,7 @@ func NewKMSBackedCAOptions(ctx context.Context,
 		}
 
 		// Write the key ID and encrypted key to secret so they will be shared and persistent when CA restarts.
-		keySecret = k8ssecret.BuildSecretForEncryptedKey(CAEncryptedKeySecret, namespace, kekID, encDEK,
+		keySecret = BuildSecretForEncryptedKey(CAEncryptedKeySecret, namespace, kekID, encDEK,
 			encSKey, istioIntermediateCASecretType)
 
 		if keyWriteErr := srtCtr.CreateCASecretWithRetry(keySecret, defaultSecretAccessRetryInterval,
@@ -356,12 +365,12 @@ func NewKMSBackedCAOptions(ctx context.Context,
 		pkiCaLog.Info("Newly generated encrypted signing key is successfully written into secret.")
 	}
 
-	kekID = keySecret.Data[k8ssecret.KEKID]
-	encDEK := keySecret.Data[k8ssecret.EncryptedDEK]
-	encSKey := keySecret.Data[k8ssecret.EncryptedSKey]
+	kekID = keySecret.Data[KEKID]
+	encDEK := keySecret.Data[EncryptedDEK]
+	encSKey := keySecret.Data[EncryptedSKey]
 	if len(kekID) == 0 || len(encDEK) == 0 || len(encSKey) == 0 {
 		pkiCaLog.Errorf("Failed to read KEK ID %s, encrypted DEK %s, and encrypted SKey %s in secret %s.",
-			k8ssecret.KEKID, k8ssecret.EncryptedDEK, k8ssecret.EncryptedSKey, CAEncryptedKeySecret)
+			KEKID, EncryptedDEK, EncryptedSKey, CAEncryptedKeySecret)
 		return nil, fmt.Errorf("failed to create CA due to malformed encrypted signing key secret")
 	}
 	sKey, keyErr := kes.GetSKey(kekID, encDEK, encSKey)
@@ -402,7 +411,7 @@ func NewKMSBackedCAOptions(ctx context.Context,
 				return nil, fmt.Errorf("failed to encrypt CSR")
 			}
 
-			csrSecret := k8ssecret.BuildSecretForCSR(CACertCSRSecret, namespace, kekID, encDEK, csrID, encCSR, istioIntermediateCASecretType)
+			csrSecret := BuildSecretForCSR(CACertCSRSecret, namespace, kekID, encDEK, csrID, encCSR, istioIntermediateCASecretType)
 			if csrWriteErr := srtCtr.CreateCASecretWithRetry(csrSecret, defaultSecretAccessRetryInterval,
 				defaultSecretAccessTimeout); csrWriteErr != nil {
 				pkiCaLog.Errorf("Failed to write CSR to secret %v.", csrGenErr)
@@ -448,6 +457,57 @@ func NewKMSBackedCAOptions(ctx context.Context,
 	certBytes, _, certChainBytes, rootBytes := caOpts.KeyCertBundle.GetAllPem()
 	pkiCaLog.Infof("CA cert:\n%s\nintermediate certs:\n%s\nroot cert:\n%s", certBytes, certChainBytes, rootBytes)
 	return caOpts, nil
+}
+
+// BuildSecret returns a secret struct, contents of which are filled with parameters passed in.
+func BuildSecret(scrtName, namespace string, certChain, privateKey, rootCert, caCert, caPrivateKey []byte, secretType v1.SecretType) *v1.Secret {
+	return &v1.Secret{
+		Data: map[string][]byte{
+			CertChainFile:    certChain,
+			PrivateKeyFile:   privateKey,
+			RootCertFile:     rootCert,
+			CACertFile:       caCert,
+			CAPrivateKeyFile: caPrivateKey,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      scrtName,
+			Namespace: namespace,
+		},
+		Type: secretType,
+	}
+}
+
+// BuildSecretForEncryptedKey returns a secret struct, that stores the KEK ID and the encrypted DEK and SKey.
+func BuildSecretForEncryptedKey(scrtName, namespace string, kekID, encDEK, encSKey []byte, secretType v1.SecretType) *v1.Secret {
+	return &v1.Secret{
+		Data: map[string][]byte{
+			KEKID:         kekID,
+			EncryptedDEK:  encDEK,
+			EncryptedSKey: encSKey,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      scrtName,
+			Namespace: namespace,
+		},
+		Type: secretType,
+	}
+}
+
+// BuildSecretForCSR returns a secret struct, that stores the certificate signing request.
+func BuildSecretForCSR(scrtName, namespace string, kekID, encDEK, csrID, encCSR []byte, secretType v1.SecretType) *v1.Secret {
+	return &v1.Secret{
+		Data: map[string][]byte{
+			KEKID:        kekID,
+			EncryptedDEK: encDEK,
+			CSRID:        csrID,
+			EncryptedCSR: encCSR,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      scrtName,
+			Namespace: namespace,
+		},
+		Type: secretType,
+	}
 }
 
 // IstioCA generates keys and certificates for Istio identities.

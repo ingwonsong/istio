@@ -70,16 +70,16 @@ func NewPodHandler(mapper Mapper, podCache WritePodCache) handler.EventHandler {
 }
 
 // Create implements EventHandler Interface.
-func (p *podEventHandler) Create(event event.CreateEvent, q workqueue.RateLimitingInterface) {
-	rev := p.podCache.AddPod(event.Object)
+func (p *podEventHandler) Create(ctx context.Context, event event.CreateEvent, q workqueue.RateLimitingInterface) {
+	rev := p.podCache.AddPod(ctx, event.Object)
 	if rev == "" {
 		return
 	}
-	p.enqueueForRev(rev, q)
+	p.enqueueForRev(ctx, rev, q)
 }
 
-func (p *podEventHandler) enqueueForRev(rev string, q workqueue.RateLimitingInterface) {
-	req, err := p.mapper.DataPlaneControlFromCPRevision(context.Background(), rev)
+func (p *podEventHandler) enqueueForRev(ctx context.Context, rev string, q workqueue.RateLimitingInterface) {
+	req, err := p.mapper.DataPlaneControlFromCPRevision(ctx, rev)
 	if err != nil {
 		p.podCache.MarkDirty()
 		log.Errorf("error retrieving dataplanecontrol: %s", err)
@@ -95,7 +95,7 @@ func (p *podEventHandler) enqueueForRev(rev string, q workqueue.RateLimitingInte
 }
 
 // Update Implements EventHandler Interface
-func (p *podEventHandler) Update(event event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (p *podEventHandler) Update(ctx context.Context, event event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	oldPod := event.ObjectOld.(*v1.Pod)
 	newPod := event.ObjectNew.(*v1.Pod)
 	oldver, _ := util.ProxyVersion(oldPod)
@@ -103,23 +103,23 @@ func (p *podEventHandler) Update(event event.UpdateEvent, q workqueue.RateLimiti
 	if oldver == newver && oldPod.Labels[name.IstioRevisionLabel] == newPod.Labels[name.IstioRevisionLabel] {
 		return
 	}
-	oldrev := p.podCache.RemovePod(event.ObjectOld)
-	p.enqueueForRev(oldrev, q)
-	newrev := p.podCache.AddPod(event.ObjectNew)
-	p.enqueueForRev(newrev, q)
+	oldrev := p.podCache.RemovePod(ctx, event.ObjectOld)
+	p.enqueueForRev(ctx, oldrev, q)
+	newrev := p.podCache.AddPod(ctx, event.ObjectNew)
+	p.enqueueForRev(ctx, newrev, q)
 }
 
 // Delete Implements EventHandler Interface
-func (p *podEventHandler) Delete(event event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	rev := p.podCache.RemovePod(event.Object)
+func (p *podEventHandler) Delete(ctx context.Context, event event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	rev := p.podCache.RemovePod(ctx, event.Object)
 	if rev == "" {
 		return
 	}
-	p.enqueueForRev(rev, q)
+	p.enqueueForRev(ctx, rev, q)
 }
 
 // Generic Implements EventHandler Interface
-func (p *podEventHandler) Generic(event event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (p *podEventHandler) Generic(ctx context.Context, event event.GenericEvent, q workqueue.RateLimitingInterface) {
 }
 
 // ReadPodCache is the (almost) read-only reference to a PodCache, allowing callers to rapidly access the pods
@@ -142,13 +142,13 @@ type ReadPodCache interface {
 
 type WritePodCache interface {
 	// AddPod adds a pod to the cache.
-	AddPod(object rtclient.Object) string
+	AddPod(ctx context.Context, object rtclient.Object) string
 	// RemovePod removes a pod from the cache.
-	RemovePod(object rtclient.Object) string
+	RemovePod(ctx context.Context, object rtclient.Object) string
 	// RecalculateNamespaceMembers removes all pods who are members of the namespace and specified revision from the
 	// cache, then re-adds them.  This is called in response to a change in namespace enablement and revision membership.
 	// The resulting value is the list of revisions which are impacted by this change.
-	RecalculateNamespaceMembers(ns string, oldrev string, client rtclient.Client) []string
+	RecalculateNamespaceMembers(ctx context.Context, ns string, oldrev string, client rtclient.Client) []string
 	// MarkDirty indicates that the cache needs to be rebuilt, and may not represent the actual cluster state.
 	MarkDirty()
 }
@@ -249,7 +249,7 @@ func (p *PodCache) maybeRebuildCache(ctx context.Context) {
 		}
 		metrics.ReportRebuildCacheCount("pod")
 		for _, pod := range pods {
-			tempCache.AddPod(pod)
+			tempCache.AddPod(ctx, pod)
 		}
 	}
 	p.state = tempCache.state
@@ -257,21 +257,21 @@ func (p *PodCache) maybeRebuildCache(ctx context.Context) {
 }
 
 // AddPod implements WritePodCache
-func (p *PodCache) AddPod(object rtclient.Object) string {
+func (p *PodCache) AddPod(ctx context.Context, object rtclient.Object) string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.addPodUnsafe(object)
+	return p.addPodUnsafe(ctx, object)
 }
 
-func (p *PodCache) addPodUnsafe(object rtclient.Object) string {
+func (p *PodCache) addPodUnsafe(ctx context.Context, object rtclient.Object) string {
 	pod := object.(*v1.Pod)
-	rev, err := p.mapper.RevisionForPod(context.Background(), object.(*v1.Pod))
+	rev, err := p.mapper.RevisionForPod(ctx, object.(*v1.Pod))
 	if err != nil {
 		p.MarkDirty()
 		log.Errorf("can't identify revision for pod %s: %s", pod.Name, err)
 		return ""
 	}
-	if !p.podIsEnabled(pod, rev) {
+	if !p.podIsEnabled(ctx, pod, rev) {
 		// The cache only cares about managed pods, discard this one.
 		// Return the correct rev though to trigger a reconciliation and perform any required metrics change.
 		return rev
@@ -300,13 +300,13 @@ func (p *PodCache) addPodUnsafe(object rtclient.Object) string {
 	return rev
 }
 
-func (p *PodCache) podIsEnabled(pod *v1.Pod, rev string) bool {
+func (p *PodCache) podIsEnabled(ctx context.Context, pod *v1.Pod, rev string) bool {
 	// Pods with no revision are disabled by definition.
 	if rev == "" {
 		return false
 	}
 	// NamespaceIsEnabled errors on json parsing and kube client errors, which effectively means enablement is not specified
-	nse, err := p.mapper.NamespaceIsEnabled(context.Background(), pod.Namespace)
+	nse, err := p.mapper.NamespaceIsEnabled(ctx, pod.Namespace)
 	if err != nil {
 		if errors.ReasonForError(err) != v12.StatusReasonUnknown {
 			// if we had trouble connecting to k8s, log, mark the cache as dirty, and mark pod as not enabled.  This
@@ -345,9 +345,9 @@ func prefer(inputs ...*bool) *bool {
 }
 
 // RemovePod implements WritePodCache
-func (p *PodCache) RemovePod(object rtclient.Object) string {
+func (p *PodCache) RemovePod(ctx context.Context, object rtclient.Object) string {
 	pod := object.(*v1.Pod)
-	rev, err := p.mapper.RevisionForPod(context.Background(), object.(*v1.Pod))
+	rev, err := p.mapper.RevisionForPod(ctx, object.(*v1.Pod))
 	if err != nil {
 		p.MarkDirty()
 		log.Errorf("can't identify revision for pod %s: %s", pod.Name, err)
@@ -456,7 +456,7 @@ func (p *PodCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Set {
 }
 
 // RecalculateNamespaceMembers implements WritePodCache
-func (p *PodCache) RecalculateNamespaceMembers(ns string, oldrev string, client rtclient.Client) []string {
+func (p *PodCache) RecalculateNamespaceMembers(ctx context.Context, ns string, oldrev string, client rtclient.Client) []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	affectedRev, ok := p.state[oldrev]
@@ -465,14 +465,14 @@ func (p *PodCache) RecalculateNamespaceMembers(ns string, oldrev string, client 
 	}
 	// use client to get all pods in namespace
 	allPodList := &v1.PodList{}
-	err := client.List(context.Background(), allPodList, rtclient.InNamespace(ns))
+	err := client.List(ctx, allPodList, rtclient.InNamespace(ns))
 	if err != nil {
 		log.Fatalf(err)
 	}
 	unique := set.Set{}
 	var result []string
 	for _, pod := range allPodList.Items {
-		rev := p.addPodUnsafe(&pod)
+		rev := p.addPodUnsafe(ctx, &pod)
 		if !unique.Has(rev) {
 			result = append(result, rev)
 			unique.Insert(rev)

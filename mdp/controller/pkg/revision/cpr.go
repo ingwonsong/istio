@@ -17,6 +17,7 @@
 package revision
 
 import (
+	"context"
 	"sync"
 
 	"k8s.io/client-go/util/workqueue"
@@ -35,7 +36,7 @@ type CPRHandler struct {
 
 var mdpEnabledByDefaultMap = map[v1alpha1.ReleaseChannel]*bool{
 	v1alpha1.ChannelRapid:   boolPtr(true),
-	v1alpha1.ChannelRegular: boolPtr(true),
+	v1alpha1.ChannelRegular: boolPtr(false),
 	v1alpha1.ChannelStable:  boolPtr(false),
 }
 
@@ -51,22 +52,22 @@ func NewCPRHandler(mapper Mapper) (*CPRHandler, *EnablementCache) {
 }
 
 // Create implements EventHandler Interface.
-func (c *CPRHandler) Create(event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Create(ctx context.Context, event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
 	c.updateEnablement(event.Object)
 }
 
 // Update Implements EventHandler Interface
-func (c *CPRHandler) Update(event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Update(ctx context.Context, event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 	c.updateEnablement(event.ObjectNew)
 }
 
 // Delete Implements EventHandler Interface
-func (c *CPRHandler) Delete(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Delete(ctx context.Context, event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
 	c.cache.UpdateRevisionEnablement(event.Object.GetName(), nil)
 }
 
 // Generic Implements EventHandler Interface
-func (c *CPRHandler) Generic(event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Generic(ctx context.Context, event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
 }
 
 func (c *CPRHandler) updateEnablement(object client.Object) {

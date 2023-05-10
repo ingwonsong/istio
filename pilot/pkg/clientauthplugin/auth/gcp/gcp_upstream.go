@@ -1,3 +1,4 @@
+// nolint
 //go:build integ
 // +build integ
 

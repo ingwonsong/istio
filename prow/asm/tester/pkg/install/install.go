@@ -31,7 +31,6 @@ import (
 
 const (
 	istioctlPath = "out/linux_amd64/istioctl"
-	basePath     = "manifests/charts/base/files/gen-istio-cluster.yaml"
 
 	// Envvar consts
 	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"

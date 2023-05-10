@@ -15,7 +15,6 @@
 package chiron
 
 import (
-	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/pem"
@@ -25,6 +24,7 @@ import (
 	"os"
 	"time"
 
+	goversion "github.com/hashicorp/go-version"
 	certv1 "k8s.io/api/certificates/v1"
 	certv1beta1 "k8s.io/api/certificates/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,9 +32,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	rand "k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/watch"
 	clientset "k8s.io/client-go/kubernetes"
 
+	"istio.io/istio/pkg/kube"
 	"istio.io/istio/security/pkg/pki/util"
 	"istio.io/pkg/log"
 )
@@ -44,7 +46,30 @@ const (
 	csrRetriesMax = 3
 	// cert-manager use below annotation on kubernetes CSR to control TTL for the generated cert.
 	RequestLifeTimeAnnotationForCertManager = "experimental.cert-manager.io/request-duration"
+
+	// IstioDNSSecretType is the Istio DNS secret annotation type
+	IstioDNSSecretType = "istio.io/dns-key-and-cert"
+
+	// The size of a private key for a leaf certificate.
+	keySize = 2048
+
+	// The number of tries for reading a certificate
+	maxNumCertRead = 10
+
+	// The interval for reading a certificate
+	certReadInterval = 500 * time.Millisecond
+
+	// The number of retries when attempting to request kubernetes version
+	versionRetryCount = 5
+
+	apiv1Beta1RemovedMinorVersion = 22
+
+	LegacyKubernetesSigner = "kubernetes.io/legacy-unknown"
+
+	gkeAsmKubernetesSigner = "pki.gke.io/istiod"
 )
+
+var certWatchTimeout = 60 * time.Second
 
 type CsrNameGenerator func(string, string) string
 
@@ -169,22 +194,6 @@ func isTCPReachable(host string, port int) bool {
 		log.Infof("tcp connection is not closed: %v", err)
 	}
 	return true
-}
-
-// Reload CA cert from file and return whether CA cert is changed
-func reloadCACert(wc *WebhookController) (bool, error) {
-	certChanged := false
-	wc.certMutex.Lock()
-	defer wc.certMutex.Unlock()
-	caCert, err := readCACert(wc.k8sCaCertFile)
-	if err != nil {
-		return certChanged, err
-	}
-	if !bytes.Equal(caCert, wc.CACert) {
-		wc.CACert = append([]byte(nil), caCert...)
-		certChanged = true
-	}
-	return certChanged, nil
 }
 
 func submitCSR(clientset clientset.Interface,
@@ -504,4 +513,31 @@ func cleanUpCertGen(client clientset.Interface, usev1 bool, csrName string) erro
 		log.Debugf("deleted CSR: %v", csrName)
 	}
 	return err
+}
+
+// GetAsmK8sSigner: Get the signerName and approval logic for (only) ASM based on GKE version
+func GetAsmK8sSigner(k8sClient kube.Client) (string, bool, error) {
+	var err error
+	var serverVersion *version.Info
+	// retry since this is critical code
+	for retries := 0; retries < versionRetryCount; retries++ {
+		serverVersion, err = k8sClient.GetKubernetesVersion()
+		if err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("timeout when retrieving kubernetes server version: %v", err)
+	}
+	ver, err := goversion.NewVersion(serverVersion.String())
+	if err != nil {
+		return "", false, fmt.Errorf("could not parse kubernetes server version: %v", err)
+	}
+	major := ver.Segments()[0]
+	minor := ver.Segments()[1]
+	if major == 1 && minor < apiv1Beta1RemovedMinorVersion {
+		return LegacyKubernetesSigner, true, nil
+	}
+	return gkeAsmKubernetesSigner, false, nil
 }

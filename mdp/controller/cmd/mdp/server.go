@@ -28,14 +28,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"istio.io/istio/mdp/controller/pkg/apis"
 	"istio.io/istio/mdp/controller/pkg/apis/mdp/v1alpha1"
@@ -112,7 +110,8 @@ func run() {
 		LeaderElection:          false,
 		LeaderElectionNamespace: "istio-system",
 		LeaderElectionID:        "mdp-eviction-leader",
-		NewClient: func(_ cache.Cache, config *rest.Config, options client.Options, _ ...client.Object) (client.Client, error) {
+		// nolint: gocritic
+		NewClient: func(config *rest.Config, options client.Options) (client.Client, error) {
 			return client.New(config, options)
 		},
 	}
@@ -160,12 +159,12 @@ func run() {
 		// these predicates will be applied to all watches, not just the 'For' watch
 		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{},
 			predicate.AnnotationChangedPredicate{}, predicate.LabelChangedPredicate{})).
-		Watches(&source.Kind{Type: &v1.Pod{}}, revision.NewPodHandler(mapper, pcache)).
+		Watches(&v1.Pod{}, revision.NewPodHandler(mapper, pcache)).
 		WithLogConstructor(func(request *reconcile.Request) logr.Logger {
 			return logger
 		}).
-		Watches(&source.Kind{Type: &v1.Namespace{}}, nscache).
-		Watches(&source.Kind{Type: &v1alpha1.ControlPlaneRevision{}}, cprhandler,
+		Watches(&v1.Namespace{}, nscache).
+		Watches(&v1alpha1.ControlPlaneRevision{}, cprhandler,
 			builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
 				return object.GetNamespace() == name.IstioSystemNamespace &&
 					strings.HasPrefix(object.GetName(), name.CPRPrefix)

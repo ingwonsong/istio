@@ -52,6 +52,14 @@ tests:
     - names:
       - TestReachability/beta-mtls-on/.*/.*multiversion
       buganizerID: 237680146
+    - names:
+      - TestGateway/unmanaged/primary.*/tcp
+      buganizerID: 280292697
+    - names:
+      - TestReachability/global_mtls_disabled
+      - TestReachability/global_mtls_permissive
+      - TestReachability/global_automtls_strict
+      buganizerID: 281072503
 
 # Multiversion test skips.
   - selectors:
@@ -652,6 +660,35 @@ tests:
       - names:
           - TestTunnelingOutboundTraffic
         buganizerID: 236717015
+      - names:
+          - TestGatewayConformance
+        buganizerID: 280353171
+      - names:
+          - TestGateway/unmanaged/primary.*/tcp
+        buganizerID: 280292697
+      - names:
+          - TestGateway/managed
+        buganizerID: 280813509
+      - names:
+          - TestIngress/from_primary.*/http
+          - TestIngress/status
+        buganizerID: 281070319
+      - names:
+          - TestReachability/global_no_peer_authn
+          - TestReachability/mtls_permissive
+          - TestReachability/global_mtls_strict
+          - TestReachability/mtls_strict/tcp/a.*
+          - TestReachability/mtls_strict/grpc/a.*
+          - TestReachability/mtls_port_override/http/a.*
+          - TestReachability/mtls_port_override/ws/a.*
+          - TestReachability/mtls_port_override/http2/a.*
+          - TestReachability/mtls_port_override/https/a.*
+          - TestReachability/mtls_port_override/tcp/a.*
+          - TestReachability/mtls_port_override/grpc/a.*
+          - TestReachability/migration_no_tls/http/vistio/a/to_migration
+          - TestReachability/migration_no_tls/http/vlegacy/a/to_migration
+          - TestReachability/migration_tls_mutual/http/vistio/a/to_migration
+        buganizerID: 281072503
 
       # telemetry/ tests
       - names:
@@ -794,6 +831,10 @@ tests:
       - TestTraffic/sniffing/http10_to_external_auto
       reason: Unknown
       buganizerID: 195128010
+    - names:
+      - TestTraffic/gateway
+      reason: Unknown
+      buganizerID: 281543028
 
   # Managed local CP skips all tests that are skipped by unmanaged
   - selectors:

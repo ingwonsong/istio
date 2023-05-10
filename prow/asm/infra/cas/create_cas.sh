@@ -1,4 +1,19 @@
 #!/bin/bash
+
+# Copyright 2022 Istio Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set +e
 set -x
 
@@ -6,7 +21,7 @@ set -x
 # Creates CAS pools in the ASM CI project to be used commonly for all testing
 ###############################################################################################################
 
-TEST_PROJECT="istio-prow-build"
+TEST_PROJECT="asm-prow-build"
 ASM_ROOT_POOL_PREFIX="asm-testci-root-pool"
 ASM_SUB_POOL_PREFIX="asm-testci-sub-pool"
 ASM_ROOT_CA_PREFIX="asm-testci-root-ca"
@@ -20,22 +35,22 @@ function init_root() {
   for i in $(seq 1 1 ${ASM_ROOT_CA_NUM}); do
     SUFFIX1="--location ${ASM_ROOT_POOL_LOC} --project ${TEST_PROJECT} --pool ${ASM_ROOT_POOL_PREFIX}"
     SUFFIX2="--subject CN=${ASM_ROOT_CA_PREFIX}-${i},O=ASM-TEST-CI --auto-enable --quiet"
-    gcloud privateca roots create ${ASM_ROOT_CA_PREFIX}-${i} ${SUFFIX1} ${SUFFIX2}
+    gcloud privateca roots create ${ASM_ROOT_CA_PREFIX}-"${i}" "${SUFFIX1}" "${SUFFIX2}"
   done
 
 }
 
 function init_sub() {
   LOCATION="$1"
-  gcloud privateca pools create "${ASM_SUB_POOL_PREFIX}-${LOCATION}" --location ${LOCATION} --project ${TEST_PROJECT}
+  gcloud privateca pools create "${ASM_SUB_POOL_PREFIX}-${LOCATION}" --location "${LOCATION}" --project ${TEST_PROJECT}
   if [ -f "policy.yaml" ]; then
-    gcloud privateca pools update "${ASM_SUB_POOL_PREFIX}-${LOCATION}" --location ${LOCATION} --project ${TEST_PROJECT} --issuance-policy policy.yaml
+    gcloud privateca pools update "${ASM_SUB_POOL_PREFIX}-${LOCATION}" --location "${LOCATION}" --project ${TEST_PROJECT} --issuance-policy policy.yaml
   fi
   for i in $(seq 1 1 ${ASM_SUB_CA_NUM}); do
     SUFFIX1="--location ${LOCATION} --project ${TEST_PROJECT} --pool ${ASM_SUB_POOL_PREFIX}-${LOCATION}"
     SUFFIX2="--issuer-pool ${ASM_ROOT_POOL_PREFIX} --issuer-location ${ASM_ROOT_POOL_LOC}"
     SUFFIX3="--subject CN=${ASM_SUB_CA_PREFIX}-${LOCATION}-${i},O=ASM-TEST-CI --auto-enable --quiet"
-    gcloud privateca subordinates create ${ASM_SUB_CA_PREFIX}-${LOCATION}-${i} ${SUFFIX1} ${SUFFIX2} ${SUFFIX3}
+    gcloud privateca subordinates create ${ASM_SUB_CA_PREFIX}-"${LOCATION}"-"${i}" "${SUFFIX1}" "${SUFFIX2}" "${SUFFIX3}"
     sleep 5
   done
 
@@ -50,7 +65,7 @@ function setup() {
   while IFS= read -r region; do
       echo "Processing region $region .."
       init_sub "${region}"
-  done <$1
+  done <"$1"
 }
 
 setup "$1"

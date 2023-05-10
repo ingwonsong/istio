@@ -31,12 +31,12 @@ asm-go-tidy:
 .PHONY: build
 build: depend ## Builds all go binaries.
 	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) common/scripts/gobuild.sh $(TARGET_OUT)/ $(STANDARD_BINARIES)
-	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) common/scripts/gobuild.sh $(TARGET_OUT)/ -tags="agent,netgo,osusergo" $(AGENT_BINARIES)
+	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) common/scripts/gobuild.sh $(TARGET_OUT)/ -tags="agent,netgo,osusergo" $(AGENT_BINARIES) $(LINUX_AGENT_BINARIES)
 
 .PHONY: build-linux
 build-linux: depend
 	GOOS=linux GOARCH=$(GOARCH_LOCAL) common/scripts/gobuild.sh $(TARGET_OUT_LINUX)/ $(STANDARD_BINARIES)
-	GOOS=linux GOARCH=$(GOARCH_LOCAL) common/scripts/gobuild.sh $(TARGET_OUT_LINUX)/ -tags="agent,netgo,osusergo" $(AGENT_BINARIES)
+	GOOS=linux GOARCH=$(GOARCH_LOCAL) common/scripts/gobuild.sh $(TARGET_OUT_LINUX)/ -tags="agent,netgo,osusergo" $(AGENT_BINARIES) $(LINUX_AGENT_BINARIES)
 
 # Non-static istioctl targets. These are typically a build artifact.
 ${TARGET_OUT}/release/istioctl-linux-amd64: depend

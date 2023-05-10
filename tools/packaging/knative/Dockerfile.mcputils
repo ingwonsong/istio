@@ -14,7 +14,7 @@ WORKDIR /
 ARG TARGETARCH
 COPY ${TARGETARCH:-amd64}/mcputils /usr/local/bin/mcputils
 
-COPY gen-istio-cluster.yaml /var/lib/istio/config/gen-istio-cluster.yaml
+COPY crd-all.gen.yaml /var/lib/istio/config/crd-all.gen.yaml
 
 ENTRYPOINT ["/usr/local/bin/mcputils"]
 CMD ["serve"]

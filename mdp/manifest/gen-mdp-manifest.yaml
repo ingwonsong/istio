@@ -25,7 +25,8 @@ data:
           "name": "istio-cni",
           "type": "istio-cni",
           "log_level": "debug",
-          "log_uds_address": "__LOG_UDS_ADDRESS__", 
+          "log_uds_address": "__LOG_UDS_ADDRESS__",
+          
           "kubernetes": {
               "kubeconfig": "__KUBECONFIG_FILEPATH__",
               "cni_bin_dir": "/home/kubernetes/bin",
@@ -42,11 +43,8 @@ metadata:
     app: istio-cni
 rules:
 - apiGroups: [""]
-  resources:
-  - pods
-  - nodes
-  verbs:
-  - get
+  resources: ["pods","nodes","namespaces"]
+  verbs: ["get", "list", "watch"]
 ---
 # Source: cni/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -64,7 +62,6 @@ rules:
   verbs: ["get", "list", "watch", "delete", "patch", "update", "create" ]
 ---
 # Source: cni/templates/clusterrole.yaml
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -219,12 +216,14 @@ spec:
         sidecar.istio.io/inject: "false"
       annotations:
         sidecar.istio.io/inject: "false"
+        ambient.istio.io/redirection: disabled
         # Add Prometheus Scrape annotations
         prometheus.io/scrape: 'true'
         prometheus.io/port: "15014"
         prometheus.io/path: '/metrics'
         # Custom annotations
     spec:
+      
       nodeSelector:
         kubernetes.io/os: linux
       # Can be configured to allow for excluding instio-cni from being scheduled on specified nodes
@@ -292,6 +291,13 @@ spec:
               value: "cni.istio.io/uninitialized"
             - name: REPAIR_BROKEN_POD_LABEL_VALUE
               value: "true"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: LOG_LEVEL
+              value: "debug"
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir
@@ -318,6 +324,9 @@ spec:
         - name: cni-log-dir
           hostPath:
             path: /var/run/istio-cni
+        - name: cni-netns-dir
+          hostPath:
+            path: /var/run/netns
 ---
 # Source: cni/templates/deployment-mdp.yaml
 # This manifest installs the ASM managed data plane in-cluster controller.

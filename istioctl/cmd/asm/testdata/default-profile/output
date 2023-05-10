@@ -8,9 +8,11 @@ Migrating gateway deployments...
 ✔ Wrote Gateway to output-path/gateways-kubernetes/istio-ingressgateway.yaml
 
 Checking configuration compatibility...
-✔ No incompatible configuration detected
+! Found unsupported configurations:
+    Values.global.proxy_init: the injection template cannot be modified globally; per-pod settings can be customized (https://istio.io/latest/docs/setup/additional-setup/sidecar-injection/#customizing-injection)
 
 Actions required to migrate:
+! Found potentially unsupported configurations; review warnings above before proceeding
 - Found custom mesh configuration settings. To apply these settings to ASM managed control plane, run: `kubectl apply -f 'output-path/meshconfig.yaml'`
 - Found 1 gateway deployments. There are two options available to deploy these to ASM managed control plane. Both options will provide the same end result:
 
