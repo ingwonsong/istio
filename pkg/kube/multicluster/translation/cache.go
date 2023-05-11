@@ -22,6 +22,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	container "cloud.google.com/go/container/apiv1"
@@ -42,6 +43,7 @@ const (
 type Cache interface {
 	Get(ip string) (api.Config, bool, bool)
 	Run(stop <-chan struct{})
+	BootstrapFinished()
 }
 
 type membershipCache struct {
@@ -60,6 +62,14 @@ type membershipCache struct {
 	validateEndpoint bool
 
 	shutdown func()
+
+	// If cacheInitialized is false, the cache has been never refreshed.
+	// In that case, `refreshCache` will be called regardless of bootstrapping time.
+	cacheInitialized bool
+	// bootstrapFinished is false means the cache is used during bootstrapping time.
+	// In the boostrapping time, `refreshCache` will be not called in `Get` to suppress
+	// unnecessary API call. After bootstrapping time, this should be set to `true`.
+	bootstrapFinished bool
 }
 
 type environmentOpts struct {
@@ -110,6 +120,12 @@ func NewIPMembershipCache() (Cache, error) {
 	return mc, nil
 }
 
+// BootstrapFinished notify that the bootstrap is finished, so the cache can refresh the mapping between IP to the membership.
+// Before calling this method, the mapping will not be refreshed when calling `Get`.
+func (m *membershipCache) BootstrapFinished() {
+	m.bootstrapFinished = true
+}
+
 // Get accepts an IP and returns an API config if translated, whether the secret was translated,
 // and then whether or not the secret mapped to a public IP.
 func (m *membershipCache) Get(ip string) (api.Config, bool, bool) {
@@ -120,6 +136,12 @@ func (m *membershipCache) Get(ip string) (api.Config, bool, bool) {
 	apiConfig, ok := m.apiConfig(ip)
 	if ok {
 		return apiConfig, true, false
+	}
+
+	// If the cache has been initialized and the bootstrap is not finished yet,
+	// do not refersh and just return false.
+	if m.cacheInitialized && !m.bootstrapFinished {
+		return api.Config{}, false, false
 	}
 
 	if err := m.refreshCache(); err != nil {
@@ -156,21 +178,31 @@ func (m *membershipCache) refreshCache() error {
 		return fmt.Errorf("failed to list memberships for project %s: %v", m.opts.fleetProjectID, err)
 	}
 
+	var mutex sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(len(memberships))
 	for _, membership := range memberships {
-		cluster, err := m.clusterFromMembership(membership)
-		if err != nil {
-			log.Warnf("Failed to retrieve cluster for membership %s: %v", membership.GetName(), err)
-			continue
-		}
+		membership := membership
+		go func() {
+			defer wg.Done()
+			cluster, err := m.clusterFromMembership(membership)
+			if err != nil {
+				log.Warnf("Failed to retrieve cluster for membership %s: %v", membership.GetName(), err)
+				return
+			}
 
-		if privateConfig := cluster.GetPrivateClusterConfig(); privateConfig != nil {
-			m.publicIPToMembership[privateConfig.PublicEndpoint] = membership
-			m.privateIPToMembership[privateConfig.PrivateEndpoint] = membership
-		} else {
-			m.knownPublicIPs[cluster.GetEndpoint()] = true
-		}
+			mutex.Lock()
+			defer mutex.Unlock()
+			if privateConfig := cluster.GetPrivateClusterConfig(); privateConfig != nil {
+				m.publicIPToMembership[privateConfig.PublicEndpoint] = membership
+				m.privateIPToMembership[privateConfig.PrivateEndpoint] = membership
+			} else {
+				m.knownPublicIPs[cluster.GetEndpoint()] = true
+			}
+		}()
 	}
-
+	wg.Wait()
+	m.cacheInitialized = true
 	return nil
 }
 

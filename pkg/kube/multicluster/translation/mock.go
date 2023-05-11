@@ -40,3 +40,6 @@ func (m *MockMembershipCache) Get(ip string) (api.Config, bool, bool) {
 
 func (m *MockMembershipCache) Run(stop <-chan struct{}) {
 }
+
+func (m *MockMembershipCache) BootstrapFinished() {
+}

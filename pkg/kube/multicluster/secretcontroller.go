@@ -229,12 +229,24 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
+// mcpQueueSynced notifies that the queue has done to sync, which means the bootstrap is
+// now finished.
+// ASM-ONLY-CODE
+func (c *Controller) mcpQueueSynced() {
+	if c.ipMembershipCache != nil {
+		// Notify that bootstrap is finished to the cache, so that refreshing can happen.
+		// This should be called after the queue is initially synced.
+		c.ipMembershipCache.BootstrapFinished()
+	}
+}
+
 func (c *Controller) HasSynced() bool {
 	if !c.queue.HasSynced() {
 		log.Debug("secret controller did not sync secrets presented at startup")
 		// we haven't finished processing the secrets that were present at startup
 		return false
 	}
+	c.mcpQueueSynced() // ASM-ONLY-CODE: This should be called just after knowing that the queue was synced.
 	c.cs.RLock()
 	defer c.cs.RUnlock()
 	for _, clusterMap := range c.cs.remoteClusters {
@@ -368,6 +380,7 @@ func sanitizedKubeConfig(config api.Config, allowlist sets.String, cache transla
 		//   entirely local
 	}
 
+	// ASM-ONLY-CODE BEGIN
 	// Translate secrets with raw IP to use connect gateway endpoint if possible.
 	if cache == nil {
 		return config, nil
@@ -396,6 +409,7 @@ func sanitizedKubeConfig(config api.Config, allowlist sets.String, cache transla
 			failedTranslations.Increment()
 		}
 	}
+	// ASM-ONLY-CODE END
 
 	return config, nil
 }
