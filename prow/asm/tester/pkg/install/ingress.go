@@ -87,6 +87,12 @@ func (c *installer) installGateways(settings *resource.Settings, rev *revision.C
 		return fmt.Errorf("error installing gateways: %w", err)
 	}
 
+	if err := exec.Run(fmt.Sprintf("kubectl patch service istio-ingressgateway "+
+		"-n %s --patch-file %s/gateways/ingress-patch.yaml --context %s",
+		gatewayNamespace, settings.ConfigDir, context)); err != nil {
+		return fmt.Errorf("error installing ingress gateways: %w", err)
+	}
+
 	return nil
 }
 

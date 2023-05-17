@@ -53,9 +53,6 @@ tests:
       - TestReachability/beta-mtls-on/.*/.*multiversion
       buganizerID: 237680146
     - names:
-      - TestGateway/unmanaged/primary.*/tcp
-      buganizerID: 280292697
-    - names:
       - TestReachability/global_mtls_disabled
       - TestReachability/global_mtls_permissive
       - TestReachability/global_automtls_strict
@@ -669,9 +666,6 @@ tests:
       - names:
           - TestGatewayConformance
         buganizerID: 280353171
-      - names:
-          - TestGateway/unmanaged/primary.*/tcp
-        buganizerID: 280292697
       - names:
           - TestGateway/managed
         buganizerID: 280813509

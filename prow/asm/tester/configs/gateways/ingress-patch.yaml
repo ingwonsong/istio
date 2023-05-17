@@ -1,0 +1,5 @@
+spec:
+  ports:
+    - port: 31400
+      targetPort: 31400
+      name: tcp
