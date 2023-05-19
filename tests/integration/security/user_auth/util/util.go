@@ -68,6 +68,7 @@ spec:
         test_aud: assertion.aud
         test_decision: 'assertion.sub.startsWith("105") ? "Positive" : "Negative"'
         invalid_claim: assertion.invalid_claim
+        test_assertion: assertion
       certificateAuthorityData: ""
       issuerURI: "https://accounts.google.com"
       proxy: ""

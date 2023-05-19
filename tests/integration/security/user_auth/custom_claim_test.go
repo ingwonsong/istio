@@ -138,9 +138,50 @@ func TestCustomJwtClaim(t *testing.T) {
 				ctx.Fatalf("Wrong value present in claim test_decision")
 			}
 
+			if err = verifyAssertionClaims(rcClaim); err != nil {
+				ctx.Fatalf("Failed to verify test_assertion claims : %v", err)
+			}
+
 			forwarder.Close()
 			time.Sleep(5 * time.Second)
 		})
+}
+
+func verifyAssertionClaims(rcClaim rcTokenClaim) error {
+	expectedTestAudOrAzp := "1042451928015-7voa7j6bvjp28eqcfhj5dvhbp6n248ip.apps.googleusercontent.com"
+	expectedTestIss := "https://accounts.google.com"
+
+	assertionValue, assertionExists := rcClaim.Attribute.(map[string]interface{})["test_assertion"]
+	if !assertionExists {
+		return fmt.Errorf("test_assertion claim is not present in the token")
+	}
+
+	if value, exists := assertionValue.(map[string]interface{})["aud"]; !exists {
+		return fmt.Errorf("test_assertion aud claim is not present in the token")
+	} else if value != expectedTestAudOrAzp {
+		return fmt.Errorf("Wrong value present in test_assertion aud claim")
+	}
+
+	if value, exists := assertionValue.(map[string]interface{})["azp"]; !exists {
+		return fmt.Errorf("test_assertion azp claim is not present in the token")
+	} else if value != expectedTestAudOrAzp {
+		return fmt.Errorf("Wrong value present in test_assertion azp claim")
+	}
+
+	if value, exists := assertionValue.(map[string]interface{})["iss"]; !exists {
+		return fmt.Errorf("test_assertion iss claim is not present in the token")
+	} else if value != expectedTestIss {
+		return fmt.Errorf("Wrong value present in test_assertion iss claim")
+	}
+
+	if _, exists := assertionValue.(map[string]interface{})["exp"]; !exists {
+		return fmt.Errorf("test_assertion exp claim is not present in the token")
+	}
+
+	if _, exists := assertionValue.(map[string]interface{})["iat"]; !exists {
+		return fmt.Errorf("test_assertion iat claim is not present in the token")
+	}
+	return nil
 }
 
 func parseClaims(token string) (rcTokenClaim, error) {
