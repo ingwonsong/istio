@@ -63,6 +63,10 @@ tests:
       - TestAuthz_DenyPlaintext
       - TestAuthz_JWT/a/to_headless/from_primary.*
       buganizerID: 281837365
+    - names:
+      - TestOutboundTrafficPolicy_AllowAny
+      - TestOutboundTrafficPolicy_RegistryOnly
+      buganizerID: 283891115
 
 # Multiversion test skips.
   - selectors:
