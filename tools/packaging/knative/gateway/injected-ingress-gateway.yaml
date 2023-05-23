@@ -16,6 +16,10 @@ spec:
    port: 443
    protocol: TCP
    targetPort: 8443
+ - port: 31400
+   targetPort: 31400
+   name: tcp
+
 ---
 apiVersion: apps/v1
 kind: Deployment
