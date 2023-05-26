@@ -36,7 +36,7 @@ import (
 	"istio.io/istio/mdp/controller/pkg/ratelimiter"
 	"istio.io/istio/mdp/controller/pkg/revision"
 	"istio.io/istio/mdp/controller/pkg/set"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // This is the minimum duration allowed between any two calls to update(), defined as 1 day divided by
@@ -44,7 +44,7 @@ import (
 var (
 	maxSpeed          = time.Hour * 24 / (15000 * 110)
 	clusterSpeedLimit = &workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Every(maxSpeed), 2)}
-	scope             = log.RegisterScope("mdp", "Managed Data Plane", 0)
+	scope             = log.RegisterScope("mdp", "Managed Data Plane")
 	minFail           = 30 * time.Second
 	maxFail           = 60 * time.Minute
 )

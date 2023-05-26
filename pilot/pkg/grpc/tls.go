@@ -25,9 +25,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/security/pkg/pki/util"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
 )
 
 var tlsInsecure = env.RegisterBoolVar("TLS_CLIENT_INSECURE", false, "Disables TLS certificate valiadation in xDS and Citadel client in Istio Agent").Get()

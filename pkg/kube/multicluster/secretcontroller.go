@@ -16,7 +16,6 @@ package multicluster
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -29,28 +28,24 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"go.uber.org/atomic"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config/mesh"
+	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/controllers"
 	"istio.io/istio/pkg/kube/kclient"
 	"istio.io/istio/pkg/kube/multicluster/translation"
 	filter "istio.io/istio/pkg/kube/namespace"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
 	"istio.io/istio/pkg/util/sets"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
-	"istio.io/pkg/monitoring"
 )
 
 const (
@@ -71,9 +66,11 @@ func init() {
 }
 
 var (
-	timeouts = monitoring.NewSum(
+	clusterLabel = monitoring.MustCreateLabel("cluster")
+	timeouts     = monitoring.NewSum(
 		"remote_cluster_sync_timeouts_total",
 		"Number of times remote clusters took too long to sync, causing slow startup that excludes remote clusters.",
+		monitoring.WithLabels(clusterLabel),
 	)
 
 	clusterType = monitoring.MustCreateLabel("cluster_type")
@@ -121,7 +118,9 @@ type Controller struct {
 	configClusterID     cluster.ID
 	configClusterClient kube.Client
 	queue               controllers.Queue
-	informer            cache.SharedIndexInformer
+	secrets             kclient.Client[*corev1.Secret]
+
+	namespaces kclient.Client[*corev1.Namespace]
 
 	DiscoveryNamespacesFilter filter.DiscoveryNamespacesFilter
 	cs                        *ClusterStore
@@ -154,25 +153,18 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 		informerClient = localKubeClient
 	}
 
-	secretsInformer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
-				opts.LabelSelector = MultiClusterSecretLabel + "=true"
-				return informerClient.Kube().CoreV1().Secrets(namespace).List(context.TODO(), opts)
-			},
-			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
-				opts.LabelSelector = MultiClusterSecretLabel + "=true"
-				return informerClient.Kube().CoreV1().Secrets(namespace).Watch(context.TODO(), opts)
-			},
-		},
-		&corev1.Secret{}, 0, cache.Indexers{},
-	)
-	_ = secretsInformer.SetTransform(kube.StripUnusedFields)
+	secrets := kclient.NewFiltered[*corev1.Secret](informerClient, kclient.Filter{
+		LabelSelector:   MultiClusterSecretLabel + "=true",
+		FieldSelector:   "",
+		ObjectFilter:    nil,
+		ObjectTransform: nil,
+	})
 
 	// init gauges
 	localClusters.Record(1.0)
 	remoteClusters.Record(0.0)
 
+	// ASM code
 	var cache translation.Cache
 	if enableTranslationCache {
 		var err error
@@ -181,23 +173,26 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 			log.Errorf("Failed to create translation cache: %v", err)
 		}
 	}
+	kubeclientset = kube.EnableCrdWatcher(kubeclientset)
+	// ^ASM code
 
 	controller := &Controller{
 		namespace:           namespace,
 		configClusterID:     clusterID,
 		configClusterClient: kubeclientset,
 		cs:                  newClustersStore(),
-		ipMembershipCache:   cache,
-		informer:            secretsInformer,
+		secrets:             secrets,
+		ipMembershipCache:   cache, // ASM code
 	}
 
 	namespaces := kclient.New[*corev1.Namespace](kubeclientset)
+	controller.namespaces = namespaces
 	controller.DiscoveryNamespacesFilter = filter.NewDiscoveryNamespacesFilter(namespaces, meshWatcher.Mesh().GetDiscoverySelectors())
 	controller.queue = controllers.NewQueue("multicluster secret",
 		controllers.WithMaxAttempts(maxRetries),
 		controllers.WithReconciler(controller.processItem))
 
-	_, _ = secretsInformer.AddEventHandler(controllers.ObjectHandler(controller.queue.AddObject))
+	secrets.AddEventHandler(controllers.ObjectHandler(controller.queue.AddObject))
 	return controller
 }
 
@@ -207,6 +202,13 @@ func (c *Controller) AddHandler(h ClusterHandler) {
 
 // Run starts the controller until it receives a message over stopCh
 func (c *Controller) Run(stopCh <-chan struct{}) error {
+	// Normally, we let informers start after all controllers. However, in this case we need namespaces to start and sync
+	// first, so we have DiscoveryNamespacesFilter ready to go. This avoids processing objects that would be filtered during startup.
+	c.namespaces.Start(stopCh)
+	// Wait for namespace informer synced, which implies discovery filter is synced as well
+	if !kube.WaitForCacheSync("namespace", stopCh, c.namespaces.HasSynced) {
+		return fmt.Errorf("failed to sync namespaces")
+	}
 	// run handlers for the config cluster; do not store this *Cluster in the ClusterStore or give it a SyncTimeout
 	// this is done outside the goroutine, we should block other Run/startFuncs until this is registered
 	configCluster := &Cluster{Client: c.configClusterClient, ID: c.configClusterID}
@@ -216,11 +218,11 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	go func() {
 		t0 := time.Now()
 		log.Info("Starting multicluster remote secrets controller")
-
-		go c.informer.Run(stopCh)
-
-		if !kube.WaitForCacheSync(stopCh, c.informer.HasSynced) {
-			log.Error("Failed to sync multicluster remote secrets controller cache")
+		// we need to start here when local cluster secret watcher enabled
+		if features.LocalClusterSecretWatcher && features.ExternalIstiod {
+			c.secrets.Start(stopCh)
+		}
+		if !kube.WaitForCacheSync("multicluster remote secrets", stopCh, c.secrets.HasSynced) {
 			return
 		}
 		log.Infof("multicluster remote secrets controller cache synced in %v", time.Since(t0))
@@ -263,13 +265,10 @@ func (c *Controller) HasSynced() bool {
 
 func (c *Controller) processItem(key types.NamespacedName) error {
 	log.Infof("processing secret event for secret %s", key)
-	obj, exists, err := c.informer.GetIndexer().GetByKey(key.String())
-	if err != nil {
-		return fmt.Errorf("error fetching object %s: %v", key, err)
-	}
-	if exists {
+	scrt := c.secrets.Get(key.Name, key.Namespace)
+	if scrt != nil {
 		log.Debugf("secret %s exists in informer cache, processing it", key)
-		if err := c.addSecret(key, obj.(*corev1.Secret)); err != nil {
+		if err := c.addSecret(key, scrt); err != nil {
 			return fmt.Errorf("error adding secret %s: %v", key, err)
 		}
 	} else {
@@ -305,6 +304,9 @@ var BuildClientsFromConfig = func(kubeConfig []byte, clusterId cluster.ID, cache
 	clients, err := kube.NewClient(clientConfig, clusterId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kube clients: %v", err)
+	}
+	if features.WorkloadEntryCrossCluster {
+		clients = kube.EnableCrdWatcher(clients)
 	}
 	return clients, nil
 }

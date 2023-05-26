@@ -45,13 +45,13 @@ import (
 	"istio.io/istio/pkg/config/schema/collection"
 	sresource "istio.io/istio/pkg/config/schema/resource"
 	"istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/util/sets"
-	"istio.io/pkg/log"
 )
 
 var (
 	inMemoryKubeNameDiscriminator int64
-	scope                         = log.RegisterScope("file", "File client messages", 0)
+	scope                         = log.RegisterScope("file", "File client messages")
 )
 
 // KubeSource is an in-memory source implementation that can handle K8s style resources.

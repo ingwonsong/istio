@@ -194,9 +194,9 @@ func (h *HelmReconciler) PruneControlPlaneByRevisionWithController(iopSpec *v1al
 }
 
 func (h *HelmReconciler) pilotExists(cliClient kube.CLIClient, istioNamespace string) (bool, error) {
-	istiodPods, err := cliClient.GetIstioPods(context.TODO(), istioNamespace, map[string]string{
-		"labelSelector": "app=istiod",
-		"fieldSelector": "status.phase=Running",
+	istiodPods, err := cliClient.GetIstioPods(context.TODO(), istioNamespace, metav1.ListOptions{
+		LabelSelector: "app=istiod",
+		FieldSelector: "status.phase=Running",
 	})
 	if err != nil {
 		return false, err
@@ -439,6 +439,9 @@ func (h *HelmReconciler) deleteResources(excluded map[string]bool, coreLabels ma
 				continue
 			}
 			if excluded[oh] {
+				continue
+			}
+			if o.GetLabels()[OwningResourceNotPruned] == "true" {
 				continue
 			}
 		}

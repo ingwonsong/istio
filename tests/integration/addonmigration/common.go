@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"istio.io/istio/pkg/config/constants"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	istioEnv "istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
@@ -37,7 +38,6 @@ import (
 	"istio.io/istio/pkg/test/framework/resource/config/apply"
 	"istio.io/istio/pkg/test/kube"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/pkg/log"
 )
 
 const (

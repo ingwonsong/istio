@@ -47,14 +47,11 @@ import (
 	istionetworking "istio.io/istio/pilot/pkg/networking"
 	"istio.io/istio/pilot/pkg/serviceregistry/util/label"
 	"istio.io/istio/pilot/pkg/util/protoconv"
-	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
-	"istio.io/istio/pkg/config/labels"
 	kubelabels "istio.io/istio/pkg/kube/labels"
-	"istio.io/istio/pkg/network"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/proto/merge"
 	"istio.io/istio/pkg/util/strcase"
-	"istio.io/pkg/log"
 )
 
 const (
@@ -75,9 +72,6 @@ const (
 	// Inbound pass through cluster need to the bind the loopback ip address for the security and loop avoidance.
 	InboundPassthroughClusterIpv4 = "InboundPassthroughClusterIpv4"
 	InboundPassthroughClusterIpv6 = "InboundPassthroughClusterIpv6"
-
-	// SniClusterFilter is the name of the sni_cluster envoy filter
-	SniClusterFilter = "envoy.filters.network.sni_cluster"
 
 	// IstioMetadataKey is the key under which metadata is added to a route or cluster
 	// regarding the virtual service or destination rule used for each
@@ -215,11 +209,6 @@ func BuildAdditionalAddresses(extrAddresses []string, listenPort uint32, node *m
 	return additionalAddresses
 }
 
-// BuildAddress returns a SocketAddress with the given ip and port or uds.
-func BuildInternalAddress(name string) *core.Address {
-	return BuildInternalAddressWithIdentifier(name, "")
-}
-
 func BuildNetworkAddress(bind string, port uint32, transport istionetworking.TransportProtocol) *core.Address {
 	if port == 0 {
 		return nil
@@ -260,12 +249,6 @@ func IsIstioVersionGE116(version *model.IstioVersion) bool {
 func IsIstioVersionGE117(version *model.IstioVersion) bool {
 	return version == nil ||
 		version.Compare(&model.IstioVersion{Major: 1, Minor: 17, Patch: -1}) >= 0
-}
-
-// IsIstioVersionGE118 checks whether the given Istio version is greater than or equals 1.18.
-func IsIstioVersionGE118(version *model.IstioVersion) bool {
-	return version == nil ||
-		version.Compare(&model.IstioVersion{Major: 1, Minor: 18, Patch: -1}) >= 0
 }
 
 func IsProtocolSniffingEnabledForPort(port *model.Port) bool {
@@ -476,22 +459,20 @@ func MergeAnyWithAny(dst *anypb.Any, src *anypb.Any) (*anypb.Any, error) {
 }
 
 // AppendLbEndpointMetadata adds metadata values to a lb endpoint using the passed in metadata as base.
-func AppendLbEndpointMetadata(networkID network.ID, tlsMode, workloadname, namespace string,
-	clusterID cluster.ID, lbls labels.Instance, metadata *core.Metadata,
+func AppendLbEndpointMetadata(istioMetadata *model.EndpointMetadata, envoyMetadata *core.Metadata,
 ) {
-	if networkID == "" && (tlsMode == "" || tlsMode == model.DisabledTLSModeLabel) &&
-		(!features.EndpointTelemetryLabel || !features.EnableTelemetryLabel) {
+	if !features.EndpointTelemetryLabel || !features.EnableTelemetryLabel {
 		return
 	}
 
-	if metadata.FilterMetadata == nil {
-		metadata.FilterMetadata = map[string]*structpb.Struct{}
+	if envoyMetadata.FilterMetadata == nil {
+		envoyMetadata.FilterMetadata = map[string]*structpb.Struct{}
 	}
 
-	if tlsMode != "" && tlsMode != model.DisabledTLSModeLabel {
-		metadata.FilterMetadata[EnvoyTransportSocketMetadataKey] = &structpb.Struct{
+	if istioMetadata.TLSMode != "" && istioMetadata.TLSMode != model.DisabledTLSModeLabel {
+		envoyMetadata.FilterMetadata[EnvoyTransportSocketMetadataKey] = &structpb.Struct{
 			Fields: map[string]*structpb.Value{
-				model.TLSModeLabelShortname: {Kind: &structpb.Value_StringValue{StringValue: tlsMode}},
+				model.TLSModeLabelShortname: {Kind: &structpb.Value_StringValue{StringValue: istioMetadata.TLSMode}},
 			},
 		}
 	}
@@ -503,7 +484,7 @@ func AppendLbEndpointMetadata(networkID network.ID, tlsMode, workloadname, names
 	// workload-name;namespace;canonical-service-name;canonical-service-revision;cluster-id.
 	if features.EndpointTelemetryLabel {
 		// allow defaulting for non-injected cases
-		canonicalName, canonicalRevision := kubelabels.CanonicalService(lbls, workloadname)
+		canonicalName, canonicalRevision := kubelabels.CanonicalService(istioMetadata.Labels, istioMetadata.WorkloadName)
 
 		// don't bother sending the default value in config
 		if canonicalRevision == "latest" {
@@ -511,16 +492,16 @@ func AppendLbEndpointMetadata(networkID network.ID, tlsMode, workloadname, names
 		}
 
 		var sb strings.Builder
-		sb.WriteString(workloadname)
+		sb.WriteString(istioMetadata.WorkloadName)
 		sb.WriteString(";")
-		sb.WriteString(namespace)
+		sb.WriteString(istioMetadata.Namespace)
 		sb.WriteString(";")
 		sb.WriteString(canonicalName)
 		sb.WriteString(";")
 		sb.WriteString(canonicalRevision)
 		sb.WriteString(";")
-		sb.WriteString(clusterID.String())
-		addIstioEndpointLabel(metadata, "workload", &structpb.Value{Kind: &structpb.Value_StringValue{StringValue: sb.String()}})
+		sb.WriteString(istioMetadata.ClusterID.String())
+		addIstioEndpointLabel(envoyMetadata, "workload", &structpb.Value{Kind: &structpb.Value_StringValue{StringValue: sb.String()}})
 	}
 }
 

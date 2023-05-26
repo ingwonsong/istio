@@ -21,8 +21,8 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 
-	"istio.io/pkg/log"
-	"istio.io/pkg/monitoring"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
 )
 
 var (

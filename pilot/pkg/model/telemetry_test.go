@@ -651,7 +651,7 @@ func TestTelemetryFilters(t *testing.T) {
 			{},
 		},
 	}
-	disbaledAllMetrics := &tpb.Telemetry{
+	disabledAllMetrics := &tpb.Telemetry{
 		Metrics: []*tpb.Metrics{
 			{
 				Overrides: []*tpb.MetricsOverrides{{
@@ -692,7 +692,7 @@ func TestTelemetryFilters(t *testing.T) {
 		},
 		{
 			"disabled-prometheus",
-			[]config.Config{newTelemetry("istio-system", disbaledAllMetrics)},
+			[]config.Config{newTelemetry("istio-system", disabledAllMetrics)},
 			sidecar,
 			networking.ListenerClassSidecarOutbound,
 			networking.ListenerProtocolHTTP,
@@ -702,7 +702,7 @@ func TestTelemetryFilters(t *testing.T) {
 		{
 			"disabled-then-empty",
 			[]config.Config{
-				newTelemetry("istio-system", disbaledAllMetrics),
+				newTelemetry("istio-system", disabledAllMetrics),
 				newTelemetry("default", emptyPrometheus),
 			},
 			sidecar,
@@ -714,7 +714,7 @@ func TestTelemetryFilters(t *testing.T) {
 		{
 			"disabled-then-overrides",
 			[]config.Config{
-				newTelemetry("istio-system", disbaledAllMetrics),
+				newTelemetry("istio-system", disabledAllMetrics),
 				newTelemetry("default", overridesPrometheus),
 			},
 			sidecar,
@@ -975,6 +975,34 @@ func TestTelemetryFilters(t *testing.T) {
 			if diff := cmp.Diff(res, tt.want); diff != "" {
 				t.Errorf("got diff: %v", diff)
 			}
+		})
+	}
+}
+
+func TestGetInterval(t *testing.T) {
+	cases := []struct {
+		name              string
+		input, defaultVal time.Duration
+		expected          *durationpb.Duration
+	}{
+		{
+			name:       "return nil",
+			input:      0,
+			defaultVal: 0,
+			expected:   nil,
+		},
+		{
+			name:       "return input",
+			input:      1 * time.Second,
+			defaultVal: 0,
+			expected:   durationpb.New(1 * time.Second),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := getInterval(tc.input, tc.defaultVal)
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }

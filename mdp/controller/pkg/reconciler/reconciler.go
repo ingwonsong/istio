@@ -37,7 +37,7 @@ import (
 	"istio.io/istio/mdp/controller/pkg/proxyupdater"
 	"istio.io/istio/mdp/controller/pkg/revision"
 	"istio.io/istio/mdp/controller/pkg/status"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 type NewReconciler struct {

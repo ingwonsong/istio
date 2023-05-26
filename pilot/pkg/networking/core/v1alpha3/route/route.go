@@ -34,21 +34,20 @@ import (
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	networking "istio.io/api/networking/v1alpha3"
-	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core/v1alpha3/route/retry"
 	"istio.io/istio/pilot/pkg/networking/telemetry"
 	"istio.io/istio/pilot/pkg/networking/util"
 	authz "istio.io/istio/pilot/pkg/security/authz/model"
-	"istio.io/istio/pilot/pkg/util/constant"
 	"istio.io/istio/pilot/pkg/util/protoconv"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/labels"
+	"istio.io/istio/pkg/jwt"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/util/grpc"
 	"istio.io/istio/pkg/util/sets"
-	"istio.io/pkg/log"
 )
 
 // Headers with special meaning in Envoy
@@ -964,16 +963,21 @@ func isCatchAllStringMatch(in *networking.StringMatch) bool {
 // or the header format is invalid for generating metadata matcher.
 //
 // The currently only supported header is @request.auth.claims for JWT claims matching. Claims of type string or list of string
-// are supported and nested claims are also supported using `.` as a separator for claim names.
-// Examples:
+// are supported and nested claims are also supported using `.` or `[]` as a separator for claim names, `[]` is recommended.
+//
+// Examples using `.` as a separator:
 // - `@request.auth.claims.admin` matches the claim "admin".
 // - `@request.auth.claims.group.id` matches the nested claims "group" and "id".
+//
+// Examples using `[]` as a separator:
+// - `@request.auth.claims[admin]` matches the claim "admin".
+// - `@request.auth.claims[group][id]` matches the nested claims "group" and "id".
 func translateMetadataMatch(name string, in *networking.StringMatch) *matcher.MetadataMatcher {
-	if !strings.HasPrefix(strings.ToLower(name), constant.HeaderJWTClaim) {
+	rc := jwt.ToRoutingClaim(name)
+	if !rc.Match {
 		return nil
 	}
-	claims := strings.Split(name[len(constant.HeaderJWTClaim):], ".")
-	return authz.MetadataMatcherForJWTClaims(claims, util.ConvertToEnvoyMatch(in))
+	return authz.MetadataMatcherForJWTClaims(rc.Claims, util.ConvertToEnvoyMatch(in))
 }
 
 // translateHeaderMatch translates to HeaderMatcher
@@ -1092,7 +1096,7 @@ func buildDefaultHTTPRoute(clusterName string, operation string) *route.Route {
 // setTimeout sets timeout for a route.
 func setTimeout(action *route.RouteAction, vsTimeout *duration.Duration, node *model.Proxy) {
 	// Configure timeouts specified by Virtual Service if they are provided, otherwise set it to defaults.
-	action.Timeout = features.DefaultRequestTimeout
+	action.Timeout = Notimeout
 	if vsTimeout != nil {
 		action.Timeout = vsTimeout
 	}

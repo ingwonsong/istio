@@ -29,7 +29,7 @@ import (
 	"istio.io/istio/istioctl/pkg/clioptions"
 	"istio.io/istio/istioctl/pkg/util/handlers"
 	"istio.io/istio/pkg/kube"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 var (
@@ -297,7 +297,7 @@ func envoyDashCmd() *cobra.Command {
 			} else {
 				podName, ns, err = handlers.InferPodInfoFromTypedResource(args[0],
 					handlers.HandleNamespace(envoyDashNs, defaultNamespace),
-					client.UtilFactory())
+					MakeKubeFactory(client))
 				if err != nil {
 					return err
 				}
@@ -368,7 +368,7 @@ func controlZDashCmd() *cobra.Command {
 			} else {
 				podName, ns, err = handlers.InferPodInfoFromTypedResource(args[0],
 					handlers.HandleNamespace(addonNamespace, defaultNamespace),
-					client.UtilFactory())
+					MakeKubeFactory(client))
 				if err != nil {
 					return err
 				}

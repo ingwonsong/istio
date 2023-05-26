@@ -18,7 +18,7 @@ import (
 	"os"
 
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
-	"istio.io/pkg/version"
+	"istio.io/istio/pkg/version"
 )
 
 // NewCNIExporter is a helper function to create a CNI opencensus exporter.

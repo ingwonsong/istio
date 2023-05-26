@@ -32,7 +32,7 @@ import (
 	"google.golang.org/api/option"
 	"k8s.io/client-go/tools/clientcmd/api"
 
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 const (

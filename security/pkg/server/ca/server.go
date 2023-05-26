@@ -27,14 +27,14 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/namespace"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/security/pkg/pki/ca"
 	caerror "istio.io/istio/security/pkg/pki/error"
 	"istio.io/istio/security/pkg/pki/util"
-	"istio.io/pkg/log"
 )
 
-var serverCaLog = log.RegisterScope("serverca", "Citadel server log", 0)
+var serverCaLog = log.RegisterScope("serverca", "Citadel server log")
 
 // CertificateAuthority contains methods to be supported by a CA.
 type CertificateAuthority interface {

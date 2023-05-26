@@ -43,9 +43,9 @@ import (
 	"istio.io/istio/mdp/controller/pkg/revision"
 	"istio.io/istio/mdp/controller/pkg/status"
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth"
-	"istio.io/pkg/ctrlz"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/ctrlz"
+	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/log"
 )
 
 // Should match deploy/service.yaml
@@ -57,7 +57,7 @@ const (
 )
 
 var (
-	scope     = log.RegisterScope("mdp", "Managed Data Plane", 0)
+	scope     = log.RegisterScope("mdp", "Managed Data Plane")
 	startTime = time.Now()
 	runLocal  bool
 )

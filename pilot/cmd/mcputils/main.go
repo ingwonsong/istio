@@ -27,13 +27,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	istioctlcmd "istio.io/istio/istioctl/cmd"
+	istioctlcmd "istio.io/istio/istioctl/cmd" // nolint: depguard
 	"istio.io/istio/pilot/cmd/pilot-discovery/app/mcpinit"
 	"istio.io/istio/pkg/cmd"
 	"istio.io/istio/pkg/config/constants"
 	kubelib "istio.io/istio/pkg/kube"
-	"istio.io/pkg/log"
-	"istio.io/pkg/version"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/version"
 )
 
 func main() {

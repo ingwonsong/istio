@@ -27,9 +27,9 @@ import (
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/util"
 	v3 "istio.io/istio/pilot/pkg/xds/v3"
+	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/lazy"
-	"istio.io/pkg/env"
-	istioversion "istio.io/pkg/version"
+	istioversion "istio.io/istio/pkg/version"
 )
 
 // IstioControlPlaneInstance defines the format Istio uses for when creating Envoy config.core.v3.ControlPlane.identifier
@@ -110,8 +110,7 @@ func (s *DiscoveryServer) pushXds(con *Connection, w *model.WatchedResource, req
 	// See https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#deleting-resources.
 	// This means if there are only removals, we will not respond.
 	var logFiltered string
-	if !req.Delta.IsEmpty() && features.PartialFullPushes &&
-		!con.proxy.IsProxylessGrpc() {
+	if !req.Delta.IsEmpty() && !con.proxy.IsProxylessGrpc() {
 		logFiltered = " filtered:" + strconv.Itoa(len(w.ResourceNames)-len(req.Delta.Subscribed))
 		w = &model.WatchedResource{
 			TypeUrl:       w.TypeUrl,
@@ -137,7 +136,7 @@ func (s *DiscoveryServer) pushXds(con *Connection, w *model.WatchedResource, req
 
 		// If we are sending a request, we must respond or we can get Envoy stuck. Assert we do.
 		// One exception is if Envoy is simply unsubscribing from some resources, in which case we can skip.
-		isUnsubscribe := features.PartialFullPushes && !req.Delta.IsEmpty() && req.Delta.Subscribed.IsEmpty()
+		isUnsubscribe := !req.Delta.IsEmpty() && req.Delta.Subscribed.IsEmpty()
 		if features.EnableUnsafeAssertions && err == nil && res == nil && req.IsRequest() && !isUnsubscribe {
 			log.Fatalf("%s: SKIPPED%s for node:%s%s but expected a response for request", v3.GetShortType(w.TypeUrl), req.PushReason(), con.proxy.ID, info)
 		}
