@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
@@ -61,9 +62,23 @@ func installASMUserAuth(settings *resource.Settings) error {
 	userAuthImage := res["image"].(string)
 	redirectURIPath := res["redirect_uri_path"].(string)
 
+	version := "main"
+	branchName, _ := exec.RunWithOutput(`git branch --show-current`)
+
+	if !strings.Contains(branchName, "master-asm") {
+		version, err = exec.RunWithOutput(`bash -c "git -c 'versionsort.suffix=-' \
+    ls-remote --exit-code --refs --sort='version:refname' --tags https://github.com/GoogleCloudPlatform/asm-user-auth.git 'v*.*.*' \
+    | tail --lines=1 \
+    | cut --delimiter='/' --fields=3"`)
+
+		if err != nil {
+			return fmt.Errorf("error retrieving asm-user-auth latest release tag : %v", err)
+		}
+	}
+
 	cmds := []string{
-		fmt.Sprintf("%s/user-auth/dependencies/kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git/@main %s/user-auth",
-			settings.ConfigDir, settings.ConfigDir),
+		fmt.Sprintf("%s/user-auth/dependencies/kpt pkg get https://github.com/GoogleCloudPlatform/asm-user-auth.git/@%s %s/user-auth",
+			settings.ConfigDir, version, settings.ConfigDir),
 		fmt.Sprintf("%s/user-auth/dependencies/kpt fn eval %s/user-auth/asm-user-auth/pkg --image gcr.io/kpt-fn/apply-setters:v0.2 --truncate-output=false -- image=%s client-id=%s client-secret=%s issuer-uri=%s redirect-path=%s",
 			settings.ConfigDir, settings.ConfigDir, userAuthImage, oidcClientID, oidcClientSecret, oidcIssueURI, redirectURIPath),
 	}
