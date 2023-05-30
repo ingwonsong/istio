@@ -332,11 +332,6 @@ func fixGKE(settings *resource.Settings) error {
 		return err
 	}
 
-	// TODO(hemendrat) remove once b/283057835 is fixed
-	if err := deleteGkeHubMemberships(settings); err != nil {
-		return err
-	}
-
 	if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
 		networkName := settings.GKENetworkName
 
@@ -1080,34 +1075,6 @@ func registerAttachedV2(settings *resource.Settings) error {
 				return fmt.Errorf("error registering cluster: %w", err)
 			}
 		}
-	}
-	return nil
-}
-
-func deleteGkeHubMemberships(settings *resource.Settings) error {
-	clusterProjects := settings.ClusterGCPProjects
-
-	for _, p := range clusterProjects {
-
-		gkeHubMemberships, err := exec.RunWithOutput(
-			fmt.Sprintf("bash -c 'gcloud container hub memberships list --project=%q --format=\"value(NAME)\"'", p))
-		if err != nil {
-			return fmt.Errorf("error getting all GKE hub memberships for project %q: %w", p, err)
-		}
-
-		var gkeHubMembershipsList []string
-		gkeHubMembershipsList = append(gkeHubMembershipsList, strings.Split(strings.TrimSpace(gkeHubMemberships), "\n")...)
-
-		for _, gkeHubMembership := range gkeHubMembershipsList {
-			if len(gkeHubMembership) != 0 {
-				err := exec.Run(
-					fmt.Sprintf("bash -c 'gcloud container hub memberships delete %q --quiet --project=%q'", gkeHubMembership, p))
-				if err != nil {
-					return fmt.Errorf("error deleting GKE hub membership %q: %w", gkeHubMembership, err)
-				}
-			}
-		}
-
 	}
 	return nil
 }
