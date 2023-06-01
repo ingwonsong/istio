@@ -353,6 +353,9 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		}
 		for _, namespace := range namespaces {
 			for _, serviceAcct := range serviceAccts {
+				if namespace == "kube-system" && serviceAcct == "default" {
+					continue
+				}
 				err = exec.Run(
 					fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --kubeconfig=%s apply -f -
 apiVersion: v1
