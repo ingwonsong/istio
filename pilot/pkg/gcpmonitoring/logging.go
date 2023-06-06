@@ -19,9 +19,9 @@ import (
 
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/bootstrap/platform"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
-	"istio.io/pkg/version"
+	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/version"
 )
 
 var (

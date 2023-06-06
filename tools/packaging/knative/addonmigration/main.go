@@ -24,8 +24,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"istio.io/istio/pkg/bootstrap/platform"
+	"istio.io/istio/pkg/log"
 	migration "istio.io/istio/tools/packaging/knative/addonmigration/pkg"
-	"istio.io/pkg/log"
 )
 
 var (

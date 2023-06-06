@@ -48,8 +48,8 @@ import (
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/protocol"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/proto"
-	"istio.io/pkg/log"
 )
 
 func (lb *ListenerBuilder) serviceForHostname(name host.Name) *model.Service {
@@ -541,7 +541,7 @@ func (lb *ListenerBuilder) routeDestination(out *route.Route, in *networking.HTT
 	}
 
 	// Configure timeouts specified by Virtual Service if they are provided, otherwise set it to defaults.
-	action.Timeout = features.DefaultRequestTimeout
+	action.Timeout = istio_route.Notimeout
 	if in.Timeout != nil {
 		action.Timeout = in.Timeout
 	}

@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"istio.io/istio/mdp/controller/pkg/apis/mdp/v1alpha1"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 type Worker interface {

@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/container/apiv1/containerpb"
+	"cloud.google.com/go/profiler"
 	"github.com/Masterminds/sprig/v3"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -43,16 +44,17 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pilot/pkg/xds"
-	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/cmd"
 	"istio.io/istio/pkg/config/constants"
+	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/file"
 	"istio.io/istio/pkg/jwt"
 	kubelib "istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/security"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/version"
 )
 
 // newMCPCommand provides a custom entrypoint to the standard discovery command used by in-cluster Istiod.
@@ -152,7 +154,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 		log.Infof("MCP initialization complete in %v for options %+v", time.Since(t0), p)
 	}()
 
-	asm.RunCloudProfiler()
+	runCloudProfiler()
 
 	log.Infof("Initializing MCP with options %+v", p)
 
@@ -756,4 +758,31 @@ func getIfAutopilot(cluster *containerpb.Cluster) bool {
 		return cluster.GetAutopilot().GetEnabled()
 	}
 	return false
+}
+
+var (
+	cloudRunServiceVar   = env.RegisterStringVar("K_SERVICE", "", "cloud run service name")
+	CloudProfilerEnabled = env.RegisterBoolVar("CLOUD_PROFILER_ENABLED", false, "").Get()
+)
+
+func runCloudProfiler() {
+	if !CloudProfilerEnabled {
+		return
+	}
+	cfg := profiler.Config{
+		Service:        cloudRunServiceVar.Get(),
+		ServiceVersion: version.Info.Version,
+		Instance:       os.Getenv("K_REVISION"),
+	}
+	// Start the profiler. This will run in the background and provides trivial overhead.
+	// The profiling logic takes into account how many instances of a cfg.Service+cfg.ServiceVersion we have,
+	// and aims to produce 1 profile/minute for this key.
+	// In practice this means that each service will have 1 profile per minute unless we roll out a new revision.
+	// https://cloud.google.com/profiler/docs/profiling-go#svc-name-and-version
+	if err := profiler.Start(cfg); err != nil {
+		// Profiling is optional, we should not fail closed.
+		log.Errorf("failed to start profiler: %v", err)
+	} else {
+		log.Infof("profiler started for %v/%v/%v", cfg.Service, cfg.ServiceVersion, cfg.Instance)
+	}
 }

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"istio.io/istio/mdp/controller/pkg/name"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // NameSpaceHandler is a handler for namespaces.

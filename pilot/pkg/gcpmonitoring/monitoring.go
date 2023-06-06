@@ -19,8 +19,8 @@ import (
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/log"
 )
 
 var (
@@ -36,7 +36,7 @@ var (
 	endpointOverride = env.RegisterStringVar("MONITORING_ENDPOINT_OVERRIDE", "",
 		"controls override of the default monitoring API endpoint")
 
-	// TODO(bianpengyuan) use monitoring pkg from istio.io/pkg instead opencensus interface once it support integer value.
+	// TODO(bianpengyuan) use monitoring pkg from istio.io/istio/pkg instead opencensus interface once it support integer value.
 	configEventMeasure        = stats.Int64("config_event_measure", "The number of user configuration events", "1")
 	configValidationMeasuare  = stats.Int64("config_validation_measure", "The number of configuration validation events", "1")
 	configPushMeasuare        = stats.Int64("config_push_measure", "The number of xds configuration pushes", "1")

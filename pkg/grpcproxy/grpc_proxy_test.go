@@ -29,7 +29,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 type proxyServer struct {

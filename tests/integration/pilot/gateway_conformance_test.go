@@ -30,6 +30,7 @@ import (
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/crd"
 	"istio.io/istio/pkg/test/framework/components/namespace"
+	"istio.io/istio/pkg/test/framework/label"
 	"istio.io/istio/pkg/test/scopes"
 )
 
@@ -51,8 +52,7 @@ var conformanceNamespaces = []string{
 }
 
 var skippedTests = map[string]string{
-	"HTTPRouteRedirectPath":          "redirects are changed in 0.7; we support the 0.7 tests but not 0.6",
-	"HTTPRouteRedirectHostAndStatus": "redirects are changed in 0.7; we support the 0.7 tests but not 0.6",
+	"MeshFrontendHostname": "https://github.com/istio/istio/issues/44702",
 }
 
 const gatewayConformanceTimeoutScaler = 5
@@ -61,6 +61,7 @@ func TestGatewayConformance(t *testing.T) {
 	framework.
 		NewTest(t).
 		Features("traffic.gateway").
+		Label(label.IPv4). // Need https://github.com/kubernetes-sigs/gateway-api/pull/2024 in 0.7.1
 		Run(func(ctx framework.TestContext) {
 			crd.DeployGatewayAPIOrSkip(ctx)
 
@@ -75,6 +76,7 @@ func TestGatewayConformance(t *testing.T) {
 			}
 
 			mapper, _ := gatewayConformanceInputs.Client.UtilFactory().ToRESTMapper()
+			rc, _ := gatewayConformanceInputs.Client.UtilFactory().RESTClient()
 			c, err := client.New(gatewayConformanceInputs.Client.RESTConfig(), client.Options{
 				Scheme: kube.IstioScheme,
 				Mapper: mapper,
@@ -96,6 +98,8 @@ func TestGatewayConformance(t *testing.T) {
 			config.SetupTimeoutConfig(&timeoutConfig)
 			opts := suite.Options{
 				Client:               c,
+				RestConfig:           gatewayConformanceInputs.Client.RESTConfig(),
+				RESTClient:           rc,
 				GatewayClassName:     "istio",
 				Debug:                scopes.Framework.DebugEnabled(),
 				CleanupBaseResources: gatewayConformanceInputs.Cleanup,
@@ -105,6 +109,10 @@ func TestGatewayConformance(t *testing.T) {
 			if rev := ctx.Settings().Revisions.Default(); rev != "" {
 				opts.NamespaceLabels = map[string]string{
 					"istio.io/rev": rev,
+				}
+			} else {
+				opts.NamespaceLabels = map[string]string{
+					"istio-injection": "enabled",
 				}
 			}
 			ctx.Cleanup(func() {

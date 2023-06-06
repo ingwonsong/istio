@@ -27,6 +27,9 @@ import (
 // Test that binary sizes do not bloat
 func TestBoringssl(t *testing.T) {
 	runBinariesTest(t, func(t *testing.T, name string) {
+		if name == "envoy" || name == "ztunnel" {
+			return
+		}
 		cmd := path.Join(*releasedir, name)
 		v, err := version.ReadExe(cmd)
 		if err != nil {

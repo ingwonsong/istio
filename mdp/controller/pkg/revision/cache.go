@@ -37,7 +37,7 @@ import (
 	"istio.io/istio/mdp/controller/pkg/name"
 	"istio.io/istio/mdp/controller/pkg/util"
 	"istio.io/istio/pkg/kube/inject"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Mapper maps between pods, revisions, and DataPlaneControl.  Information may be returned from a cache, or retrieved from k8s.

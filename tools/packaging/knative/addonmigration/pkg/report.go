@@ -15,7 +15,7 @@
 package migration
 
 import (
-	"istio.io/pkg/monitoring"
+	"istio.io/istio/pkg/monitoring"
 )
 
 type jobState string

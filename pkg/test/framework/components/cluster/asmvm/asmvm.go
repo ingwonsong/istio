@@ -25,9 +25,9 @@ import (
 	"google.golang.org/api/compute/v1"
 
 	"istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/pkg/log"
 )
 
 func init() {

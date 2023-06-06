@@ -35,7 +35,7 @@ import (
 	"istio.io/istio/mdp/controller/pkg/name"
 	"istio.io/istio/mdp/controller/pkg/set"
 	"istio.io/istio/mdp/controller/pkg/util"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 type podEventHandler struct {

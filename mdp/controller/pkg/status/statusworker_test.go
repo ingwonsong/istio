@@ -53,6 +53,7 @@ func buildClient() (client.Client, *v1alpha1.DataPlaneControl) {
 	return fake.NewClientBuilder().
 		WithScheme(s).
 		WithObjects(myDPR).
+		WithStatusSubresource(myDPR).
 		Build(), myDPR
 }
 

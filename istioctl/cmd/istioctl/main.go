@@ -20,7 +20,7 @@ import (
 
 	"istio.io/istio/istioctl/cmd"
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth" // import all known client auth plugins
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 func main() {

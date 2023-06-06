@@ -26,8 +26,8 @@ import (
 	lbls "k8s.io/apimachinery/pkg/labels"
 
 	"istio.io/istio/mdp/controller/pkg/name"
-	"istio.io/pkg/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/cache"
+	"istio.io/istio/pkg/log"
 )
 
 const (

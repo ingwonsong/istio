@@ -67,6 +67,9 @@ tests:
       - TestOutboundTrafficPolicy_AllowAny
       - TestOutboundTrafficPolicy_RegistryOnly
       buganizerID: 283891115
+    - names:
+      - TestAccessLogsDefaultProvider
+      buganizerID: 285941126
 
 # Multiversion test skips.
   - selectors:

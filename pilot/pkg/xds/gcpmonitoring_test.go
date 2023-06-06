@@ -27,8 +27,8 @@ import (
 
 	gm "istio.io/istio/pilot/pkg/gcpmonitoring"
 	v3 "istio.io/istio/pilot/pkg/xds/v3"
+	"istio.io/istio/pkg/monitoring"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/pkg/monitoring"
 )
 
 var (

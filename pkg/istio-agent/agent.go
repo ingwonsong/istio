@@ -42,8 +42,10 @@ import (
 	dnsClient "istio.io/istio/pkg/dns/client"
 	dnsProto "istio.io/istio/pkg/dns/proto"
 	"istio.io/istio/pkg/envoy"
+	"istio.io/istio/pkg/filewatcher"
 	grpcproxy "istio.io/istio/pkg/grpcproxy"
 	"istio.io/istio/pkg/istio-agent/grpcxds"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/wasm"
 	"istio.io/istio/security/pkg/nodeagent/cache"
@@ -52,8 +54,6 @@ import (
 	gca "istio.io/istio/security/pkg/nodeagent/caclient/providers/google"
 	cas "istio.io/istio/security/pkg/nodeagent/caclient/providers/google-cas"
 	"istio.io/istio/security/pkg/nodeagent/sds"
-	"istio.io/pkg/filewatcher"
-	"istio.io/pkg/log"
 )
 
 const (

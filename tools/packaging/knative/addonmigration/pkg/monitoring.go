@@ -29,8 +29,8 @@ import (
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pilot/pkg/security/model"
 	"istio.io/istio/pkg/bootstrap/platform"
-	"istio.io/pkg/log"
-	"istio.io/pkg/monitoring"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
 )
 
 const (

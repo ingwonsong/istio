@@ -24,9 +24,9 @@ import (
 
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pkg/asm"
-	"istio.io/pkg/log"
-	"istio.io/pkg/monitoring"
-	"istio.io/pkg/version"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
+	"istio.io/istio/pkg/version"
 )
 
 type monitor struct {
@@ -45,12 +45,24 @@ var (
 		"istiod_uptime_seconds",
 		"Current istiod server uptime in seconds",
 	)
+
+	versionTag   = monitoring.MustCreateLabel("version")
+	pilotVersion = monitoring.NewGauge(
+		"pilot_info",
+		"Pilot version and build information.",
+		monitoring.WithLabels(versionTag))
 )
 
 func init() {
+	monitoring.MustRegister(
+		pilotVersion,
+	)
+
 	uptime.ValueFrom(func() float64 {
 		return time.Since(serverStart).Seconds()
 	})
+
+	pilotVersion.With(versionTag.Value(version.Info.String())).Record(1)
 }
 
 func addMonitor(mux *http.ServeMux) error {
@@ -120,7 +132,7 @@ func (m *monitor) Close() error {
 
 // initMonitor initializes the configuration for the pilot monitoring server.
 func (s *Server) initMonitor(addr string) error { // nolint: unparam
-	s.addStartFunc(func(stop <-chan struct{}) error {
+	s.addStartFunc("monitoring", func(stop <-chan struct{}) error {
 		// For MCP, we skip this as we do it instead at the very start of the process, to ensure ALL logs get handled by stackdriver
 		// For in cluster we need mesh config access which requires us to configure things later.
 		if !asm.IsCloudRun() {

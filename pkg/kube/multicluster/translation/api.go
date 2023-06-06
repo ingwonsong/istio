@@ -24,7 +24,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 type membershipLister interface {

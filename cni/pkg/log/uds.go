@@ -23,12 +23,12 @@ import (
 	"sync"
 
 	"istio.io/istio/cni/pkg/constants"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/network"
 	"istio.io/istio/pkg/uds"
-	"istio.io/pkg/log"
 )
 
-var pluginLog = log.RegisterScope("cni", "CNI network plugin", 0)
+var pluginLog = log.RegisterScope("cni", "CNI network plugin")
 
 type UDSLogger struct {
 	mu            sync.Mutex

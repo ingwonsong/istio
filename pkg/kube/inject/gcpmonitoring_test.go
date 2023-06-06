@@ -25,8 +25,8 @@ import (
 	"go.opencensus.io/tag"
 
 	gm "istio.io/istio/pilot/pkg/gcpmonitoring"
+	"istio.io/istio/pkg/monitoring"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/pkg/monitoring"
 )
 
 func TestGCPMonitoringSidecarInjection(t *testing.T) {

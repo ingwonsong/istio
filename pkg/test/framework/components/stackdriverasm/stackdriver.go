@@ -34,9 +34,9 @@ import (
 	monitoring "google.golang.org/api/monitoring/v3"
 	"google.golang.org/api/option"
 
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/pkg/log"
 )
 
 const (

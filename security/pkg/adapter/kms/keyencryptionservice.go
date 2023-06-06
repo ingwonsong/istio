@@ -24,10 +24,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
-var kmsLog = log.RegisterScope("kms", "KMS adapter log", 0)
+var kmsLog = log.RegisterScope("kms", "KMS adapter log")
 
 // KeyType is the type of the key.
 type KeyType int

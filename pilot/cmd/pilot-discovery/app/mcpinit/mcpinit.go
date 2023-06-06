@@ -46,9 +46,9 @@ import (
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/schema/resource"
+	"istio.io/istio/pkg/env"
 	kubelib "istio.io/istio/pkg/kube"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 var LocalMCP = env.RegisterBoolVar("LOCAL_MCP", false, "If true, use local files and cluster for MCP.").Get()
