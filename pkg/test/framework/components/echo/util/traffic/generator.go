@@ -15,11 +15,14 @@
 package traffic
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/check"
+	"istio.io/istio/pkg/test/shell"
 )
 
 const (
@@ -30,7 +33,7 @@ const (
 // Config for a traffic Generator.
 type Config struct {
 	// Source of the traffic.
-	Source echo.Caller
+	Source echo.Instance
 
 	// Options for generating traffic from the Source to the target.
 	Options echo.CallOptions
@@ -86,7 +89,22 @@ func (g *generator) Start() Generator {
 				close(g.stopped)
 				return
 			case <-t.C:
-				g.result.add(g.Source.Call(g.Options))
+				go func() {
+					// TODO : change it back to r, e := g.Source.Call(g.Options)
+					a, e := g.Source.Workloads()
+					r := ""
+					if e == nil {
+						apod := a[0].PodName()
+						svcaddr := fmt.Sprintf("%v.%v.svc", g.Options.To.ServiceName(), g.Options.To.NamespaceName())
+						cmd := fmt.Sprintf("kubectl -n %v exec -it %v -- curl -I %v", g.Source.NamespaceName(), apod, svcaddr)
+						r, e = shell.Execute(true, cmd)
+						if e == nil && !strings.Contains(r, "HTTP/1.1 200 OK") {
+							e = fmt.Errorf("Response doesn't have 200 OK. Response : %v", r)
+						}
+					}
+
+					g.result.add(echo.CallResult{}, e)
+				}()
 				t.Reset(g.Interval)
 			}
 		}
