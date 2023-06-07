@@ -33,7 +33,9 @@ const (
 // Config for a traffic Generator.
 type Config struct {
 	// Source of the traffic.
-	Source echo.Instance
+	Source echo.Caller
+
+	SourceEcho echo.Instance
 
 	// Options for generating traffic from the Source to the target.
 	Options echo.CallOptions
@@ -90,26 +92,37 @@ func (g *generator) Start() Generator {
 				return
 			case <-t.C:
 				go func() {
-					// TODO : change it back to r, e := g.Source.Call(g.Options)
-					a, e := g.Source.Workloads()
-					r := ""
-					if e == nil {
-						apod := a[0].PodName()
-						svcaddr := fmt.Sprintf("%v.%v.svc", g.Options.To.ServiceName(), g.Options.To.NamespaceName())
-						cmd := fmt.Sprintf("kubectl -n %v exec -it %v -- curl -I %v", g.Source.NamespaceName(), apod, svcaddr)
-						r, e = shell.Execute(true, cmd)
-						if e == nil && !strings.Contains(r, "HTTP/1.1 200 OK") {
-							e = fmt.Errorf("Response doesn't have 200 OK. Response : %v", r)
-						}
+					// TODO : change it back to just use g.Source.Call only after b/285848253
+					if g.Source != nil {
+						r, e := g.Source.Call(g.Options)
+						g.result.add(r, e)
+					} else if g.SourceEcho != nil {
+						e := callUsingKubectl(g)
+						g.result.add(echo.CallResult{}, e)
+					} else {
+						g.t.Fatal("one of Source or SourceEcho should be present in config")
 					}
-
-					g.result.add(echo.CallResult{}, e)
 				}()
 				t.Reset(g.Interval)
 			}
 		}
 	}()
 	return g
+}
+
+func callUsingKubectl(g *generator) error {
+	a, e := g.SourceEcho.Workloads()
+	r := ""
+	if e == nil {
+		apod := a[0].PodName()
+		svcaddr := fmt.Sprintf("%v.%v.svc", g.Options.To.ServiceName(), g.Options.To.NamespaceName())
+		cmd := fmt.Sprintf("kubectl -n %v exec -it %v -- curl -I %v", g.SourceEcho.NamespaceName(), apod, svcaddr)
+		r, e = shell.Execute(true, cmd)
+		if e == nil && !strings.Contains(r, "HTTP/1.1 200 OK") {
+			e = fmt.Errorf("response doesn't have 200 OK. Response : %v", r)
+		}
+	}
+	return e
 }
 
 func (g *generator) Stop() Result {

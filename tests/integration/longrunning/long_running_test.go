@@ -107,7 +107,7 @@ func TestLongRunning(t *testing.T) {
 		Features("installation.clusters.upgrade").
 		Run(func(t framework.TestContext) {
 			g := traffic.NewGenerator(t, traffic.Config{
-				Source: PodA[0],
+				SourceEcho: PodA[0],
 				Options: echo.CallOptions{
 					To:   PodB,
 					Port: echo.Port{Name: "http"},
