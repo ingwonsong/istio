@@ -310,12 +310,12 @@ func setMulticloudPermissions(settings *resource.Settings, rev *revision.Config)
 		}
 
 		// Save secret data once (to be passed into the test framework),
-		// deleting the line that contains 'namespace'.
+		// deleting the line that contains 'namespace', uid, creationTimestamp and resourceVersion
 		if i == 0 {
 			err = exec.Run(
 				fmt.Sprintf(
 					"bash -c 'kubectl -n istio-system get secrets %s --kubeconfig=%s -o yaml "+
-						"| sed \"/namespace/d\" > %s'",
+						"| sed \"/\\(uid\\|namespace\\|creationTimestamp\\|resourceVersion\\)/d\" > %s'",
 					secretName,
 					config,
 					fmt.Sprintf("%s/test_image_pull_secret.yaml", os.Getenv("ARTIFACTS")),
