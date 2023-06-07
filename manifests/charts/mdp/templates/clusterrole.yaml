@@ -1,0 +1,85 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mdp-controller
+  labels:
+    app: mdp-controller
+rules:
+- apiGroups:
+  - mesh.cloud.google.com
+  resources:
+  - 'controlplanerevisions'
+  - 'dataplanecontrols'
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - mesh.cloud.google.com
+  resources:
+  - 'dataplanecontrols/status'
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
+  - patch
+  - update
+  - create
+- apiGroups:
+  - apps
+  - extensions
+  resources:
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - "coordination.k8s.io"
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
+  - patch
+  - update
+  - create
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - pods
+  - pods/eviction
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
+  - patch
+  - update
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create

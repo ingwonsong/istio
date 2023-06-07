@@ -1,4 +1,3 @@
-{{- if .Values.mdp.enabled }}
 # This manifest installs the ASM managed data plane in-cluster controller.
 apiVersion: apps/v1
 kind: Deployment
@@ -83,4 +82,3 @@ spec:
               expirationSeconds: 43200
               audience: {{ .Values.global.sds.token.aud }}
       {{- end }}
-{{- end }}

@@ -90,7 +90,7 @@ func TestProxiesRestarted(t *testing.T) {
 	framework.NewTest(t).
 		Features("mdp.upgrade").
 		Run(func(t framework.TestContext) {
-			defer dumpCNI(t)
+			defer dump(t)
 			cs := t.Clusters().Default()
 			ns = namespace.NewOrFail(t, t, namespace.Config{
 				Prefix: "mdp-workload",
@@ -201,8 +201,9 @@ func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder deplo
 	verifyFailureEventsAndLabels(t, cs, pdbWLName, pdbns.Name())
 }
 
-func dumpCNI(t framework.TestContext) {
-	kube2.DumpPods(t, t.CreateTmpDirectoryOrFail("cni-mdp"), constants.KubeSystemNamespace, []string{"k8s-app=istio-cni-node"})
+func dump(t framework.TestContext) {
+	kube2.DumpPods(t, t.CreateTmpDirectoryOrFail("cni"), constants.KubeSystemNamespace, []string{"k8s-app=istio-cni-node"})
+	kube2.DumpPods(t, t.CreateTmpDirectoryOrFail("mdp"), constants.KubeSystemNamespace, []string{"app=mdp-controller"})
 }
 
 func updateNamespace(t framework.TestContext, instance namespace.Instance, newRevision string) {

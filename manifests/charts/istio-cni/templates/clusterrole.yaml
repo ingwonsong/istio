@@ -33,13 +33,13 @@ rules:
   verbs: ["get", "list", "watch", "delete", "patch", "update", "create" ]
 {{- end }}
 ---
-  {{- if .Values.mdp.enabled }}
+{{- if .Values.mdp.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: mdp-controller
   labels:
-    app: istio-cni
+    app: mdp-controller
     release: {{ .Release.Name }}
     istio.io/rev: {{ .Values.revision | default "default" }}
     install.operator.istio.io/owning-resource: {{ .Values.ownerName | default "unknown" }}
@@ -117,4 +117,10 @@ rules:
   - patch
   - update
   - create
-  {{- end }}
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+{{- end }}

@@ -1,0 +1,14 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: mdp-controller
+  labels:
+    app: mdp-controller
+subjects:
+- kind: ServiceAccount
+  name: mdp-controller
+  namespace: {{ .Release.Namespace}}
+roleRef:
+  kind: ClusterRole
+  name: mdp-controller
+  apiGroup: rbac.authorization.k8s.io
