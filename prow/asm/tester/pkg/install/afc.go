@@ -57,7 +57,7 @@ func (c *installer) installASMManagedLocalControlPlane(rev *revision.Config) err
 		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
 	}
 
-	if err := exec.Run(fmt.Sprintf("gcloud container hub mesh enable --project=%s", OnPremFleetProject)); err != nil {
+	if err := exec.Run(fmt.Sprintf("gcloud container hub mesh enable --project=%s", CustomFleetProject)); err != nil {
 		return fmt.Errorf("error enabling hub mesh feature: %w", err)
 	}
 
@@ -133,7 +133,7 @@ func registerOffGCPCluster(kubeconfig string, clusterType resource.ClusterType) 
 			return fmt.Errorf("error matching EKS OIDC: %s", string(dat))
 		}
 		url := fmt.Sprintf("https://oidc.eks.us-east-2.amazonaws.com/id/%s", res[1])
-		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register eks-%s --context=default --kubeconfig=%s --enable-workload-identity --public-issuer-url=%s --project=%s", strings.ToLower(res[1]), kubeconfig, url, OnPremFleetProject)); err != nil {
+		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register eks-%s --context=default --kubeconfig=%s --enable-workload-identity --public-issuer-url=%s --project=%s", strings.ToLower(res[1]), kubeconfig, url, CustomFleetProject)); err != nil {
 			return fmt.Errorf("error registering cluster: %w", err)
 		}
 	} else if clusterType == resource.AKS {
@@ -142,7 +142,7 @@ func registerOffGCPCluster(kubeconfig string, clusterType resource.ClusterType) 
 		if len(res) != 2 {
 			return fmt.Errorf("error matching AKS context: %s", string(dat))
 		}
-		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register aks-%s --context=%s --kubeconfig=%s --enable-workload-identity --has-private-issuer --project=%s", strings.ToLower(res[1]), res[1], kubeconfig, OnPremFleetProject)); err != nil {
+		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register aks-%s --context=%s --kubeconfig=%s --enable-workload-identity --has-private-issuer --project=%s", strings.ToLower(res[1]), res[1], kubeconfig, CustomFleetProject)); err != nil {
 			return fmt.Errorf("error registering cluster: %w", err)
 		}
 	}

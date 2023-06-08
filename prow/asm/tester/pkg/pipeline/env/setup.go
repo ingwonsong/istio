@@ -44,6 +44,7 @@ var (
 
 const (
 	SharedGCPProject    = "asm-prow-build"
+	CustomFleetProject  = "asm-ci-mc"
 	configDir           = "prow/asm/tester/configs"
 	newtaroCommitConfig = "newtaro/commit"
 	KubevirtVMGcsBucket = "asm_testing_on_kubevirtvm_artifacts"
@@ -54,6 +55,9 @@ const (
 	stagingEndpoint           = "https://staging-container.sandbox.googleapis.com/"
 	staging2Endpoint          = "https://staging2-container.sandbox.googleapis.com/"
 	prodEndpoint              = "https://container.googleapis.com/"
+
+	cloudAPIMulticloudOverride = "CLOUDSDK_API_ENDPOINT_OVERRIDES_GKEMULTICLOUD"
+	preProdMulticloudAPI       = "https://us-west1-preprod-gkemulticloud.sandbox.googleapis.com/"
 
 	// Hacks
 	staticIptablesDaemonset = "hacks/static-iptables-daemonset.yaml"
@@ -104,6 +108,11 @@ func Setup(settings *resource.Settings) error {
 
 	// Use v2 api to attach clusters
 	if settings.UseAttachedV2 && (settings.ClusterType == resource.AKS || settings.ClusterType == resource.EKS) {
+		// Set the CLOUDSDK_API_ENDPOINT_OVERRIDES_GKEMULTICLOUD to be able to access
+		// the pre-prod gke candidates
+		if err := setMultiCloudAPIEndpointEnvVariable(); err != nil {
+			return err
+		}
 		log.Printf("Registering attached cluster with v2")
 		if err := registerAttachedV2(settings); err != nil {
 			return err
@@ -1019,11 +1028,26 @@ func registerAttachedV2(settings *resource.Settings) error {
 
 		log.Printf("Using cluster context: %s", name)
 
-		const hubProject string = "tailorbird"
 		var randHubBindingName string = "tb"
 		rand.Seed(time.Now().UnixNano())
 		for x := 0; x < 20; x++ {
 			randHubBindingName = randHubBindingName + strconv.Itoa(rand.Intn(10))
+		}
+
+		clusterVersion, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c '"+
+				"kubectl version --kubeconfig=%s -o json | jq .serverVersion.gitVersion"+
+				"'", config))
+		if err != nil {
+			return fmt.Errorf("failed to get clusterVersion: %w", err)
+		}
+
+		platformVersion, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c '"+
+				"gcloud container attached get-server-config --location=us-west1 2>&1 | grep -E -o -m 1 \"%s\\.[[:digit:]]-gke\\.[[:digit:]]+$\""+
+				"'", clusterVersion[2:6]))
+		if err != nil {
+			return fmt.Errorf("failed to get platformVersion from clusterVersion: %w", err)
 		}
 
 		if settings.ClusterType == resource.EKS {
@@ -1033,20 +1057,23 @@ func registerAttachedV2(settings *resource.Settings) error {
 				return fmt.Errorf("error matching EKS OIDC: %s", string(dat))
 			}
 			url := fmt.Sprintf("https://oidc.eks.us-east-2.amazonaws.com/id/%s", res[1])
-			// TODO: Query the cluster for kube version and then figure out the matching platform-version
+
 			if err := exec.Run(fmt.Sprintf(
 				"gcloud container attached clusters register %s"+
 					" --location=%s"+
 					" --fleet-project=%s"+
+					" --project=%s"+
 					" --platform-version=%s"+
 					" --distribution=eks"+
 					" --issuer-url=%s"+
 					" --context=%s"+
+					" --annotations googleinternal:ttl=3h"+
 					" --kubeconfig=%s",
 				randHubBindingName,
 				"us-west1",
-				hubProject,
-				"1.23.0-gke.1",
+				CustomFleetProject,
+				CustomFleetProject,
+				platformVersion,
 				url,
 				name,
 				config)); err != nil {
@@ -1061,15 +1088,18 @@ func registerAttachedV2(settings *resource.Settings) error {
 			if err := exec.Run(fmt.Sprintf("gcloud container attached clusters register %s"+
 				" --location=%s"+
 				" --fleet-project=%s"+
+				" --project=%s"+
 				" --platform-version=%s"+
 				" --distribution=aks"+
 				" --context=%s"+
+				" --annotations googleinternal:ttl=3h"+
 				" --has-private-issuer"+
 				" --kubeconfig=%s",
 				randHubBindingName,
 				"us-west1",
-				hubProject,
-				"1.23.0-gke.1",
+				CustomFleetProject,
+				CustomFleetProject,
+				platformVersion,
 				name,
 				config)); err != nil {
 				return fmt.Errorf("error registering cluster: %w", err)
@@ -1077,4 +1107,8 @@ func registerAttachedV2(settings *resource.Settings) error {
 		}
 	}
 	return nil
+}
+
+func setMultiCloudAPIEndpointEnvVariable() error {
+	return os.Setenv(cloudAPIMulticloudOverride, preProdMulticloudAPI)
 }

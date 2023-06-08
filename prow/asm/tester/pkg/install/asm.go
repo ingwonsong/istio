@@ -323,7 +323,7 @@ func generateASMCreateMeshFlags(settings *resource.Settings) []string {
 	if settings.ClusterType == resource.HybridGKEAndEKS || settings.ClusterType == resource.EKS || settings.ClusterType == resource.AKS || settings.ClusterType == resource.GKEOnAzure {
 		environProject := ProxiedClusterFleetProject
 		if settings.ClusterType == resource.HybridGKEAndEKS {
-			environProject = OnPremFleetProject
+			environProject = CustomFleetProject
 		}
 		if settings.MulticloudOverrideEnvironProject {
 			environProject = settings.GCPProjects[0]

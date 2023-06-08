@@ -170,7 +170,7 @@ func genTopologyFile(settings *resource.Settings) error {
 		} else if settings.ClusterType == resource.OnPrem ||
 			settings.ClusterType == resource.HybridGKEAndBareMetal ||
 			settings.ClusterType == resource.HybridGKEAndEKS {
-			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", install.OnPremFleetProject)
+			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", install.CustomFleetProject)
 		} else if settings.MulticloudOverrideEnvironProject {
 			cc += fmt.Sprintf("\n    %s: %s", "gcp_project", settings.GCPProjects[0])
 		} else {

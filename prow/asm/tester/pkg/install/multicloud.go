@@ -30,7 +30,7 @@ import (
 
 const (
 	// Use personal test project since there is no project pool for multi-cloud.
-	OnPremFleetProject         = "asm-ci-mc"
+	CustomFleetProject         = "asm-ci-mc"
 	ProxiedClusterFleetProject = "tailorbird"
 )
 
@@ -47,9 +47,12 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 	environProject := ProxiedClusterFleetProject
 	if c.settings.ClusterType == resource.OnPrem ||
 		c.settings.ClusterType == resource.HybridGKEAndBareMetal ||
-		c.settings.ClusterType == resource.HybridGKEAndEKS {
-		environProject = OnPremFleetProject
+		c.settings.ClusterType == resource.HybridGKEAndEKS ||
+		c.settings.ClusterType == resource.EKS ||
+		c.settings.ClusterType == resource.AKS {
+		environProject = CustomFleetProject
 	}
+
 	if c.settings.MulticloudOverrideEnvironProject {
 		environProject = c.settings.GCPProjects[0]
 	}
