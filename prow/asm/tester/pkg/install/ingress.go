@@ -149,7 +149,7 @@ func listGatewayInstallationFiles(kubectlFlags []string, rev *revision.Config) (
 				continue
 			}
 			// Skip v2beta1 since we test on 1.23+ clusters
-			if strings.Contains(f.Name(), "autoscaling-v2beta1") {
+			if strings.Contains(f.Name(), "autoscaling-v2beta1") || strings.Contains(f.Name(), "autoscaling-v2-beta1") {
 				continue
 			}
 			// Skip v1beta1 since we test on 1.23+ clusters
@@ -172,7 +172,7 @@ func listGatewayInstallationFiles(kubectlFlags []string, rev *revision.Config) (
 				continue
 			}
 			// Skip v2beta1 since we test on 1.23+ clusters
-			if strings.Contains(f.Name(), "autoscaling-v2beta1") {
+			if strings.Contains(f.Name(), "autoscaling-v2beta1") || strings.Contains(f.Name(), "autoscaling-v2-beta1") {
 				continue
 			}
 			// Skip v1beta1 since we test on 1.23+ clusters
@@ -185,7 +185,7 @@ func listGatewayInstallationFiles(kubectlFlags []string, rev *revision.Config) (
 	}
 }
 
-// ccheckForGatewaySA returns true if the serviceAccount exists in the gatewayNamespace
+// checkForGatewaySA returns true if the serviceAccount exists in the gatewayNamespace
 func checkForGatewaySA(kubectlFlags []string) (gatewaySA, error) {
 	gatewaySA := gatewaySA{ingressSA: false, egressSA: false}
 	err := exec.Run(
