@@ -70,7 +70,7 @@ const (
 	networkName                      = "prow-test-network"
 
 	statusCheckInterval = 30
-	statusCheckMaxRetry = 140
+	statusCheckMaxRetry = 180
 
 	adminHubCleanupScriptPath = "scripts/admin-membership-cleanup.sh"
 )
@@ -97,7 +97,7 @@ type TemplateParameters struct {
 	GCSBucket                    string
 	Version                      string
 	VersionPrefix                string
-	UpgradeVersionPrefix         string
+	UpgradeVersion               string
 	ProjectName                  string
 	ErrorPatterns                string
 	ClusterNames                 []string
@@ -372,13 +372,13 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 	return
 }
 
-func (d *Instance) getUpgradeVersionPrefix() (upgradeVersionPrefix string) {
+func (d *Instance) getUpgradeVersion() (upgradeVersion string) {
 
 	if len(d.cfg.UpgradeClusterVersion) == 0 {
 		return ""
 	}
 
-	return strings.Join(strings.Split(d.cfg.UpgradeClusterVersion[len(d.cfg.UpgradeClusterVersion)-1], ".")[:2], ".")
+	return d.cfg.UpgradeClusterVersion[0]
 }
 
 func (d *Instance) getReleaseChannel() types.ReleaseChannel {
@@ -572,7 +572,7 @@ func (d *Instance) rookeryFile() (string, error) {
 
 	// Struct providing template parameters for the YAML.
 	version, versionPrefix := d.getVersionAndPrefix()
-	upgradeVersionPrefix := d.getUpgradeVersionPrefix()
+	upgradeVersion := d.getUpgradeVersion()
 	if err != nil {
 		return "", err
 	}
@@ -582,7 +582,7 @@ func (d *Instance) rookeryFile() (string, error) {
 		VersionPrefix:        versionPrefix,
 		OnPremHubDevProject:  onPremHubDevProject,
 		OnPremGkeConnectSA:   onPremGkeConnectSA,
-		UpgradeVersionPrefix: upgradeVersionPrefix,
+		UpgradeVersion:       upgradeVersion,
 	}
 
 	if d.cfg.Cluster == types.GKEOnGCP {

@@ -36,10 +36,9 @@ spec:
                 username: asm-svc-acct
                 bmctlVersion: "{{ .Version }}"
                 bmctlVersionPrefix: "{{ .VersionPrefix }}"
-                {{- if .UpgradeVersionPrefix }}
-                scriptsVersion: "latest"
-                scriptsVersionPrefix: "pre-release-{{ .UpgradeVersionPrefix }}"
-         	{{- end }}
+                {{- if .UpgradeVersion }}
+                scriptsVersion: "{{ .UpgradeVersion }}"
+                {{- end }}
                 passthroughEnv: |
                   {
                      "MANIFEST_PROFILE_ENV": "staging"
