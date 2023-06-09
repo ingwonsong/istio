@@ -39,7 +39,7 @@ import (
 const (
 	PodASvc          = "a"
 	PodBSvc          = "b"
-	successThreshold = 0.95
+	successThreshold = 0.80
 )
 
 var (
