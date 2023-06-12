@@ -154,10 +154,7 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 	}
 
 	secrets := kclient.NewFiltered[*corev1.Secret](informerClient, kclient.Filter{
-		LabelSelector:   MultiClusterSecretLabel + "=true",
-		FieldSelector:   "",
-		ObjectFilter:    nil,
-		ObjectTransform: nil,
+		LabelSelector: MultiClusterSecretLabel + "=true",
 	})
 
 	// init gauges
@@ -249,18 +246,7 @@ func (c *Controller) HasSynced() bool {
 		return false
 	}
 	c.mcpQueueSynced() // ASM-ONLY-CODE: This should be called just after knowing that the queue was synced.
-	c.cs.RLock()
-	defer c.cs.RUnlock()
-	for _, clusterMap := range c.cs.remoteClusters {
-		for _, cluster := range clusterMap {
-			if !cluster.HasSynced() {
-				log.Debugf("remote cluster %s registered informers have not been synced up yet", cluster.ID)
-				return false
-			}
-		}
-	}
-
-	return true
+	return c.cs.HasSynced()
 }
 
 func (c *Controller) processItem(key types.NamespacedName) error {

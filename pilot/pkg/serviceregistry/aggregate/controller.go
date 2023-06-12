@@ -18,8 +18,6 @@ import (
 	"net/netip"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/serviceregistry"
@@ -29,6 +27,7 @@ import (
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/maps"
 	"istio.io/istio/pkg/util/sets"
 	"istio.io/istio/pkg/workloadapi/security"
 )
@@ -78,11 +77,11 @@ func (c *Controller) WorkloadsForWaypoint(scope model.WaypointScope) []*model.Wo
 	return res
 }
 
-func (c *Controller) AdditionalPodSubscriptions(proxy *model.Proxy, addr, cur sets.Set[types.NamespacedName]) sets.Set[types.NamespacedName] {
+func (c *Controller) AdditionalPodSubscriptions(proxy *model.Proxy, addr, cur sets.String) sets.String {
 	if !features.EnableAmbientControllers {
 		return nil
 	}
-	res := sets.New[types.NamespacedName]()
+	res := sets.New[string]()
 	for _, p := range c.GetRegistries() {
 		res = res.Merge(p.AdditionalPodSubscriptions(proxy, addr, cur))
 	}
@@ -100,7 +99,7 @@ func (c *Controller) Policies(requested sets.Set[model.ConfigKey]) []*security.A
 	return res
 }
 
-func (c *Controller) AddressInformation(addresses sets.Set[types.NamespacedName]) ([]*model.AddressInfo, []string) {
+func (c *Controller) AddressInformation(addresses sets.String) ([]*model.AddressInfo, []string) {
 	i := []*model.AddressInfo{}
 	removed := sets.New[string]()
 	if !features.EnableAmbientControllers {
@@ -156,11 +155,7 @@ func (c *Controller) addRegistry(registry serviceregistry.Instance, stop <-chan 
 func (c *Controller) getClusterHandlers() []*model.ControllerHandlers {
 	c.storeLock.Lock()
 	defer c.storeLock.Unlock()
-	out := make([]*model.ControllerHandlers, 0, len(c.handlersByCluster))
-	for _, handlers := range c.handlersByCluster {
-		out = append(out, handlers)
-	}
-	return out
+	return maps.Values(c.handlersByCluster)
 }
 
 // AddRegistry adds registries into the aggregated controller.
@@ -254,7 +249,7 @@ func (c *Controller) Services() []*model.Service {
 				} else {
 					// We must deepcopy before merge, and after merging, the ClusterVips length will be >= 2.
 					// This is an optimization to prevent deepcopy multi-times
-					if len(services[previous].ClusterVIPs.GetAddresses()) < 2 {
+					if services[previous].ClusterVIPs.Len() < 2 {
 						// Deep copy before merging, otherwise there is a case
 						// a service in remote cluster can be deleted, but the ClusterIP left.
 						services[previous] = services[previous].DeepCopy()
