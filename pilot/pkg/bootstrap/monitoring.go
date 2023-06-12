@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"go.opencensus.io/stats/view"
-
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/log"
