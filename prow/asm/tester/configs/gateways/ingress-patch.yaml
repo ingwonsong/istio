@@ -1,5 +1,9 @@
 spec:
   ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
     - port: 31400
       targetPort: 31400
       name: tcp
