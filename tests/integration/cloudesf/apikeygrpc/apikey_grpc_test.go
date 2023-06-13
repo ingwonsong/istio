@@ -66,7 +66,7 @@ func TestCloudESFApiKeyGrpc(t *testing.T) {
 				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image",
 				cloudESFTestClientImage,
 				[]string{
-					"--only_validate_resp_error_code",
+					"--skip_overrides_by_request_protocol_tests",
 				},
 				"us.gcr.io/cloudesf-testing/e2e_apikey_grpc_test_server:"+cloudesf.Version(),
 			))
