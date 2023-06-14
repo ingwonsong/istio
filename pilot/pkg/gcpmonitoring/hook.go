@@ -21,15 +21,14 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 
-	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/monitoring"
 )
 
 var (
-	typeHookTag     = tag.MustNewKey("type")
-	eventHookTag    = tag.MustNewKey("event")
-	resourceHookTag = tag.MustNewKey("resource")
-	versionHookTag  = tag.MustNewKey("version")
+	typeHookLabel     = monitoring.MustCreateLabel("type")
+	eventHookLabel    = monitoring.MustCreateLabel("event")
+	resourceHookLabel = monitoring.MustCreateLabel("resource")
+	versionHookLabel  = monitoring.MustCreateLabel("version")
 
 	pilotK8sCfgEvents              = "pilot_k8s_cfg_events"
 	pilotK8sRegEvents              = "pilot_k8s_reg_events"
@@ -51,34 +50,30 @@ var (
 
 type gcpRecordHook struct{}
 
-func (r gcpRecordHook) OnRecordInt64Measure(i *stats.Int64Measure, tags []tag.Mutator, value int64) {
-	panic("OnRecordInt64Measure: implement me")
-}
-
 var _ monitoring.RecordHook = &gcpRecordHook{}
 
-func (r gcpRecordHook) OnRecordFloat64Measure(f *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	switch f.Name() {
+func (r gcpRecordHook) OnRecord(name string, tags monitoring.LabelSet, value float64) {
+	switch name {
 	case pilotK8sCfgEvents, pilotK8sRegEvents:
-		onPilotK8sCfgEvents(f, tags, value)
+		onPilotK8sCfgEvents(tags, value)
 	case galleyValidationPassed:
-		onGalleyValidationPass(f, tags, value)
+		onGalleyValidationPass(tags, value)
 	case galleyValidationFailed:
-		onGalleyValidationFailed(f, tags, value)
+		onGalleyValidationFailed(tags, value)
 	case pilotXDSPushes:
-		onPilotXDSPushes(f, tags, value)
+		onPilotXDSPushes(tags, value)
 	case pilotXDSEDSReject, pilotXDSRDSReject, pilotXDSLDSReject, pilotXDSCDSReject:
-		onPilotXDSReject(f, tags, value)
+		onPilotXDSReject(name, tags, value)
 	case pilotProxyConvergenceTime:
-		onPilotConfigConvergence(f, tags, value)
+		onPilotConfigConvergence(tags, value)
 	case pilotXDS:
-		onPilotXDS(f, tags, value)
+		onPilotXDS(tags, value)
 	case sidecarInjectionSuccessTotal, sidecarInjectionFailureTotal, sidecarInjectionSkipTotal:
-		onSidecarInjection(f, tags, value)
+		onSidecarInjection(name, tags, value)
 	case ipBasedRemoteSecrets:
-		onIPBasedRemoteSecretProcessed(f, tags, value)
+		onIPBasedRemoteSecretProcessed(tags, value)
 	case ipBasedRemoteSecretsTranslated:
-		onIPBasedRemoteSecretTranslated(f, tags, value)
+		onIPBasedRemoteSecretTranslated(tags, value)
 	}
 }
 
@@ -102,16 +97,12 @@ func registerHook() {
 	monitoring.RegisterRecordHook(ipBasedRemoteSecretsTranslated, hook)
 }
 
-func onPilotK8sCfgEvents(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	t, found := tm.Value(typeHookTag)
+func onPilotK8sCfgEvents(tags monitoring.LabelSet, value float64) {
+	t, found := tags.Value(typeHookLabel)
 	if !found {
 		return
 	}
-	e, found := tm.Value(eventHookTag)
+	e, found := tags.Value(eventHookLabel)
 	if !found {
 		return
 	}
@@ -122,12 +113,8 @@ func onPilotK8sCfgEvents(_ *stats.Float64Measure, tags []tag.Mutator, value floa
 	stats.Record(ctx, configEventMeasure.M(int64(value)))
 }
 
-func onGalleyValidationPass(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	res, found := tm.Value(resourceHookTag)
+func onGalleyValidationPass(tags monitoring.LabelSet, value float64) {
+	res, found := tags.Value(resourceHookLabel)
 	if !found {
 		return
 	}
@@ -138,12 +125,8 @@ func onGalleyValidationPass(_ *stats.Float64Measure, tags []tag.Mutator, value f
 	stats.Record(ctx, configValidationMeasuare.M(int64(value)))
 }
 
-func onGalleyValidationFailed(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	res, found := tm.Value(resourceHookTag)
+func onGalleyValidationFailed(tags monitoring.LabelSet, value float64) {
+	res, found := tags.Value(resourceHookLabel)
 	if !found {
 		return
 	}
@@ -154,12 +137,8 @@ func onGalleyValidationFailed(_ *stats.Float64Measure, tags []tag.Mutator, value
 	stats.Record(ctx, configValidationMeasuare.M(int64(value)))
 }
 
-func onPilotXDSPushes(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	t, found := tm.Value(typeHookTag)
+func onPilotXDSPushes(tags monitoring.LabelSet, value float64) {
+	t, found := tags.Value(typeHookLabel)
 	if !found || len(t) < 3 {
 		return
 	}
@@ -176,9 +155,9 @@ func onPilotXDSPushes(_ *stats.Float64Measure, tags []tag.Mutator, value float64
 	stats.Record(ctx, configPushMeasuare.M(int64(value)))
 }
 
-func onPilotXDSReject(f *stats.Float64Measure, _ []tag.Mutator, value float64) {
+func onPilotXDSReject(name string, _ monitoring.LabelSet, value float64) {
 	// measure name is patterned as pilot_xds_xxx_reject, where xxx is the xds type.
-	xdsType := strings.ToUpper(f.Name()[10:13])
+	xdsType := strings.ToUpper(name[10:13])
 	ctx, err := tag.New(context.Background(), tag.Insert(typeKey, xdsType))
 	if err != nil {
 		return
@@ -186,16 +165,12 @@ func onPilotXDSReject(f *stats.Float64Measure, _ []tag.Mutator, value float64) {
 	stats.Record(ctx, rejectedConfigMeasuare.M(int64(value)))
 }
 
-func onPilotConfigConvergence(_ *stats.Float64Measure, _ []tag.Mutator, value float64) {
+func onPilotConfigConvergence(_ monitoring.LabelSet, value float64) {
 	stats.Record(context.Background(), configConvergenceMeasuare.M(value))
 }
 
-func onPilotXDS(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	res, found := tm.Value(versionHookTag)
+func onPilotXDS(tags monitoring.LabelSet, value float64) {
+	res, found := tags.Value(versionHookLabel)
 	if !found {
 		return
 	}
@@ -206,9 +181,9 @@ func onPilotXDS(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
 	stats.Record(ctx, proxyClientsMeasure.M(int64(value)))
 }
 
-func onSidecarInjection(f *stats.Float64Measure, _ []tag.Mutator, value float64) {
+func onSidecarInjection(name string, _ monitoring.LabelSet, value float64) {
 	status := ""
-	switch f.Name() {
+	switch name {
 	case sidecarInjectionSuccessTotal:
 		status = "true"
 	case sidecarInjectionFailureTotal:
@@ -223,17 +198,13 @@ func onSidecarInjection(f *stats.Float64Measure, _ []tag.Mutator, value float64)
 	stats.Record(ctx, sidecarInjectionMeasure.M(int64(value)))
 }
 
-func onIPBasedRemoteSecretProcessed(_ *stats.Float64Measure, _ []tag.Mutator, value float64) {
+func onIPBasedRemoteSecretProcessed(_ monitoring.LabelSet, value float64) {
 	stats.Record(context.Background(), ipBasedRemoteSecretsMeasure.M(int64(value)))
 }
 
-func onIPBasedRemoteSecretTranslated(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	success, found := tm.Value(successKey)
-	if !found {
+func onIPBasedRemoteSecretTranslated(tags monitoring.LabelSet, value float64) {
+	success, f := tags.Value(successLabel)
+	if !f {
 		return
 	}
 
@@ -243,13 +214,4 @@ func onIPBasedRemoteSecretTranslated(_ *stats.Float64Measure, tags []tag.Mutator
 	}
 
 	stats.Record(ctx, ipBasedRemoteSecretsTranslatedMeasure.M(int64(value)))
-}
-
-func getOriginalTagMap(tags []tag.Mutator) *tag.Map {
-	originalCtx, err := tag.New(context.Background(), tags...)
-	if err != nil {
-		log.Warn("fail to initialize original tag context")
-		return nil
-	}
-	return tag.FromContext(originalCtx)
 }

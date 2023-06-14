@@ -21,11 +21,13 @@ import (
 
 	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
 )
 
 var (
 	operationKey    = tag.MustNewKey("operation")
 	successKey      = tag.MustNewKey("success")
+	successLabel    = monitoring.MustCreateLabel("success")
 	proxyVersionKey = tag.MustNewKey("proxy_version")
 	typeKey         = tag.MustNewKey("type")
 

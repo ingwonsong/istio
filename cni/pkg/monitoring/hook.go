@@ -15,12 +15,6 @@
 package monitoring
 
 import (
-	"context"
-
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
-
-	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/monitoring"
 )
 
@@ -35,24 +29,20 @@ const (
 	installUnknownState = "UNKNOWN"
 )
 
-var resultHookTag = tag.MustNewKey("result")
+var resultHookLabel = monitoring.MustCreateLabel("result")
 
 type cniRecordHook struct{}
 
-func (r cniRecordHook) OnRecordInt64Measure(i *stats.Int64Measure, tags []tag.Mutator, value int64) {
-	log.Debugf("CNI metric: %s does not have corresponding hook", i.Name())
-}
-
 var _ monitoring.RecordHook = &cniRecordHook{}
 
-func (r cniRecordHook) OnRecordFloat64Measure(f *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	switch f.Name() {
+func (r cniRecordHook) OnRecord(name string, tags monitoring.LabelSet, value float64) {
+	switch name {
 	case pluginInstallsCountName:
-		onPluginInstallCount(f, tags, value)
+		onPluginInstallCount(tags, value)
 	case installReadyName:
 		onInstallReady(value)
 	case raceRepairsCountName:
-		onRaceRepairsCount(f, tags, value)
+		onRaceRepairsCount(tags, value)
 	}
 }
 
@@ -63,12 +53,8 @@ func registerHook() {
 	monitoring.RegisterRecordHook(raceRepairsCountName, hook)
 }
 
-func onPluginInstallCount(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	r, found := tm.Value(resultHookTag)
+func onPluginInstallCount(tags monitoring.LabelSet, value float64) {
+	r, found := tags.Value(resultHookLabel)
 	if !found {
 		return
 	}
@@ -97,24 +83,11 @@ func onInstallReady(value float64) {
 	}
 }
 
-func onRaceRepairsCount(_ *stats.Float64Measure, tags []tag.Mutator, value float64) {
-	tm := getOriginalTagMap(tags)
-	if tm == nil {
-		return
-	}
-	r, found := tm.Value(resultHookTag)
+func onRaceRepairsCount(tags monitoring.LabelSet, value float64) {
+	r, found := tags.Value(resultHookLabel)
 	if !found {
 		return
 	}
 	// TODO: type label is absent in SD now
 	raceRepairsCount.With(resultLabel.Value(r)).RecordInt(int64(value))
-}
-
-func getOriginalTagMap(tags []tag.Mutator) *tag.Map {
-	originalCtx, err := tag.New(context.Background(), tags...)
-	if err != nil {
-		log.Warn("fail to initialize original tag context")
-		return nil
-	}
-	return tag.FromContext(originalCtx)
 }
