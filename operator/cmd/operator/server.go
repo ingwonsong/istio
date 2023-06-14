@@ -20,10 +20,8 @@ import (
 	"strings"
 	"time"
 
-	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	"go.opencensus.io/stats/view"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -38,6 +36,7 @@ import (
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth" // Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	"istio.io/istio/pkg/ctrlz"
 	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
 	"istio.io/istio/pkg/version"
 )
 
@@ -191,14 +190,11 @@ func run(sArgs *serverArgs) {
 	}
 
 	log.Infof("Creating operator metrics exporter available at %s", monitoringBindAddress)
-	exporter, err := ocprom.NewExporter(ocprom.Options{
-		Registry:  ctrlmetrics.Registry.(*prometheus.Registry),
-		Namespace: "istio_install_operator",
-	})
-	if err != nil {
+	registry := ctrlmetrics.Registry.(*prometheus.Registry)
+	wrapped := prometheus.WrapRegistererWithPrefix("istio_install_operator_", registry)
+
+	if _, err := monitoring.RegisterPrometheusExporter(wrapped, registry); err != nil {
 		log.Warnf("Error while building exporter: %v", err)
-	} else {
-		view.RegisterExporter(exporter)
 	}
 
 	log.Info("Registering Components.")
