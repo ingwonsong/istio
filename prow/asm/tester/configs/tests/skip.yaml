@@ -91,7 +91,6 @@ tests:
       - names:
           - TestTraffic/dns/.*
           - TestTraffic/serverfirst/.*
-          - TestXFFGateway
           - TestXdsProxyStatus
         buganizerID: 187956450
         reason: UNKNOWN
