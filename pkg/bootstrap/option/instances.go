@@ -22,6 +22,7 @@ import (
 	meshAPI "istio.io/api/mesh/v1alpha1"
 	networkingAPI "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
+	mcpbootstrap "istio.io/istio/pkg/asm/bootstrap"
 )
 
 type (
@@ -259,8 +260,13 @@ func MetadataDiscovery(value bool) Instance {
 
 func LoadStatsConfigJSONStr(node *model.Node) Instance {
 	// JSON string for configuring Load Reporting Service.
-	if json, ok := node.RawMetadata["LOAD_STATS_CONFIG_JSON"].(string); ok {
+	if json, ok := node.RawMetadata["LOAD_STATS_CONFIG_JSON"].(string); ok && json != "" {
 		return newOption("load_stats_config_json_str", json)
 	}
+
+	if json, ok := mcpbootstrap.GenerateLoadStatsConfig(node); ok {
+		return newOption("load_stats_config_json_str", json)
+	}
+
 	return skipOption("load_stats_config_json_str")
 }
