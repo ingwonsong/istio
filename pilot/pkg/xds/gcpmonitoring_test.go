@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
+	"go.opencensus.io/stats/view" // nolint: depguard
+	"go.opencensus.io/tag"        // nolint: depguard
 
 	gm "istio.io/istio/pilot/pkg/gcpmonitoring"
 	v3 "istio.io/istio/pilot/pkg/xds/v3"

@@ -23,12 +23,12 @@ import (
 
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
-	"go.opencensus.io/metric"
-	"go.opencensus.io/metric/metricdata"
-	"go.opencensus.io/metric/metricproducer"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
+	"go.opencensus.io/metric"                // nolint: depguard
+	"go.opencensus.io/metric/metricdata"     // nolint: depguard
+	"go.opencensus.io/metric/metricproducer" // nolint: depguard
+	"go.opencensus.io/stats"                 // nolint: depguard
+	"go.opencensus.io/stats/view"            // nolint: depguard
+	"go.opencensus.io/tag"                   // nolint: depguard
 
 	"istio.io/istio/pkg/log"
 )

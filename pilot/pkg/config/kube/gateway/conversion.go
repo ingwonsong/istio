@@ -1209,14 +1209,17 @@ func createRewriteFilter(filter *k8s.HTTPURLRewriteFilter) *istio.HTTPRewrite {
 		case k8sbeta.PrefixMatchHTTPPathModifier:
 			rewrite.Uri = *filter.Path.ReplacePrefixMatch
 		case k8sbeta.FullPathHTTPPathModifier:
-			rewrite.Uri = fmt.Sprintf("%%FULLREPLACE()%%%s", *filter.Path.ReplaceFullPath)
+			rewrite.UriRegexRewrite = &istio.RegexRewrite{
+				Match:   "/.*",
+				Rewrite: *filter.Path.ReplaceFullPath,
+			}
 		}
 	}
 	if filter.Hostname != nil {
 		rewrite.Authority = string(*filter.Hostname)
 	}
 	// Nothing done
-	if rewrite.Uri == "" && rewrite.Authority == "" {
+	if rewrite.Uri == "" && rewrite.UriRegexRewrite == nil && rewrite.Authority == "" {
 		return nil
 	}
 	return rewrite
@@ -1378,7 +1381,8 @@ func getGatewayClasses(r GatewayResources) map[string]k8s.GatewayController {
 	for _, obj := range r.GatewayClass {
 		gwc := obj.Spec.(*k8s.GatewayClassSpec)
 		allFound.Insert(obj.Name)
-		if gwc.ControllerName == constants.ManagedGatewayController || gwc.ControllerName == constants.ManagedGatewayMeshController {
+		if gwc.ControllerName == constants.ManagedGatewayController ||
+			features.EnableAmbientControllers && gwc.ControllerName == constants.ManagedGatewayMeshController {
 			res[obj.Name] = gwc.ControllerName
 
 			// Set status. If we created it, it may already be there. If not, set it again

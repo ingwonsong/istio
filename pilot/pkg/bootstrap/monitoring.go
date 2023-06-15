@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"time"
 
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/stats/view" // nolint: depguard
 
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pkg/asm"

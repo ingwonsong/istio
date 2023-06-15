@@ -15,9 +15,9 @@
 package gcpmonitoring
 
 import (
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
+	"go.opencensus.io/stats"      // nolint: depguard
+	"go.opencensus.io/stats/view" // nolint: depguard
+	"go.opencensus.io/tag"        // nolint: depguard
 
 	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/log"

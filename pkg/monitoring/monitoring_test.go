@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/stats/view" // nolint: depguard
 
 	"istio.io/istio/pkg/monitoring"
 	"istio.io/istio/pkg/monitoring/monitortest"
