@@ -115,7 +115,7 @@ func TestLongRunning(t *testing.T) {
 			}).Start()
 
 			if url := os.Getenv("TEST_START_EVENT_URL"); url != "" {
-				client := &http.Client{Timeout: 3 * time.Hour}
+				client := &http.Client{Timeout: 6 * time.Hour}
 				log.Printf("firing test start event to %s", url)
 				resp, err := client.Get(url)
 				if err != nil {

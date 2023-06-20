@@ -70,7 +70,7 @@ const (
 	networkName                      = "prow-test-network"
 
 	statusCheckInterval = 30
-	statusCheckMaxRetry = 180
+	statusCheckMaxRetry = 360
 
 	adminHubCleanupScriptPath = "scripts/admin-membership-cleanup.sh"
 )
@@ -664,7 +664,7 @@ func platformName(cluster string) string {
 func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion string, rookeryRequestFile string) string {
 	var upgradeCommand string
 
-	if d.cfg.Cluster == types.GKEOnBareMetal {
+	if(d.cfg.Cluster == types.GKEOnBareMetal || d.cfg.Cluster == types.GKEOnPrem){
 		upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
 				"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
 				"--upgrade-target-platform-version %s --upgrade-resource-config %s",
