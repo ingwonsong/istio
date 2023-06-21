@@ -1,0 +1,50 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-aws-mcmn-1p
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 7200 # 2 hours
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-ci-aws-mcmn-1p-knest
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-aws-mcmn-1p-cluster1
+        spec:
+          provider: aws
+          distribution: gke-1p
+          provisionerArgs:
+            region: us-east-2
+            nodeCount: "3"
+            {{- if eq .Version "latest" }}
+            kubernetesVersion: 1.26.4-gke.2200
+            {{- else if .Version }}
+            kubernetesVersion: "{{ .Version }}"
+            {{- else }}
+            kubernetesVersion: 1.26.4-gke.2200
+            {{- end }}
+            username: asm-svc-acct
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-aws-mcmn-1p-cluster2
+        spec:
+          provider: aws
+          distribution: gke-1p
+          provisionerArgs:
+            region: us-east-2
+            nodeCount: "3"
+            {{- if eq .Version "latest" }}
+            kubernetesVersion: 1.26.4-gke.2200
+            {{- else if .Version }}
+            kubernetesVersion: "{{ .Version }}"
+            {{- else }}
+            kubernetesVersion: 1.26.4-gke.2200
+            {{- end }}
+            username: asm-svc-acct

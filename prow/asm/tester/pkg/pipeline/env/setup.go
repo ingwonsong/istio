@@ -659,15 +659,18 @@ func fixAPM(settings *resource.Settings) error {
 // 2. Configure cluster proxy.
 func fixAWS(settings *resource.Settings) error {
 	if settings.UseOnePlatform {
-		if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
-			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
-			clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
-			scriptRelPath:        ".deployer/tunnel.sh",
-			regexMatcher:         `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
-			sshKeyRelPath:        ".deployer/id_rsa",
-			kubeconfig:           settings.Kubeconfig,
-		}); err != nil {
-			return err
+		configs := filepath.SplitList(settings.Kubeconfig)
+		for _, config := range configs {
+			if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+				// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
+				clusterArtifactsPath: filepath.Dir(config),
+				scriptRelPath:        ".deployer/tunnel.sh",
+				regexMatcher:         `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
+				sshKeyRelPath:        ".deployer/id_rsa",
+				kubeconfig:           config,
+			}); err != nil {
+				return err
+			}
 		}
 	} else {
 		err := filterKubeconfigFiles(settings, func(name string) bool {
