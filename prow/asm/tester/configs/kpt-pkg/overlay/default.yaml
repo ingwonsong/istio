@@ -2,9 +2,9 @@ apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 spec:
   values:
-    #pilot:
-    #  env:
-    #    PILOT_ENABLED_SERVICE_APIS: true
+    pilot:
+      env:
+        PILOT_ENABLE_ALPHA_GATEWAY_API: "true" # enable alpha APIs in the Kubernetes gateway-api
     telemetry:
       v2:
         prometheus:
