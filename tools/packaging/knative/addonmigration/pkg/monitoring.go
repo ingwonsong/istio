@@ -22,7 +22,7 @@ import (
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/stats/view" // nolint: depguard
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

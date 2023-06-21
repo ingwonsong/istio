@@ -25,7 +25,7 @@ import (
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 	"github.com/prometheus/client_golang/prometheus"
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/stats/view" // nolint: depguard
 	"google.golang.org/api/option"
 
 	"istio.io/istio/pilot/pkg/security/model"

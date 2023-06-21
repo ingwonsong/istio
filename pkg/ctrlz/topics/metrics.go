@@ -22,7 +22,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/prom2json"
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/stats/view" // nolint: depguard
 
 	"istio.io/istio/pkg/ctrlz/fw"
 	"istio.io/istio/pkg/ctrlz/topics/assets"

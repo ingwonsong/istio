@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
+	"go.opencensus.io/stats/view" // nolint: depguard
+	"go.opencensus.io/tag"        // nolint: depguard
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	gm "istio.io/istio/pilot/pkg/gcpmonitoring"

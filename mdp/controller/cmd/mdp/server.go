@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/stats/view" // nolint: depguard
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"

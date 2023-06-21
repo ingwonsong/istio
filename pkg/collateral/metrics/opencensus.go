@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/stats/view" // nolint: depguard
 )
 
 // OpenCensusRegistry should only be used to collected exported metrics for

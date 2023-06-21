@@ -21,9 +21,9 @@ import (
 	"sync"
 	"time"
 
-	"go.opencensus.io/metric/metricdata"
-	"go.opencensus.io/metric/metricexport"
-	"go.opencensus.io/stats/view"
+	"go.opencensus.io/metric/metricdata"   // nolint: depguard
+	"go.opencensus.io/metric/metricexport" // nolint: depguard
+	"go.opencensus.io/stats/view"          // nolint: depguard
 
 	"istio.io/istio/pkg/maps"
 	"istio.io/istio/pkg/test"

@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"istio.io/istio/pilot/pkg/model"
-	"istio.io/istio/pkg/config"
+	"istio.io/istio/pilot/pkg/serviceregistry/kube"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/schema/kind"
@@ -81,7 +81,7 @@ func serviceToAddressInfo(s *workloadapi.Service) *model.AddressInfo {
 
 // name format: <cluster>/<group>/<kind>/<namespace>/<name></section-name>
 func (c *Controller) generatePodUID(p *v1.Pod) string {
-	return c.clusterID.String() + "//" + "v1/pod/" + p.Namespace + "/" + p.Name
+	return c.clusterID.String() + "//" + "Pod/" + p.Namespace + "/" + p.Name
 }
 
 // Lookup finds the list of AddressInfos for a given key.
@@ -289,10 +289,7 @@ func (c *Controller) constructService(svc *v1.Service) *model.ServiceInfo {
 		Service: &workloadapi.Service{
 			Name:      svc.Name,
 			Namespace: svc.Namespace,
-			Hostname: string(model.ResolveShortnameToFQDN(svc.Name, config.Meta{
-				Namespace: svc.Namespace,
-				Domain:    spiffe.GetTrustDomain(),
-			})),
+			Hostname:  string(kube.ServiceHostname(svc.Name, svc.Namespace, c.opts.DomainSuffix)),
 			Addresses: addrs,
 			Ports:     ports,
 		},
@@ -466,7 +463,7 @@ func (a *AmbientIndex) handlePod(oldObj, newObj any, isDelete bool, c *Controlle
 	for _, networkAddr := range networkAddressFromWorkload(wl) {
 		a.byPod[networkAddr] = wl
 	}
-	a.byUID[c.generatePodUID(p)] = wl
+	a.byUID[wl.Uid] = wl
 	if oldWl != nil {
 		// For updates, we will drop the VIPs and then add the new ones back. This could be optimized
 		for vip := range oldWl.VirtualIps {
