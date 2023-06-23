@@ -4,7 +4,7 @@ metadata:
  name: asm-ci-onprem-sc
  namespace: tailorbird-users
 spec:
- ttlSeconds: 25200 # 7 hours
+ ttlSeconds: 28800 # 8 hours
  knests:
  - apiVersion: sut.tailorbird.io/v1alpha1
    kind: Knest
