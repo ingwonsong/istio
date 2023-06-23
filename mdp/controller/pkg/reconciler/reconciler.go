@@ -137,6 +137,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		resultMetricLabel = metrics.Success
 		return result, nil
 	}
+	rateLogger.Infof("%d pods in revision %s", total, dpc.Spec.Revision)
 	var err error
 	cpVersion, err = getControlPlaneExpectedVersion(ctx, n.Client, dpc.Spec.Revision)
 	if err != nil {
@@ -155,6 +156,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		return result, fmt.Errorf("unable to determine control plane injection version for revision %s, "+
 			"cannot reconcile: %v", dpc.Spec.Revision, err)
 	}
+	rateLogger.Infof("MCP is injecting version %s", cpVersion)
 	if dpc.Spec.ProxyVersion == "" || !expectedProxyVersion(dpc.Spec.ProxyVersion, cpVersion) {
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.VersionError
@@ -174,7 +176,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	}
 	targetPct := float32(dpc.Spec.ProxyTargetBasisPoints*100) / totalBasisPoints
 	newVersion := dpc.Spec.ProxyVersion
-	rateLogger.Infof("target: %v, version: %s", targetPct, newVersion)
+	rateLogger.Infof("target version: %s, percent: %v", newVersion, targetPct)
 
 	bptsFraction := float32(dpc.Spec.ProxyTargetBasisPoints) / totalBasisPoints
 	desired := int(math.Ceil(float64(float32(total) * bptsFraction)))
@@ -221,6 +223,7 @@ func expectedProxyVersion(mdpProxyVersion, injectedVersion string) bool {
 }
 
 func (n *NewReconciler) stopUpdateWorkerForDPR(dprNsName types.NamespacedName) {
+	rateLogger.Info("Stopping update worker")
 	if worker, ok := n.updateworkers[dprNsName]; ok {
 		worker.Stop()
 		delete(n.updateworkers, dprNsName)
@@ -267,6 +270,7 @@ func (n *NewReconciler) getOrMakeUpdater(ctx context.Context, dprNsName types.Na
 		u.SetRate(limit, 1)
 		return u
 	}
+	log.Info("Starting update worker.")
 	u := upgraderBuilder(n.Clientset)
 	result := workerBuilder(rev, version, limit, 1, u, n.ReadPodCache, n.Client, n.eventRecorder)
 	result.Start(ctx)

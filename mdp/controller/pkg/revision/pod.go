@@ -75,6 +75,9 @@ func (p *podEventHandler) Create(ctx context.Context, event event.CreateEvent, q
 	if rev == "" {
 		return
 	}
+	pod := event.Object.(*v1.Pod)
+	ver, _ := util.ProxyVersion(pod)
+	log.Infof("Pod %s created with revision %s, version %s", pod.Name, pod.Labels[name.IstioRevisionLabel], ver)
 	p.enqueueForRev(ctx, rev, q)
 }
 
@@ -103,6 +106,7 @@ func (p *podEventHandler) Update(ctx context.Context, event event.UpdateEvent, q
 	if oldver == newver && oldPod.Labels[name.IstioRevisionLabel] == newPod.Labels[name.IstioRevisionLabel] {
 		return
 	}
+	log.Infof("Pod %s updated to revision %s, version %s", oldPod.Name, newPod.Labels[name.IstioRevisionLabel], newver)
 	oldrev := p.podCache.RemovePod(ctx, event.ObjectOld)
 	p.enqueueForRev(ctx, oldrev, q)
 	newrev := p.podCache.AddPod(ctx, event.ObjectNew)
