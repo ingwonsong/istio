@@ -36,8 +36,8 @@ type CPRHandler struct {
 
 var mdpEnabledByDefaultMap = map[v1alpha1.ReleaseChannel]*bool{
 	v1alpha1.ChannelRapid:   boolPtr(true),
-	v1alpha1.ChannelRegular: boolPtr(false),
-	v1alpha1.ChannelStable:  boolPtr(false),
+	v1alpha1.ChannelRegular: boolPtr(true),
+	v1alpha1.ChannelStable:  boolPtr(true),
 }
 
 // NewCPRHandler returns an event handler designed to handle only events for
