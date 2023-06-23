@@ -590,6 +590,8 @@ func (s *Server) initServers(args *PilotArgs) {
 		MaxConcurrentStreams: uint32(features.MaxConcurrentStreams),
 	}
 	multiplexHandler := h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Inject the MCP specific response header.
+		mcpInjectResponseHeaders(w)
 		// If we detect gRPC, serve using grpcServer
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("content-type"), "application/grpc") {
 			s.grpcServer.ServeHTTP(w, r)

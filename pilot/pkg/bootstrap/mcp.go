@@ -14,10 +14,18 @@
 
 package bootstrap
 
-import "istio.io/istio/pkg/kube"
+import (
+	"net/http"
+
+	"istio.io/istio/pkg/kube"
+)
 
 func SetKubeClient(c kube.Client) func(*Server) {
 	return func(server *Server) {
 		server.kubeClient = c
 	}
+}
+
+func mcpInjectResponseHeaders(w http.ResponseWriter) {
+	w.Header().Set("x-internal-mcp-backend", "istiod")
 }
