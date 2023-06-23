@@ -37,6 +37,7 @@ import (
 	"istio.io/istio/mdp/controller/pkg/proxyupdater"
 	"istio.io/istio/mdp/controller/pkg/revision"
 	"istio.io/istio/mdp/controller/pkg/status"
+	"istio.io/istio/mdp/controller/pkg/util/ratelog"
 	"istio.io/istio/pkg/log"
 )
 
@@ -67,6 +68,8 @@ var (
 	workerBuilder   = proxyupdater.NewWorker
 	upgraderBuilder = proxyupdater.NewEvictorUpgrader
 )
+
+var rateLogger = ratelog.New(1*time.Hour, nil)
 
 const (
 	totalBasisPoints = 10000
@@ -126,7 +129,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	versions, total := n.ReadPodCache.GetProxyVersionCount(dpc.Spec.Revision)
 	metrics.ReportProxies(versions, dpc.Spec.Revision)
 	if total < 1 {
-		log.Infof("no pods in revision %s, nothing to upgrade", dpc.Spec.Revision)
+		rateLogger.Infof("no pods in revision %s, nothing to upgrade", dpc.Spec.Revision)
 		dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
 			0, n.metricsRecord)
 		n.statusWorker.EnqueueStatus(dpc)
@@ -171,7 +174,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	}
 	targetPct := float32(dpc.Spec.ProxyTargetBasisPoints*100) / totalBasisPoints
 	newVersion := dpc.Spec.ProxyVersion
-	log.Infof("target: %v, version: %s", targetPct, newVersion)
+	rateLogger.Infof("target: %v, version: %s", targetPct, newVersion)
 
 	bptsFraction := float32(dpc.Spec.ProxyTargetBasisPoints) / totalBasisPoints
 	desired := int(math.Ceil(float64(float32(total) * bptsFraction)))
@@ -241,7 +244,7 @@ func rateLimitForRollout(dpc *v1alpha1.DataPlaneControl, podCount int) rate.Limi
 // maxTimeToReconcile computes the upgrade duration. If InstanceUpgradeDurationHours is set in DPC and unexpired,
 // we will use that. Otherwise we will use the default global variable.
 func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl) (maxTimeToReconcile int64) {
-	defer log.Infof("using %d hours as max time to reconcile.", maxTimeToReconcile)
+	defer rateLogger.Infof("using %d hours as max time to reconcile.", maxTimeToReconcile)
 	if dpc.Spec.InstanceUpgradeDurationHours > 0 {
 		upgradeDurationValidUntil, err := time.Parse(time.RFC3339, dpc.Spec.UpgradeDurationValidUntil)
 		if err != nil {
