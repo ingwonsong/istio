@@ -679,17 +679,17 @@ tests:
         - TestIngress/from_primary.*/http
         buganizerID: 281070319
       - names:
-          - TestReachability/global_no_peer_authn
-          - TestReachability/mtls_permissive
-          - TestReachability/global_mtls_strict
-          - TestReachability/mtls_strict/tcp/a.*
-          - TestReachability/mtls_strict/grpc/a.*
-          - TestReachability/mtls_port_override
-          - TestReachability/migration_no_tls/http/vistio/a/to_migration
-          - TestReachability/migration_no_tls/http/vlegacy/a/to_migration
-          - TestReachability/migration_tls_mutual/http/vistio/a/to_migration
-          - TestReachability/global_automtls_strict
-          - TestReachability/global_automtls_disable
+        - TestReachability/global_no_peer_authn
+        - TestReachability/mtls_permissive
+        - TestReachability/global_mtls_strict
+        - TestReachability/mtls_strict/tcp/a.*
+        - TestReachability/mtls_strict/grpc/a.*
+        - TestReachability/mtls_port_override
+        - TestReachability/migration_no_tls/http/vistio/a/to_migration
+        - TestReachability/migration_no_tls/http/vlegacy/a/to_migration
+        - TestReachability/migration_tls_mutual/http/vistio/a/to_migration
+        - TestReachability/global_automtls_strict
+        - TestReachability/global_automtls_disable
         buganizerID: 281072503
 
       # telemetry/ tests

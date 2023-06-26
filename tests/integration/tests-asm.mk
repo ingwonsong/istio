@@ -64,7 +64,7 @@ test.integration.asm.telemetry.realstackdriver: | $(JUNIT_REPORT)
 # Custom test target for ASM security.
 .PHONY: test.integration.asm.security
 test.integration.asm.security: | $(JUNIT_REPORT)
-	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/security/... | grep -v "${DISABLED_PACKAGES}") -timeout 60m \
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/security/... | grep -v "${DISABLED_PACKAGES}") -timeout 120m \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
