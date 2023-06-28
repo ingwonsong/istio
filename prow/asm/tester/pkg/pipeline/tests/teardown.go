@@ -15,8 +15,10 @@
 package tests
 
 import (
+	"encoding/json"
 	"log"
 	"os"
+	"strings"
 
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 	"istio.io/istio/prow/asm/tester/pkg/tests/caproxy"
@@ -27,6 +29,8 @@ import (
 
 func Teardown(settings *resource.Settings) error {
 	log.Println("🎬 start tearing down the tests...")
+
+	updateMetadataJson(settings)
 
 	if settings.ControlPlane == resource.Unmanaged && settings.FeaturesToTest.Has(string(resource.UserAuth)) {
 		return userauth.Teardown(settings)
@@ -53,4 +57,54 @@ func Teardown(settings *resource.Settings) error {
 	}
 
 	return nil
+}
+
+func updateMetadataJson(settings *resource.Settings) {
+	logDirSplit := strings.Split(settings.Kubeconfig, ".kubetest2-tailorbird")
+	var logDir string
+	if len(logDirSplit) > 0 {
+		logDir = logDirSplit[0]
+	} else {
+		log.Printf("unable to find log Dir from kubeconfig path : %v", settings.Kubeconfig)
+		return
+	}
+	metadataFilePath := logDir + "metadata.json"
+
+	metadata, err := unmarshalJsonFromFile(metadataFilePath)
+	if err != nil {
+		log.Printf("unable to read metadata file %v : %v", metadataFilePath, err)
+		return
+	}
+	metadataArgsFilePath := os.TempDir() + string(os.PathSeparator) + "metadata_args.json"
+	metadataArgs, err := unmarshalJsonFromFile(metadataArgsFilePath)
+	if err != nil {
+		log.Printf("unable to read metadata_args file to export %v : %v", metadataArgsFilePath, err)
+		return
+	}
+	for k, v := range metadataArgs {
+		metadata[k] = v
+	}
+	jsonStr, err := json.Marshal(metadata)
+	if err != nil {
+		log.Printf("unable to marshal exported metadata map %v : %v", metadata, err)
+		return
+	}
+	err = os.WriteFile(metadataFilePath, jsonStr, os.ModePerm)
+	if err != nil {
+		log.Printf("unable to write to metadata file %v : %v", metadataFilePath, err)
+		return
+	}
+}
+
+func unmarshalJsonFromFile(filepath string) (map[string]interface{}, error) {
+	var metadata map[string]interface{}
+	byteValue, errRead := os.ReadFile(filepath)
+	if errRead != nil {
+		return metadata, errRead
+	}
+	errUnmarshal := json.Unmarshal(byteValue, &metadata)
+	if errUnmarshal != nil {
+		return metadata, errUnmarshal
+	}
+	return metadata, nil
 }

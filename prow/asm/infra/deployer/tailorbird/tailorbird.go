@@ -15,6 +15,8 @@
 package tailorbird
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -58,8 +60,8 @@ const (
 	onPremGkeConnectSA  = "tb-vsphere-gke-connect@asm-ci-mc.iam.gserviceaccount.com"
 	// GKE
 	retryableErrorPatterns = ".*does not have enough resources available to fulfill.*" +
-			",.*only \\\\d+ nodes out of \\\\d+ have registered; this is likely due to Nodes failing to start correctly.*" +
-			",.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*"
+		",.*only \\\\d+ nodes out of \\\\d+ have registered; this is likely due to Nodes failing to start correctly.*" +
+		",.*All cluster resources were brought up.+ but: component .+ from endpoint .+ is unhealthy.*"
 
 	commonBoskosResource             = "gke-project"
 	vpcSCBoskosResource              = "vpc-sc-gke-project"
@@ -141,6 +143,51 @@ func (d *Instance) Name() string {
 	return name
 }
 
+func getPlatformVersion(rookeryfile string) string {
+	f, e := os.Open(rookeryfile)
+	if e != nil {
+		log.Printf("unable to open rookery file %v: $v", rookeryfile, e)
+		return ""
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "Platform Version:") ||
+			strings.Contains(line, "kubernetesVersion:") ||
+			strings.Contains(line, "bmctlVersion:") ||
+			strings.Contains(line, "gkectlVersion:") ||
+			strings.Contains(line, "clusterVersion:") {
+			return strings.Trim(strings.Split(line, ":")[1], " \"")
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("unable to read rookery file %v : %v", rookeryfile, err)
+	}
+	return ""
+}
+
+// update metadata.json file
+func (d *Instance) createMetadataFile() {
+	rookeryFile, err := d.rookeryFile()
+	if err != nil {
+		log.Printf("unable to get rookery file %v", err)
+		return
+	}
+	plt_version := getPlatformVersion(rookeryFile)
+	m := map[string]string{"topology": string(d.cfg.Topology), "platform_version": plt_version}
+	jsonStr, err := json.Marshal(m)
+	if err != nil {
+		log.Printf("cannot create metadata json file")
+	} else {
+		filename := os.TempDir() + string(os.PathSeparator) + "metadata_args.json"
+		e1 := os.WriteFile(filename, jsonStr, os.ModePerm)
+		if e1 != nil {
+			log.Printf("unable to write metadata json file")
+		}
+	}
+}
+
 func (d *Instance) Run() error {
 	log.Println("Will run kubetest2 tailorbird deployer to create the clusters...")
 
@@ -148,7 +195,7 @@ func (d *Instance) Run() error {
 	// than 4-hours to avoid exceeding quota.
 	// See http://b/195998781#comment10
 	if string(d.cfg.Cluster) == string(types.GKEOnPrem) || string(d.cfg.Cluster) == string(types.HybridGKEAndEKS) || string(d.cfg.Cluster) == string(types.HybridGKEAndGKEOnBareMetal) ||
-			string(d.cfg.Cluster) == string(types.EKSOnAWS) || string(d.cfg.Cluster) == string(types.AKSOnAzure) {
+		string(d.cfg.Cluster) == string(types.EKSOnAWS) || string(d.cfg.Cluster) == string(types.AKSOnAzure) {
 		hubEnvs := []string{
 			"https://staging-gkehub.sandbox.googleapis.com/",
 			"https://gkehub.googleapis.com/",
@@ -178,6 +225,8 @@ func (d *Instance) Run() error {
 	}
 
 	flags = append(flags, d.cfg.GetWebServerFlags(lis)...)
+
+	d.createMetadataFile()
 
 	// Run the deployer
 	cmd := fmt.Sprintf("kubetest2 %s", strings.Join(flags, " "))
@@ -443,9 +492,9 @@ func (d *Instance) applyMultiProjectMultiClusterParameters(template *TemplatePar
 	}
 
 	template.SubnetworkRanges = "172.16.4.0/22 172.16.16.0/20 172.20.0.0/14," +
-			"10.0.4.0/22 10.0.32.0/20 10.4.0.0/14,173.16.4.0/22 173.16.16.0/20 173.20.0.0/14," +
-			"11.0.4.0/22 11.0.32.0/20 11.4.0.0/14,174.16.4.0/22 174.16.16.0/20 174.20.0.0/14," +
-			"12.0.4.0/22 12.0.32.0/20 12.4.0.0/14"
+		"10.0.4.0/22 10.0.32.0/20 10.4.0.0/14,173.16.4.0/22 173.16.16.0/20 173.20.0.0/14," +
+		"11.0.4.0/22 11.0.32.0/20 11.4.0.0/14,174.16.4.0/22 174.16.16.0/20 174.20.0.0/14," +
+		"12.0.4.0/22 12.0.32.0/20 12.4.0.0/14"
 }
 
 func (d *Instance) getGkeTopologyParameters(template *TemplateParameters) error {
@@ -635,7 +684,7 @@ func (d *Instance) tracRookeryPath() (string, error) {
 	f := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDir, genFolderName, rookeryFileName)
 	if _, err := os.Stat(f); err != nil {
 		return "", fmt.Errorf("tailorbird rookery config file %q does not exist in TRAC, "+
-				"please follow go/trac-guide to generate the config file correctly", f)
+			"please follow go/trac-guide to generate the config file correctly", f)
 	}
 	return f, nil
 }
@@ -664,17 +713,17 @@ func platformName(cluster string) string {
 func (d *Instance) generateUpgradeCommand(clusterName string, targetVersion string, rookeryRequestFile string) string {
 	var upgradeCommand string
 
-	if(d.cfg.Cluster == types.GKEOnBareMetal || d.cfg.Cluster == types.GKEOnPrem){
+	if d.cfg.Cluster == types.GKEOnBareMetal {
 		upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
-				"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
-				"--upgrade-target-platform-version %s --upgrade-resource-config %s",
+			"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
+			"--upgrade-target-platform-version %s --upgrade-resource-config %s",
 			clusterName, targetVersion, rookeryRequestFile)
 	}
 
 	if d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.GKEOnAzure || d.cfg.Cluster == types.GKEOnAWS || d.cfg.Cluster == types.AKSOnAzure || d.cfg.Cluster == types.EKSOnAWS {
 		upgradeCommand = fmt.Sprintf("kubetest2-tailorbird --up "+
-				"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
-				"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
+			"--verbose --upgrade-cluster --upgrade-cluster-name %s "+
+			"--upgrade-target-k8s-version %s --upgrade-resource-config %s",
 			clusterName, targetVersion, rookeryRequestFile)
 	}
 
@@ -790,8 +839,8 @@ func (d *Instance) getUpgradeStatusUsingKubetest(clusterName string) (types.Type
 	workdir := filepath.Dir(d.cfg.RookeryRequestFile)
 	upgradeConfigFile := filepath.Join(workdir, fmt.Sprintf("%s-upgrade.yaml", clusterName))
 	upgradeStatusCmd := fmt.Sprintf("kubetest2-tailorbird --up "+
-			"--verbose --upgrade-cluster --get-upgrade-status "+
-			"--upgrade-cluster-name %s --upgrade-resource-config %s --tbconfig %s",
+		"--verbose --upgrade-cluster --get-upgrade-status "+
+		"--upgrade-cluster-name %s --upgrade-resource-config %s --tbconfig %s",
 		clusterName, d.cfg.RookeryRequestFile, upgradeConfigFile)
 
 	output, err := exec.CombinedOutput(upgradeStatusCmd)
@@ -814,7 +863,7 @@ func (d *Instance) getUpgradeStatusUsingKubectl(clusterName string) (types.Type,
 	workdir := filepath.Dir(d.cfg.RookeryRequestFile)
 	upgradeConfigFile := filepath.Join(workdir, fmt.Sprintf("%s-upgrade.yaml", clusterName))
 	upgradeStatusCmd := fmt.Sprintf("kubectl get -f %s --no-headers "+
-			"-o=custom-columns=STATE:.status.clusterVersionUpdateState",
+		"-o=custom-columns=STATE:.status.clusterVersionUpdateState",
 		upgradeConfigFile)
 
 	upgradeStatus, err := exec.CombinedOutput(upgradeStatusCmd)
