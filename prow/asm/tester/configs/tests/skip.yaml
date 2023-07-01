@@ -465,6 +465,9 @@ tests:
       - names:
         - TestTraffic/jwt-claim-route
         reason: Temporary disable until mesh agent upgraded to 1.11.2
+      - names:
+        - TestGatewayConformance
+        buganizerID: 289492735
 
   # Unmanaged CP + EKS (don't confuse with regular AWS)
   - selectors:
@@ -541,6 +544,9 @@ tests:
         - TestXdsVersion
         - TestXdsProxyStatus
         buganizerID: 187722953
+      - names:
+        - TestGatewayConformance
+        buganizerID: 289492735
 
   # Unmanaged CP + Openshift
   - selectors:
@@ -675,6 +681,9 @@ tests:
       - names:
           - TestGateway/managed
         buganizerID: 280813509
+      - names:
+          - TestGateway/unmanaged/primary.*/tcp
+        buganizerID: 288388785
       - names:
         - TestIngress/from_primary.*/http
         buganizerID: 281070319
