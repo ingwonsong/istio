@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/textproto"
 	"os"
 	"path"
 	"strings"
@@ -32,7 +31,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -607,7 +605,6 @@ func (s *Server) initServers(args *PilotArgs) {
 		ReadTimeout: 30 * time.Second,
 	}
 	if multiplexGRPC {
-		multiplexHandler = denyH2cUpdate(multiplexHandler)
 		// To allow the gRPC handler to make per-request decision,
 		// use ReadHeaderTimeout instead of ReadTimeout.
 		s.httpServer.ReadTimeout = 0
@@ -1399,20 +1396,4 @@ func serviceUpdateNeedsPush(prev, curr *model.Service) bool {
 		return true
 	}
 	return !prev.Equals(curr)
-}
-
-func denyH2cUpdate(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isH2CUpgrade(r.Header) {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			_, _ = w.Write([]byte("h2c upgrade not allowed"))
-			return
-		}
-		h.ServeHTTP(w, r)
-	})
-}
-
-func isH2CUpgrade(h http.Header) bool {
-	return httpguts.HeaderValuesContainsToken(h[textproto.CanonicalMIMEHeaderKey("Upgrade")], "h2c") &&
-		httpguts.HeaderValuesContainsToken(h[textproto.CanonicalMIMEHeaderKey("Connection")], "HTTP2-Settings")
 }
