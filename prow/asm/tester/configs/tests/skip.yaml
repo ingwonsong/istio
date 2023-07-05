@@ -10,7 +10,6 @@ tests:
       - TestMetricDefinitions
       - TestStackdriverHTTPAuditLogging
       - TestStackdriverAuthzDryRun
-      - TestStackdriverMonitoring
       - TestProxyTracingOpenCensusMeshConfig
       - TestProxyTracingOpenTelemetryProvider
       buganizerID: b/279540983
