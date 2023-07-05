@@ -34,6 +34,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo/match"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/kube"
 )
 
 const (
@@ -106,6 +107,11 @@ func TestReachability(t *testing.T) {
 					IPFamilies:     "IPv4, IPv6",
 					IPFamilyPolicy: "RequireDualStack",
 				}).BuildOrFail(t)
+			}
+
+			_, err := kube.WaitUntilPodsAreReady(kube.NewPodMustFetch(t.Clusters().Default(), migrationApp.NamespaceName()))
+			if err != nil {
+				t.Fatalf("Pods not ready : %v", err)
 			}
 
 			// Add the migration app to the full list of services.
