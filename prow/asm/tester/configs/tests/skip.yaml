@@ -6,6 +6,9 @@ tests:
       - TestAccessLogsFilter
       reason: enabled waiting for oss sync
     - names:
+      - TestMtlsGateway_CRL
+      buganizerID: b/289977794
+    - names:
       - TestLocalRateLimitingServiceAccount
       - TestMetricDefinitions
       - TestStackdriverHTTPAuditLogging
