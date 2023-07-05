@@ -44,12 +44,12 @@ func TestInstallSuccess(t *testing.T) {
 				t.Fatalf("could not set managed annotation: %v", err)
 			}
 
-			cniPods, err := kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(cs, "kube-system", "k8s-app=istio-cni-node"))
+			mdpPods, err := kube.WaitUntilPodsAreReady(kube.NewSinglePodFetch(cs, "kube-system", "app=mdp-controller"))
 			if err != nil {
-				t.Fatalf("no cni pods became ready: %v", err)
+				t.Fatalf("no mdp controller pods became ready: %v", err)
 			}
 
-			for _, pod := range cniPods {
+			for _, pod := range mdpPods {
 				logs, err := cs.PodLogs(context.TODO(), pod.Name, pod.Namespace, "mdp-controller", false)
 				if err != nil {
 					t.Fatalf("could not find logs for mdp-controller: %v", err)
