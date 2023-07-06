@@ -296,8 +296,6 @@ func runAccessLogModeTests(t framework.TestContext, exceptClientLog, exceptServe
 
 			return nil
 		}, retry.MaxAttempts(3), retry.Delay(time.Second))
-
-		return nil
 	}, retry.Timeout(framework.TelemetryRetryTimeout))
 	if err != nil {
 		t.Fatalf("expected logs but got err: %v", err)
