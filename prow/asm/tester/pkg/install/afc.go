@@ -133,8 +133,12 @@ func registerOffGCPCluster(kubeconfig string, clusterType resource.ClusterType) 
 			return fmt.Errorf("error matching EKS OIDC: %s", string(dat))
 		}
 		url := fmt.Sprintf("https://oidc.eks.us-east-2.amazonaws.com/id/%s", res[1])
-		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register eks-%s --context=default --kubeconfig=%s --enable-workload-identity --public-issuer-url=%s --project=%s", strings.ToLower(res[1]), kubeconfig, url, CustomFleetProject)); err != nil {
+		memberName := fmt.Sprintf("eks-%s", strings.ToLower(res[1]))
+		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register %s --context=default --kubeconfig=%s --enable-workload-identity --public-issuer-url=%s --project=%s", memberName, kubeconfig, url, CustomFleetProject)); err != nil {
 			return fmt.Errorf("error registering cluster: %w", err)
+		}
+		if err := logMembershipUniqueId(CustomFleetProject, memberName); err != nil {
+			return fmt.Errorf("failed to get membership uniqueId")
 		}
 	} else if clusterType == resource.AKS {
 		r, _ := regexp.Compile("current-context: ([a-z0-9]+-admin)")
@@ -142,8 +146,12 @@ func registerOffGCPCluster(kubeconfig string, clusterType resource.ClusterType) 
 		if len(res) != 2 {
 			return fmt.Errorf("error matching AKS context: %s", string(dat))
 		}
-		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register aks-%s --context=%s --kubeconfig=%s --enable-workload-identity --has-private-issuer --project=%s", strings.ToLower(res[1]), res[1], kubeconfig, CustomFleetProject)); err != nil {
+		memberName := fmt.Sprintf("aks-%s", strings.ToLower(res[1]))
+		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships register %s --context=%s --kubeconfig=%s --enable-workload-identity --has-private-issuer --project=%s", memberName, res[1], kubeconfig, CustomFleetProject)); err != nil {
 			return fmt.Errorf("error registering cluster: %w", err)
+		}
+		if err := logMembershipUniqueId(CustomFleetProject, memberName); err != nil {
+			return fmt.Errorf("failed to get membership uniqueId")
 		}
 	}
 	return nil
@@ -182,14 +190,18 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 			cluster.Name, projectNumber, cluster.ProjectID, cluster.Location)); err != nil {
 			return fmt.Errorf("failed updating mesh label for cluster %s to fleet: %w", cluster.Name, err)
 		}
-		if err := exec.Run(fmt.Sprintf(`gcloud container hub memberships register membership-%s \
+		membershipName := fmt.Sprintf("membership-%s", cluster.Name)
+		if err := exec.Run(fmt.Sprintf(`gcloud container hub memberships register %s \
 		--gke-uri=%s --enable-workload-identity --project %s`,
-			cluster.Name, gkeURI(cluster), fleetProject)); err != nil {
+			membershipName, gkeURI(cluster), fleetProject)); err != nil {
 			return fmt.Errorf("failed registering cluster %s to fleet: %w", cluster.Name, err)
 		}
+		if err := logMembershipUniqueId(fleetProject, membershipName); err != nil {
+			return fmt.Errorf("failed to get membership uniqueId")
+		}
 		if err := exec.Run(fmt.Sprintf(`gcloud alpha container hub mesh update \
-		--management automatic --memberships membership-%s --project %s`,
-			cluster.Name, fleetProject)); err != nil {
+		--management automatic --memberships %s --project %s`,
+			membershipName, fleetProject)); err != nil {
 			return fmt.Errorf("failed enabling automatic ASM management for cluster %s: %w", cluster.Name, err)
 		}
 
@@ -204,7 +216,7 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 			if err := exec.Run(fmt.Sprintf("kubectl annotate controlplanerevision %s -n istio-system --context=%s %s=%s", cprList, context, imageAnnotationKey, cloudRunImage())); err != nil {
 				return fmt.Errorf("error annotating CPRs: %w", err)
 			}
-			// Skip the CRD installtion since we manually install the latest CRD.
+			// Skip the CRD installation since we manually install the latest CRD.
 			if err := exec.Run(fmt.Sprintf("kubectl label controlplanerevision %s -n istio-system --context=%s %s=%s", cprList, context, crdManagementSkippedKey, "true")); err != nil {
 				return fmt.Errorf("error annotating CPRs: %w", err)
 			}
@@ -640,4 +652,14 @@ func gkeURI(spec *kube.GKEClusterSpec) string {
 
 func cloudRunImage() string {
 	return fmt.Sprintf("%s/%s:%s", os.Getenv("HUB"), "cloudrun", os.Getenv("TAG"))
+}
+
+func logMembershipUniqueId(project, membershipName string) error {
+	format := "gcloud container fleet memberships describe %s --project %s --format='get(uniqueId)'"
+	uniqueId, err := exec.RunWithOutput(fmt.Sprintf(format, membershipName, project))
+	if err != nil {
+		return err
+	}
+	log.Printf("Registered with membership uniqueId: %s", uniqueId)
+	return nil
 }
