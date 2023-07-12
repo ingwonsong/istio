@@ -222,6 +222,8 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 			}
 			return nil
 		}, retry.Timeout(time.Second*600), retry.Delay(time.Second*5)); err != nil {
+			log.Print("Last fleet feature status:")
+			exec.Run(fmt.Sprintf("gcloud container fleet mesh describe --project %s", &fleetProject))
 			return fmt.Errorf("error waiting for controlplanerevision creation: %w", err)
 		}
 	}
