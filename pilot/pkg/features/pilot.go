@@ -358,7 +358,7 @@ var (
 		"If this is set to true, gateway-api resources will automatically provision in cluster deployment, services, etc").Get()
 
 	ClusterName = env.Register("CLUSTER_ID", "Kubernetes",
-		"Defines the cluster and service registry that this Istiod instance is belongs to").Get()
+		"Defines the cluster and service registry that this Istiod instance belongs to").Get()
 
 	ExternalIstiod = env.Register("EXTERNAL_ISTIOD", false,
 		"If this is set to true, one Istiod will control remote clusters including CA.").Get()
@@ -654,7 +654,7 @@ var (
 	).Get()
 
 	EnableDualStack = env.RegisterBoolVar("ISTIO_DUAL_STACK", false,
-		"If enabled, pilot will configure clusters/listeners/routes for dual stack capability.").Get()
+		"If true, Istio will enable the Dual Stack feature.").Get()
 
 	EnableOptimizedServicePush = env.RegisterBoolVar("ISTIO_ENABLE_OPTIMIZED_SERVICE_PUSH", true,
 		"If enabled, Istiod will not push changes on arbitraty annotation change.").Get()

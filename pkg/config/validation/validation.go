@@ -630,8 +630,9 @@ func validateTLSOptions(tls *networking.ServerTLSSettings) (v Validation) {
 		}
 	}
 
-	if (tls.Mode == networking.ServerTLSSettings_SIMPLE || tls.Mode == networking.ServerTLSSettings_MUTUAL) && tls.CredentialName != "" {
-		// If tls mode is SIMPLE or MUTUAL, and CredentialName is specified, credentials are fetched
+	if (tls.Mode == networking.ServerTLSSettings_SIMPLE || tls.Mode == networking.ServerTLSSettings_MUTUAL ||
+		tls.Mode == networking.ServerTLSSettings_OPTIONAL_MUTUAL) && tls.CredentialName != "" {
+		// If tls mode is SIMPLE or MUTUAL/OPTIONL_MUTUAL, and CredentialName is specified, credentials are fetched
 		// remotely. ServerCertificate and CaCertificates fields are not required.
 		return
 	}
@@ -642,7 +643,7 @@ func validateTLSOptions(tls *networking.ServerTLSSettings) (v Validation) {
 		if tls.PrivateKey == "" {
 			v = appendValidation(v, fmt.Errorf("SIMPLE TLS requires a private key"))
 		}
-	} else if tls.Mode == networking.ServerTLSSettings_MUTUAL {
+	} else if tls.Mode == networking.ServerTLSSettings_MUTUAL || tls.Mode == networking.ServerTLSSettings_OPTIONAL_MUTUAL {
 		if tls.ServerCertificate == "" {
 			v = appendValidation(v, fmt.Errorf("MUTUAL TLS requires a server certificate"))
 		}
@@ -1133,7 +1134,7 @@ var ValidateSidecar = registerValidateFunc("ValidateSidecar",
 			return nil, fmt.Errorf("sidecar: empty configuration provided")
 		}
 
-		portMap := make(map[uint32]struct{})
+		portMap := sets.Set[uint32]{}
 		for _, i := range rule.Ingress {
 			if i == nil {
 				errs = appendValidation(errs, fmt.Errorf("sidecar: ingress may not be null"))
@@ -1147,10 +1148,10 @@ var ValidateSidecar = registerValidateFunc("ValidateSidecar",
 			bind := i.GetBind()
 			errs = appendValidation(errs, validateSidecarIngressPortAndBind(i.Port, bind))
 
-			if _, found := portMap[i.Port.Number]; found {
+			if portMap.Contains(i.Port.Number) {
 				errs = appendValidation(errs, fmt.Errorf("sidecar: ports on IP bound listeners must be unique"))
 			}
-			portMap[i.Port.Number] = struct{}{}
+			portMap.Insert(i.Port.Number)
 
 			if len(i.DefaultEndpoint) != 0 {
 				if strings.HasPrefix(i.DefaultEndpoint, UnixAddressPrefix) {
@@ -1195,8 +1196,8 @@ var ValidateSidecar = registerValidateFunc("ValidateSidecar",
 			}
 		}
 
-		portMap = make(map[uint32]struct{})
-		udsMap := make(map[string]struct{})
+		portMap = sets.Set[uint32]{}
+		udsMap := sets.String{}
 		catchAllEgressListenerFound := false
 		for index, egress := range rule.Egress {
 			if egress == nil {
@@ -1226,10 +1227,10 @@ var ValidateSidecar = registerValidateFunc("ValidateSidecar",
 					}
 					udsMap[bind] = struct{}{}
 				} else {
-					if _, found := portMap[egress.Port.Number]; found {
+					if portMap.Contains(egress.Port.Number) {
 						errs = appendValidation(errs, fmt.Errorf("sidecar: ports on IP bound listeners must be unique"))
 					}
-					portMap[egress.Port.Number] = struct{}{}
+					portMap.Insert(egress.Port.Number)
 				}
 			}
 
@@ -3210,21 +3211,25 @@ var ValidateWorkloadEntry = registerValidateFunc("ValidateWorkloadEntry",
 	})
 
 func validateWorkloadEntry(we *networking.WorkloadEntry) (Warning, error) {
+	errs := Validation{}
+
 	addr := we.Address
 	if addr == "" {
-		return nil, fmt.Errorf("address must be set")
+		if we.Network == "" {
+			return nil, fmt.Errorf("address must be set")
+		}
+		errs = appendWarningf(errs, "address is unset with network %q", we.Network)
 	}
 
-	// Since we don't know if its meant to be DNS or STATIC type without association with a ServiceEntry,
+	// Since we don't know if it's meant to be DNS or STATIC type without association with a ServiceEntry,
 	// check based on content and try validations.
 	// First check if it is a Unix endpoint - this will be specified for STATIC.
-	errs := Validation{}
 	if strings.HasPrefix(addr, UnixAddressPrefix) {
 		errs = appendValidation(errs, ValidateUnixAddress(strings.TrimPrefix(addr, UnixAddressPrefix)))
 		if len(we.Ports) != 0 {
 			errs = appendValidation(errs, fmt.Errorf("unix endpoint %s must not include ports", addr))
 		}
-	} else if !netutil.IsValidIPAddress(addr) { // This could be IP (in STATIC resolution) or DNS host name (for DNS).
+	} else if addr != "" && !netutil.IsValidIPAddress(addr) { // This could be IP (in STATIC resolution) or DNS host name (for DNS).
 		if err := ValidateFQDN(addr); err != nil { // Otherwise could be an FQDN
 			errs = appendValidation(errs, fmt.Errorf("endpoint address %q is not a valid FQDN or an IP address", addr))
 		}

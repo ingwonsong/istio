@@ -43,7 +43,6 @@ import (
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth/gcp" // Import client auth libraries TODO(b/265068117)
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
-	"istio.io/istio/pilot/pkg/xds"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/cmd"
@@ -239,7 +238,7 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
   "jwks_uri":"https://www.googleapis.com/service_accounts/v1/metadata/jwk/cloud-services-platform-thetis@system.gserviceaccount.com"
 }`, mcpEnv, p.TrustDomain)
 	}
-	xds.AuthPlaintext = true
+	security.AuthPlaintext = true
 
 	// Old script allowed detecting Mesh CA vs Citadel; since we don't plan to do that any longer we only do mesh ca
 	features.EnableCAServer = false
@@ -588,7 +587,12 @@ func configureMCPLogs(p MCPParameters, options *log.Options) error {
 	gcpmonitoring.SetMeshUID(fmt.Sprintf("proj-%s", p.ProjectNumber))
 
 	// Setup variables required for logging
-	platform.GCPMetadata = fmt.Sprintf("%s|%s|%s|%s", p.Project, p.ProjectNumber, p.Cluster, p.Zone)
+	platform.GCPStaticMetadata = map[string]string{
+		platform.GCPProject:       p.Project,
+		platform.GCPProjectNumber: p.ProjectNumber,
+		platform.GCPCluster:       p.Cluster,
+		platform.GCPLocation:      p.Zone,
+	}
 	gcpmonitoring.TeeLogsToStackdriver = true
 	gcpmonitoring.EnableSD = true
 	loggingOpts := gcpmonitoring.ASMLogOptions(options)

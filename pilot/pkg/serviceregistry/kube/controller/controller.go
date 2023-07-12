@@ -38,6 +38,7 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry/util/workloadinstances"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
+	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/mesh"
@@ -52,6 +53,7 @@ import (
 	"istio.io/istio/pkg/network"
 	"istio.io/istio/pkg/ptr"
 	"istio.io/istio/pkg/queue"
+	"istio.io/istio/pkg/slices"
 )
 
 const (
@@ -227,7 +229,7 @@ type Controller struct {
 
 	podsClient kclient.Client[*v1.Pod]
 
-	ambientIndex     *AmbientIndex
+	ambientIndex     AmbientIndex
 	configController model.ConfigStoreController
 	configCluster    bool
 }
@@ -250,6 +252,23 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 	}
 
 	c.namespaces = kclient.New[*v1.Namespace](kubeClient)
+
+	if features.EnableAmbientControllers {
+		registerHandlers[*v1.Namespace](
+			c,
+			c.namespaces,
+			"Namespaces",
+			func(old *v1.Namespace, cur *v1.Namespace, event model.Event) error {
+				c.handleSelectedNamespace(cur.Name)
+				return nil
+			},
+			func(old, cur *v1.Namespace) bool {
+				oldLabel := old.Labels[constants.DataplaneMode]
+				newLabel := cur.Labels[constants.DataplaneMode]
+				return oldLabel == newLabel
+			},
+		)
+	}
 	if c.opts.SystemNamespace != "" {
 		registerHandlers[*v1.Namespace](
 			c,
@@ -405,7 +424,7 @@ func (c *Controller) deleteService(svc *model.Service) {
 		c.NotifyGatewayHandlers()
 		// TODO trigger push via handler
 		// networks are different, we need to update all eds endpoints
-		c.opts.XDSUpdater.ConfigUpdate(&model.PushRequest{Full: true, Reason: []model.TriggerReason{model.NetworksTrigger}})
+		c.opts.XDSUpdater.ConfigUpdate(&model.PushRequest{Full: true, Reason: model.NewReasonStats(model.NetworksTrigger)})
 	}
 
 	shard := model.ShardKeyFromRegistry(c)
@@ -447,7 +466,7 @@ func (c *Controller) addOrUpdateService(curr *v1.Service, currConv *model.Servic
 	// as that full push is only triggered for the specific service.
 	if needsFullPush {
 		// networks are different, we need to update all eds endpoints
-		c.opts.XDSUpdater.ConfigUpdate(&model.PushRequest{Full: true, Reason: []model.TriggerReason{model.NetworksTrigger}})
+		c.opts.XDSUpdater.ConfigUpdate(&model.PushRequest{Full: true, Reason: model.NewReasonStats(model.NetworksTrigger)})
 	}
 
 	shard := model.ShardKeyFromRegistry(c)
@@ -509,7 +528,7 @@ func (c *Controller) onNodeEvent(_, node *v1.Node, event model.Event) error {
 	if updatedNeeded && c.updateServiceNodePortAddresses() {
 		c.opts.XDSUpdater.ConfigUpdate(&model.PushRequest{
 			Full:   true,
-			Reason: []model.TriggerReason{model.ServiceUpdate},
+			Reason: model.NewReasonStats(model.ServiceUpdate),
 		})
 	}
 	return nil
@@ -682,13 +701,9 @@ func (c *Controller) InstancesByPort(svc *model.Service, reqSvcPort int) []*mode
 	externalNameInstances := c.externalNameSvcInstanceMap[svc.Hostname]
 	c.RUnlock()
 	if externalNameInstances != nil {
-		inScopeInstances := make([]*model.ServiceInstance, 0)
-		for _, i := range externalNameInstances {
-			if i.Service.Attributes.Namespace == svc.Attributes.Namespace && i.ServicePort.Port == reqSvcPort {
-				inScopeInstances = append(inScopeInstances, i)
-			}
-		}
-		return inScopeInstances
+		return slices.Filter(externalNameInstances, func(i *model.ServiceInstance) bool {
+			return i.Service.Attributes.Namespace == svc.Attributes.Namespace && i.ServicePort.Port == reqSvcPort
+		})
 	}
 	return nil
 }
@@ -757,7 +772,7 @@ func serviceInstanceFromWorkloadInstance(svc *model.Service, servicePort *model.
 	targetPort serviceTargetPort, wi *model.WorkloadInstance,
 ) *model.ServiceInstance {
 	// create an instance with endpoint whose service port name matches
-	istioEndpoint := *wi.Endpoint
+	istioEndpoint := wi.Endpoint.ShallowCopy()
 
 	// by default, use the numbered targetPort
 	istioEndpoint.EndpointPort = uint32(targetPort.num)
@@ -777,7 +792,7 @@ func serviceInstanceFromWorkloadInstance(svc *model.Service, servicePort *model.
 	return &model.ServiceInstance{
 		Service:     svc,
 		ServicePort: servicePort,
-		Endpoint:    &istioEndpoint,
+		Endpoint:    istioEndpoint,
 	}
 }
 
