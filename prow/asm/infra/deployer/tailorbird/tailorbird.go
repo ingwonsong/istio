@@ -170,14 +170,10 @@ func getPlatformVersion(rookeryfile string) string {
 
 // update metadata.json file
 func (d *Instance) createMetadataFile() {
-	rookeryFile, err := d.rookeryFile()
+	rookeryFile := d.cfg.Rookery
 	artifactsPath := os.Getenv("ARTIFACTS")
 	if artifactsPath == "" {
 		log.Printf("unable to get artifacts path")
-		return
-	}
-	if err != nil {
-		log.Printf("unable to get rookery file %v", err)
 		return
 	}
 	plt_version := getPlatformVersion(rookeryFile)
