@@ -1474,6 +1474,36 @@ func TestValidateTlsOptions(t *testing.T) {
 			"client CA bundle", "",
 		},
 		{
+			"optional mutual no certs",
+			&networking.ServerTLSSettings{
+				Mode:              networking.ServerTLSSettings_OPTIONAL_MUTUAL,
+				ServerCertificate: "",
+				PrivateKey:        "",
+				CaCertificates:    "",
+			},
+			"server certificate", "",
+		},
+		{
+			"optional mutual no certs",
+			&networking.ServerTLSSettings{
+				Mode:              networking.ServerTLSSettings_OPTIONAL_MUTUAL,
+				ServerCertificate: "",
+				PrivateKey:        "",
+				CaCertificates:    "",
+			},
+			"private key", "",
+		},
+		{
+			"optional mutual no certs",
+			&networking.ServerTLSSettings{
+				Mode:              networking.ServerTLSSettings_OPTIONAL_MUTUAL,
+				ServerCertificate: "",
+				PrivateKey:        "",
+				CaCertificates:    "",
+			},
+			"client CA bundle", "",
+		},
+		{
 			"pass through sds no certs",
 			&networking.ServerTLSSettings{
 				Mode:              networking.ServerTLSSettings_PASSTHROUGH,
@@ -3396,6 +3426,12 @@ func TestValidateWorkloadEntry(t *testing.T) {
 			name:  "missing address",
 			in:    &networking.WorkloadEntry{},
 			valid: false,
+		},
+		{
+			name:    "missing address with network",
+			in:      &networking.WorkloadEntry{Network: "network-2"},
+			valid:   true,
+			warning: true,
 		},
 		{
 			name:  "valid unix endpoint",

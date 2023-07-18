@@ -55,9 +55,16 @@ import (
 var _ mesh.Holder = &Environment{}
 
 func NewEnvironment() *Environment {
+	var cache XdsCache
+	if features.EnableXDSCaching {
+		cache = NewXdsCache()
+	} else {
+		cache = DisabledCache{}
+	}
 	return &Environment{
 		pushContext:   NewPushContext(),
-		EndpointIndex: NewEndpointIndex(),
+		Cache:         cache,
+		EndpointIndex: NewEndpointIndex(cache),
 	}
 }
 
@@ -108,6 +115,9 @@ type Environment struct {
 	// EndpointShards for a service. This is a global (per-server) list, built from
 	// incremental updates. This is keyed by service and namespace
 	EndpointIndex *EndpointIndex
+
+	// Cache for XDS resources.
+	Cache XdsCache
 }
 
 func (e *Environment) Mesh() *meshconfig.MeshConfig {
@@ -1199,8 +1209,15 @@ func (node *Proxy) IsUnprivileged() bool {
 
 // CanBindToPort returns true if the proxy can bind to a given port.
 func (node *Proxy) CanBindToPort(bindTo bool, port uint32) bool {
-	if bindTo && IsPrivilegedPort(port) && node.IsUnprivileged() {
-		return false
+	if bindTo {
+		if IsPrivilegedPort(port) && node.IsUnprivileged() {
+			return false
+		}
+		if node.Metadata != nil &&
+			(node.Metadata.EnvoyPrometheusPort == int(port) || node.Metadata.EnvoyStatusPort == int(port)) {
+			// can not bind to port that already bound by proxy static listener
+			return false
+		}
 	}
 	return true
 }

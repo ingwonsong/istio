@@ -424,10 +424,7 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret1.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						// TODO(JimmyCYJ): Temporarily skip verification of error message to deflake test.
-						//  Need a more accurate way to verify the request failures.
-						// https://github.com/istio/istio/issues/16998
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "connection reset by peer",
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -443,7 +440,7 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret2.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "connection reset by peer",
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -459,7 +456,7 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret3.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "connection reset by peer",
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -474,7 +471,7 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret4.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "connection reset by peer",
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -489,7 +486,7 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret5.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "connection reset by peer",
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -557,10 +554,7 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultimtlsgateway-invalidsecret1.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						// TODO(JimmyCYJ): Temporarily skip verification of error message to deflake test.
-						//  Need a more accurate way to verify the request failures.
-						// https://github.com/istio/istio/issues/16998
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "connection reset by peer",
 					},
 					callType: ingressutil.Mtls,
 					tlsContext: ingressutil.TLSContext{
@@ -578,7 +572,7 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultimtlsgateway-invalidsecret2.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "connection reset by peer",
 					},
 					callType: ingressutil.Mtls,
 					tlsContext: ingressutil.TLSContext{
@@ -597,7 +591,7 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultimtlsgateway-invalidsecret3.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						ErrorMessage: "error decrypting message",
 					},
 					callType: ingressutil.Mtls,
 					tlsContext: ingressutil.TLSContext{

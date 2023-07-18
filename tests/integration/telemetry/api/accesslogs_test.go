@@ -274,6 +274,7 @@ func runAccessLogModeTests(t framework.TestContext, exceptClientLog, exceptServe
 	err := retry.UntilSuccess(func() error {
 		clientCount := logCount(t, from, testID)
 		serverCount := logCount(t, to, testID)
+
 		from.CallOrFail(t, echo.CallOptions{
 			To: to,
 			Port: echo.Port{
@@ -289,6 +290,7 @@ func runAccessLogModeTests(t framework.TestContext, exceptClientLog, exceptServe
 			if clientDeltaCount > 0 != exceptClientLog {
 				return fmt.Errorf("expected client logs %v but got %v", exceptClientLog, clientDeltaCount)
 			}
+
 			serverDeltaCount := logCount(t, to, testID) - serverCount
 			if serverDeltaCount > 0 != exceptServerLog {
 				return fmt.Errorf("expected server logs %v but got %v", exceptServerLog, serverDeltaCount)
