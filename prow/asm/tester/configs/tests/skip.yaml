@@ -642,6 +642,9 @@ tests:
           - TestTraffic/dns.*
         buganizerID: 191802552
       - names:
+          - TestTraffic/jwt-claim-route
+        buganizerID: 292155569
+      - names:
         - TestReachability/no-peer-authn/headless.*
         - TestReachability/no-peer-authn/naked.*
         buganizerID: 192372391
