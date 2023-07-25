@@ -1,0 +1,424 @@
+{
+  "apiVersion": "networking.istio.io/v1alpha3",
+  "kind": "EnvoyFilter",
+  "metadata": {
+    "creationTimestamp": null,
+    "name": "cap-e2e-codelabapikeys.sandbox.googleapis.com-envoy-filter",
+    "namespace": "istio-system"
+  },
+  "spec": {
+    "configPatches": [
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "com.google.error_details_patch_filter",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/net.envoy.proto.ErrorDetailsPatchFilterConfig",
+              "value": {}
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "com.google.cloudesf.initialization_filter",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/apiserving.cloudesf.InitializationFilterConfig",
+              "value": {}
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "envoy.filters.http.grpc_web",
+            "typedConfig": {
+              "@type": "type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb"
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "com.google.service_control_v2_filter",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/net.envoy.proto.service_control_v2.FilterConfig",
+              "value": {
+                "checkCacheConfig": {},
+                "estubsGrpc": {
+                  "clientRootCertPath": "/roots.pem",
+                  "targetUri": "servicecontrol.googleapis.com:443"
+                },
+                "imdsUri": {
+                  "cluster": "metadata-cluster",
+                  "timeout": "30s",
+                  "uri": "http://169.254.169.254"
+                },
+                "reportBatchConfig": {},
+                "requirements": [
+                  {
+                    "operationName": "google.example.apikeys.v1.ApiKeys.ListApiKeys"
+                  },
+                  {
+                    "operationName": "google.example.apikeys.v1.ApiKeys.GetApiKey"
+                  },
+                  {
+                    "operationName": "google.example.apikeys.v1.ApiKeys.CreateApiKey"
+                  },
+                  {
+                    "operationName": "google.example.apikeys.v1.ApiKeys.UpdateApiKey"
+                  },
+                  {
+                    "operationName": "google.example.apikeys.v1.ApiKeys.DeleteApiKey"
+                  },
+                  {
+                    "operationName": "google.example.apikeys.v1.ApiKeys.UndeleteApiKey"
+                  },
+                  {
+                    "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
+                    "operationName": "google.discovery.Discovery.GetDiscovery"
+                  },
+                  {
+                    "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
+                    "operationName": "google.discovery.Discovery.GetDiscoveryRest"
+                  }
+                ],
+                "scCallingConfig": {},
+                "service": {
+                  "removeAuthorizationHeader": true
+                },
+                "transcoderConfig": {
+                  "autoMapping": true,
+                  "convertGrpcStatus": true,
+                  "ignoredQueryParameters": [
+                    "$.xgafv",
+                    "$alt",
+                    "$apiFormat",
+                    "$callback",
+                    "$ct",
+                    "$fields",
+                    "$httpHeaders",
+                    "$httpMethod",
+                    "$key",
+                    "$outputDefaults",
+                    "$pp",
+                    "$prettyPrint",
+                    "$prettyprint",
+                    "$quotaUser",
+                    "$req",
+                    "$trace",
+                    "$unique",
+                    "$upload_protocol",
+                    "$userIp",
+                    "$userProject",
+                    "$visibilities",
+                    ".xgafv",
+                    "access_token",
+                    "alt",
+                    "authuser",
+                    "bearer_token",
+                    "callback",
+                    "google_cloud_resource_prefix",
+                    "key",
+                    "oauth_token",
+                    "pageId",
+                    "pp",
+                    "prettyPrint",
+                    "prettyprint",
+                    "quotaUser",
+                    "uploadType",
+                    "upload_protocol",
+                    "userIp",
+                    "xoauth"
+                  ],
+                  "matchUnregisteredCustomVerb": true,
+                  "printOptions": {},
+                  "protoDescriptor": "/etc/istio/proxy/apikey_grpc_asm_e2e_http_backend_config_descriptor",
+                  "queryParamUnescapePlus": true,
+                  "requestValidationOptions": {
+                    "rejectBindingBodyFieldCollisions": true,
+                    "rejectUnknownMethod": true,
+                    "rejectUnknownQueryParameters": true
+                  },
+                  "services": [
+                    "google.example.apikeys.v1.ApiKeys",
+                    "google.discovery.Discovery"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "com.google.cloudesf.wrapper_adapted_filter_request_path_field_extraction",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/apiserving.cloudesf.WrapperAdaptedFilterConfig",
+              "value": {
+                "processingPath": "REQUEST_PATH",
+                "wrapperKey": "FIELD_EXTRACTION"
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "com.google.cloudesf.wrapper_adapted_filter_response_path_field_extraction",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/apiserving.cloudesf.WrapperAdaptedFilterConfig",
+              "value": {
+                "processingPath": "RESPONSE_PATH",
+                "wrapperKey": "FIELD_EXTRACTION"
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "com.google.cloudesf.wrapper_adapted_filter_request_path_scrubber",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/apiserving.cloudesf.WrapperAdaptedFilterConfig",
+              "value": {
+                "processingPath": "REQUEST_PATH",
+                "wrapperKey": "SCRUBBER"
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
+            "name": "com.google.cloudesf.wrapper_adapted_filter_response_path_scrubber",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/apiserving.cloudesf.WrapperAdaptedFilterConfig",
+              "value": {
+                "processingPath": "RESPONSE_PATH",
+                "wrapperKey": "SCRUBBER"
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "LISTENER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "MERGE",
+          "value": {
+            "metadata": {
+              "typedFilterMetadata": {
+                "com.google.cloudesf.service_config": {
+                  "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+                  "typeUrl": "type.googleapis.com/net.envoy.proto.cloudesf.ServiceConfigDataSource",
+                  "value": {
+                    "serviceConfigId": "1-68ba4ff2-412d32db-71ea56f4-53b1b17d-eef233de",
+                    "serviceConfigPath": "/etc/istio/proxy/_apikey_grpc_asm_e2e_http_backend_config_service.txtpb"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "NETWORK_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager"
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "MERGE",
+          "value": {
+            "name": "envoy.filters.network.http_connection_manager",
+            "typedConfig": {
+              "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+              "localReplyConfig": {
+                "mappers": [
+                  {
+                    "bodyFormatOverride": {
+                      "jsonFormat": {
+                        "error": {
+                          "code": "%RESPONSE_CODE%",
+                          "message": "%LOCAL_REPLY_BODY%",
+                          "status": "%FILTER_STATE(net.envoy.error_details_patch.GrpcStatusEnumStr:PLAIN)%"
+                        }
+                      }
+                    },
+                    "filter": {
+                      "extensionFilter": {
+                        "name": "envoy.access_loggers.extension_filters.http_error_response",
+                        "typedConfig": {
+                          "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+                          "typeUrl": "type.googleapis.com/net.envoy.proto.HttpErrorResponseConfig",
+                          "value": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "status": {}
+}
