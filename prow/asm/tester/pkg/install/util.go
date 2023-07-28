@@ -43,17 +43,29 @@ func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (s
 		scriptBranch = fmt.Sprintf("release-%s", rev.Version)
 	}
 	scriptBaseName := "asmcli"
-	scriptURL := fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, scriptBranch, scriptBaseName)
-
-	log.Printf("Downloading script from %s...", scriptURL)
-	resp, err := http.Get(scriptURL)
+	resp, err := downloadInstallScriptFromUrl(scriptBranch, scriptBaseName)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
-		return "", fmt.Errorf("script not found at URL: %s", scriptURL)
+
+		resp.Body.Close()
+		if rev != nil && rev.Version != "" {
+			scriptBranch = fmt.Sprintf("staging-%s", rev.Version) //try from staging branch
+			resp, err = downloadInstallScriptFromUrl(scriptBranch, scriptBaseName)
+			if err != nil {
+				return "", err
+			}
+			if resp.StatusCode == http.StatusNotFound {
+				resp.Body.Close()
+				return "", fmt.Errorf("script not found for branch: %s", scriptBranch)
+			}
+		} else {
+			return "", fmt.Errorf("script not found for branch: %s", scriptBranch)
+		}
 	}
+	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -100,6 +112,17 @@ func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (s
 	}
 
 	return path, nil
+}
+
+func downloadInstallScriptFromUrl(scriptBranch string, scriptBaseName string) (*http.Response, error) {
+	scriptURL := fmt.Sprintf("%s/%s/asmcli/%s", scriptRepoBase, scriptBranch, scriptBaseName)
+
+	log.Printf("Downloading script from %s...", scriptURL)
+	resp, err := http.Get(scriptURL)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func getInstallEnableFlags() []string {
