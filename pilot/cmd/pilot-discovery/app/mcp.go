@@ -203,6 +203,8 @@ func initializeMCP(p MCPParameters) (kubelib.Client, error) {
 	// Disable webhook config patching - manual configs used, proper DNS certs means no cert patching needed.
 	// TODO: oss bug, cannot disable validation
 	features.InjectionWebhookConfigName = ""
+	// Disable Validation webhook config patch due to the same reason with the Injection webhook above.
+	features.ValidationWebhookConfigName = ""
 	bootstrap.Revision = p.Revision
 	bootstrap.PodName = p.PodName
 	features.ClusterName = fmt.Sprintf("cn-%s-%s-%s", p.Project, p.Zone, p.Cluster)
