@@ -8,15 +8,6 @@ metadata:
   labels:
     app: istio-cni
 ---
-# Source: cni/templates/serviceaccount.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: mdp-controller
-  namespace: kube-system
-  labels:
-    app: mdp-controller
----
 # Source: cni/templates/configmap-cni.yaml
 kind: ConfigMap
 apiVersion: v1
@@ -200,7 +191,7 @@ metadata:
     k8s-app: mdp-controller
 subjects:
 - kind: ServiceAccount
-  name: mdp-controller
+  name: istio-cni
   namespace: kube-system
 roleRef:
   kind: ClusterRole
@@ -379,7 +370,7 @@ spec:
       - effect: NoExecute
         operator: Exists
       priorityClassName: system-node-critical
-      serviceAccountName: mdp-controller
+      serviceAccountName: istio-cni
       # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
       # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
       terminationGracePeriodSeconds: 5

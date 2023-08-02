@@ -72,7 +72,7 @@ metadata:
     operator.istio.io/component: "Cni"
 subjects:
 - kind: ServiceAccount
-  name: mdp-controller
+  name: istio-cni
   namespace: {{ .Release.Namespace}}
 roleRef:
   kind: ClusterRole

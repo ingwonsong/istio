@@ -6,7 +6,7 @@ metadata:
     app: mdp-controller
 subjects:
 - kind: ServiceAccount
-  name: mdp-controller
+  name: istio-cni
   namespace: {{ .Release.Namespace}}
 roleRef:
   kind: ClusterRole
