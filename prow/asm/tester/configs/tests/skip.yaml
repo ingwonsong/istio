@@ -959,6 +959,7 @@ tests:
       - TestCNIRaceRepair
       - TestCompositeGateway
       - TestRevisionTraffic
+      - TestGateway
       - TestGatewayConformance
       - TestGRPCProbe
       - TestXFFGateway
