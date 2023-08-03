@@ -23,6 +23,7 @@ import (
 
 func TestLog(t *testing.T) {
 	out := &[]string{}
+	pollingInterval = 0
 	l := New(10*time.Millisecond, out)
 
 	l.log("1", severityInfo)

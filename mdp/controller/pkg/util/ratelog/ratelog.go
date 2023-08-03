@@ -27,7 +27,6 @@ import (
 type Log struct {
 	minLogInterval time.Duration
 	outputBuffer   *[]string
-
 	// mu protects the following block.
 	mu        sync.RWMutex
 	errBuffer []logEntry
@@ -111,6 +110,8 @@ func (l *Log) log(msg string, severity severity) {
 	l.errBuffer = append(l.errBuffer, logEntry{msg: msg, logAtTime: time.Now().Add(l.minLogInterval)})
 }
 
+var pollingInterval = time.Second
+
 // serviceMsgQueue waits a short while if the queue is empty.
 // If the queue is non-empty, it sleeps until the next message is due to be popped, then pops
 // it and returns.
@@ -119,7 +120,7 @@ func (l *Log) serviceMsgQueue() {
 	l.mu.RLock()
 	if len(l.errBuffer) == 0 {
 		l.mu.RUnlock()
-		time.Sleep(time.Second)
+		time.Sleep(pollingInterval)
 		return
 	}
 	e := l.errBuffer[0]
