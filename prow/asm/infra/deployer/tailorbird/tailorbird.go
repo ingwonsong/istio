@@ -256,7 +256,13 @@ func (d *Instance) createMetadataFile() {
 		return
 	}
 	plt_version := getPlatformVersion(rookeryFile)
+
 	m := map[string]string{"topology": string(d.cfg.Topology), "platform_version": plt_version}
+	// adding platform upgrade versions (if any)
+	for _, version := range d.cfg.UpgradeClusterVersion {
+		m["platform_version"] = m["platform_version"] + ", " + version
+	}
+
 	jsonStr, err := json.Marshal(m)
 	if err != nil {
 		log.Printf("cannot create metadata json file")
