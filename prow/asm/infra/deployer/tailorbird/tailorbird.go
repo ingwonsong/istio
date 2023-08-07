@@ -17,23 +17,26 @@ package tailorbird
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/Masterminds/sprig/v3"
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/prototext"
+	"gopkg.in/yaml.v2"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
 
-	"github.com/Masterminds/sprig/v3"
-	"github.com/google/uuid"
-	"gopkg.in/yaml.v2"
-
 	"istio.io/istio/prow/asm/infra/config"
 	"istio.io/istio/prow/asm/infra/deployer/common"
+	vpb "istio.io/istio/prow/asm/infra/deployer/version_proto"
 	"istio.io/istio/prow/asm/infra/exec"
 	"istio.io/istio/prow/asm/infra/types"
 )
@@ -45,6 +48,8 @@ const (
 	configRelDir = "prow/asm/infra/deployer/tailorbird/config"
 	// the relative dir from the working dir (istio.io/istio) to the TRAC-generated, ASM-specific config dir
 	tracConfigRelDir = "../../team/anthos-trac-team/configs/tailorbird/asm/"
+
+	tracConfigRelDirForVersionFiles = "../../team/anthos-trac-team/configs/upgrade/asm/gen"
 
 	// GCS path for downloading kubetest2-tailorbird binary
 	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2022-12-16-192919/kubetest2-tailorbird"
@@ -142,6 +147,80 @@ type Cluster struct {
 
 func (d *Instance) Name() string {
 	return name
+}
+
+// version prefix for 1.24.10-gke.1200 will be defined as 1.24
+func getVersionPrefix(version string) string {
+	majorMinorPatchVersions := strings.Split(version, ".")
+	majorMinorVersion := strings.Join(majorMinorPatchVersions[:2], ".")
+
+	return majorMinorVersion
+}
+
+// this will fetch and return version values from TRAC
+func (d *Instance) getVersionValuesFromTRAC() (clusterVersion string, upgradeClusterVersion []string, err error) {
+
+	platform := platformName(string(d.cfg.Cluster))
+	versionFileName := fmt.Sprintf("%s-versions.textproto", platform)
+	versionFilePath := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDirForVersionFiles, versionFileName)
+
+	versionData, err := os.ReadFile(versionFilePath)
+	if err != nil {
+		log.Println("error reading versions file ", err)
+		return "", []string{}, err
+	}
+
+	versionListMessage := &vpb.VersionLists{}
+	if err := prototext.Unmarshal(versionData, versionListMessage); err != nil {
+		log.Println("error unmarshalling version data", err)
+		return "", []string{}, err
+	}
+
+	versionList := versionListMessage.GetValidClusterVersions().GetVersion()
+	if len(versionList) == 0 {
+		return "", []string{}, errors.New("got no values for versions")
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(versionList)))
+
+	// finding latest version for each major.minor version and placing in latestThreePlatformVersions.
+	versionCount := 0
+	currentVersionPrefix := getVersionPrefix(versionList[0])
+
+	var latestThreePlatformVersions = [3]string{"-1", "-1", "-1"}
+	latestThreePlatformVersions[versionCount] = versionList[0]
+
+	versionCount += 1
+	for _, version := range versionList {
+		if getVersionPrefix(version) != currentVersionPrefix {
+			latestThreePlatformVersions[versionCount] = version
+			versionCount += 1
+			currentVersionPrefix = getVersionPrefix(version)
+		}
+
+		// we want to keep track of (n)th, (n-1)th, (n-2)th versions only
+		if versionCount == 3 {
+			break
+		}
+	}
+
+	// if cluster type belongs to any of the below, then we want to pass just the prefix like 1.24, not like 1.24.10-gke.1200
+	if d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.AKSOnAzure || d.cfg.Cluster == types.EKSOnAWS {
+		for index, version := range latestThreePlatformVersions {
+			latestThreePlatformVersions[index] = getVersionPrefix(version)
+		}
+	}
+
+	if latestThreePlatformVersions[d.cfg.ClusterVersionTracIndex] == "-1" {
+		return "", []string{}, errors.New("specified trac index version not found")
+	}
+
+	clusterVersion = latestThreePlatformVersions[d.cfg.ClusterVersionTracIndex]
+	upgradeClusterVersion = []string{}
+	for _, tracIndex := range d.cfg.UpgradeClusterVersionTracIndex {
+		upgradeClusterVersion = append(upgradeClusterVersion, latestThreePlatformVersions[tracIndex])
+	}
+
+	return clusterVersion, upgradeClusterVersion, nil
 }
 
 func getPlatformVersion(rookeryfile string) string {
@@ -382,8 +461,21 @@ func (d *Instance) getGCSBucket() string {
 	return bucket
 }
 
-func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) {
+func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string, err error) {
+
 	version = d.cfg.ClusterVersion
+
+	if d.cfg.ClusterVersion == "" && d.cfg.ClusterVersionTracIndex >= 0 {
+		clusterVersion, upgradeClusterVersion, err := d.getVersionValuesFromTRAC()
+		if err != nil {
+			log.Println("error getting version values from TRAC", err)
+			return "", "", err
+		}
+		version = clusterVersion
+		d.cfg.ClusterVersion = clusterVersion
+		d.cfg.UpgradeClusterVersion = upgradeClusterVersion
+	}
+
 	if version == "" {
 		// Apply a platform-specific default.
 		// TODO(nmittler): Can these all just be "latest"?
@@ -421,7 +513,7 @@ func (d *Instance) getVersionAndPrefix() (version string, versionPrefix string) 
 			version = "latest"
 		}
 	}
-	return
+	return version, versionPrefix, nil
 }
 
 func (d *Instance) getUpgradeVersion() (upgradeVersion string) {
@@ -623,11 +715,13 @@ func (d *Instance) rookeryFile() (string, error) {
 	}
 
 	// Struct providing template parameters for the YAML.
-	version, versionPrefix := d.getVersionAndPrefix()
+	version, versionPrefix, err := d.getVersionAndPrefix()
 	upgradeVersion := d.getUpgradeVersion()
 	if err != nil {
+		log.Println("error getting version value", err)
 		return "", err
 	}
+
 	rep := TemplateParameters{
 		GCSBucket:           d.getGCSBucket(),
 		Version:             version,
@@ -783,7 +877,7 @@ func (d *Instance) upgradeHandler() (func(http.ResponseWriter, *http.Request), e
 
 func (d *Instance) supportedHandlers() map[string]func() (func(http.ResponseWriter, *http.Request), error) {
 	supportedHandler := map[string]func() (func(http.ResponseWriter, *http.Request), error){}
-	if len(d.cfg.UpgradeClusterVersion) != 0 {
+	if len(d.cfg.UpgradeClusterVersion) != 0 || len(d.cfg.UpgradeClusterVersionTracIndex) != 0 {
 		supportedHandler[common.UpgradePath] = d.upgradeHandler
 	}
 	return supportedHandler

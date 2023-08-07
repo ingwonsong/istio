@@ -37,6 +37,7 @@ func main() {
 
 	features := []string{}
 	upgradeVersions := []string{}
+	upgradeClusterVersionTracIndex := []int{}
 	flag.StringVar(&cfg.RepoRootDir, "repo-root-dir", cfg.RepoRootDir,
 		"the repo's root directory (required). Used as the working directory for running the kubetest2 command")
 	flag.StringVar(&cfg.ExtraDeployerFlags, "deployer-flags", cfg.ExtraDeployerFlags,
@@ -53,6 +54,8 @@ func main() {
 			types.SupportedReleaseChannels))
 	flag.StringVar(&cfg.ClusterVersion, "cluster-version", cfg.ClusterVersion,
 		"version for the the clusters (optional). Defaults to `latest`")
+	flag.IntVar(&cfg.ClusterVersionTracIndex, "cluster-version-trac-index", cfg.ClusterVersionTracIndex,
+		"trac version index for the the cluster")
 	flag.IntVar(&cfg.TRACPlatformIndex, "trac-platform-index", cfg.TRACPlatformIndex,
 		"Anthos platform release index (as defined by go/anthos-trac). Selects the `latest-Nth` version that will be tested. "+
 			"Both (or neither) of --trac-platform-index and --trac-component-index must be defined. "+
@@ -69,6 +72,7 @@ func main() {
 			"If <0 (the default), the trac-cp-index will not be appended to the path. ")
 	flag.StringSliceVar(&upgradeVersions, "upgrade-cluster-version", []string{},
 		"comma seperated list of versions that clusters will be upgraded to, formatted as x.y1.z,x.y2.z. Clusters will run for a short duration to ensure functionality between the cluster upgrades.")
+	flag.IntSliceVar(&upgradeClusterVersionTracIndex , "upgrade-cluster-version-trac-index", []int{}, "comma separated list of trac versions indexes that clusters will be upgraded to")
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
 		fmt.Sprintf("the cluster type, can be one of %v", types.SupportedClusters))
 	flag.BoolVar(&cfg.UseOnePlatform, "use-oneplatform", cfg.UseOnePlatform, "whether to use One Platform API to provision the cluster")
@@ -90,6 +94,7 @@ func main() {
 	flag.Parse()
 	cfg.Features = sets.NewString(features...)
 	cfg.UpgradeClusterVersion = upgradeVersions
+	cfg.UpgradeClusterVersionTracIndex = upgradeClusterVersionTracIndex
 
 	if cfg.IsCloudESFTest {
 		cfg.TestFlags = cfg.TestFlags + " --install-cloudesf"

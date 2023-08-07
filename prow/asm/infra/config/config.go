@@ -50,6 +50,7 @@ type Instance struct {
 	TestFlags             string
 	GCPProjects           []string
 	ClusterVersion        string
+	ClusterVersionTracIndex int
 	TRACPlatformIndex     int
 	TRACComponentIndex    int
 	TRACOSIndex           int
@@ -58,6 +59,7 @@ type Instance struct {
 	UseOnePlatform        bool
 	UseKubevirtVM         bool
 	UpgradeClusterVersion []string
+	UpgradeClusterVersionTracIndex []int
 	GCSBucket             string
 	IsCloudESFTest        bool
 	Topology              types.Topology
@@ -81,6 +83,7 @@ func Default() Instance {
 		TRACComponentIndex: -1,
 		TRACOSIndex:        -1,
 		TRACCPIndex:        -1,
+                ClusterVersionTracIndex: -1,
 	}
 }
 

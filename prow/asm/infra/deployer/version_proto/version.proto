@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "./";
+
+message VersionLists {
+  optional VersionList valid_cluster_versions = 1;
+}
+
+message VersionList {
+  repeated string version = 1;
+}
