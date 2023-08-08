@@ -24,5 +24,6 @@
   "source_owner": "{{.sourceOwner}}",
   "source_workload_name": "{{ .srcSvc}}-v1",
   "source_workload_namespace": "{{ .namespace}}",
-  "mesh_uid": "{{ .meshID}}"
+  "mesh_uid": "{{ .meshID}}",
+  "proxy_version": "{{ .proxyVersion}}"
 }

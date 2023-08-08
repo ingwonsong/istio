@@ -324,6 +324,12 @@ func cleanupLabels(labels map[string]string) {
 			labels[k] = VMOwnerPrefix
 		}
 	}
+
+	// Do a fuzzy match for proxy_version label
+	// Remove any extra version information
+	if proxyVersion, ok := labels["proxy_version"]; ok {
+		labels["proxy_version"] = strings.Split(proxyVersion, "-")[0]
+	}
 }
 
 // ValidateMetricsWithLabels validate metrics from stackdriver based on the given labels.

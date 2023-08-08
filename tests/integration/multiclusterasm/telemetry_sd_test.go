@@ -28,6 +28,7 @@ import (
 	"google.golang.org/api/option"
 
 	"istio.io/istio/pkg/http/headers"
+	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
 	"istio.io/istio/pkg/test/framework/components/echo/check"
@@ -241,6 +242,10 @@ func validateMetrics(t framework.TestContext, portName string, projectID string,
 	if dest.Config().DeployAsVM {
 		destOwner = stackdriver.VMOwnerPrefix
 	}
+	proxyVersion, err := env.ReadVersion()
+	if err != nil {
+		return err
+	}
 
 	_, err = sd.GetAndValidateTimeSeries(context.Background(), t, []string{filter}, "ALIGN_RATE", startTime, endTime, projectID, expLabel, map[string]interface{}{
 		"projectID":        projectID,
@@ -252,6 +257,7 @@ func validateMetrics(t framework.TestContext, portName string, projectID string,
 		"port":             echoPort.WorkloadPort,
 		"sourceOwner":      srcOwner,
 		"destinationOwner": destOwner,
+		"proxyVersion":     proxyVersion,
 	})
 	if err != nil {
 		t.Errorf("failed to fetch time series for %s container: %v", "test", err)
