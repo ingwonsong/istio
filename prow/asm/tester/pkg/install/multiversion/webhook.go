@@ -40,7 +40,7 @@ func ReplaceWebhook(rev *revision.Config, contextName string) error {
 
 	webhookName := fmt.Sprintf("%s-%s",
 		webhookPrefix, rev.Name)
-	webhookCreateCmd := fmt.Sprintf("istioctl x revision tag set %s --revision %s --context %s --webhook-name %s --overwrite -y",
+	webhookCreateCmd := fmt.Sprintf("istioctl tag set %s --revision %s --context %s --webhook-name %s --overwrite -y",
 		rev.Name, rev.Name, contextName, webhookName)
 
 	if err := exec.Run(webhookCreateCmd); err != nil {

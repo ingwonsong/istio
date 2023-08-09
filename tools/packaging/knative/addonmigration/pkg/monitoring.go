@@ -44,7 +44,7 @@ const (
 
 var (
 	projectID  string
-	stateLabel = monitoring.MustCreateLabel("state")
+	stateLabel = monitoring.CreateLabel("state")
 )
 
 func (m *migrationWorker) InitializeMonitoring(clusterName, location string) (*MGExporter, error) {

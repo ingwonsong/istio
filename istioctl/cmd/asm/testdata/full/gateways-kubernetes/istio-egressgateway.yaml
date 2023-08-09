@@ -128,51 +128,58 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: istio-egressgateway
-  namespace: istio-egress
   labels:
     app: istio-egressgateway
-    istio: egress
-    release: istio
-    istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "EgressGateways"
+    istio: egress
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: EgressGateways
+    release: istio
+  name: istio-egressgateway
+  namespace: istio-egress
 spec:
   minAvailable: 1
   selector:
     matchLabels:
       app: istio-egressgateway
       istio: egress
+
 ---
 
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  labels:
+    install.operator.istio.io/owning-resource: unknown
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: EgressGateways
+    release: istio
   name: istio-egressgateway-sds
   namespace: istio-egress
-  labels:
-    release: istio
-    istio.io/rev: asm-managed-rapid
-    install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "EgressGateways"
 rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "watch", "list"]
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+
 ---
 
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    install.operator.istio.io/owning-resource: unknown
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: EgressGateways
+    release: istio
   name: istio-egressgateway-sds
   namespace: istio-egress
-  labels:
-    release: istio
-    istio.io/rev: asm-managed-rapid
-    install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "EgressGateways"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -180,6 +187,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: istio-egressgateway-service-account
+
 ---
 
 
@@ -224,13 +232,14 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: istio-egressgateway-service-account
-  namespace: istio-egress
   labels:
     app: istio-egressgateway
-    istio: egress
-    release: istio
-    istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "EgressGateways"
+    istio: egress
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: EgressGateways
+    release: istio
+  name: istio-egressgateway-service-account
+  namespace: istio-egress
+
 ---

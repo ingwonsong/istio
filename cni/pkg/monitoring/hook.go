@@ -29,13 +29,13 @@ const (
 	installUnknownState = "UNKNOWN"
 )
 
-var resultHookLabel = monitoring.MustCreateLabel("result")
+var resultHookLabel = monitoring.CreateLabel("result")
 
 type cniRecordHook struct{}
 
 var _ monitoring.RecordHook = &cniRecordHook{}
 
-func (r cniRecordHook) OnRecord(name string, tags monitoring.LabelSet, value float64) {
+func (r cniRecordHook) OnRecord(name string, tags []monitoring.LabelValue, value float64) {
 	switch name {
 	case pluginInstallsCountName:
 		onPluginInstallCount(tags, value)
@@ -53,10 +53,13 @@ func registerHook() {
 	monitoring.RegisterRecordHook(raceRepairsCountName, hook)
 }
 
-func onPluginInstallCount(tags monitoring.LabelSet, value float64) {
-	r, found := tags.Value(resultHookLabel)
-	if !found {
-		return
+func onPluginInstallCount(tags []monitoring.LabelValue, value float64) {
+	var r string
+	for _, tag := range tags {
+		if tag.Key() == resultHookLabel {
+			r = tag.Value()
+			break
+		}
 	}
 
 	pluginInstallCount.With(resultLabel.Value(r)).RecordInt(int64(value))
@@ -83,10 +86,13 @@ func onInstallReady(value float64) {
 	}
 }
 
-func onRaceRepairsCount(tags monitoring.LabelSet, value float64) {
-	r, found := tags.Value(resultHookLabel)
-	if !found {
-		return
+func onRaceRepairsCount(tags []monitoring.LabelValue, value float64) {
+	var r string
+	for _, tag := range tags {
+		if tag.Key() == resultHookLabel {
+			r = tag.Value()
+			break
+		}
 	}
 	// TODO: type label is absent in SD now
 	raceRepairsCount.With(resultLabel.Value(r)).RecordInt(int64(value))

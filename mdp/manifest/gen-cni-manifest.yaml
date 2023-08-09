@@ -202,6 +202,14 @@ spec:
                   fieldPath: spec.nodeName
             - name: LOG_LEVEL
               value: "debug"
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.cpu
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir

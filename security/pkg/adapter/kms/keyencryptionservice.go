@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/thalescpl-io/k8s-kms-plugin/apis/istio/v1"
@@ -72,7 +73,7 @@ func (kes *KeyEncryptionService) Connect(timeout time.Duration) error {
 
 	kes.ctx, kes.Cancel, kes.c, err = GetClientSocket(kes.Endpoint, timeout)
 	if err != nil {
-		kmsLog.Errorf("Client socket failed: %v", err)
+		kmsLog.Error(fmt.Sprintf("Client socket failed: %v", err))
 	}
 	return err
 }
@@ -83,7 +84,7 @@ func (kes *KeyEncryptionService) GenerateDEK(kekID []byte) (encDEK []byte, err e
 	if genDEKResp, err = kes.c.GenerateDEK(kes.ctx, &istio.GenerateDEKRequest{
 		KekKid: kekID,
 	}); err != nil {
-		kmsLog.Errorf(err)
+		kmsLog.Error(err)
 
 		return nil, err
 	}
@@ -118,7 +119,7 @@ func (kes *KeyEncryptionService) GenerateSKey(kekID []byte, encDEK []byte, keySi
 		KekKid:           kekID,
 		EncryptedDekBlob: encDEK,
 	}); err != nil {
-		kmsLog.Errorf(err)
+		kmsLog.Error(err)
 		return nil, err
 	}
 
@@ -133,7 +134,7 @@ func (kes *KeyEncryptionService) GetSKey(kekID, encDEK, encSKey []byte) (decSKey
 		EncryptedDekBlob:  encDEK,
 		EncryptedSkeyBlob: encSKey,
 	}); err != nil {
-		kmsLog.Errorf(err)
+		kmsLog.Error(err)
 		return nil, err
 	}
 
@@ -151,7 +152,7 @@ func (kes *KeyEncryptionService) AuthenticatedEncrypt(kekID, encDEK, aad, plaint
 		Aad:              aad,
 		Plaintext:        plaintext,
 	}); err != nil {
-		kmsLog.Errorf(err)
+		kmsLog.Error(err)
 		return nil, err
 	}
 
@@ -169,7 +170,7 @@ func (kes *KeyEncryptionService) AuthenticatedDecrypt(kekID, encDEK, aad, cipher
 		Aad:              aad,
 		Ciphertext:       ciphertext,
 	}); err != nil {
-		kmsLog.Errorf(err)
+		kmsLog.Error(err)
 		return nil, err
 	}
 
@@ -192,7 +193,7 @@ func (kes *KeyEncryptionService) VerifyCertChain(certChain []byte) (success bool
 	}
 	var verifyCertChainResp *istio.VerifyCertChainResponse
 	if verifyCertChainResp, err = kes.c.VerifyCertChain(kes.ctx, verifyCertChainReq); nil != err {
-		kmsLog.Errorf(err)
+		kmsLog.Error(err)
 		return false, err
 	}
 

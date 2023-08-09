@@ -147,7 +147,7 @@ func createRemoteSecrets(settings *resource.Settings, rev *revision.Config, scri
 			otherCluster := kube.GKEClusterSpecFromContext(otherContext)
 			log.Printf("creating remote secret with context %s to cluster %s",
 				context, otherCluster.Name)
-			createRemoteSecretCmd := fmt.Sprintf("istioctl x create-remote-secret"+
+			createRemoteSecretCmd := fmt.Sprintf("istioctl create-remote-secret"+
 				" --context %s --name %s", otherContext, otherCluster.Name)
 			secretContents, err := exec.RunWithOutput(createRemoteSecretCmd)
 			if err != nil {
@@ -215,7 +215,7 @@ func createRemoteSecretsMulticloud(settings *resource.Settings, kubeconfigs []st
 			if i == j {
 				continue
 			}
-			createRemoteSecretCmd := fmt.Sprintf("istioctl x create-remote-secret"+
+			createRemoteSecretCmd := fmt.Sprintf("istioctl create-remote-secret"+
 				" --kubeconfig %s --name %s", kubeconfig, fmt.Sprintf("secret-%d", i))
 			secretContents, err := exec.RunWithOutput(createRemoteSecretCmd)
 			if err != nil {

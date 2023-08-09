@@ -52,7 +52,8 @@ var conformanceNamespaces = []string{
 }
 
 var skippedTests = map[string]string{
-	"MeshFrontendHostname": "https://github.com/istio/istio/issues/44702",
+	"MeshFrontendHostname":          "https://github.com/istio/istio/issues/44702",
+	"GatewayObservedGenerationBump": "https://github.com/istio/istio/issues/44850",
 }
 
 const gatewayConformanceTimeoutScaler = 5
@@ -98,6 +99,7 @@ func TestGatewayConformance(t *testing.T) {
 			config.SetupTimeoutConfig(&timeoutConfig)
 			opts := suite.Options{
 				Client:               c,
+				Clientset:            gatewayConformanceInputs.Client.Kube(),
 				RestConfig:           gatewayConformanceInputs.Client.RESTConfig(),
 				RESTClient:           rc,
 				GatewayClassName:     "istio",

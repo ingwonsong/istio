@@ -48,7 +48,7 @@ func ASMLogOptions(opts *log.Options) *log.Options {
 		if mesh == "" {
 			mesh = meshUIDFromPlatformMeta(meta)
 		}
-		opts = opts.WithTeeToStackdriver(proj, "istiod", loggingMonitoredResource(proj, loc, mesh))
+		opts = opts.WithExtension(TeeToStackdriver(proj, "istiod", loggingMonitoredResource(proj, loc, mesh)))
 	}
 	return opts
 }

@@ -204,6 +204,9 @@ var testGrid = []testCase{
 			{msg.NamespaceNotInjected, "Namespace bar"},
 			{msg.PodMissingProxy, "Pod default/noninjectedpod"},
 			{msg.NamespaceMultipleInjectionLabels, "Namespace busted"},
+			{msg.NamespaceMultipleInjectionLabels, "Namespace multi-ns-1"},
+			{msg.NamespaceMultipleInjectionLabels, "Namespace multi-ns-2"},
+			{msg.NamespaceMultipleInjectionLabels, "Namespace multi-ns-3"},
 		},
 	},
 	{
@@ -217,6 +220,9 @@ var testGrid = []testCase{
 			{msg.NamespaceInjectionEnabledByDefault, "Namespace bar"},
 			{msg.PodMissingProxy, "Pod default/noninjectedpod"},
 			{msg.NamespaceMultipleInjectionLabels, "Namespace busted"},
+			{msg.NamespaceMultipleInjectionLabels, "Namespace multi-ns-1"},
+			{msg.NamespaceMultipleInjectionLabels, "Namespace multi-ns-2"},
+			{msg.NamespaceMultipleInjectionLabels, "Namespace multi-ns-3"},
 		},
 	},
 	{
@@ -228,6 +234,7 @@ var testGrid = []testCase{
 		analyzer: &injection.ImageAnalyzer{},
 		expected: []message{
 			{msg.PodsIstioProxyImageMismatchInNamespace, "Namespace enabled-namespace"},
+			{msg.PodsIstioProxyImageMismatchInNamespace, "Namespace enabled-namespace-native"},
 		},
 	},
 	{
@@ -239,6 +246,7 @@ var testGrid = []testCase{
 		analyzer: &injection.ImageAnalyzer{},
 		expected: []message{
 			{msg.PodsIstioProxyImageMismatchInNamespace, "Namespace enabled-namespace"},
+			{msg.PodsIstioProxyImageMismatchInNamespace, "Namespace enabled-namespace-native"},
 		},
 	},
 	{
@@ -251,6 +259,7 @@ var testGrid = []testCase{
 		analyzer: &injection.ImageAnalyzer{},
 		expected: []message{
 			{msg.PodsIstioProxyImageMismatchInNamespace, "Namespace enabled-namespace"},
+			{msg.PodsIstioProxyImageMismatchInNamespace, "Namespace enabled-namespace-native"},
 			{msg.PodsIstioProxyImageMismatchInNamespace, "Namespace revision-namespace"},
 		},
 	},

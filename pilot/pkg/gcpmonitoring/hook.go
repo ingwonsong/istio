@@ -25,15 +25,15 @@ import (
 )
 
 var (
-	typeHookLabel     = monitoring.MustCreateLabel("type")
-	eventHookLabel    = monitoring.MustCreateLabel("event")
-	resourceHookLabel = monitoring.MustCreateLabel("resource")
-	versionHookLabel  = monitoring.MustCreateLabel("version")
+	typeHookLabel     = monitoring.CreateLabel("type")
+	eventHookLabel    = monitoring.CreateLabel("event")
+	resourceHookLabel = monitoring.CreateLabel("resource")
+	versionHookLabel  = monitoring.CreateLabel("version")
 
 	pilotK8sCfgEvents              = "pilot_k8s_cfg_events"
 	pilotK8sRegEvents              = "pilot_k8s_reg_events"
-	galleyValidationPassed         = "galley/validation/passed"
-	galleyValidationFailed         = "galley/validation/failed"
+	galleyValidationPassed         = "galley_validation_passed"
+	galleyValidationFailed         = "galley_validation_failed"
 	pilotXDSPushes                 = "pilot_xds_pushes"
 	pilotXDSEDSReject              = "pilot_xds_eds_reject"
 	pilotXDSRDSReject              = "pilot_xds_rds_reject"
@@ -52,7 +52,7 @@ type gcpRecordHook struct{}
 
 var _ monitoring.RecordHook = &gcpRecordHook{}
 
-func (r gcpRecordHook) OnRecord(name string, tags monitoring.LabelSet, value float64) {
+func (r gcpRecordHook) OnRecord(name string, tags []monitoring.LabelValue, value float64) {
 	switch name {
 	case pilotK8sCfgEvents, pilotK8sRegEvents:
 		onPilotK8sCfgEvents(tags, value)
@@ -97,14 +97,20 @@ func registerHook() {
 	monitoring.RegisterRecordHook(ipBasedRemoteSecretsTranslated, hook)
 }
 
-func onPilotK8sCfgEvents(tags monitoring.LabelSet, value float64) {
-	t, found := tags.Value(typeHookLabel)
-	if !found {
-		return
+func onPilotK8sCfgEvents(tags []monitoring.LabelValue, value float64) {
+	var t string
+	for _, tag := range tags {
+		if tag.Key() == typeHookLabel {
+			t = tag.Value()
+			break
+		}
 	}
-	e, found := tags.Value(eventHookLabel)
-	if !found {
-		return
+	var e string
+	for _, tag := range tags {
+		if tag.Key() == eventHookLabel {
+			e = tag.Value()
+			break
+		}
 	}
 	ctx, err := tag.New(context.Background(), tag.Insert(operationKey, e), tag.Insert(typeKey, t))
 	if err != nil {
@@ -113,10 +119,13 @@ func onPilotK8sCfgEvents(tags monitoring.LabelSet, value float64) {
 	stats.Record(ctx, configEventMeasure.M(int64(value)))
 }
 
-func onGalleyValidationPass(tags monitoring.LabelSet, value float64) {
-	res, found := tags.Value(resourceHookLabel)
-	if !found {
-		return
+func onGalleyValidationPass(tags []monitoring.LabelValue, value float64) {
+	var res string
+	for _, tag := range tags {
+		if tag.Key() == resourceHookLabel {
+			res = tag.Value()
+			break
+		}
 	}
 	ctx, err := tag.New(context.Background(), tag.Insert(typeKey, res), tag.Insert(successKey, "true"))
 	if err != nil {
@@ -125,10 +134,13 @@ func onGalleyValidationPass(tags monitoring.LabelSet, value float64) {
 	stats.Record(ctx, configValidationMeasuare.M(int64(value)))
 }
 
-func onGalleyValidationFailed(tags monitoring.LabelSet, value float64) {
-	res, found := tags.Value(resourceHookLabel)
-	if !found {
-		return
+func onGalleyValidationFailed(tags []monitoring.LabelValue, value float64) {
+	var res string
+	for _, tag := range tags {
+		if tag.Key() == resourceHookLabel {
+			res = tag.Value()
+			break
+		}
 	}
 	ctx, err := tag.New(context.Background(), tag.Insert(typeKey, res), tag.Insert(successKey, "false"))
 	if err != nil {
@@ -137,9 +149,15 @@ func onGalleyValidationFailed(tags monitoring.LabelSet, value float64) {
 	stats.Record(ctx, configValidationMeasuare.M(int64(value)))
 }
 
-func onPilotXDSPushes(tags monitoring.LabelSet, value float64) {
-	t, found := tags.Value(typeHookLabel)
-	if !found || len(t) < 3 {
+func onPilotXDSPushes(tags []monitoring.LabelValue, value float64) {
+	var t string
+	for _, tag := range tags {
+		if tag.Key() == typeHookLabel {
+			t = tag.Value()
+			break
+		}
+	}
+	if len(t) < 3 {
 		return
 	}
 	xdsType := strings.ToUpper(t[0:3])
@@ -155,7 +173,7 @@ func onPilotXDSPushes(tags monitoring.LabelSet, value float64) {
 	stats.Record(ctx, configPushMeasuare.M(int64(value)))
 }
 
-func onPilotXDSReject(name string, _ monitoring.LabelSet, value float64) {
+func onPilotXDSReject(name string, _ []monitoring.LabelValue, value float64) {
 	// measure name is patterned as pilot_xds_xxx_reject, where xxx is the xds type.
 	xdsType := strings.ToUpper(name[10:13])
 	ctx, err := tag.New(context.Background(), tag.Insert(typeKey, xdsType))
@@ -165,14 +183,17 @@ func onPilotXDSReject(name string, _ monitoring.LabelSet, value float64) {
 	stats.Record(ctx, rejectedConfigMeasuare.M(int64(value)))
 }
 
-func onPilotConfigConvergence(_ monitoring.LabelSet, value float64) {
+func onPilotConfigConvergence(_ []monitoring.LabelValue, value float64) {
 	stats.Record(context.Background(), configConvergenceMeasuare.M(value))
 }
 
-func onPilotXDS(tags monitoring.LabelSet, value float64) {
-	res, found := tags.Value(versionHookLabel)
-	if !found {
-		return
+func onPilotXDS(tags []monitoring.LabelValue, value float64) {
+	var res string
+	for _, tag := range tags {
+		if tag.Key() == versionHookLabel {
+			res = tag.Value()
+			break
+		}
 	}
 	ctx, err := tag.New(context.Background(), tag.Insert(proxyVersionKey, res))
 	if err != nil {
@@ -181,7 +202,7 @@ func onPilotXDS(tags monitoring.LabelSet, value float64) {
 	stats.Record(ctx, proxyClientsMeasure.M(int64(value)))
 }
 
-func onSidecarInjection(name string, _ monitoring.LabelSet, value float64) {
+func onSidecarInjection(name string, _ []monitoring.LabelValue, value float64) {
 	status := ""
 	switch name {
 	case sidecarInjectionSuccessTotal:
@@ -198,14 +219,19 @@ func onSidecarInjection(name string, _ monitoring.LabelSet, value float64) {
 	stats.Record(ctx, sidecarInjectionMeasure.M(int64(value)))
 }
 
-func onIPBasedRemoteSecretProcessed(_ monitoring.LabelSet, value float64) {
+func onIPBasedRemoteSecretProcessed(_ []monitoring.LabelValue, value float64) {
 	stats.Record(context.Background(), ipBasedRemoteSecretsMeasure.M(int64(value)))
 }
 
-func onIPBasedRemoteSecretTranslated(tags monitoring.LabelSet, value float64) {
-	success, f := tags.Value(successLabel)
-	if !f {
-		return
+func onIPBasedRemoteSecretTranslated(
+	tags []monitoring.LabelValue, value float64,
+) {
+	var success string
+	for _, tag := range tags {
+		if tag.Key() == successLabel {
+			success = tag.Value()
+			break
+		}
 	}
 
 	ctx, err := tag.New(context.Background(), tag.Insert(successKey, success))

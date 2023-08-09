@@ -24,63 +24,48 @@ const hourInMS = 3600000
 
 // for stackdriver metrics report
 var (
-	proxyVersionLabel     = monitoring.MustCreateLabel("proxy_version")
-	fromProxyVersionLabel = monitoring.MustCreateLabel("from_proxy_version")
-	toProxyVersionLabel   = monitoring.MustCreateLabel("to_proxy_version")
-	resultLabel           = monitoring.MustCreateLabel("result")
-	ownerLabel            = monitoring.MustCreateLabel("owner")
-	stateLabel            = monitoring.MustCreateLabel("state")
-	revisionLabel         = monitoring.MustCreateLabel("revision")
-	cacheNameLabel        = monitoring.MustCreateLabel("cache_name")
+	proxyVersionLabel     = monitoring.CreateLabel("proxy_version")
+	fromProxyVersionLabel = monitoring.CreateLabel("from_proxy_version")
+	toProxyVersionLabel   = monitoring.CreateLabel("to_proxy_version")
+	resultLabel           = monitoring.CreateLabel("result")
+	ownerLabel            = monitoring.CreateLabel("owner")
+	stateLabel            = monitoring.CreateLabel("state")
+	revisionLabel         = monitoring.CreateLabel("revision")
 
 	proxyPercentageTarget = monitoring.NewGauge(
 		"proxy_percentage_targets",
 		"Expected percentages of each proxy version",
-		monitoring.WithLabels(proxyVersionLabel, revisionLabel),
 	)
 	proxies = monitoring.NewGauge(
 		"proxies",
 		"Count of the proxies watched by MDP controller",
-		monitoring.WithLabels(proxyVersionLabel, ownerLabel, stateLabel, revisionLabel),
-		monitoring.WithInt64Values(),
 	)
 
 	reconcileLoopsCount = monitoring.NewSum(
 		"reconcile_loops_count",
 		"Count of the MDP controller reconcile loops",
-		monitoring.WithLabels(resultLabel, revisionLabel),
-		monitoring.WithInt64Values(),
 	)
 
 	rebuildCacheCount = monitoring.NewSum(
 		"rebuild_cache_count",
 		"Count of the pod cache rebuild events",
-		monitoring.WithLabels(cacheNameLabel),
-		monitoring.WithInt64Values(),
 	)
 	upgradedProxiesCount = monitoring.NewSum(
 		"upgraded_proxies_count",
 		"Count of the proxies upgraded by MDP controller",
-		monitoring.WithLabels(fromProxyVersionLabel, toProxyVersionLabel, resultLabel, revisionLabel),
-		monitoring.WithInt64Values(),
 	)
 	reconcileState = monitoring.NewGauge(
 		"reconcile_state",
 		"MDP controller reconcile state",
-		monitoring.WithLabels(stateLabel, revisionLabel),
-		monitoring.WithInt64Values(),
 	)
 	servingState = monitoring.NewGauge(
 		"serving_state",
 		"MDP controller serving state",
-		monitoring.WithLabels(stateLabel),
-		monitoring.WithInt64Values(),
 	)
 	// TODO(iamwen): replace with derivedGauge after deprecating exportView: b/190761802
 	upTime = monitoring.NewGauge(
 		"uptime",
 		"Uptime of the MDP Controller in seconds",
-		monitoring.WithInt64Values(),
 	)
 	reconcileDuration = monitoring.NewDistribution(
 		"reconcile_duration",
@@ -89,7 +74,6 @@ var (
 			1 * hourInMS, 2 * hourInMS, 4 * hourInMS, 8 * hourInMS,
 			16 * hourInMS, 32 * hourInMS, 64 * hourInMS,
 		},
-		monitoring.WithLabels(revisionLabel),
 	)
 	rsMetrics = []monitoring.Metric{
 		proxyPercentageTarget,
@@ -106,7 +90,6 @@ var (
 
 func init() {
 	for _, mc := range rsMetrics {
-		monitoring.MustRegister(mc)
 		viewMap[mc.Name()] = true
 	}
 }

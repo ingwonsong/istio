@@ -139,51 +139,58 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: istio-ingressgateway
-  namespace: istio-system
   labels:
     app: istio-ingressgateway
-    istio: ingressgateway
-    release: istio
-    istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
+    istio: ingressgateway
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
+  name: istio-ingressgateway
+  namespace: istio-system
 spec:
   minAvailable: 1
   selector:
     matchLabels:
       app: istio-ingressgateway
       istio: ingressgateway
+
 ---
 
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  labels:
+    install.operator.istio.io/owning-resource: unknown
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
   name: istio-ingressgateway-sds
   namespace: istio-system
-  labels:
-    release: istio
-    istio.io/rev: asm-managed-rapid
-    install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
 rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "watch", "list"]
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+
 ---
 
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    install.operator.istio.io/owning-resource: unknown
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
   name: istio-ingressgateway-sds
   namespace: istio-system
-  labels:
-    release: istio
-    istio.io/rev: asm-managed-rapid
-    install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -191,6 +198,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: istio-ingressgateway-service-account
+
 ---
 
 
@@ -239,13 +247,14 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: istio-ingressgateway-service-account
-  namespace: istio-system
   labels:
     app: istio-ingressgateway
-    istio: ingressgateway
-    release: istio
-    istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
+    istio: ingressgateway
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
+  name: istio-ingressgateway-service-account
+  namespace: istio-system
+
 ---

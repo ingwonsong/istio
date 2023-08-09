@@ -196,7 +196,7 @@ function configure_remote_secrets_for_baremetal() {
   for i in "${!MC_CONFIGS[@]}"; do
     for j in "${!MC_CONFIGS[@]}"; do
       if [[ "$i" != "$j" ]]; then
-        HTTPS_PROXY=${HTTP_PROXYS[$j]} istioctl x create-remote-secret \
+        HTTPS_PROXY=${HTTP_PROXYS[$j]} istioctl create-remote-secret \
           --kubeconfig="${MC_CONFIGS[$j]}" \
           --name="${BM_CLUSTER_NAME_SET[$j]}" > "secret-${j}"
         local ORIGINAL_IP
@@ -239,12 +239,12 @@ function configure_remote_secrets_for_gcp_baremetal_hybrid() {
   echo "BM_CONFIG: ${BM_CONFIG}, BM_PROXY: ${BM_PROXY}, GCP_CONFIG: ${GCP_CONFIG}"
 
   # Generate GCP remote secret
-  istioctl x create-remote-secret \
+  istioctl create-remote-secret \
     --kubeconfig="${GCP_CONFIG}" \
     --name="cluster-gcp" > "secret-gcp"
 
   # Generate BM remote secret
-  HTTPS_PROXY=${BM_PROXY} istioctl x create-remote-secret \
+  HTTPS_PROXY=${BM_PROXY} istioctl create-remote-secret \
     --kubeconfig="${BM_CONFIG}" \
     --name="cluster-bm" > "secret-bm"
   sed -i 's/certificate-authority-data\:.*/insecure-skip-tls-verify\: true/' "secret-bm"

@@ -42,8 +42,6 @@ var (
 	migrationState = monitoring.NewGauge(
 		"migration_state",
 		"Migration job running state",
-		monitoring.WithInt64Values(),
-		monitoring.WithLabels(stateLabel),
 	)
 )
 
@@ -65,9 +63,4 @@ func ReportMigrationState(state jobState) {
 			With(stateLabel.Value(string(s))).
 			RecordInt(int64(v))
 	}
-}
-
-func init() {
-	monitoring.MustRegister(migrationDuration)
-	monitoring.MustRegister(migrationState)
 }

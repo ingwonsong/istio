@@ -27,7 +27,7 @@ import (
 var (
 	operationKey    = tag.MustNewKey("operation")
 	successKey      = tag.MustNewKey("success")
-	successLabel    = monitoring.MustCreateLabel("success")
+	successLabel    = monitoring.CreateLabel("success")
 	proxyVersionKey = tag.MustNewKey("proxy_version")
 	typeKey         = tag.MustNewKey("type")
 

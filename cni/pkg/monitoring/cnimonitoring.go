@@ -22,25 +22,22 @@ import (
 
 // for stackdriver metrics report
 var (
-	stateLabel  = monitoring.MustCreateLabel("state")
-	resultLabel = monitoring.MustCreateLabel("result")
+	stateLabel  = monitoring.CreateLabel("state")
+	resultLabel = monitoring.CreateLabel("result")
 
 	pluginInstallCount = monitoring.NewSum(
 		"plugin_installs_count",
 		"Count of Istio CNI network plugin installations done by an Istio CNI daemonset.",
-		monitoring.WithLabels(resultLabel),
 	)
 
 	installState = monitoring.NewGauge(
 		"install_state",
 		"The CNI plugin installation state, one of [READY, UNREADY, UNKNOWN]",
-		monitoring.WithLabels(stateLabel),
 	)
 
 	raceRepairsCount = monitoring.NewSum(
 		"race_repairs_count",
 		"Count of pods which are stuck at Istio CNI race condition and repaired by an Istio CNI daemonset",
-		monitoring.WithLabels(resultLabel),
 	)
 	rsMetrics = []monitoring.Metric{
 		raceRepairsCount,
@@ -52,7 +49,6 @@ var (
 
 func init() {
 	for _, mc := range rsMetrics {
-		monitoring.MustRegister(mc)
 		viewMap[mc.Name()] = true
 	}
 

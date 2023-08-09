@@ -144,8 +144,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(
 	listenerPort := 0
 	useSniffing := false
 	var err error
-	if features.EnableProtocolSniffingForOutbound &&
-		!strings.HasPrefix(routeName, model.UnixAddressPrefix) {
+	if !strings.HasPrefix(routeName, model.UnixAddressPrefix) {
 		index := strings.IndexRune(routeName, ':')
 		if index != -1 {
 			useSniffing = true
@@ -342,6 +341,10 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 					ServiceRegistry: svc.Attributes.ServiceRegistry,
 					Labels:          svc.Attributes.Labels,
 				},
+			}
+			if features.EnableDualStack {
+				// cannot correctly build virtualHost domains for dual stack without ClusterVIPs
+				servicesByName[svc.Hostname].ClusterVIPs = *svc.ClusterVIPs.DeepCopy()
 			}
 		}
 	}
@@ -568,6 +571,14 @@ func generateVirtualHostDomains(service *model.Service, listenerPort int, port i
 	if len(svcAddr) > 0 && svcAddr != constants.UnspecifiedIP {
 		domains = appendDomainPort(domains, svcAddr, port)
 	}
+
+	// handle dual stack's extra address when generating the virtualHost domains
+	// assumes that conversion is stripping out the DefaultAddress from ClusterVIPs
+	extraAddr := service.GetExtraAddressesForProxy(node)
+	for _, addr := range extraAddr {
+		domains = appendDomainPort(domains, addr, port)
+	}
+
 	return domains, altHosts
 }
 

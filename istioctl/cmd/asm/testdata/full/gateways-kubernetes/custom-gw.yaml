@@ -3,29 +3,30 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: custom-gw
-  namespace: custom
   labels:
     app: istio-ingressgateway
-    istio: custom
-    release: istio
-    istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
+    istio: custom
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
+  name: custom-gw
+  namespace: custom
 spec:
   maxReplicas: 5
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 80
+        type: Utilization
+    type: Resource
   minReplicas: 1
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: custom-gw
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 80
+
 ---
 
 
@@ -131,51 +132,58 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: custom-gw
-  namespace: custom
   labels:
     app: istio-ingressgateway
-    istio: custom
-    release: istio
-    istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
+    istio: custom
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
+  name: custom-gw
+  namespace: custom
 spec:
   minAvailable: 1
   selector:
     matchLabels:
       app: istio-ingressgateway
       istio: custom
+
 ---
 
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  labels:
+    install.operator.istio.io/owning-resource: unknown
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
   name: custom-gw-sds
   namespace: custom
-  labels:
-    release: istio
-    istio.io/rev: asm-managed-rapid
-    install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
 rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "watch", "list"]
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+
 ---
 
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    install.operator.istio.io/owning-resource: unknown
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
   name: custom-gw-sds
   namespace: custom
-  labels:
-    release: istio
-    istio.io/rev: asm-managed-rapid
-    install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -183,6 +191,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: custom-gw-service-account
+
 ---
 
 
@@ -215,13 +224,14 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: custom-gw-service-account
-  namespace: custom
   labels:
     app: istio-ingressgateway
-    istio: custom
-    release: istio
-    istio.io/rev: asm-managed-rapid
     install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "IngressGateways"
+    istio: custom
+    istio.io/rev: asm-managed-rapid
+    operator.istio.io/component: IngressGateways
+    release: istio
+  name: custom-gw-service-account
+  namespace: custom
+
 ---

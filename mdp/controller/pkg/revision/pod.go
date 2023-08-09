@@ -471,7 +471,7 @@ func (p *PodCache) RecalculateNamespaceMembers(ctx context.Context, ns string, o
 	allPodList := &v1.PodList{}
 	err := client.List(ctx, allPodList, rtclient.InNamespace(ns))
 	if err != nil {
-		log.Fatalf(err)
+		log.Fatalf(err.Error())
 	}
 	unique := set.Set{}
 	var result []string
