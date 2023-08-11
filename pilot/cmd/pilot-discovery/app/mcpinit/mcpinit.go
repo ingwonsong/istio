@@ -44,6 +44,7 @@ import (
 
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth/gcp" // Import client auth libraries TODO(b/265068117)
 	"istio.io/istio/pkg/asm"
+	"istio.io/istio/pkg/asm/mcpcallback"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/schema/resource"
 	"istio.io/istio/pkg/env"
@@ -124,6 +125,7 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 		if asm.IsConnectGateway() {
 			cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
 			if err != nil {
+				mcpcallback.RecordError(err)
 				log.Errorf("failed to setup Connect Gateway: %v", err)
 			} else {
 				endpoint = strings.TrimPrefix(cgwURL, "https://")
@@ -160,16 +162,16 @@ func connectGatewayURL(ctx context.Context, fleetProjectNum, hubMembership strin
 	}
 	components, err := parseGKEHubMembership(hubMembership)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse GKE Hub membership: %v", err)
+		return "", fmt.Errorf("failed to parse GKE Hub membership: %w", err)
 	}
 	// TODO(ruigu): Obtain fleet project number from CloudResourceManager.
 	// nolint: lll
 	cgwURL, err := url.JoinPath("https://"+connectGatewayEndpointFromHubEndpoint(components.endpoint), "v1", "projects", fleetProjectNum, "locations", components.location, "gkeMemberships", components.name)
 	if err != nil {
-		return "", fmt.Errorf("failed to create Connect Gateway URL: %v", err)
+		return "", fmt.Errorf("failed to create Connect Gateway URL: %w", err)
 	}
 	if err := validateCGWAccess(ctx, cgwURL); err != nil {
-		return "", fmt.Errorf("failed to validate Connect Gateway URL: %v", err)
+		return "", fmt.Errorf("failed to validate Connect Gateway URL: %w", err)
 	}
 
 	return cgwURL, nil

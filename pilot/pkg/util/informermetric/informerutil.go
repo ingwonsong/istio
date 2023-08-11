@@ -15,10 +15,14 @@
 package informermetric
 
 import (
+	"errors"
+	"net/http"
 	"sync"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/cache"
 
+	"istio.io/istio/pkg/asm/mcpcallback"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/monitoring"
@@ -51,6 +55,11 @@ func ErrorHandlerForCluster(clusterID cluster.ID) cache.WatchErrorHandler {
 	clusterMetric := errorMetric.With(clusterLabel.Value(clusterID.String()))
 	h := func(_ *cache.Reflector, err error) {
 		clusterMetric.Increment()
+		var apiStatus apierrors.APIStatus
+		if errors.As(err, &apiStatus) && apiStatus.Status().Code == http.StatusForbidden {
+			// Report the watch error only if there is a permission error to avoid reporting temporal errors.
+			mcpcallback.RecordError(err)
+		}
 		log.Errorf("watch error in cluster %s: %v", clusterID, err)
 	}
 	handlers[clusterID] = h

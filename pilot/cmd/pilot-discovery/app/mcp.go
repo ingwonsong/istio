@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -32,6 +31,8 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/cloudresourcemanager/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,6 +44,8 @@ import (
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth/gcp" // Import client auth libraries TODO(b/265068117)
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
+	"istio.io/istio/pkg/asm"
+	"istio.io/istio/pkg/asm/mcpcallback"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/cmd"
@@ -61,7 +64,7 @@ import (
 // For now, it also sets up parts of the cluster when needed (configmaps, webhooks, etc). In the future, scriptaro or AFC will do this.
 // To run locally, using the current kubeconfig cluster: `LOCAL_MCP=true go run ./pilot/cmd/pilot-discovery mcp`
 func newMCPCommand() *cobra.Command {
-	var mcpParams MCPParameters
+	var mcpParams asm.MCPParameters
 	return &cobra.Command{
 		Use:   "mcp",
 		Short: "Start MCP control plane.",
@@ -72,7 +75,7 @@ func newMCPCommand() *cobra.Command {
 			var err error
 
 			// Read core MCP configuration. This is generally set in the KService, which in turn is configured by Thetis.
-			mcpParams, err = MCPParametersFromEnv()
+			mcpParams, err = asm.MCPParametersFromEnv()
 			if err != nil {
 				return err
 			}
@@ -95,35 +98,50 @@ func newMCPCommand() *cobra.Command {
 			return nil
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			client, err := initializeMCP(mcpParams)
+			defer func() {
+				if r := recover(); r != nil {
+					mcpcallback.SendError(status.Error(codes.Unavailable, "server shut down unexpectedly"))
+					log.Fatalf("Panic: %v", r)
+				}
+			}()
+			mcpcallback.Start()
+			err := func() error {
+				client, err := initializeMCP(mcpParams)
+				if err != nil {
+					return fmt.Errorf("initialize MCP: %v", err)
+				}
+
+				// Create the stop channel for all of the servers.
+				stop := make(chan struct{})
+
+				// Create the server for the discovery service. This is the same as the standard OSS code, except we
+				// already have a kube client initialized, so we pre-set that to avoid creating two clients.
+				discoveryServer, err := bootstrap.NewServer(serverArgs, bootstrap.SetKubeClient(client))
+				if err != nil {
+					return fmt.Errorf("failed to create discovery service: %v", err)
+				}
+
+				// Start the server
+				if err := discoveryServer.Start(stop); err != nil {
+					return fmt.Errorf("failed to start discovery service: %v", err)
+				}
+				cmd.WaitSignal(stop)
+				// Wait until we shut down. In theory this could block forever; in practice we will get
+				// forcibly shut down after 30s in Kubernetes.
+				discoveryServer.WaitUntilCompletion()
+				return nil
+			}()
 			if err != nil {
-				return fmt.Errorf("initialize MCP: %v", err)
+				mcpcallback.SendError(err)
+				return err
 			}
-
-			// Create the stop channel for all of the servers.
-			stop := make(chan struct{})
-
-			// Create the server for the discovery service. This is the same as the standard OSS code, except we
-			// already have a kube client initialized, so we pre-set that to avoid creating two clients.
-			discoveryServer, err := bootstrap.NewServer(serverArgs, bootstrap.SetKubeClient(client))
-			if err != nil {
-				return fmt.Errorf("failed to create discovery service: %v", err)
-			}
-
-			// Start the server
-			if err := discoveryServer.Start(stop); err != nil {
-				return fmt.Errorf("failed to start discovery service: %v", err)
-			}
-			cmd.WaitSignal(stop)
-			// Wait until we shut down. In theory this could block forever; in practice we will get
-			// forcibly shut down after 30s in Kubernetes.
-			discoveryServer.WaitUntilCompletion()
+			mcpcallback.Stop()
 			return nil
 		},
 	}
 }
 
-func generateTemplateParameters(p MCPParameters, options *AsmOptions, client kubelib.Client, cluster *containerpb.Cluster) (TemplateParameters, error) {
+func generateTemplateParameters(p asm.MCPParameters, options *AsmOptions, client kubelib.Client, cluster *containerpb.Cluster) (TemplateParameters, error) {
 	cniEnabled, err := getCniEnabled(options, client)
 	if err != nil {
 		return TemplateParameters{}, err
@@ -147,7 +165,7 @@ func generateTemplateParameters(p MCPParameters, options *AsmOptions, client kub
 	return templateParams, nil
 }
 
-func initializeMCP(p MCPParameters) (kubelib.Client, error) {
+func initializeMCP(p asm.MCPParameters) (kubelib.Client, error) {
 	t0 := time.Now()
 	defer func() {
 		log.Infof("MCP initialization complete in %v for options %+v", time.Since(t0), p)
@@ -546,7 +564,7 @@ func fetchAsmOptions(client kubelib.Client) (*AsmOptions, error) {
 	return option, nil
 }
 
-func overwriteOptionsFromArgs(params MCPParameters, options *AsmOptions) {
+func overwriteOptionsFromArgs(params asm.MCPParameters, options *AsmOptions) {
 	if params.CAAddr != "" {
 		options.CAOptions.CAAddr = params.CAAddr
 	}
@@ -582,7 +600,7 @@ func executeTemplateTo(fromFile, toFile string, params TemplateParameters) error
 }
 
 // configureMCPLogs configures our custom logging to be compatible with SD and tee to the consumer project's logs
-func configureMCPLogs(p MCPParameters, options *log.Options) error {
+func configureMCPLogs(p asm.MCPParameters, options *log.Options) error {
 	gcpmonitoring.SetTrustDomain(p.TrustDomain)
 	gcpmonitoring.SetPodName(p.PodName)
 	gcpmonitoring.SetPodNamespace(constants.IstioSystemNamespace)
@@ -629,7 +647,7 @@ type AsmOptions struct {
 // TemplateParameters represents the set of inputs to the various template files we execute (mesh config,
 // injection, etc)
 type TemplateParameters struct {
-	MCPParameters
+	asm.MCPParameters
 	CNIEnabled    bool
 	CAAddress     string
 	CA            string
@@ -637,103 +655,11 @@ type TemplateParameters struct {
 	ProxyResourceParameters
 }
 
-// MCPParameters represents the set of inputs from the CloudRun service environment variables
-// This is currently configured from google3/cloud/services_platform/thetis/meshconfig/cloudrun.go
-type MCPParameters struct {
-	Project            string
-	ProjectNumber      string
-	Zone               string
-	Cluster            string
-	KRevision          string
-	Revision           string
-	TrustDomain        string
-	PodName            string
-	CloudrunAddr       string
-	Hub                string
-	Tag                string
-	XDSAddr            string
-	XDSAuthProvider    string
-	GKEClusterURL      string
-	FleetProjectNumber string
-	AFCManagedWebhook  bool
-	GKEHubMembership   string
-	CAAddr             string
-	CAType             string
-}
-
 type ProxyResourceParameters struct {
 	ProxyMemoryRequest string
 	ProxyCPURequest    string
 	ProxyMemoryLimit   string
 	ProxyCPULimit      string
-}
-
-// nolint: golint
-func MCPParametersFromEnv() (MCPParameters, error) {
-	p := MCPParameters{}
-	p.Project = os.Getenv("PROJECT")
-	if p.Project == "" {
-		return p, fmt.Errorf("PROJECT is a required environment variable")
-	}
-	p.ProjectNumber = os.Getenv("PROJECT_NUMBER")
-	if p.ProjectNumber == "" {
-		return p, fmt.Errorf("PROJECT_NUMBER is a required environment variable")
-	}
-	p.Zone = os.Getenv("ZONE")
-	if p.Zone == "" {
-		return p, fmt.Errorf("ZONE is a required environment variable")
-	}
-	p.Cluster = os.Getenv("CLUSTER")
-	if p.Cluster == "" {
-		return p, fmt.Errorf("CLUSTER is a required environment variable")
-	}
-	p.KRevision = os.Getenv("K_REVISION")
-	if p.KRevision == "" {
-		return p, fmt.Errorf("K_REVISION is a required environment variable")
-	}
-	p.Revision = os.Getenv("REV")
-	if p.Revision == "" {
-		p.Revision = "asm-managed"
-	}
-	p.CloudrunAddr = os.Getenv("CLOUDRUN_ADDR")
-	if p.CloudrunAddr == "" {
-		return p, fmt.Errorf("CLOUDRUN_ADDR is a required environment variable")
-	}
-	p.XDSAddr = os.Getenv("XDS_ADDR")
-	if p.XDSAddr == "" {
-		return p, fmt.Errorf("XDS_ADDR is a required environment variable")
-	}
-	p.XDSAuthProvider = os.Getenv("XDS_AUTH_PROVIDER")
-	if p.XDSAuthProvider == "" {
-		p.XDSAuthProvider = "gcp"
-	}
-	// TODO(ruigu): Obtain IdentityProvider on the fly.
-	// Currently, Thetis construct IdentityProvider URL and pass it to Istiod through env.
-	// It was suggested to directly obtain this info from hub instead of constructing it
-	// by ourself.
-	p.GKEClusterURL = os.Getenv("GKE_CLUSTER_URL")
-	p.FleetProjectNumber = os.Getenv("FLEET_PROJECT_NUMBER")
-	// GKE Hub membership full resource name (https://google.aip.dev/122) with owning API prepended.
-	// e.g. //gkehub.googleapis.com/project/foo/locations/global/memberships/bar
-	p.GKEHubMembership = os.Getenv("GKE_HUB_MEMBERSHIP")
-	p.Tag = os.Getenv("TAG")
-	p.Hub = os.Getenv("HUB")
-	tdProj := os.Getenv("FLEET_PROJECT_ID")
-	if tdProj == "" {
-		tdProj = p.Project
-	}
-	p.TrustDomain = fmt.Sprintf("%s.svc.id.goog", tdProj)
-	p.PodName = fmt.Sprintf("%s-%d", p.KRevision, time.Now().Nanosecond())
-	p.CAAddr = os.Getenv("CAAddr")
-	p.CAType = os.Getenv("CA")
-	if v := os.Getenv("AFC_MANAGED_WEBHOOK"); v != "" {
-		var err error
-		p.AFCManagedWebhook, err = strconv.ParseBool(v)
-		if err != nil {
-			return p, fmt.Errorf("parsing AFC_MANAGED_WEBHOOK: %w", err)
-		}
-	}
-	return p, nil
 }
 
 func createProxyParameters(cluster *containerpb.Cluster) ProxyResourceParameters {

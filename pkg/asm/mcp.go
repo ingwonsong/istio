@@ -15,6 +15,11 @@
 package asm
 
 import (
+	"fmt"
+	"os"
+	"strconv"
+	"time"
+
 	"istio.io/istio/pkg/env"
 )
 
@@ -39,4 +44,96 @@ func IsCloudESF() bool {
 
 func IsConnectGateway() bool {
 	return enableConnectGateway
+}
+
+// MCPParameters represents the set of inputs from the CloudRun service environment variables
+// This is currently configured from google3/cloud/services_platform/thetis/meshconfig/cloudrun.go
+type MCPParameters struct {
+	Project            string
+	ProjectNumber      string
+	Zone               string
+	Cluster            string
+	KRevision          string
+	Revision           string
+	TrustDomain        string
+	PodName            string
+	CloudrunAddr       string
+	Hub                string
+	Tag                string
+	XDSAddr            string
+	XDSAuthProvider    string
+	GKEClusterURL      string
+	FleetProjectNumber string
+	AFCManagedWebhook  bool
+	GKEHubMembership   string
+	CAAddr             string
+	CAType             string
+}
+
+// nolint: golint
+func MCPParametersFromEnv() (MCPParameters, error) {
+	p := MCPParameters{}
+	p.Project = os.Getenv("PROJECT")
+	if p.Project == "" {
+		return p, fmt.Errorf("PROJECT is a required environment variable")
+	}
+	p.ProjectNumber = os.Getenv("PROJECT_NUMBER")
+	if p.ProjectNumber == "" {
+		return p, fmt.Errorf("PROJECT_NUMBER is a required environment variable")
+	}
+	p.Zone = os.Getenv("ZONE")
+	if p.Zone == "" {
+		return p, fmt.Errorf("ZONE is a required environment variable")
+	}
+	p.Cluster = os.Getenv("CLUSTER")
+	if p.Cluster == "" {
+		return p, fmt.Errorf("CLUSTER is a required environment variable")
+	}
+	p.KRevision = os.Getenv("K_REVISION")
+	if p.KRevision == "" {
+		return p, fmt.Errorf("K_REVISION is a required environment variable")
+	}
+	p.Revision = os.Getenv("REV")
+	if p.Revision == "" {
+		p.Revision = "asm-managed"
+	}
+	p.CloudrunAddr = os.Getenv("CLOUDRUN_ADDR")
+	if p.CloudrunAddr == "" {
+		return p, fmt.Errorf("CLOUDRUN_ADDR is a required environment variable")
+	}
+	p.XDSAddr = os.Getenv("XDS_ADDR")
+	if p.XDSAddr == "" {
+		return p, fmt.Errorf("XDS_ADDR is a required environment variable")
+	}
+	p.XDSAuthProvider = os.Getenv("XDS_AUTH_PROVIDER")
+	if p.XDSAuthProvider == "" {
+		p.XDSAuthProvider = "gcp"
+	}
+	// TODO(ruigu): Obtain IdentityProvider on the fly.
+	// Currently, Thetis construct IdentityProvider URL and pass it to Istiod through env.
+	// It was suggested to directly obtain this info from hub instead of constructing it
+	// by ourself.
+	p.GKEClusterURL = os.Getenv("GKE_CLUSTER_URL")
+	p.FleetProjectNumber = os.Getenv("FLEET_PROJECT_NUMBER")
+	// GKE Hub membership full resource name (https://google.aip.dev/122) with owning API prepended.
+	// e.g. //gkehub.googleapis.com/project/foo/locations/global/memberships/bar
+	p.GKEHubMembership = os.Getenv("GKE_HUB_MEMBERSHIP")
+	p.Tag = os.Getenv("TAG")
+	p.Hub = os.Getenv("HUB")
+	tdProj := os.Getenv("FLEET_PROJECT_ID")
+	if tdProj == "" {
+		tdProj = p.Project
+	}
+	p.TrustDomain = fmt.Sprintf("%s.svc.id.goog", tdProj)
+	p.PodName = fmt.Sprintf("%s-%d", p.KRevision, time.Now().Nanosecond())
+	p.CAAddr = os.Getenv("CAAddr")
+	p.CAType = os.Getenv("CA")
+	if v := os.Getenv("AFC_MANAGED_WEBHOOK"); v != "" {
+		var err error
+		p.AFCManagedWebhook, err = strconv.ParseBool(v)
+		if err != nil {
+			return p, fmt.Errorf("parsing AFC_MANAGED_WEBHOOK: %w", err)
+		}
+	}
+	return p, nil
 }

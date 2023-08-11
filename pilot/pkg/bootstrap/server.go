@@ -52,6 +52,7 @@ import (
 	"istio.io/istio/pilot/pkg/status/distribution"
 	tb "istio.io/istio/pilot/pkg/trustbundle"
 	"istio.io/istio/pilot/pkg/xds"
+	"istio.io/istio/pkg/asm/mcpcallback"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
@@ -430,6 +431,7 @@ func (s *Server) Start(stop <-chan struct{}) error {
 	if !s.waitForCacheSync(stop) {
 		return fmt.Errorf("failed to sync cache")
 	}
+	mcpcallback.SendOK()
 	// Inform Discovery Server so that it can start accepting connections.
 	s.XDSServer.CachesSynced()
 
