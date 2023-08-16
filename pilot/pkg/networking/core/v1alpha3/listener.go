@@ -109,7 +109,7 @@ func (configgen *ConfigGeneratorImpl) BuildListeners(node *model.Proxy,
 	builder.patchListeners()
 	l := builder.getListeners()
 	if builder.node.EnableHBONE() && !builder.node.IsAmbient() {
-		l = append(l, outboundTunnelListener(builder.node))
+		l = append(l, buildConnectOriginateListener())
 	}
 
 	return l
@@ -472,7 +472,7 @@ func (lb *ListenerBuilder) buildSidecarOutboundListeners(node *model.Proxy,
 					// wildcard route match to get to the appropriate IP through original dst clusters.
 					if features.EnableHeadlessService && bind.Primary() == "" && service.Resolution == model.Passthrough &&
 						saddress == constants.UnspecifiedIP && (servicePort.Protocol.IsTCP() || servicePort.Protocol.IsUnsupported()) {
-						instances := push.ServiceInstancesByPort(service, servicePort.Port, nil)
+						instances := push.ServiceEndpointsByPort(service, servicePort.Port, nil)
 						if service.Attributes.ServiceRegistry != provider.Kubernetes && len(instances) == 0 && service.Attributes.LabelSelectors == nil {
 							// A Kubernetes service with no endpoints means there are no endpoints at
 							// all, so don't bother sending, as traffic will never work. If we did
@@ -489,16 +489,16 @@ func (lb *ListenerBuilder) buildSidecarOutboundListeners(node *model.Proxy,
 							// Make sure each endpoint address is a valid address
 							// as service entries could have NONE resolution with label selectors for workload
 							// entries (which could technically have hostnames).
-							if !netutil.IsValidIPAddress(instance.Endpoint.Address) {
+							if !netutil.IsValidIPAddress(instance.Address) {
 								continue
 							}
 							// Skip build outbound listener to the node itself,
 							// as when app access itself by pod ip will not flow through this listener.
 							// Simultaneously, it will be duplicate with inbound listener.
-							if instance.Endpoint.Address == node.IPAddresses[0] {
+							if instance.Address == node.IPAddresses[0] {
 								continue
 							}
-							listenerOpts.bind.binds = []string{instance.Endpoint.Address}
+							listenerOpts.bind.binds = []string{instance.Address}
 							lb.buildSidecarOutboundListener(listenerOpts, listenerMap, virtualServices, actualWildcards)
 						}
 					} else {
@@ -1325,21 +1325,6 @@ func buildDownstreamQUICTransportSocket(tlsContext *auth.DownstreamTlsContext) *
 // listenerKey builds the key for a given bind and port
 func listenerKey(bind string, port int) string {
 	return bind + ":" + strconv.Itoa(port)
-}
-
-const baggageFormat = "k8s.cluster.name=%s,k8s.namespace.name=%s,k8s.%s.name=%s,service.name=%s,service.version=%s"
-
-// outboundTunnelListener builds a listener that originates an HBONE tunnel. The original dst is passed through
-func outboundTunnelListener(proxy *model.Proxy) *listener.Listener {
-	canonicalName := proxy.Labels[model.IstioCanonicalServiceLabelName]
-	canonicalRevision := proxy.Labels[model.IstioCanonicalServiceRevisionLabelName]
-	baggage := fmt.Sprintf(baggageFormat,
-		proxy.Metadata.ClusterID, proxy.ConfigNamespace,
-		// TODO do not hardcode deployment. But I think we ignore it anyways?
-		"deployment", proxy.Metadata.WorkloadName,
-		canonicalName, canonicalRevision,
-	)
-	return buildConnectOriginateListener(baggage)
 }
 
 // conflictWithStaticListener checks whether the listener address bind:port conflicts with static listener port

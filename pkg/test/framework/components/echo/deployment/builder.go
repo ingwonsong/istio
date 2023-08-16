@@ -407,7 +407,7 @@ func (b builder) deployWaypoints(instances echo.Instances) error {
 		k := waypoint{i.NamespaceName(), i.Config().AccountName()}
 		waypoints[k] = i.Config().Namespace
 	}
-	scopes.Framework.Infof("%v", waypoints)
+
 	errG := multierror.Group{}
 	for w, ns := range waypoints {
 		w, ns := w, ns
