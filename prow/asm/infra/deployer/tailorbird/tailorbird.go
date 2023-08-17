@@ -150,11 +150,25 @@ func (d *Instance) Name() string {
 }
 
 // version prefix for 1.24.10-gke.1200 will be defined as 1.24
-func getVersionPrefix(version string) string {
+func getVersionPrefix(version string) (string, error) {
+
+	if version == "" {
+		return "", errors.New("invalid value, empty version value provied in getVersionPrefix function")
+	}
+
 	majorMinorPatchVersions := strings.Split(version, ".")
+
+	if len(majorMinorPatchVersions) == 1 {
+		return "", errors.New("invalid value, only major version provided in getVersionPrefix function")
+	}
+
+	if len(majorMinorPatchVersions) == 2 {
+		return version, nil
+	}
+
 	majorMinorVersion := strings.Join(majorMinorPatchVersions[:2], ".")
 
-	return majorMinorVersion
+	return majorMinorVersion, nil
 }
 
 // this will fetch and return version values from TRAC
@@ -184,17 +198,29 @@ func (d *Instance) getVersionValuesFromTRAC() (clusterVersion string, upgradeClu
 
 	// finding latest version for each major.minor version and placing in latestThreePlatformVersions.
 	versionCount := 0
-	currentVersionPrefix := getVersionPrefix(versionList[0])
+	currentVersionPrefix, err := getVersionPrefix(versionList[0])
+
+	if err != nil {
+		log.Println("error getting version prefix for version: ", versionList[0], err)
+		return "", []string{}, err
+	}
 
 	var latestThreePlatformVersions = [3]string{"-1", "-1", "-1"}
 	latestThreePlatformVersions[versionCount] = versionList[0]
 
 	versionCount += 1
 	for _, version := range versionList {
-		if getVersionPrefix(version) != currentVersionPrefix {
+		versionPrefix, err := getVersionPrefix(version)
+
+		if err != nil {
+			log.Println("error getting version prefix for version: ", version, err)
+			return "", []string{}, err
+		}
+
+		if versionPrefix != currentVersionPrefix {
 			latestThreePlatformVersions[versionCount] = version
 			versionCount += 1
-			currentVersionPrefix = getVersionPrefix(version)
+			currentVersionPrefix = versionPrefix
 		}
 
 		// we want to keep track of (n)th, (n-1)th, (n-2)th versions only
@@ -206,7 +232,16 @@ func (d *Instance) getVersionValuesFromTRAC() (clusterVersion string, upgradeClu
 	// if cluster type belongs to any of the below, then we want to pass just the prefix like 1.24, not like 1.24.10-gke.1200
 	if d.cfg.Cluster == types.GKEOnGCP || d.cfg.Cluster == types.AKSOnAzure || d.cfg.Cluster == types.EKSOnAWS {
 		for index, version := range latestThreePlatformVersions {
-			latestThreePlatformVersions[index] = getVersionPrefix(version)
+			if version == "-1" {
+				continue
+			}
+			versionPrefix, err := getVersionPrefix(version)
+			if err != nil {
+				log.Println("error getting version prefix for version: ", version, err)
+				return "", []string{}, err
+			}
+
+			latestThreePlatformVersions[index] = versionPrefix
 		}
 	}
 
