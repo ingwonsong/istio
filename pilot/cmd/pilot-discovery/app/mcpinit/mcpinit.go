@@ -125,8 +125,11 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 		if asm.IsConnectGateway() {
 			cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
 			if err != nil {
-				mcpcallback.RecordError(err)
 				log.Errorf("failed to setup Connect Gateway: %v", err)
+				if asm.IsInitPhasePrivateClusterIPFallbackDisabled() {
+					return nil, err
+				}
+				mcpcallback.RecordError(err)
 			} else {
 				endpoint = strings.TrimPrefix(cgwURL, "https://")
 				caCertificate = ""

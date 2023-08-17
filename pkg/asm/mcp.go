@@ -29,6 +29,8 @@ var (
 		"If this is set to true, cloudesf based gateway is enabled.").Get()
 	enableConnectGateway = env.RegisterBoolVar("ENABLE_CONNECT_GATEWAY", false,
 		"If enabled, Connect Gateway will be used to communicate with GKE Private Cluster").Get()
+	disableInitPhasePrivateClusterIPFallback = env.RegisterBoolVar("DISABLE_INIT_PHASE_PRIVATE_CLUSTER_IP_FALLBACK", false,
+		"If disabled, Istiod initialization will return an error if setting up Connect Gateway failed for GKE private cluster.").Get()
 )
 
 func IsCloudRun() bool {
@@ -44,6 +46,10 @@ func IsCloudESF() bool {
 
 func IsConnectGateway() bool {
 	return enableConnectGateway
+}
+
+func IsInitPhasePrivateClusterIPFallbackDisabled() bool {
+	return disableInitPhasePrivateClusterIPFallback
 }
 
 // MCPParameters represents the set of inputs from the CloudRun service environment variables
