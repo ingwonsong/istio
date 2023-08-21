@@ -22,11 +22,14 @@ import (
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/gateway-api/conformance/tests"
 	"sigs.k8s.io/gateway-api/conformance/utils/config"
 	"sigs.k8s.io/gateway-api/conformance/utils/suite"
 
 	"istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/maps"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/crd"
 	"istio.io/istio/pkg/test/framework/components/namespace"
@@ -47,6 +50,8 @@ var gatewayConformanceInputs GatewayConformanceInputs
 // defined in sigs.k8s.io/gateway-api/conformance/base/manifests.yaml
 var conformanceNamespaces = []string{
 	"gateway-conformance-infra",
+	"gateway-conformance-mesh",
+	"gateway-conformance-mesh-consumer",
 	"gateway-conformance-app-backend",
 	"gateway-conformance-web-backend",
 }
@@ -54,6 +59,11 @@ var conformanceNamespaces = []string{
 var skippedTests = map[string]string{
 	"MeshFrontendHostname":          "https://github.com/istio/istio/issues/44702",
 	"GatewayObservedGenerationBump": "https://github.com/istio/istio/issues/44850",
+}
+
+func init() {
+	scope := log.RegisterScope("controlleruntime", "scope for controller runtime")
+	controllruntimelog.SetLogger(log.NewLogrAdapter(scope))
 }
 
 const gatewayConformanceTimeoutScaler = 5
@@ -77,7 +87,6 @@ func TestGatewayConformance(t *testing.T) {
 			}
 
 			mapper, _ := gatewayConformanceInputs.Client.UtilFactory().ToRESTMapper()
-			rc, _ := gatewayConformanceInputs.Client.UtilFactory().RESTClient()
 			c, err := client.New(gatewayConformanceInputs.Client.RESTConfig(), client.Options{
 				Scheme: kube.IstioScheme,
 				Mapper: mapper,
@@ -97,15 +106,16 @@ func TestGatewayConformance(t *testing.T) {
 				RouteMustHaveParents:           60 * time.Second * gatewayConformanceTimeoutScaler,
 			}
 			config.SetupTimeoutConfig(&timeoutConfig)
+			features := suite.AllFeatures
 			opts := suite.Options{
 				Client:               c,
 				Clientset:            gatewayConformanceInputs.Client.Kube(),
 				RestConfig:           gatewayConformanceInputs.Client.RESTConfig(),
-				RESTClient:           rc,
 				GatewayClassName:     "istio",
 				Debug:                scopes.Framework.DebugEnabled(),
 				CleanupBaseResources: gatewayConformanceInputs.Cleanup,
-				SupportedFeatures:    suite.AllFeatures,
+				SupportedFeatures:    features,
+				SkipTests:            maps.Keys(skippedTests),
 				TimeoutConfig:        timeoutConfig,
 			}
 			if rev := ctx.Settings().Revisions.Default(); rev != "" {
@@ -127,16 +137,9 @@ func TestGatewayConformance(t *testing.T) {
 					}
 				}
 			})
+
 			csuite := suite.New(opts)
 			csuite.Setup(t)
-
-			for _, ct := range tests.ConformanceTests {
-				t.Run(ct.ShortName, func(t *testing.T) {
-					if reason, f := skippedTests[ct.ShortName]; f {
-						t.Skip(reason)
-					}
-					ct.Run(t, csuite)
-				})
-			}
+			csuite.Run(t, tests.ConformanceTests)
 		})
 }

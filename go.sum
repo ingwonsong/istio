@@ -443,8 +443,8 @@ github.com/envoyproxy/go-control-plane v0.9.7/go.mod h1:cwu0lG7PUMfa9snN8LXBig5y
 github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad/go.mod h1:cXg6YxExXjJnVBQHBLXeUAgxn2UodCpnH306RInaBQk=
 github.com/envoyproxy/go-control-plane v0.9.9-0.20210217033140-668b12f5399d/go.mod h1:cXg6YxExXjJnVBQHBLXeUAgxn2UodCpnH306RInaBQk=
 github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021/go.mod h1:AFq3mo9L8Lqqiid3OhADV3RfLJnjiw63cSpi+fDTRC0=
-github.com/envoyproxy/go-control-plane v0.11.2-0.20230803133611-dabe08521596 h1:9EVAX0uM5MyRvVFF7yg/4CCCNN0OruV6A7rA7WQocCM=
-github.com/envoyproxy/go-control-plane v0.11.2-0.20230803133611-dabe08521596/go.mod h1:zV+ml0OfGpQxGvM1qlmhvZzE9ShvBO7CPWzGb3q5cog=
+github.com/envoyproxy/go-control-plane v0.11.2-0.20230811160418-a0dbac19f027 h1:ZL2Sdt1xCalG7ORiHNzCgbKpvqCJ3yLfVgQOT9g2F6g=
+github.com/envoyproxy/go-control-plane v0.11.2-0.20230811160418-a0dbac19f027/go.mod h1:zV+ml0OfGpQxGvM1qlmhvZzE9ShvBO7CPWzGb3q5cog=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/envoyproxy/protoc-gen-validate v1.0.1 h1:kt9FtLiooDc0vbwTLhdg3dyNX1K9Qwa1EK9LcD4jVUQ=
 github.com/envoyproxy/protoc-gen-validate v1.0.1/go.mod h1:0vj8bNkYbSTNS2PIyH87KZaeN4x9zpL9Qt8fQC7d+vs=
@@ -2175,11 +2175,11 @@ sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.7/go.mod h1:PHgbrJT
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.14/go.mod h1:LEScyzhFmoF5pso/YSeBstl57mOzx9xlU9n85RGrDQg=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.15/go.mod h1:LEScyzhFmoF5pso/YSeBstl57mOzx9xlU9n85RGrDQg=
 sigs.k8s.io/controller-runtime v0.6.1/go.mod h1:XRYBPdbf5XJu9kpS84VJiZ7h/u1hF3gEORz0efEja7A=
-sigs.k8s.io/controller-runtime v0.15.0 h1:ML+5Adt3qZnMSYxZ7gAverBLNPSMQEibtzAgp0UPojU=
-sigs.k8s.io/controller-runtime v0.15.0/go.mod h1:7ngYvp1MLT+9GeZ+6lH3LOlcHkp/+tzA/fmHa4iq9kk=
+sigs.k8s.io/controller-runtime v0.15.1 h1:9UvgKD4ZJGcj24vefUFgZFP3xej/3igL9BsOUTb/+4c=
+sigs.k8s.io/controller-runtime v0.15.1/go.mod h1:7ngYvp1MLT+9GeZ+6lH3LOlcHkp/+tzA/fmHa4iq9kk=
 sigs.k8s.io/controller-tools v0.3.0/go.mod h1:enhtKGfxZD1GFEoMgP8Fdbu+uKQ/cq1/WGJhdVChfvI=
-sigs.k8s.io/gateway-api v0.7.1-0.20230718212805-cce52879057c h1:ecZRi0imX3npKn18Gnau//tby3jQGQ0aUfVMmj928WQ=
-sigs.k8s.io/gateway-api v0.7.1-0.20230718212805-cce52879057c/go.mod h1:dURDctqw4goqoC0/uYL0Faa6F3J9+p0YK3hXkGeFqcg=
+sigs.k8s.io/gateway-api v0.8.0-rc1 h1:oRbzkElX4Ku/6FMslkIshAactoOn2nPSgU34hkvnnlw=
+sigs.k8s.io/gateway-api v0.8.0-rc1/go.mod h1:6ndvKYt0iPrSovsFJzUBxEd9pzcsBroaQH3E/04iwUk=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
 sigs.k8s.io/kind v0.8.1/go.mod h1:oNKTxUVPYkV9lWzY6CVMNluVq8cBsyq+UgPJdvA3uu4=
