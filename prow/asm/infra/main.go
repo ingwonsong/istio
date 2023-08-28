@@ -72,11 +72,12 @@ func main() {
 			"If <0 (the default), the trac-cp-index will not be appended to the path. ")
 	flag.StringSliceVar(&upgradeVersions, "upgrade-cluster-version", []string{},
 		"comma seperated list of versions that clusters will be upgraded to, formatted as x.y1.z,x.y2.z. Clusters will run for a short duration to ensure functionality between the cluster upgrades.")
-	flag.IntSliceVar(&upgradeClusterVersionTracIndex , "upgrade-cluster-version-trac-index", []int{}, "comma separated list of trac versions indexes that clusters will be upgraded to")
+	flag.IntSliceVar(&upgradeClusterVersionTracIndex, "upgrade-cluster-version-trac-index", []int{}, "comma separated list of trac versions indexes that clusters will be upgraded to")
 	flag.StringVar((*string)(&cfg.Cluster), "cluster-type", string(cfg.Cluster),
 		fmt.Sprintf("the cluster type, can be one of %v", types.SupportedClusters))
 	flag.BoolVar(&cfg.UseOnePlatform, "use-oneplatform", cfg.UseOnePlatform, "whether to use One Platform API to provision the cluster")
 	flag.BoolVar(&cfg.UseKubevirtVM, "use-kubevirt-vm", cfg.UseKubevirtVM, "To enable Kubevirt runtime in ABM cluster and run ASM tests on KubeVM APIs")
+	flag.BoolVar(&cfg.UseGSM, "use-gsm", cfg.UseGSM, "Feature flag to provision GSM and test minimal integration tests on GSM")
 	flag.StringVar((*string)(&cfg.Topology), "topology", string(cfg.Topology),
 		fmt.Sprintf("the cluster topology for the SUT (optional). Can be one of %v", types.SupportedTopologies))
 	flag.StringVar((*string)(&cfg.WIP), "wip", string(cfg.WIP),

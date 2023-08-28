@@ -305,7 +305,7 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 		if err := util.UpdateCloudSDKToPiperHead(); err != nil {
 			return err
 		}
-	} else {
+	} else if c.settings.UseGSM == false {
 		// ASM MCP Prow job (except VPCSC) should use staging AFC since we should alert before
 		// issues reach production.
 		if err := exec.Run("gcloud config set api_endpoint_overrides/gkehub https://staging-gkehub.sandbox.googleapis.com/"); err != nil {
@@ -497,7 +497,9 @@ func generateAFCInstallFlags(settings *resource.Settings, cluster *kube.GKEClust
 		"--verbose",
 		"--ca", "mesh_ca",
 		"--output_dir", outputDir,
-		"--offline",
+	}
+	if settings.UseGSM == false {
+		installFlags = append(installFlags, "--offline")
 	}
 	if settings.FeaturesToTest.Has(string(resource.Addon)) {
 		if os.Getenv("TEST_MIGRATION_MCP_CHANNEL") == "stable" {

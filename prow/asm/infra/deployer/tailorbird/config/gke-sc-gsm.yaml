@@ -1,0 +1,43 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+  name: asm-ci-gke-sc-gsm
+  namespace: tailorbird-users
+spec:
+  ttlSeconds: 10800 # 3 hours
+  knests:
+  - apiVersion: sut.tailorbird.io/v1alpha1
+    kind: Knest
+    metadata:
+      name: asm-ci-gke-sc-knest-gsm
+    spec:
+      clusters:
+      - apiVersion: sut.tailorbird.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: asm-ci-gke-sc-cluster-gsm
+        spec:
+          provider: gcp
+          distribution: gke
+          provisionerArgs:
+            pluginSpecYaml: |
+              projectOptions:
+                projects: shankgan-gsm
+              networkOptions:
+                network: "{{ .NetworkName }}"
+                privateClusterAccessLevel: "{{ .PrivateClusterAccessLevel }}"
+                privateClusterMasterIPRanges: "{{ .PrivateClusterMasterIPRanges }}"
+                subnetworkRanges: "{{ .SubnetworkRanges }}"
+              clusterOptions:
+                clusters: "{{ (index .ClusterNames 0) }}"
+                regions: "us-central1,us-west1,us-east1"
+                clusterVersion: "{{ .Version }}"
+                releaseChannel: "{{ .ReleaseChannel }}"
+                environment: "{{ .Environment }}"
+                machineType: "e2-standard-4"
+                numNodes: 2
+                workloadIdentityEnabled: {{ .WorkloadIdentityEnabled }}
+                autopilot: {{ .IsAutoPilot }}
+                retryableErrorPatterns: "{{ .ErrorPatterns }}"
+                gcloudCommandGroup: "{{ .GcloudCommandGroup }}"
+                gcloudExtraFlags: "{{ .GcloudExtraFlags }}"

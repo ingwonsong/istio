@@ -43,47 +43,48 @@ var (
 
 // Instance of a deployer configuration.
 type Instance struct {
-	RepoRootDir           string
-	ExtraDeployerFlags    string
-	GcloudExtraFlags      string
-	TestScript            string
-	TestFlags             string
-	GCPProjects           []string
-	ClusterVersion        string
-	ClusterVersionTracIndex int
-	TRACPlatformIndex     int
-	TRACComponentIndex    int
-	TRACOSIndex           int
-	TRACCPIndex           int
-	Cluster               types.Cluster
-	UseOnePlatform        bool
-	UseKubevirtVM         bool
-	UpgradeClusterVersion []string
+	RepoRootDir                    string
+	ExtraDeployerFlags             string
+	GcloudExtraFlags               string
+	TestScript                     string
+	TestFlags                      string
+	GCPProjects                    []string
+	ClusterVersion                 string
+	ClusterVersionTracIndex        int
+	TRACPlatformIndex              int
+	TRACComponentIndex             int
+	TRACOSIndex                    int
+	TRACCPIndex                    int
+	Cluster                        types.Cluster
+	UseOnePlatform                 bool
+	UseKubevirtVM                  bool
+	UseGSM                         bool
+	UpgradeClusterVersion          []string
 	UpgradeClusterVersionTracIndex []int
-	GCSBucket             string
-	IsCloudESFTest        bool
-	Topology              types.Topology
-	WIP                   types.WIP
-	ReleaseChannel        types.ReleaseChannel
-	Environment           types.Environment
-	Features              sets.String
-	Rookery               string
-	RookeryRequestFile    string
-	SyncUpgrade           bool
-	AttachedV2            bool
+	GCSBucket                      string
+	IsCloudESFTest                 bool
+	Topology                       types.Topology
+	WIP                            types.WIP
+	ReleaseChannel                 types.ReleaseChannel
+	Environment                    types.Environment
+	Features                       sets.String
+	Rookery                        string
+	RookeryRequestFile             string
+	SyncUpgrade                    bool
+	AttachedV2                     bool
 }
 
 // Default provides a config Instance with defaults filled in.
 func Default() Instance {
 	return Instance{
-		Cluster:            types.GKEOnGCP,
-		Topology:           types.SingleCluster,
-		WIP:                types.GKE,
-		TRACPlatformIndex:  -1,
-		TRACComponentIndex: -1,
-		TRACOSIndex:        -1,
-		TRACCPIndex:        -1,
-                ClusterVersionTracIndex: -1,
+		Cluster:                 types.GKEOnGCP,
+		Topology:                types.SingleCluster,
+		WIP:                     types.GKE,
+		TRACPlatformIndex:       -1,
+		TRACComponentIndex:      -1,
+		TRACOSIndex:             -1,
+		TRACCPIndex:             -1,
+		ClusterVersionTracIndex: -1,
 	}
 }
 
@@ -126,6 +127,9 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 	}
 	if c.UseKubevirtVM {
 		testerFlags = append(testerFlags, "--use-kubevirt-vm")
+	}
+	if c.UseGSM {
+		testerFlags = append(testerFlags, "--use-gsm")
 	}
 	return append(testerFlags, extraTestFlagArr...), nil
 }

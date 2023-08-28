@@ -19,10 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Masterminds/sprig/v3"
-	"github.com/google/uuid"
-	"google.golang.org/protobuf/encoding/prototext"
-	"gopkg.in/yaml.v2"
 	"log"
 	"net/http"
 	"os"
@@ -33,6 +29,11 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/Masterminds/sprig/v3"
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/prototext"
+	"gopkg.in/yaml.v2"
 
 	"istio.io/istio/prow/asm/infra/config"
 	"istio.io/istio/prow/asm/infra/deployer/common"
@@ -736,6 +737,9 @@ func (d *Instance) rookeryFile() (string, error) {
 	}
 	if d.cfg.UseKubevirtVM {
 		tmplFileName = fmt.Sprintf("%s-%s", tmplFileName, "kubevirt-vm")
+	}
+	if d.cfg.UseGSM {
+		tmplFileName = fmt.Sprintf("%s-%s", tmplFileName, "gsm")
 	}
 	tmplFileName = fmt.Sprintf("%s.%s", tmplFileName, "yaml")
 	tmplFile := filepath.Join(d.cfg.RepoRootDir, configRelDir, tmplFileName)
