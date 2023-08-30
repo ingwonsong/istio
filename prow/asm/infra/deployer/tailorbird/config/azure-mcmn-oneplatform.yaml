@@ -22,8 +22,14 @@ spec:
           provisionerArgs:
             region: westus2
             nodeCount: "3"
-            kubernetesVersion: 1.26.5-gke.1400
+            kubernetesVersion: 1.27.4-gke.1600
             username: asm-svc-acct
+            nodepoolPatch: |
+              {
+                "config": {
+                  "vmSize": "Standard_B2ms"
+                }
+              }
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
         metadata:
@@ -34,5 +40,11 @@ spec:
           provisionerArgs:
             region: westus2
             nodeCount: "3"
-            kubernetesVersion: 1.26.5-gke.1400
+            kubernetesVersion: 1.27.4-gke.1600
             username: asm-svc-acct
+            nodepoolPatch: |
+              {
+                "config": {
+                  "vmSize": "Standard_B2ms"
+                }
+              }

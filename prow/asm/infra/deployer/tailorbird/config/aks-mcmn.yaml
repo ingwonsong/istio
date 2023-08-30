@@ -22,7 +22,7 @@ spec:
           provider: azure
           provisionerArgs:
             compressArtifacts: "true"
-            kubernetesVersion: "1.26.3"
+            kubernetesVersion: "1.27"
             username: asm-svc-acct
             region: centralus
             nodeVmSize: "Standard_D8_v3"
@@ -38,5 +38,5 @@ spec:
             compressArtifacts: "true"
             username: asm-svc-acct
             region: centralus
-            kubernetesVersion: "1.26.3"
+            kubernetesVersion: "1.27"
             nodeVmSize: "Standard_D8_v3"

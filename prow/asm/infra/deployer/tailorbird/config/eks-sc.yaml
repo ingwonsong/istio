@@ -22,11 +22,11 @@ spec:
           provisionerArgs:
             auth: "SAToken"
             {{- if eq .Version "latest" }}
-            kubernetesVersion: "1.26"
+            kubernetesVersion: "1.27"
             {{- else if .Version}}
             kubernetesVersion: "{{ .Version }}"
             {{- else }}
-            kubernetesVersion: "1.26"
+            kubernetesVersion: "1.27"
             {{- end }}
             username: asm-svc-acct
             compressArtifacts: "true"

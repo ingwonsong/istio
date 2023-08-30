@@ -23,10 +23,16 @@ spec:
                 region: us-east-2
                 nodeCount: "3"
                 {{- if eq .Version "latest" }}
-                kubernetesVersion: 1.26.5-gke.1400
+                kubernetesVersion: 1.27.4-gke.1600
                 {{- else if .Version }}
                 kubernetesVersion: "{{ .Version }}"
                 {{- else }}
-                kubernetesVersion: 1.26.5-gke.1400
+                kubernetesVersion: 1.27.4-gke.1600
                 {{- end }}
                 username: asm-svc-acct
+                nodepoolPatch: |
+                  {
+                    "config": {
+                      "instanceType": "t3.large"
+                    }
+                  }
