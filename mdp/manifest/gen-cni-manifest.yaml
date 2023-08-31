@@ -24,7 +24,7 @@ data:
           "cniVersion": "0.3.1",
           "name": "istio-cni",
           "type": "istio-cni",
-          "log_level": "debug",
+          "log_level": "{{ .LOG_LEVEL }}",
           "log_uds_address": "__LOG_UDS_ADDRESS__",
           
           "kubernetes": {
@@ -161,7 +161,7 @@ spec:
             privileged: false
           command: ["install-cni"]
           args:
-            - --log_output_level=default:info,cni:info
+            - --log_output_level=default:"{{ .LOG_LEVEL }}",cni:"{{ .LOG_LEVEL }}"
           env:
             # The CNI network config to install on each node.
             - name: CNI_NETWORK_CONFIG
@@ -201,7 +201,7 @@ spec:
                   apiVersion: v1
                   fieldPath: spec.nodeName
             - name: LOG_LEVEL
-              value: "debug"
+              value: "{{ .LOG_LEVEL }}"
             - name: GOMEMLIMIT
               valueFrom:
                 resourceFieldRef:

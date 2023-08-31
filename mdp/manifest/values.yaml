@@ -6,8 +6,10 @@ global:
   sds:
     token:
       aud: "PROJECT_ID.svc.id.goog"
-
+  logging:
+    level: default:"{{ .LOG_LEVEL }}",cni:"{{ .LOG_LEVEL }}"
 cni:
   cniBinDir: /home/kubernetes/bin
+  logLevel: "{{ .LOG_LEVEL }}"
 mdp:
   enabled: true
