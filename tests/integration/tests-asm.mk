@@ -82,6 +82,13 @@ test.integration.gsm.mcp.networking.minimal: | $(JUNIT_REPORT)
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
+# Custom test target for GSM security.
+.PHONY: test.integration.gsm.security
+test.integration.gsm.security: | $(JUNIT_REPORT)
+	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/security/... | grep -v "${DISABLED_PACKAGES}") -timeout 120m \
+	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
+	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
+
 # Custom test target for ASM Istiod to Mesh CA migration test.
 .PHONY: test.integration.asm.meshca-migration
 test.integration.asm.meshca-migration: | $(JUNIT_REPORT)
