@@ -87,17 +87,17 @@ func NewIPMembershipCache() (Cache, error) {
 
 	opts, err := optsFromEnvironment()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read required opts from environment: %v", err)
+		return nil, fmt.Errorf("failed to read required opts from environment: %w", err)
 	}
 
 	cc, err := container.NewClusterManagerClient(ctx, option.WithQuotaProject(opts.clusterProjectNumber))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster manager client: %v", err)
+		return nil, fmt.Errorf("failed to create cluster manager client: %w", err)
 	}
 	hc, err := gkehub.NewGkeHubMembershipRESTClient(ctx,
 		option.WithQuotaProject(opts.fleetProjectNumber), option.WithEndpoint(opts.hubEndpoint))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create hub membership client: %v", err)
+		return nil, fmt.Errorf("failed to create hub membership client: %w", err)
 	}
 
 	mc := &membershipCache{
@@ -175,7 +175,7 @@ func (m *membershipCache) refreshCache() error {
 		Parent: fmt.Sprintf("projects/%s/locations/-", m.opts.fleetProjectID),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to list memberships for project %s: %v", m.opts.fleetProjectID, err)
+		return fmt.Errorf("failed to list memberships for project %s: %w", m.opts.fleetProjectID, err)
 	}
 
 	var mutex sync.Mutex
@@ -187,7 +187,7 @@ func (m *membershipCache) refreshCache() error {
 			defer wg.Done()
 			cluster, err := m.clusterFromMembership(membership)
 			if err != nil {
-				log.Warnf("Failed to retrieve cluster for membership %s: %v", membership.GetName(), err)
+				log.Warnf("Failed to retrieve cluster for membership %s: %w", membership.GetName(), err)
 				return
 			}
 
@@ -239,7 +239,7 @@ func (m *membershipCache) clusterFromMembership(membership *gkehubpb.Membership)
 		Name: clusterName,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster %s: %v", clusterName, err)
+		return nil, fmt.Errorf("failed to get cluster %s: %w", clusterName, err)
 	}
 
 	return c, nil
@@ -252,7 +252,7 @@ func (m *membershipCache) apiConfig(ip string) (api.Config, bool) {
 		config, err := apiConfigFromMembership(
 			cachedMembership, m.opts.hubEndpoint, m.opts.fleetProjectNumber, m.validateEndpoint)
 		if err != nil {
-			log.Warnf("Failed to get apiConfig from membership: %v", err)
+			log.Warnf("Failed to get apiConfig from membership: %w", err)
 			return api.Config{}, false
 		}
 
@@ -292,7 +292,7 @@ func optsFromEnvironment() (environmentOpts, error) {
 
 	u, err := url.Parse(hubMembership)
 	if err != nil {
-		return environmentOpts{}, fmt.Errorf("failed to parse GKE Hub membership %v: %v", hubMembership, err)
+		return environmentOpts{}, fmt.Errorf("failed to parse GKE Hub membership %s: %w", hubMembership, err)
 	}
 
 	cgwPathRegex := regexp.MustCompile(`^/projects/([^/]+)/locations/([^/]+)/memberships/([^/]+)$`)

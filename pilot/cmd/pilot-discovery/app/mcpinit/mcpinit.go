@@ -95,7 +95,7 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 	t0 := time.Now()
 	c, err := container.NewClusterManagerClient(ctx, option.WithQuotaProject(p.Project))
 	if err != nil {
-		return nil, fmt.Errorf("create cluster manager client: %v", err)
+		return nil, fmt.Errorf("create cluster manager client: %w", err)
 	}
 	defer c.Close()
 	var cl *containerpb.Cluster
@@ -112,7 +112,7 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 		time.Sleep(time.Second)
 	}
 	if cl == nil {
-		return nil, fmt.Errorf("exceeded retry budget fetching cluster: %v", err)
+		return nil, fmt.Errorf("exceeded retry budget fetching cluster: %w", err)
 	}
 	endpoint := cl.Endpoint
 	caCertificate := cl.MasterAuth.ClusterCaCertificate
@@ -183,7 +183,7 @@ func connectGatewayURL(ctx context.Context, fleetProjectNum, hubMembership strin
 func parseGKEHubMembership(membership string) (*gkeHubMembership, error) {
 	u, err := url.Parse(membership)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse GKE Hub membership %v: %v", membership, err)
+		return nil, fmt.Errorf("failed to parse GKE Hub membership %s: %w", membership, err)
 	}
 
 	cgwPathRegex := regexp.MustCompile(`^/projects/([^/]+)/locations/([^/]+)/memberships/([^/]+)$`)
@@ -343,7 +343,7 @@ func CreateKubeClient(kubeconfig string, qps float32, burst int) (kubelib.Client
 
 	kubeClient, err := kubelib.NewClient(kubelib.NewClientConfigForRestConfig(kubeRestConfig), "")
 	if err != nil {
-		return nil, fmt.Errorf("failed creating kube client: %v", err)
+		return nil, fmt.Errorf("failed creating kube client: %w", err)
 	}
 	return kubeClient, nil
 }

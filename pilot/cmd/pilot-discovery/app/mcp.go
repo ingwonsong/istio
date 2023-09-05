@@ -108,7 +108,7 @@ func newMCPCommand() *cobra.Command {
 			err := func() error {
 				client, err := initializeMCP(mcpParams)
 				if err != nil {
-					return fmt.Errorf("initialize MCP: %v", err)
+					return fmt.Errorf("initialize MCP: %w", err)
 				}
 
 				// Create the stop channel for all of the servers.
@@ -118,12 +118,12 @@ func newMCPCommand() *cobra.Command {
 				// already have a kube client initialized, so we pre-set that to avoid creating two clients.
 				discoveryServer, err := bootstrap.NewServer(serverArgs, bootstrap.SetKubeClient(client))
 				if err != nil {
-					return fmt.Errorf("failed to create discovery service: %v", err)
+					return fmt.Errorf("failed to create discovery service: %w", err)
 				}
 
 				// Start the server
 				if err := discoveryServer.Start(stop); err != nil {
-					return fmt.Errorf("failed to start discovery service: %v", err)
+					return fmt.Errorf("failed to start discovery service: %w", err)
 				}
 				cmd.WaitSignal(stop)
 				// Wait until we shut down. In theory this could block forever; in practice we will get
@@ -185,7 +185,7 @@ func initializeMCP(p asm.MCPParameters) (kubelib.Client, error) {
 	}
 	cl, err := mcpinit.ConstructKubeConfigFile(context.Background(), param)
 	if err != nil {
-		return nil, fmt.Errorf("construct kube config: %v", err)
+		return nil, fmt.Errorf("construct kube config: %w", err)
 	}
 	// Configure Istiod to read or configured kubeconfig file
 	serverArgs.RegistryOptions.KubeConfig = "/tmp/kubeconfig.yaml"
@@ -269,19 +269,19 @@ func initializeMCP(p asm.MCPParameters) (kubelib.Client, error) {
 	}
 	createConfig := time.Now()
 	if err := createSystemNamespace(client); err != nil {
-		return nil, fmt.Errorf("create namespace: %v", err)
+		return nil, fmt.Errorf("create namespace: %w", err)
 	}
 	// We do not use in cluster mesh config, instead use a file. With SharedMeshConfig users can create
 	// a configmap in cluster that we merge with.
 	if err := executeTemplateTo(mcpinit.GetMCPFile(mcpinit.MeshTemplateFile), "./etc/istio/config/mesh", templateParams); err != nil {
-		return nil, fmt.Errorf("write mesh config: %v", err)
+		return nil, fmt.Errorf("write mesh config: %w", err)
 	}
 	// Same as mesh config - nothing in cluster. We do not support any injection customizations.
 	if err := executeTemplateTo(mcpinit.GetMCPFile(mcpinit.ValuesTemplateFile), filepath.Join(mcpinit.InjectDir, "values"), templateParams); err != nil {
-		return nil, fmt.Errorf("write injection values: %v", err)
+		return nil, fmt.Errorf("write injection values: %w", err)
 	}
 	if err := file.AtomicCopy(mcpinit.GetMCPFile(mcpinit.InjectionTemplateFile), mcpinit.InjectDir, "config"); err != nil {
-		return nil, fmt.Errorf("write injection config template: %v", err)
+		return nil, fmt.Errorf("write injection config template: %w", err)
 	}
 
 	// Create a tag-specific configmap, including the settings. This is intended for install_asm and tools.
@@ -294,16 +294,16 @@ func initializeMCP(p asm.MCPParameters) (kubelib.Client, error) {
 		"TRUST_DOMAIN":  p.TrustDomain,
 	}, true)
 	if err != nil {
-		return nil, fmt.Errorf("create env configmap: %v", err)
+		return nil, fmt.Errorf("create env configmap: %w", err)
 	}
 
 	if !p.AFCManagedWebhook {
 		mwh, err := executeTemplate(mcpinit.GetMCPFile(mcpinit.MutatingWebhookFile), templateParams)
 		if err != nil {
-			return nil, fmt.Errorf("mutating webhook template: %v", err)
+			return nil, fmt.Errorf("mutating webhook template: %w", err)
 		}
 		if err := createOrSetWebhook(client, mwh); err != nil {
-			return nil, fmt.Errorf("create webhook: %v", err)
+			return nil, fmt.Errorf("create webhook: %w", err)
 		}
 	}
 
@@ -311,11 +311,11 @@ func initializeMCP(p asm.MCPParameters) (kubelib.Client, error) {
 	if envProvisioned {
 		crdTemplate, err := os.ReadFile(mcpinit.GetMCPFile(mcpinit.CRDsFile))
 		if err != nil {
-			return nil, fmt.Errorf("crd file: %v", err)
+			return nil, fmt.Errorf("crd file: %w", err)
 		}
 		// Write to cluster for users to view, typically with old kube-inject
 		if err := mcpinit.CreateCRDs(context.Background(), client, crdTemplate); err != nil {
-			return nil, fmt.Errorf("create crd: %v", err)
+			return nil, fmt.Errorf("create crd: %w", err)
 		}
 
 		// Provision an empty stub user meshconfig. This just gives the users an indication they can edit this file;
@@ -325,7 +325,7 @@ func initializeMCP(p asm.MCPParameters) (kubelib.Client, error) {
 # This section can be updated with user configuration settings from https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/
 # Some options required for ASM to not be modified will be ignored`,
 		}, false); err != nil {
-			return nil, fmt.Errorf("create mesh configmap: %v", err)
+			return nil, fmt.Errorf("create mesh configmap: %w", err)
 		}
 
 	}
@@ -534,7 +534,7 @@ func fetchAsmOptions(client kubelib.Client) (*AsmOptions, error) {
 		time.Sleep(time.Second)
 	}
 	if cm == nil {
-		return defaultOpts, fmt.Errorf("exceeded retry budget fetching config map: %v", err)
+		return defaultOpts, fmt.Errorf("exceeded retry budget fetching config map: %w", err)
 	}
 	opts, f := cm.Data["ASM_OPTS"]
 	if !f {
@@ -582,7 +582,7 @@ func executeTemplate(fromFile string, params TemplateParameters) (string, error)
 	tmpl := template.Must(template.New("").Funcs(sprig.TxtFuncMap()).Parse(string(by)))
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, params); err != nil {
-		return "", fmt.Errorf("failed to execute template %v: %v", fromFile, err)
+		return "", fmt.Errorf("failed to execute template %s: %w", fromFile, err)
 	}
 	return buf.String(), nil
 }

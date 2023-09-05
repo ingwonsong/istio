@@ -86,24 +86,24 @@ func appendWarning(warnings []string, node *operator.IstioOperatorSpec, path str
 }
 
 // runMcpCheck runs the mcp migration check
-func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string) error {
+func runMcpCheck(w io.Writer, filenames []string, outDir, revision string) error {
 	switch revision {
 	case "asm-managed", "asm-managed-stable", "asm-managed-rapid":
 	default:
-		return fmt.Errorf("unknown revision: %v", revision)
+		return fmt.Errorf("unknown revision: %s", revision)
 	}
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create %v: %v", outDir, err)
+		return fmt.Errorf("failed to create %s: %w", outDir, err)
 	}
 	if err := os.MkdirAll(filepath.Join(outDir, "gateways-istiooperator"), 0o755); err != nil {
-		return fmt.Errorf("failed to create %v: %v", outDir, err)
+		return fmt.Errorf("failed to create %s: %w", outDir, err)
 	}
 	if err := os.MkdirAll(filepath.Join(outDir, "gateways-kubernetes"), 0o755); err != nil {
-		return fmt.Errorf("failed to create %v: %v", outDir, err)
+		return fmt.Errorf("failed to create %s: %w", outDir, err)
 	}
 	y, err := manifest.ReadLayeredYAMLs(filenames)
 	if err != nil {
-		return fmt.Errorf("failed to read files: %v", err)
+		return fmt.Errorf("failed to read files: %w", err)
 	}
 	originalIop, err := validate.UnmarshalIOP(y)
 	if err != nil {
@@ -218,7 +218,7 @@ func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string
 			gateways++
 		}
 		if err := writeGateway(gwIOP, "istio-ingressgateway"); err != nil {
-			return fmt.Errorf("failed to extract gateway: %v", err)
+			return fmt.Errorf("failed to extract gateway: %w", err)
 		}
 	}
 	// The default install has a gateway, so make sure we include that if needed
@@ -231,7 +231,7 @@ func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string
 			gateways++
 		}
 		if err := writeGateway(gwIOP, "istio-ingressgateway"); err != nil {
-			return fmt.Errorf("failed to extract gateway: %v", err)
+			return fmt.Errorf("failed to extract gateway: %w", err)
 		}
 	}
 	for _, gw := range originalIop.Spec.GetComponents().GetEgressGateways() {
@@ -240,7 +240,7 @@ func runMcpCheck(w io.Writer, filenames []string, outDir string, revision string
 			gateways++
 		}
 		if err := writeGateway(gwIOP, "istio-egressgateway"); err != nil {
-			return fmt.Errorf("failed to extract gateway: %v", err)
+			return fmt.Errorf("failed to extract gateway: %w", err)
 		}
 	}
 

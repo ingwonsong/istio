@@ -171,7 +171,7 @@ func findCryptoSigs(v *Version, f exe) error {
 		}
 		data, err := f.ReadData(addr, size)
 		if err != nil {
-			return fmt.Errorf("reading text: %v", err)
+			return fmt.Errorf("reading text: %w", err)
 		}
 		if haveSig(data, sigBoringCrypto) {
 			v.BoringCrypto = true

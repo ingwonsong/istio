@@ -39,14 +39,14 @@ func apiConfigFromMembership(membership *gkehubpb.Membership, hubEndpoint, fleet
 
 	cgwEndpoint, err := connectEndpointFromMembership(membership, hubEndpoint, fleetProjectNumber)
 	if err != nil {
-		return api.Config{}, fmt.Errorf("failed to generate connect gateway endpoint: %v", err)
+		return api.Config{}, fmt.Errorf("failed to generate connect gateway endpoint: %w", err)
 	}
 
 	cgwURL := fmt.Sprintf("https://%s", cgwEndpoint)
 	if validateEndpoint {
 		err = validateCGWAccess(ctx, cgwURL)
 		if err != nil {
-			return api.Config{}, fmt.Errorf("failed to validate config gateway endpoint %s: %v",
+			return api.Config{}, fmt.Errorf("failed to validate config gateway endpoint %s: %w",
 				cgwURL, err)
 		}
 	}
