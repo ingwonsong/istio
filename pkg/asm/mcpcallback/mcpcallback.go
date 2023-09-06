@@ -17,6 +17,7 @@ package mcpcallback
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -212,6 +213,43 @@ func client(ctx context.Context) (*http.Client, error) {
 	return oauth2.NewClient(ctx, creds.TokenSource), nil
 }
 
+type googleErrorEntry struct {
+	Message string `json:"message"`
+	// Canonical code in string. (e.g., FAILED_PRECONDITION)
+	Status string `json:"status"`
+}
+
+type googleErrorPayload struct {
+	Error googleErrorEntry `json:"error"`
+}
+
+func parseGoogleAPIError(googleAPIError *googleapi.Error) (codes.Code, string) {
+	msg := googleAPIError.Message
+	canonicalCode := toCanonicalCode(googleAPIError.Code)
+
+	// Try to parse the body of the error response. (b/298286518)
+	var errorPayloads []googleErrorPayload
+	err := json.Unmarshal([]byte(googleAPIError.Body), &errorPayloads)
+	if err == nil && len(errorPayloads) > 0 {
+		if errorPayloads[0].Error.Status != "" {
+			var code codes.Code
+			if code.UnmarshalJSON([]byte(errorPayloads[0].Error.Status)) == nil {
+				canonicalCode = code
+			}
+		}
+		if errorPayloads[0].Error.Message != "" {
+			msg = errorPayloads[0].Error.Message
+		}
+	}
+
+	if msg == "" {
+		// In some cases (e.g., permission error), Message seems to be empty.
+		// In that case, use the stringified error message.
+		msg = googleAPIError.Error()
+	}
+	return canonicalCode, msg
+}
+
 func transform(errorToReport error) *status.Status {
 	if st, ok := status.FromError(errorToReport); ok {
 		return st
@@ -227,14 +265,7 @@ func transform(errorToReport error) *status.Status {
 	// If the error is returned by Google API client, handle it here.
 	var googleAPIError *googleapi.Error
 	if errors.As(errorToReport, &googleAPIError) {
-		msg := googleAPIError.Message
-		if msg == "" {
-			// In some cases (e.g., permission error), Message seems to be empty.
-			// In that case, use the stringified error message.
-			msg = googleAPIError.Error()
-		}
-		st := status.New(toCanonicalCode(googleAPIError.Code), msg)
-		return maybeWithDetails(st, googleAPIError.Details)
+		return maybeWithDetails(status.New(parseGoogleAPIError(googleAPIError)), googleAPIError.Details)
 	}
 
 	return status.New(codes.Internal, errorToReport.Error())
