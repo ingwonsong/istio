@@ -187,7 +187,7 @@ func (m *membershipCache) refreshCache() error {
 			defer wg.Done()
 			cluster, err := m.clusterFromMembership(membership)
 			if err != nil {
-				log.Warnf("Failed to retrieve cluster for membership %s: %w", membership.GetName(), err)
+				log.Warnf("Failed to retrieve cluster for membership %s: %v", membership.GetName(), err)
 				return
 			}
 
@@ -252,7 +252,7 @@ func (m *membershipCache) apiConfig(ip string) (api.Config, bool) {
 		config, err := apiConfigFromMembership(
 			cachedMembership, m.opts.hubEndpoint, m.opts.fleetProjectNumber, m.validateEndpoint)
 		if err != nil {
-			log.Warnf("Failed to get apiConfig from membership: %w", err)
+			log.Warnf("Failed to get apiConfig from membership: %v", err)
 			return api.Config{}, false
 		}
 
