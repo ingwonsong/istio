@@ -22,7 +22,7 @@ spec:
           provisionerArgs:
             pluginSpecYaml: |
               projectOptions:
-                projects: shankgan-gsm
+                projects: gsm-pool-1
               networkOptions:
                 network: "{{ .NetworkName }}"
                 privateClusterAccessLevel: "{{ .PrivateClusterAccessLevel }}"
