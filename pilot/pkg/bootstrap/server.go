@@ -1255,7 +1255,7 @@ func (s *Server) addIstioCAToTrustBundle(args *PilotArgs) error {
 		})
 		if err != nil {
 			log.Errorf("unable to update trustbundle with self signed CA root: %v", err)
-			return err
+			return nil
 		}
 	} else {
 		// If NOT self signed certificates
@@ -1273,7 +1273,7 @@ func (s *Server) addIstioCAToTrustBundle(args *PilotArgs) error {
 		})
 		if err != nil {
 			log.Errorf("unable to update trustbundle with plugin CA root: %v", err)
-			return err
+			return nil
 		}
 	}
 	return nil
