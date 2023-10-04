@@ -1070,7 +1070,7 @@ func registerAttachedV2(settings *resource.Settings) error {
 					" --distribution=eks"+
 					" --issuer-url=%s"+
 					" --context=%s"+
-					" --annotations googleinternal:ttl=3h"+
+					" --annotations googleinternal.ttl=3h"+
 					" --kubeconfig=%s",
 				randHubBindingName,
 				"us-west1",
@@ -1095,7 +1095,7 @@ func registerAttachedV2(settings *resource.Settings) error {
 				" --platform-version=%s"+
 				" --distribution=aks"+
 				" --context=%s"+
-				" --annotations googleinternal:ttl=3h"+
+				" --annotations googleinternal.ttl=3h"+
 				" --has-private-issuer"+
 				" --kubeconfig=%s",
 				randHubBindingName,
