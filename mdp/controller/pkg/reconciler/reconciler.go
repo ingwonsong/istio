@@ -219,7 +219,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 
 // expectedProxyVersion reports whether the injectedVersion is expected for the given MDP version.
 func expectedProxyVersion(mdpProxyVersion, injectedVersion string) bool {
-	return injectedVersion == mdpProxyVersion || injectedVersion == fmt.Sprintf("%s-distroless", mdpProxyVersion)
+	return injectedVersion == mdpProxyVersion || injectedVersion == revision.DistrolessVersion(mdpProxyVersion)
 }
 
 func (n *NewReconciler) stopUpdateWorkerForDPR(dprNsName types.NamespacedName) {

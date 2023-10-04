@@ -18,6 +18,7 @@ package revision
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -440,18 +441,17 @@ func (p *PodCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Set {
 	}
 	for ns, pvmap := range nsmap {
 		for vers, pods := range pvmap {
-			if vers == version {
-				continue
-			}
-			for pod := range *pods {
-				result.Insert(
-					PodWorkItem{
-						NamespacedName: types.NamespacedName{
-							Namespace: ns,
-							Name:      pod.(string),
-						},
-						FromVer: vers,
-					})
+			if vers != version && vers != DistrolessVersion(version) {
+				for pod := range *pods {
+					result.Insert(
+						PodWorkItem{
+							NamespacedName: types.NamespacedName{
+								Namespace: ns,
+								Name:      pod.(string),
+							},
+							FromVer: vers,
+						})
+				}
 			}
 		}
 	}
@@ -492,4 +492,9 @@ func (p *PodCache) RecalculateNamespaceMembers(ctx context.Context, ns string, o
 		result = append(result, oldrev)
 	}
 	return result
+}
+
+// DistrolessVersion returns the distroless tag string for the given version.
+func DistrolessVersion(version string) string {
+	return fmt.Sprintf("%s-distroless", version)
 }
