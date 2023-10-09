@@ -41,7 +41,8 @@ func ASMOutputDir(rev *revision.Config) (string, error) {
 
 func (c *installer) installASM(rev *revision.Config) error {
 	pkgPath := filepath.Join(c.settings.RepoRootDir, resource.ConfigDirPath, "kpt-pkg")
-	kptSetPrefix := fmt.Sprintf("kpt cfg set %s", pkgPath)
+	kptEvalPrefix := fmt.Sprintf("kpt fn eval %s", pkgPath)
+	kptImageCmd := "--image gcr.io/kpt-fn/apply-setters:v0.2"
 	contexts := c.settings.KubeContexts
 	log.Println("Downloading ASM script for the installation...")
 	scriptPath, err := downloadInstallScript(c.settings, rev)
@@ -90,11 +91,10 @@ func (c *installer) installASM(rev *revision.Config) error {
 			endpoint := os.Getenv(cloudAPIEndpointOverrides)
 			if endpoint == testEndpoint || endpoint == stagingEndpoint || endpoint == staging2Endpoint {
 				contextLogger.Println("Setting KPT for GKE test/staging/staging2 clusters...")
-				if err := exec.RunMultiple([]string{
-					fmt.Sprintf("%s gcloud.core.project %s", kptSetPrefix, cluster.ProjectID),
-					fmt.Sprintf("%s gcloud.compute.location %s", kptSetPrefix, cluster.Location),
-					fmt.Sprintf("%s gcloud.container.cluster %s", kptSetPrefix, cluster.Name),
-				}); err != nil {
+				if err := exec.Run(
+					fmt.Sprintf("%s %s -- gcloud.core.project=%s "+
+						"gcloud.compute.location=%s gcloud.container.cluster=%s", kptEvalPrefix, kptImageCmd, cluster.ProjectID, cluster.Location, cluster.Name),
+				); err != nil {
 					return err
 				}
 				// Set the env var to allow talking to the HUB autopush API in
