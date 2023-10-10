@@ -59,13 +59,22 @@ func init() {
 	pilotVersion.With(versionTag.Value(version.Info.String())).Record(1)
 }
 
+// Use asmExporter to send metrics to Stackdriver. (OpenCensus)
+// Use Istio OpenTelemetry exporter to export metrics to Prometheus.
 func addMonitor(mux *http.ServeMux) error {
+	// ASM OpenCensus exporter. (stackdriver only)
 	asmExporter, err := gcpmonitoring.NewControlPlaneExporter()
 	if err != nil {
 		return err
 	}
 	view.RegisterExporter(asmExporter)
-	mux.Handle(metricsPath, asmExporter.PromExporter)
+
+	// Istio OTel Prometheus exporter.
+	exporter, err := monitoring.RegisterPrometheusExporter(nil, nil)
+	if err != nil {
+		return fmt.Errorf("could not set up prometheus exporter: %v", err)
+	}
+	mux.Handle(metricsPath, exporter)
 
 	mux.HandleFunc(versionPath, func(out http.ResponseWriter, req *http.Request) {
 		if _, err := out.Write([]byte(version.Info.String())); err != nil {

@@ -197,11 +197,13 @@ func NewCNIExporter(viewMap map[string]bool, vs string) (*ASMExporter, error) {
 }
 
 // newASMExporter creates an ASM opencensus exporter.
+// TODO(bochengchu): migrate the exporters to OpenTelemetry.
 func newASMExporter(s sdExporterConfigs) (*ASMExporter, error) {
 	var err error
 	var pe *ocprom.Exporter
 
-	if s.metricsPrefix != cniMetricsPrefix {
+	// Create an OpenCensus Prometheus exporter for MDP only.
+	if s.metricsPrefix == mdpMetricsPrefix {
 		pe, err = ocprom.NewExporter(ocprom.Options{Registry: prometheus.DefaultRegisterer.(*prometheus.Registry)})
 		if err != nil {
 			return nil, fmt.Errorf("could not set up prometheus exporter: %v", err)
@@ -282,6 +284,9 @@ func (e *ASMExporter) ExportView(vd *view.Data) {
 		log.Debugf("asmExporter exporting view: %s", vd.View.Name)
 		e.sdExporter.ExportView(vd)
 	} else if e.PromExporter != nil {
+		// If Stackdriver is disabled, export the metrics to Prometheus.
+		// However, the method prometheus.ExportView() has deprecated.
+		// Thus, this code snippet is a no-op.
 		// nolint: staticcheck
 		e.PromExporter.ExportView(vd)
 	}
