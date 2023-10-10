@@ -122,18 +122,16 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 		// For GKE private clusters, after migration, we rely on Connect Gateway to provide API
 		// server access from CloudRun.
 		// http://cloud/anthos/multicluster-management/gateway
-		if asm.IsConnectGateway() {
-			cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
-			if err != nil {
-				log.Errorf("failed to setup Connect Gateway: %v", err)
-				if asm.IsInitPhasePrivateClusterIPFallbackDisabled() {
-					return nil, err
-				}
-				mcpcallback.RecordError(err)
-			} else {
-				endpoint = strings.TrimPrefix(cgwURL, "https://")
-				caCertificate = ""
+		cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
+		if err != nil {
+			log.Errorf("failed to setup Connect Gateway: %v", err)
+			if asm.IsInitPhasePrivateClusterIPFallbackDisabled() {
+				return nil, err
 			}
+			mcpcallback.RecordError(err)
+		} else {
+			endpoint = strings.TrimPrefix(cgwURL, "https://")
+			caCertificate = ""
 		}
 	}
 	kubeConfig := fmt.Sprintf(`
@@ -167,9 +165,8 @@ func connectGatewayURL(ctx context.Context, fleetProjectNum, hubMembership strin
 	if err != nil {
 		return "", fmt.Errorf("failed to parse GKE Hub membership: %w", err)
 	}
-	// TODO(ruigu): Obtain fleet project number from CloudResourceManager.
-	// nolint: lll
-	cgwURL, err := url.JoinPath("https://"+connectGatewayEndpointFromHubEndpoint(components.endpoint), "v1", "projects", fleetProjectNum, "locations", components.location, "gkeMemberships", components.name)
+	cgwEndpoint := connectGatewayEndpointFromHubEndpoint(components.endpoint, components.location, asm.IsEnableRegionalConnectGateway())
+	cgwURL, err := url.JoinPath(cgwEndpoint, "v1", "projects", fleetProjectNum, "locations", components.location, "gkeMemberships", components.name)
 	if err != nil {
 		return "", fmt.Errorf("failed to create Connect Gateway URL: %w", err)
 	}
@@ -199,15 +196,21 @@ func parseGKEHubMembership(membership string) (*gkeHubMembership, error) {
 	}, nil
 }
 
-func connectGatewayEndpointFromHubEndpoint(hubEndpoint string) string {
+func connectGatewayEndpointFromHubEndpoint(hubEndpoint, location string, regional bool) string {
+	var cgwEndpoint string
 	switch {
 	case strings.HasPrefix(hubEndpoint, "autopush-"):
-		return "autopush-connectgateway.sandbox.googleapis.com"
+		cgwEndpoint = "autopush-connectgateway.sandbox.googleapis.com"
 	case strings.HasPrefix(hubEndpoint, "staging-"):
-		return "staging-connectgateway.sandbox.googleapis.com"
+		cgwEndpoint = "staging-connectgateway.sandbox.googleapis.com"
 	default:
-		return "connectgateway.googleapis.com"
+		cgwEndpoint = "connectgateway.googleapis.com"
 	}
+	if regional && location != "global" {
+		cgwEndpoint = location + "-" + cgwEndpoint
+	}
+	cgwEndpoint = "https://" + cgwEndpoint
+	return cgwEndpoint
 }
 
 // pollIAMPropagation waits until the default service account token is available, to workaround

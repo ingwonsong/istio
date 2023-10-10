@@ -27,10 +27,10 @@ var (
 	cloudRunServiceVar = env.RegisterStringVar("K_SERVICE", "", "cloud run service name")
 	enableCloudESFEnv  = env.RegisterBoolVar("ENABLE_CLOUD_ESF", false,
 		"If this is set to true, cloudesf based gateway is enabled.").Get()
-	enableConnectGateway = env.RegisterBoolVar("ENABLE_CONNECT_GATEWAY", false,
-		"If enabled, Connect Gateway will be used to communicate with GKE Private Cluster").Get()
 	disableInitPhasePrivateClusterIPFallback = env.RegisterBoolVar("DISABLE_INIT_PHASE_PRIVATE_CLUSTER_IP_FALLBACK", false,
 		"If disabled, Istiod initialization will return an error if setting up Connect Gateway failed for GKE private cluster.").Get()
+	enableRegionalConnectGateway = env.RegisterBoolVar("ENABLE_REGIONAL_CONNECT_GATEWAY", false,
+		"If enabled, regional Connect Gateway will be used to communicate with GKE Private Cluster when the membership is regional").Get()
 )
 
 func IsCloudRun() bool {
@@ -44,8 +44,8 @@ func IsCloudESF() bool {
 	return enableCloudESFEnv
 }
 
-func IsConnectGateway() bool {
-	return enableConnectGateway
+func IsEnableRegionalConnectGateway() bool {
+	return enableRegionalConnectGateway
 }
 
 func IsInitPhasePrivateClusterIPFallbackDisabled() bool {
