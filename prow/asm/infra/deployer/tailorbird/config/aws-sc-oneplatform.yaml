@@ -23,11 +23,11 @@ spec:
                 region: us-east-2
                 nodeCount: "3"
                 {{- if eq .Version "latest" }}
-                kubernetesVersion: 1.27.4-gke.1600
+                kubernetesVersion: 1.27.5-gke.200
                 {{- else if .Version }}
                 kubernetesVersion: "{{ .Version }}"
                 {{- else }}
-                kubernetesVersion: 1.27.4-gke.1600
+                kubernetesVersion: 1.27.5-gke.200
                 {{- end }}
                 username: asm-svc-acct
                 nodepoolPatch: |
