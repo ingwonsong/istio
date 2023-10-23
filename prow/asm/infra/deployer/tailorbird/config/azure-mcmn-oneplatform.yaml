@@ -27,7 +27,7 @@ spec:
             nodepoolPatch: |
               {
                 "config": {
-                  "vmSize": "Standard_B2ms"
+                  "vmSize": "Standard_B4ms"
                 }
               }
       - apiVersion: sut.tailorbird.io/v1alpha1
@@ -45,6 +45,6 @@ spec:
             nodepoolPatch: |
               {
                 "config": {
-                  "vmSize": "Standard_B2ms"
+                  "vmSize": "Standard_B4ms"
                 }
               }
