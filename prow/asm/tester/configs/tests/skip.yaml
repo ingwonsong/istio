@@ -13,6 +13,10 @@ tests:
       - TestProxyTracingOpenCensusMeshConfig
       - TestProxyTracingOpenTelemetryProvider
       buganizerID: b/279540983
+    - names:
+      - TestWorkloadEntryGateway
+      reason: relies on unsupported istio feature
+      buganizerID: b/307328378
 
   - selectors:
       control_plane: unmanaged
