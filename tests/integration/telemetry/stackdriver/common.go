@@ -103,6 +103,11 @@ func TestSetup(ctx resource.Context) (err error) {
 	builder := deployment.New(ctx)
 	for _, cls := range ctx.Clusters() {
 		clName := cls.Name()
+		// splitting the string by separator "/" to shorten the service name as
+		// metadata.name must be no more than 63 characters
+		if strings.Contains(cls.Name(), "/") {
+			clName = strings.Split(clName, "/")[1]
+		}
 		builder.
 			WithConfig(echo.Config{
 				Service:   fmt.Sprintf("clt-%s", clName),
@@ -292,6 +297,9 @@ func unmarshalFromTemplateFile(file string, out proto.Message, clName, trustDoma
 		trustDomain = fmt.Sprintf("%s.svc.id.goog", projectID)
 	}
 
+	if strings.Contains(clName, "/") {
+		clName = strings.Split(clName, "/")[1]
+	}
 	resource, err := tmpl.Evaluate(string(templateFile), map[string]any{
 		"EchoNamespace": EchoNsInst.Name(),
 		"ClusterName":   clName,
