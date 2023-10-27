@@ -138,7 +138,9 @@ tests:
           - TestAuthz_WorkloadSelector/single_workload/.*/.*/.*//bad\((allow)\)/.*
         buganizerID: 244709600
         reason: labels are not applied to both revision pods
-
+      - names:
+        - TestSingleOptionalMTLSGateway
+        reason: OPTIONAL_MUTUAL Mode only supported for version 1.19 and above
       # telemetry/
       - names:
           - TestStackdriverLegacy
