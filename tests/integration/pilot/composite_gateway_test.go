@@ -107,8 +107,8 @@ spec:
 						if err != nil {
 							return err
 						}
-						if s := kstatus.GetCondition(gw.Status.Conditions, string(gatewayv1beta1.GatewayConditionReady)).Status; s != metav1.ConditionTrue {
-							return fmt.Errorf("expected Istio Gateway status %q, got %q", metav1.ConditionTrue, s)
+						if s := kstatus.GetCondition(gw.Status.Conditions, string(gatewayv1beta1.GatewayConditionProgrammed)).Status; s != metav1.ConditionTrue {
+							return fmt.Errorf("expected Istio Gateway programmed condition: %q, got: %q", metav1.ConditionTrue, s)
 						}
 						return nil
 					}, retry.Delay(5*time.Second), retry.Timeout(10*time.Minute))

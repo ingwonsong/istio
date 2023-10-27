@@ -1606,6 +1606,10 @@ templates:
             - name: ISTIO_META_MESH_ID
               value: "{{ (valueOrDefault .MeshConfig.TrustDomain .Values.global.trustDomain) }}"
             {{- end }}
+            {{- if .CloudrunAddr }}
+            - name: ISTIO_META_CLOUDRUN_ADDR
+              value: "{{ .CloudrunAddr }}"
+            {{- end }}
             {{- with (valueOrDefault .MeshConfig.TrustDomain .Values.global.trustDomain)  }}
             - name: TRUST_DOMAIN
               value: "{{ . }}"

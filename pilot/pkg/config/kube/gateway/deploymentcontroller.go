@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -35,6 +36,7 @@ import (
 	meshapi "istio.io/api/mesh/v1alpha1"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/protocol"
@@ -405,6 +407,7 @@ func ManagedGatewayControllerVersion(gw gateway.Gateway) (existing string, takeO
 
 type derivedInput struct {
 	TemplateInput
+	CloudrunAddr string // ASM MCP code
 
 	// Inserted from injection config
 	ProxyImage  string
@@ -423,6 +426,14 @@ func (d *DeploymentController) render(templateName string, mi TemplateInput) ([]
 
 	labelToMatch := map[string]string{"istio.io/gateway-name": mi.Name}
 	proxyConfig := d.env.GetProxyConfigOrDefault(mi.Namespace, labelToMatch, nil, cfg.MeshConfig)
+
+	// ASM MCP code
+	cloudrunAddr := os.Getenv("CLOUDRUN_ADDR")
+	if cloudrunAddr == "" && asm.IsCloudRun() {
+		return nil, fmt.Errorf("CLOUDRUN_ADDR is a required environment variable for ASM managed control plane")
+	}
+	// ASM MCP code
+
 	input := derivedInput{
 		TemplateInput: mi,
 		ProxyImage: inject.ProxyImage(
@@ -430,9 +441,10 @@ func (d *DeploymentController) render(templateName string, mi TemplateInput) ([]
 			proxyConfig.GetImage(),
 			mi.Annotations,
 		),
-		ProxyConfig: proxyConfig,
-		MeshConfig:  cfg.MeshConfig,
-		Values:      cfg.Values.Map(),
+		ProxyConfig:  proxyConfig,
+		MeshConfig:   cfg.MeshConfig,
+		Values:       cfg.Values.Map(),
+		CloudrunAddr: cloudrunAddr, // ASM MCP code
 	}
 	results, err := tmpl.Execute(template, input)
 	if err != nil {
