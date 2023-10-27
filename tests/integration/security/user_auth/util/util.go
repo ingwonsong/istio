@@ -187,16 +187,24 @@ metadata:
 spec:
   authentication:
     oidc:
+      {{ if ne .CA "" }}
       certificateAuthorityData: {{ .CA }}
+      {{ end }}
       issuerURI: {{ .IssuerURI }}
+      {{ if ne .Proxy "" }}
       proxy: {{ .Proxy }}
+      {{ end }}
       oauthCredentialsSecret:
         name: "oauth-secret"
         namespace: "asm-user-auth"
       redirectURIHost: {{ .RedirectHost }}
       redirectURIPath: {{ .RedirectPath }}
+      {{ if ne .Scopes "" }}
       scopes: {{ .Scopes }}
+      {{ end }}
+      {{ if ne .GroupsClaim "" }}
       groupsClaim: {{ .GroupsClaim }}
+      {{ end }}
   outputJWTAudience: {{ .Aud }}
 `
 	return tmpl.MustEvaluate(tpl, userAuthConfigFields)

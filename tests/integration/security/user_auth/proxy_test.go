@@ -161,7 +161,7 @@ func TestProxy(t *testing.T) {
 					ctx.Fatalf("unable to get the text from headers page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authentication failed, please contact your system administrator.") {
+				if !strings.Contains(tx, "Authentication failed. Please contact your system administrator") {
 					ctx.Fatalf("Failed to detect authentication failure.")
 				}
 			})
@@ -259,7 +259,7 @@ func TestProxy(t *testing.T) {
 					ctx.Fatalf("unable to get the text from headers page content %v", err)
 				}
 				ctx.Log(tx)
-				if !strings.Contains(tx, "Authentication failed, please contact your system administrator.") {
+				if !strings.Contains(tx, "Authentication failed. Please contact your system administrator") {
 					ctx.Fatalf("Failed to detect authentication failure.")
 				}
 			})
