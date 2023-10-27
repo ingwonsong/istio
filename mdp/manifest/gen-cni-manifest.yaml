@@ -239,3 +239,5 @@ spec:
         - name: cni-netns-dir
           hostPath:
             path: /var/run/netns
+            type: Directory # this directory must exist on the node, if it does not,
+            # consult your container runtime documentation for the appropriate path

@@ -76,7 +76,9 @@ templates:
     {{- end }}
       }
     spec:
-      {{- $holdProxy := or .ProxyConfig.HoldApplicationUntilProxyStarts.GetValue .Values.global.proxy.holdApplicationUntilProxyStarts }}
+      {{- $holdProxy := and
+          (or .ProxyConfig.HoldApplicationUntilProxyStarts.GetValue .Values.global.proxy.holdApplicationUntilProxyStarts)
+          (not $nativeSidecar) }}
       initContainers:
       {{ if ne (annotation .ObjectMeta `sidecar.istio.io/interceptionMode` .ProxyConfig.InterceptionMode) `NONE` }}
       {{ if .Values.istio_cni.enabled -}}
@@ -96,7 +98,7 @@ templates:
         - "-z"
         - {{ .MeshConfig.ProxyInboundListenPort | default "15006" | quote }}
         - "-u"
-        - "1337"
+        - {{ .ProxyUID | default "1337" | quote }}
         - "-m"
         - "{{ annotation .ObjectMeta `sidecar.istio.io/interceptionMode` .ProxyConfig.InterceptionMode }}"
         - "-i"
@@ -163,8 +165,8 @@ templates:
           runAsUser: 0
         {{- else }}
           readOnlyRootFilesystem: true
-          runAsGroup: 1337
-          runAsUser: 1337
+          runAsGroup: {{ .ProxyGID | default "1337" }}
+          runAsUser: {{ .ProxyUID | default "1337" }}
           runAsNonRoot: true
         {{- end }}
       {{ end -}}
@@ -234,6 +236,17 @@ templates:
               command:
               - pilot-agent
               - wait
+      {{- else if $nativeSidecar }}
+        {{- /* preStop is called when the pod starts shutdown. Initialize drain. We will get SIGTERM once applications are torn down. */}}
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - pilot-agent
+              - request
+              - --debug-port={{(annotation .ObjectMeta `status.sidecar.istio.io/port` .Values.global.proxy.statusPort)}}
+              - POST
+              - drain
       {{- end }}
         env:
         {{- if eq (env "PILOT_ENABLE_INBOUND_PASSTHROUGH" "true") "false" }}
@@ -347,11 +360,17 @@ templates:
         {{- end }}
         {{with .Values.global.imagePullPolicy }}imagePullPolicy: "{{.}}"{{end}}
         {{ if ne (annotation .ObjectMeta `status.sidecar.istio.io/port` .Values.global.proxy.statusPort) `0` }}
-      {{ if $nativeSidecar }}
+      {{ if .Values.global.proxy.startupProbe.enabled }}
         startupProbe:
-      {{ else }}
-        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 15021
+          initialDelaySeconds: 0
+          periodSeconds: 1
+          timeoutSeconds: 3
+          failureThreshold: {{ .Values.global.proxy.startupProbe.failureThreshold }}
       {{ end }}
+        readinessProbe:
           httpGet:
             path: /healthz/ready
             port: 15021
@@ -370,7 +389,7 @@ templates:
             - ALL
           privileged: true
           readOnlyRootFilesystem: {{ ne (annotation .ObjectMeta `sidecar.istio.io/enableCoreDump` .Values.global.proxy.enableCoreDump) "true" }}
-          runAsGroup: 1337
+          runAsGroup: {{ .ProxyGID | default "1337" }}
           runAsNonRoot: false
           runAsUser: 0
           {{- else }}
@@ -389,13 +408,13 @@ templates:
             - ALL
           privileged: {{ .Values.global.proxy.privileged }}
           readOnlyRootFilesystem: {{ ne (annotation .ObjectMeta `sidecar.istio.io/enableCoreDump` .Values.global.proxy.enableCoreDump) "true" }}
-          runAsGroup: 1337
+          runAsGroup: {{ .ProxyGID | default "1337" }}
           {{ if or (eq (annotation .ObjectMeta `sidecar.istio.io/interceptionMode` .ProxyConfig.InterceptionMode) `TPROXY`) (eq (annotation .ObjectMeta `sidecar.istio.io/capNetBindService` .Values.global.proxy.capNetBindService) `true`) -}}
           runAsNonRoot: false
           runAsUser: 0
           {{- else -}}
           runAsNonRoot: true
-          runAsUser: 1337
+          runAsUser: {{ .ProxyUID | default "1337" }}
           {{- end }}
           {{- end }}
         resources:
@@ -578,6 +597,9 @@ templates:
         lifecycle:
           {{ toYaml .Values.global.proxy.lifecycle | indent 6 }}
       {{- end }}
+        securityContext:
+          runAsUser: {{ .ProxyUID | default "1337" }}
+          runAsGroup: {{ .ProxyGID | default "1337" }}
         env:
         - name: JWT_POLICY
           value: {{ .Values.global.jwtPolicy }}
@@ -1220,7 +1242,11 @@ templates:
             - containerPort: 15090
               protocol: TCP
               name: http-envoy-prom
-            image: {{.ProxyImage}}
+            {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image) }}
+            image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image }}"
+            {{- else }}
+            image: "{{ .ProxyImage }}"
+            {{- end }}
             {{with .Values.global.imagePullPolicy }}imagePullPolicy: "{{.}}"{{end}}
             args:
             - proxy
@@ -1294,6 +1320,11 @@ templates:
                   resource: limits.cpu
             - name: ISTIO_META_CLUSTER_ID
               value: "{{ valueOrDefault .Values.global.multiCluster.clusterName `Kubernetes` }}"
+            {{- $network := valueOrDefault (index .Labels `topology.istio.io/network`) .Values.global.network }}
+            {{- if $network }}
+            - name: ISTIO_META_NETWORK
+              value: "{{ $network }}"
+            {{- end }}
             - name: ISTIO_META_INTERCEPTION_MODE
               value: REDIRECT
             - name: ISTIO_META_WORKLOAD_NAME
@@ -1475,7 +1506,11 @@ templates:
           serviceAccountName: {{.ServiceAccount | quote}}
           containers:
           - name: istio-proxy
+          {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image) }}
+            image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image }}"
+          {{- else }}
             image: "{{ .ProxyImage }}"
+          {{- end }}
             {{- if .Values.global.proxy.resources }}
             resources:
               {{- toYaml .Values.global.proxy.resources | nindent 10 }}
@@ -1490,8 +1525,8 @@ templates:
               allowPrivilegeEscalation: false
               privileged: false
               readOnlyRootFilesystem: true
-              runAsUser: 1337
-              runAsGroup: 1337
+              runAsUser: {{ .ProxyUID | default "1337" }}
+              runAsGroup: {{ .ProxyGID | default "1337" }}
               runAsNonRoot: true
             {{- else }}
               capabilities:

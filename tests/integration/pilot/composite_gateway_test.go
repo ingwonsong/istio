@@ -24,7 +24,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"istio.io/istio/pilot/pkg/model/kstatus"
 	"istio.io/istio/pkg/test/echo/common/scheme"
@@ -44,14 +44,14 @@ func TestCompositeGateway(t *testing.T) {
 			gwName := "composite-gateway"
 			retry.UntilSuccessOrFail(t, func() error {
 				err := t.ConfigIstio().YAML("", fmt.Sprintf(`
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
   name: asm-l7-gxlb
 spec:
   controllerName: mesh.cloud.google.com/gateway
 ---
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: %s
@@ -80,7 +80,7 @@ spec:
 			}, retry.Delay(time.Second*10), retry.Timeout(time.Second*90))
 			retry.UntilSuccessOrFail(t, func() error {
 				err := t.ConfigIstio().YAML(apps.Namespace.Name(), `
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: http
@@ -99,7 +99,7 @@ spec:
 `).Apply()
 				return err
 			}, retry.Delay(time.Second*10), retry.Timeout(time.Second*90))
-			gwClient := t.Clusters().Kube().Default().GatewayAPI().GatewayV1beta1().Gateways("istio-system")
+			gwClient := t.Clusters().Kube().Default().GatewayAPI().GatewayV1().Gateways("istio-system")
 			t.NewSubTest("Istio").Run(func(t framework.TestContext) {
 				t.NewSubTest("READY").Run(func(t framework.TestContext) {
 					retry.UntilSuccessOrFail(t, func() error {
@@ -107,8 +107,8 @@ spec:
 						if err != nil {
 							return err
 						}
-						if s := kstatus.GetCondition(gw.Status.Conditions, string(gatewayv1beta1.GatewayConditionProgrammed)).Status; s != metav1.ConditionTrue {
-							return fmt.Errorf("expected Istio Gateway programmed condition: %q, got: %q", metav1.ConditionTrue, s)
+						if s := kstatus.GetCondition(gw.Status.Conditions, string(gatewayv1.GatewayConditionReady)).Status; s != metav1.ConditionTrue {
+							return fmt.Errorf("expected Istio Gateway status %q, got %q", metav1.ConditionTrue, s)
 						}
 						return nil
 					}, retry.Delay(5*time.Second), retry.Timeout(10*time.Minute))
@@ -131,7 +131,7 @@ spec:
 				}
 			})
 			t.NewSubTest("GKE").Run(func(t framework.TestContext) {
-				var gw *gatewayv1beta1.Gateway
+				var gw *gatewayv1.Gateway
 				t.NewSubTest("READY").Run(func(t framework.TestContext) {
 					retry.UntilSuccessOrFail(t, func() error {
 						var err error

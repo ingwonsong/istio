@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	"go.uber.org/atomic"
 	"google.golang.org/protobuf/testing/protocmp"
 	v1 "k8s.io/api/core/v1"
@@ -33,6 +33,7 @@ import (
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/test"
+	"istio.io/istio/pkg/test/util/assert"
 	"istio.io/istio/pkg/test/util/retry"
 )
 
@@ -75,6 +76,7 @@ func TestExtraConfigmap(t *testing.T) {
 		stop := test.NewStop(t)
 		w := NewConfigMapWatcher(client, namespace, name, key, true, stop)
 		AddUserMeshConfig(client, w, namespace, key, extraCmName, stop)
+		client.RunAndWait(stop)
 		return cms, w
 	}
 
@@ -158,11 +160,11 @@ func TestExtraConfigmap(t *testing.T) {
 				}
 			}()
 			wg.Wait()
-			retry.UntilOrFail(
-				t,
-				func() bool { return w.Mesh().GetIngressClass() == write },
+			assert.EventuallyEqual(t, func() string {
+				return w.Mesh().GetIngressClass()
+			}, write,
 				retry.Delay(time.Millisecond),
-				retry.Timeout(time.Second),
+				retry.Timeout(time.Second*5),
 				retry.Message("write failed "+write),
 			)
 			select {
@@ -200,6 +202,7 @@ func TestNewConfigMapWatcher(t *testing.T) {
 	cms := client.Kube().CoreV1().ConfigMaps(namespace)
 	stop := test.NewStop(t)
 	w := NewConfigMapWatcher(client, namespace, name, key, false, stop)
+	client.RunAndWait(stop)
 
 	var mu sync.Mutex
 	newM := mesh.DefaultMeshConfig()
@@ -232,18 +235,18 @@ func TestNewConfigMapWatcher(t *testing.T) {
 
 	for i, step := range steps {
 		t.Run(fmt.Sprintf("[%v]", i), func(t *testing.T) {
-			g := NewWithT(t)
+			g := gomega.NewWithT(t)
 
 			switch {
 			case step.added != nil:
 				_, err := cms.Create(context.TODO(), step.added, metav1.CreateOptions{})
-				g.Expect(err).Should(BeNil())
+				g.Expect(err).Should(gomega.BeNil())
 			case step.updated != nil:
 				_, err := cms.Update(context.TODO(), step.updated, metav1.UpdateOptions{})
-				g.Expect(err).Should(BeNil())
+				g.Expect(err).Should(gomega.BeNil())
 			case step.deleted != nil:
 				g.Expect(cms.Delete(context.TODO(), step.deleted.Name, metav1.DeleteOptions{})).
-					Should(Succeed())
+					Should(gomega.Succeed())
 			}
 
 			retry.UntilOrFail(t, func() bool { return cmp.Equal(w.Mesh(), step.expect, protocmp.Transform()) })

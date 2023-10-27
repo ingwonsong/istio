@@ -138,6 +138,7 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 	}
 
 	secrets := kclient.NewFiltered[*corev1.Secret](informerClient, kclient.Filter{
+		Namespace:     namespace,
 		LabelSelector: MultiClusterSecretLabel + "=true",
 	})
 
@@ -154,7 +155,6 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 			log.Errorf("Failed to create translation cache: %v", err)
 		}
 	}
-	kubeclientset = kube.EnableCrdWatcher(kubeclientset)
 	// ^ASM code
 
 	controller := &Controller{

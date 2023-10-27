@@ -26,7 +26,7 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	"go.uber.org/atomic"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -935,6 +935,23 @@ func TestWasmPlugins(t *testing.T) {
 				Sha256: "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2",
 			},
 		},
+		"authn-low-prio-all-network": {
+			Meta: config.Meta{Name: "authn-low-prio-all-network", Namespace: "testns-1", GroupVersionKind: gvk.WasmPlugin},
+			Spec: &extensions.WasmPlugin{
+				Type:     extensions.PluginType_NETWORK,
+				Phase:    extensions.PluginPhase_AUTHN,
+				Priority: &wrappers.Int32Value{Value: 10},
+				Url:      "file:///etc/istio/filters/authn.wasm",
+				PluginConfig: &structpb.Struct{
+					Fields: map[string]*structpb.Value{
+						"test": {
+							Kind: &structpb.Value_StringValue{StringValue: "test"},
+						},
+					},
+				},
+				Sha256: "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2",
+			},
+		},
 		"global-authn-low-prio-ingress": {
 			Meta: config.Meta{Name: "global-authn-low-prio-ingress", Namespace: constants.IstioSystemNamespace, GroupVersionKind: gvk.WasmPlugin},
 			Spec: &extensions.WasmPlugin{
@@ -1003,12 +1020,14 @@ func TestWasmPlugins(t *testing.T) {
 		name               string
 		node               *Proxy
 		listenerInfo       WasmPluginListenerInfo
+		pluginType         WasmPluginType
 		expectedExtensions map[extensions.PluginPhase][]*WasmPluginWrapper
 	}{
 		{
 			name:               "nil proxy",
 			node:               nil,
 			listenerInfo:       anyListener,
+			pluginType:         WasmPluginTypeHTTP,
 			expectedExtensions: nil,
 		},
 		{
@@ -1018,6 +1037,7 @@ func TestWasmPlugins(t *testing.T) {
 				Metadata:        &NodeMetadata{},
 			},
 			listenerInfo:       anyListener,
+			pluginType:         WasmPluginTypeHTTP,
 			expectedExtensions: map[extensions.PluginPhase][]*WasmPluginWrapper{},
 		},
 		{
@@ -1034,6 +1054,7 @@ func TestWasmPlugins(t *testing.T) {
 				},
 			},
 			listenerInfo: anyListener,
+			pluginType:   WasmPluginTypeHTTP,
 			expectedExtensions: map[extensions.PluginPhase][]*WasmPluginWrapper{
 				extensions.PluginPhase_AUTHN: {
 					convertToWasmPluginWrapper(wasmPlugins["global-authn-low-prio-ingress"]),
@@ -1054,9 +1075,55 @@ func TestWasmPlugins(t *testing.T) {
 				},
 			},
 			listenerInfo: anyListener,
+			pluginType:   WasmPluginTypeHTTP,
 			expectedExtensions: map[extensions.PluginPhase][]*WasmPluginWrapper{
 				extensions.PluginPhase_AUTHN: {
 					convertToWasmPluginWrapper(wasmPlugins["authn-med-prio-all"]),
+					convertToWasmPluginWrapper(wasmPlugins["authn-low-prio-all"]),
+					convertToWasmPluginWrapper(wasmPlugins["global-authn-low-prio-ingress"]),
+				},
+			},
+		},
+		{
+			name: "ingress-testns-1-network",
+			node: &Proxy{
+				ConfigNamespace: "testns-1",
+				Labels: map[string]string{
+					"istio": "ingressgateway",
+				},
+				Metadata: &NodeMetadata{
+					Labels: map[string]string{
+						"istio": "ingressgateway",
+					},
+				},
+			},
+			listenerInfo: anyListener,
+			pluginType:   WasmPluginTypeNetwork,
+			expectedExtensions: map[extensions.PluginPhase][]*WasmPluginWrapper{
+				extensions.PluginPhase_AUTHN: {
+					convertToWasmPluginWrapper(wasmPlugins["authn-low-prio-all-network"]),
+				},
+			},
+		},
+		{
+			name: "ingress-testns-1-any",
+			node: &Proxy{
+				ConfigNamespace: "testns-1",
+				Labels: map[string]string{
+					"istio": "ingressgateway",
+				},
+				Metadata: &NodeMetadata{
+					Labels: map[string]string{
+						"istio": "ingressgateway",
+					},
+				},
+			},
+			listenerInfo: anyListener,
+			pluginType:   WasmPluginTypeAny,
+			expectedExtensions: map[extensions.PluginPhase][]*WasmPluginWrapper{
+				extensions.PluginPhase_AUTHN: {
+					convertToWasmPluginWrapper(wasmPlugins["authn-med-prio-all"]),
+					convertToWasmPluginWrapper(wasmPlugins["authn-low-prio-all-network"]),
 					convertToWasmPluginWrapper(wasmPlugins["authn-low-prio-all"]),
 					convertToWasmPluginWrapper(wasmPlugins["global-authn-low-prio-ingress"]),
 				},
@@ -1076,6 +1143,7 @@ func TestWasmPlugins(t *testing.T) {
 				},
 			},
 			listenerInfo: anyListener,
+			pluginType:   WasmPluginTypeHTTP,
 			expectedExtensions: map[extensions.PluginPhase][]*WasmPluginWrapper{
 				extensions.PluginPhase_AUTHN: {
 					convertToWasmPluginWrapper(wasmPlugins["global-authn-high-prio-app"]),
@@ -1109,6 +1177,7 @@ func TestWasmPlugins(t *testing.T) {
 				Port:  1234,
 				Class: istionetworking.ListenerClassSidecarInbound,
 			},
+			pluginType: WasmPluginTypeHTTP,
 			expectedExtensions: map[extensions.PluginPhase][]*WasmPluginWrapper{
 				extensions.PluginPhase_AUTHN: {
 					convertToWasmPluginWrapper(wasmPlugins["global-authn-high-prio-app"]),
@@ -1135,7 +1204,7 @@ func TestWasmPlugins(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := pc.WasmPluginsByListenerInfo(tc.node, tc.listenerInfo)
+			result := pc.WasmPluginsByListenerInfo(tc.node, tc.listenerInfo, tc.pluginType)
 			if !reflect.DeepEqual(tc.expectedExtensions, result) {
 				t.Errorf("WasmPlugins did not match expectations\n\ngot: %v\n\nexpected: %v", result, tc.expectedExtensions)
 			}
@@ -1144,7 +1213,7 @@ func TestWasmPlugins(t *testing.T) {
 }
 
 func TestServiceIndex(t *testing.T) {
-	g := NewWithT(t)
+	g := gomega.NewWithT(t)
 	env := NewEnvironment()
 	env.ConfigStore = NewFakeStore()
 	env.ServiceDiscovery = &localServiceDiscovery{
@@ -1161,7 +1230,7 @@ func TestServiceIndex(t *testing.T) {
 				Ports:    allPorts,
 				Attributes: ServiceAttributes{
 					Namespace: "test1",
-					ExportTo:  map[visibility.Instance]bool{visibility.Public: true},
+					ExportTo:  sets.New(visibility.Public),
 				},
 			},
 			{
@@ -1169,7 +1238,7 @@ func TestServiceIndex(t *testing.T) {
 				Ports:    allPorts,
 				Attributes: ServiceAttributes{
 					Namespace: "test1",
-					ExportTo:  map[visibility.Instance]bool{visibility.Private: true},
+					ExportTo:  sets.New(visibility.Private),
 				},
 			},
 			{
@@ -1177,7 +1246,7 @@ func TestServiceIndex(t *testing.T) {
 				Ports:    allPorts,
 				Attributes: ServiceAttributes{
 					Namespace: "test1",
-					ExportTo:  map[visibility.Instance]bool{visibility.None: true},
+					ExportTo:  sets.New(visibility.None),
 				},
 			},
 			{
@@ -1185,7 +1254,7 @@ func TestServiceIndex(t *testing.T) {
 				Ports:    allPorts,
 				Attributes: ServiceAttributes{
 					Namespace: "test1",
-					ExportTo:  map[visibility.Instance]bool{"namespace": true},
+					ExportTo:  sets.New(visibility.Instance("namespace")),
 				},
 			},
 		},
@@ -1209,18 +1278,18 @@ func TestServiceIndex(t *testing.T) {
 	si := pc.ServiceIndex
 
 	// Should have all 5 services
-	g.Expect(si.instancesByPort).To(HaveLen(5))
-	g.Expect(si.HostnameAndNamespace).To(HaveLen(5))
+	g.Expect(si.instancesByPort).To(gomega.HaveLen(5))
+	g.Expect(si.HostnameAndNamespace).To(gomega.HaveLen(5))
 
 	// Should just have "namespace"
-	g.Expect(si.exportedToNamespace).To(HaveLen(1))
-	g.Expect(serviceNames(si.exportedToNamespace["namespace"])).To(Equal([]string{"svc-namespace"}))
+	g.Expect(si.exportedToNamespace).To(gomega.HaveLen(1))
+	g.Expect(serviceNames(si.exportedToNamespace["namespace"])).To(gomega.Equal([]string{"svc-namespace"}))
 
-	g.Expect(serviceNames(si.public)).To(Equal([]string{"svc-public", "svc-unset"}))
+	g.Expect(serviceNames(si.public)).To(gomega.Equal([]string{"svc-public", "svc-unset"}))
 
 	// Should just have "test1"
-	g.Expect(si.privateByNamespace).To(HaveLen(1))
-	g.Expect(serviceNames(si.privateByNamespace["test1"])).To(Equal([]string{"svc-private"}))
+	g.Expect(si.privateByNamespace).To(gomega.HaveLen(1))
+	g.Expect(serviceNames(si.privateByNamespace["test1"])).To(gomega.Equal([]string{"svc-private"}))
 }
 
 func TestIsServiceVisible(t *testing.T) {
@@ -1235,9 +1304,7 @@ func TestIsServiceVisible(t *testing.T) {
 			name: "service whose namespace is foo has no exportTo map with global private",
 			pushContext: &PushContext{
 				exportToDefaults: exportToDefaults{
-					service: map[visibility.Instance]bool{
-						visibility.Private: true,
-					},
+					service: sets.New(visibility.Private),
 				},
 			},
 			service: &Service{
@@ -1251,9 +1318,7 @@ func TestIsServiceVisible(t *testing.T) {
 			name: "service whose namespace is bar has no exportTo map with global private",
 			pushContext: &PushContext{
 				exportToDefaults: exportToDefaults{
-					service: map[visibility.Instance]bool{
-						visibility.Private: true,
-					},
+					service: sets.New(visibility.Private),
 				},
 			},
 			service: &Service{
@@ -1267,9 +1332,7 @@ func TestIsServiceVisible(t *testing.T) {
 			name: "service whose namespace is bar has no exportTo map with global public",
 			pushContext: &PushContext{
 				exportToDefaults: exportToDefaults{
-					service: map[visibility.Instance]bool{
-						visibility.Public: true,
-					},
+					service: sets.New(visibility.Public),
 				},
 			},
 			service: &Service{
@@ -1285,9 +1348,7 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "foo",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.Private: true,
-					},
+					ExportTo:  sets.New(visibility.Private),
 				},
 			},
 			expect: true,
@@ -1298,9 +1359,7 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "bar",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.Private: true,
-					},
+					ExportTo:  sets.New(visibility.Private),
 				},
 			},
 			expect: false,
@@ -1311,9 +1370,7 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "bar",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.Public: true,
-					},
+					ExportTo:  sets.New(visibility.Public),
 				},
 			},
 			expect: true,
@@ -1324,9 +1381,7 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "bar",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.Instance("foo"): true,
-					},
+					ExportTo:  sets.New(visibility.Instance("foo")),
 				},
 			},
 			expect: true,
@@ -1337,9 +1392,7 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "bar",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.Instance("baz"): true,
-					},
+					ExportTo:  sets.New(visibility.Instance("baz")),
 				},
 			},
 			expect: false,
@@ -1350,9 +1403,7 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "bar",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.None: true,
-					},
+					ExportTo:  sets.New(visibility.None),
 				},
 			},
 			expect: false,
@@ -1363,10 +1414,10 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "bar",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.Public: true,
-						visibility.None:   true,
-					},
+					ExportTo: sets.New(
+						visibility.Public,
+						visibility.None,
+					),
 				},
 			},
 			expect: true,
@@ -1377,10 +1428,10 @@ func TestIsServiceVisible(t *testing.T) {
 			service: &Service{
 				Attributes: ServiceAttributes{
 					Namespace: "bar",
-					ExportTo: map[visibility.Instance]bool{
-						visibility.Private: true,
-						visibility.None:    true,
-					},
+					ExportTo: sets.New(
+						visibility.Private,
+						visibility.None,
+					),
 				},
 			},
 			expect: false,
@@ -1391,8 +1442,8 @@ func TestIsServiceVisible(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			isVisible := c.pushContext.IsServiceVisible(c.service, targetNamespace)
 
-			g := NewWithT(t)
-			g.Expect(isVisible).To(Equal(c.expect))
+			g := gomega.NewWithT(t)
+			g.Expect(isVisible).To(gomega.Equal(c.expect))
 		})
 	}
 }
@@ -1458,7 +1509,7 @@ func TestInitPushContext(t *testing.T) {
 				Ports:    allPorts,
 				Attributes: ServiceAttributes{
 					Namespace: "test1",
-					ExportTo:  map[visibility.Instance]bool{visibility.Public: true},
+					ExportTo:  sets.New(visibility.Public),
 				},
 			},
 		},
@@ -1995,7 +2046,7 @@ func TestSetDestinationRuleWithWorkloadSelector(t *testing.T) {
 
 func TestSetDestinationRuleMerging(t *testing.T) {
 	ps := NewPushContext()
-	ps.exportToDefaults.destinationRule = map[visibility.Instance]bool{visibility.Public: true}
+	ps.exportToDefaults.destinationRule = sets.New(visibility.Public)
 	testhost := "httpbin.org"
 	destinationRuleNamespace1 := config.Config{
 		Meta: config.Meta{
@@ -2719,29 +2770,29 @@ func TestServiceWithExportTo(t *testing.T) {
 		Hostname: "svc1",
 		Attributes: ServiceAttributes{
 			Namespace: "test1",
-			ExportTo:  map[visibility.Instance]bool{visibility.Private: true, visibility.Instance("ns1"): true},
+			ExportTo:  sets.New(visibility.Private, visibility.Instance("ns1")),
 		},
 	}
 	svc2 := &Service{
 		Hostname: "svc2",
 		Attributes: ServiceAttributes{
 			Namespace: "test2",
-			ExportTo: map[visibility.Instance]bool{
-				visibility.Instance("test1"): true,
-				visibility.Instance("ns1"):   true,
-				visibility.Instance("test2"): true,
-			},
+			ExportTo: sets.New(
+				visibility.Instance("test1"),
+				visibility.Instance("ns1"),
+				visibility.Instance("test2"),
+			),
 		},
 	}
 	svc3 := &Service{
 		Hostname: "svc3",
 		Attributes: ServiceAttributes{
 			Namespace: "test3",
-			ExportTo: map[visibility.Instance]bool{
-				visibility.Instance("test1"): true,
-				visibility.Public:            true,
-				visibility.Instance("test2"): true,
-			},
+			ExportTo: sets.New(
+				visibility.Instance("test1"),
+				visibility.Public,
+				visibility.Instance("test2"),
+			),
 		},
 	}
 	svc4 := &Service{
@@ -2754,7 +2805,7 @@ func TestServiceWithExportTo(t *testing.T) {
 		services: []*Service{svc1, svc2, svc3, svc4},
 	}
 	ps.initDefaultExportMaps()
-	ps.initServiceRegistry(env)
+	ps.initServiceRegistry(env, nil)
 
 	cases := []struct {
 		proxyNs   string
@@ -2960,4 +3011,99 @@ func (l *localServiceDiscovery) NetworkGateways() []NetworkGateway {
 
 func (l *localServiceDiscovery) MCSServices() []MCSServiceInfo {
 	return nil
+}
+
+func TestResolveServiceAliases(t *testing.T) {
+	type service struct {
+		Name         host.Name
+		Aliases      host.Names
+		ExternalName string
+	}
+	tests := []struct {
+		name   string
+		input  []service
+		output []service
+	}{
+		{
+			name:   "no aliases",
+			input:  []service{{Name: "test"}},
+			output: []service{{Name: "test"}},
+		},
+		{
+			name: "simple alias",
+			input: []service{
+				{Name: "concrete"},
+				{Name: "alias", ExternalName: "concrete"},
+			},
+			output: []service{
+				{Name: "concrete", Aliases: host.Names{"alias"}},
+				{Name: "alias", ExternalName: "concrete"},
+			},
+		},
+		{
+			name: "multiple alias",
+			input: []service{
+				{Name: "concrete"},
+				{Name: "alias1", ExternalName: "concrete"},
+				{Name: "alias2", ExternalName: "concrete"},
+			},
+			output: []service{
+				{Name: "concrete", Aliases: host.Names{"alias1", "alias2"}},
+				{Name: "alias1", ExternalName: "concrete"},
+				{Name: "alias2", ExternalName: "concrete"},
+			},
+		},
+		{
+			name: "chained alias",
+			input: []service{
+				{Name: "concrete"},
+				{Name: "alias1", ExternalName: "alias2"},
+				{Name: "alias2", ExternalName: "concrete"},
+			},
+			output: []service{
+				{Name: "concrete", Aliases: host.Names{"alias1", "alias2"}},
+				{Name: "alias1", ExternalName: "alias2"},
+				{Name: "alias2", ExternalName: "concrete"},
+			},
+		},
+		{
+			name: "looping alias",
+			input: []service{
+				{Name: "alias1", ExternalName: "alias2"},
+				{Name: "alias2", ExternalName: "alias1"},
+			},
+			output: []service{
+				{Name: "alias1", ExternalName: "alias2"},
+				{Name: "alias2", ExternalName: "alias1"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inps := slices.Map(tt.input, func(e service) *Service {
+				resolution := ClientSideLB
+				if e.ExternalName != "" {
+					resolution = Alias
+				}
+				return &Service{
+					Resolution: resolution,
+					Attributes: ServiceAttributes{
+						K8sAttributes: K8sAttributes{ExternalName: e.ExternalName},
+					},
+					Hostname: e.Name,
+				}
+			})
+			resolveServiceAliases(inps, nil)
+			out := slices.Map(inps, func(e *Service) service {
+				return service{
+					Name: e.Hostname,
+					Aliases: slices.Map(e.Attributes.Aliases, func(e NamespacedHostname) host.Name {
+						return e.Hostname
+					}),
+					ExternalName: e.Attributes.K8sAttributes.ExternalName,
+				}
+			})
+			assert.Equal(t, tt.output, out)
+		})
+	}
 }

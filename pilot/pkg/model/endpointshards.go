@@ -37,7 +37,7 @@ func ShardKeyFromRegistry(instance shardRegistry) ShardKey {
 	return ShardKey{Cluster: instance.Cluster(), Provider: instance.Provider()}
 }
 
-// ShardKey is the key for EndpointShards made of a key with the format "cluster/provider"
+// ShardKey is the key for EndpointShards made of a key with the format "provider/cluster"
 type ShardKey struct {
 	Cluster  cluster.ID
 	Provider provider.ID
@@ -286,10 +286,14 @@ func (e *EndpointIndex) UpdateServiceEndpoints(
 	ep.Lock()
 	defer ep.Unlock()
 	newIstioEndpoints := istioEndpoints
-	if features.SendUnhealthyEndpoints.Load() {
-		oldIstioEndpoints := ep.Shards[shard]
-		newIstioEndpoints = make([]*IstioEndpoint, 0, len(istioEndpoints))
 
+	oldIstioEndpoints := ep.Shards[shard]
+	needPush := false
+	if oldIstioEndpoints == nil {
+		// If there are no old endpoints, we should push with incoming endpoints as there is nothing to compare.
+		needPush = true
+	} else {
+		newIstioEndpoints = make([]*IstioEndpoint, 0, len(istioEndpoints))
 		// Check if new Endpoints are ready to be pushed. This check
 		// will ensure that if a new pod comes with a non ready endpoint,
 		// we do not unnecessarily push that config to Envoy.
@@ -305,7 +309,6 @@ func (e *EndpointIndex) UpdateServiceEndpoints(
 		for _, nie := range istioEndpoints {
 			nmap[nie.Address] = nie
 		}
-		needPush := false
 		for _, nie := range istioEndpoints {
 			if oie, exists := emap[nie.Address]; exists {
 				// If endpoint exists already, we should push if it's health status changes.
@@ -313,11 +316,14 @@ func (e *EndpointIndex) UpdateServiceEndpoints(
 					needPush = true
 				}
 				newIstioEndpoints = append(newIstioEndpoints, nie)
-			} else if nie.HealthStatus == Healthy {
+			} else {
 				// If the endpoint does not exist in shards that means it is a
-				// new endpoint. Only send if it is healthy to avoid pushing endpoints
-				// that are not ready to start with.
-				needPush = true
+				// new endpoint. Always send new endpoints even if they are not healthy.
+				// This is OK since we disable panic threshold when SendUnhealthyEndpoints is enabled.
+				// Without SendUnhealthyEndpoints we do not need this; headless services will trigger the push in the Kubernetes controller.
+				if features.SendUnhealthyEndpoints.Load() {
+					needPush = true
+				}
 				newIstioEndpoints = append(newIstioEndpoints, nie)
 			}
 		}
@@ -328,12 +334,11 @@ func (e *EndpointIndex) UpdateServiceEndpoints(
 				needPush = true
 			}
 		}
+	}
 
-		if pushType != FullPush && !needPush {
-			log.Debugf("No push, either old endpoint health status did not change or new endpoint came with unhealthy status, %v", hostname)
-			pushType = NoPush
-		}
-
+	if pushType != FullPush && !needPush {
+		log.Debugf("No push, either old endpoint health status did not change or new endpoint came with unhealthy status, %v", hostname)
+		pushType = NoPush
 	}
 
 	ep.Shards[shard] = newIstioEndpoints

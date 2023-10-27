@@ -9,6 +9,7 @@ Migrating gateway deployments...
 
 Checking configuration compatibility...
 ! Found unsupported configurations:
+    Values.global.proxy: the injection template cannot be modified globally; per-pod settings can be customized (https://istio.io/latest/docs/setup/additional-setup/sidecar-injection/#customizing-injection)
     Values.global.proxy_init: the injection template cannot be modified globally; per-pod settings can be customized (https://istio.io/latest/docs/setup/additional-setup/sidecar-injection/#customizing-injection)
     Values.pilot: not configurable in managed control plane
 

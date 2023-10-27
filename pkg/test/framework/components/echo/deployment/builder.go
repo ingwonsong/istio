@@ -31,7 +31,6 @@ import (
 	"istio.io/istio/pkg/test/framework/components/ambient"
 	"istio.io/istio/pkg/test/framework/components/cluster"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	_ "istio.io/istio/pkg/test/framework/components/echo/asmvm" // force registraton of factory func
 	"istio.io/istio/pkg/test/framework/components/echo/kube"
 	_ "istio.io/istio/pkg/test/framework/components/echo/staticvm" // force registraton of factory func
 	"istio.io/istio/pkg/test/framework/components/istio"

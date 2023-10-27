@@ -177,6 +177,8 @@ type Settings struct {
 
 	DisableDefaultExternalServiceConnectivity bool
 
+	PeerMetadataDiscovery bool
+
 	// UseDefaultInjectionLabels determines whether to use the "istio-injection=enabled" and
 	// "sidecar.istio.io/inject" labels for workload injection
 	UseDefaultInjectionLabels bool

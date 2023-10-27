@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	"golang.org/x/net/http2"
 	cert "k8s.io/api/certificates/v1"
@@ -228,13 +228,13 @@ func TestNewServerCertInit(t *testing.T) {
 
 				p.ShutdownDuration = 1 * time.Millisecond
 			})
-			g := NewWithT(t)
+			g := gomega.NewWithT(t)
 			s, err := NewServer(args, func(s *Server) {
 				s.kubeClient = kube.NewFakeClient()
 			})
-			g.Expect(err).To(Succeed())
+			g.Expect(err).To(gomega.Succeed())
 			stop := make(chan struct{})
-			g.Expect(s.Start(stop)).To(Succeed())
+			g.Expect(s.Start(stop)).To(gomega.Succeed())
 			defer func() {
 				close(stop)
 				s.WaitUntilCompletion()
@@ -327,12 +327,12 @@ func TestReloadIstiodCert(t *testing.T) {
 		t.Fatalf("WriteFile(%v) failed: %v", tlsOptions.KeyFile, err)
 	}
 
-	g := NewWithT(t)
+	g := gomega.NewWithT(t)
 
 	// Validate that istiod cert is updated.
 	g.Eventually(func() bool {
 		return checkCert(t, s, testcerts.RotatedCert, testcerts.RotatedKey)
-	}, "10s", "100ms").Should(BeTrue())
+	}, "10s", "100ms").Should(gomega.BeTrue())
 }
 
 func TestNewServer(t *testing.T) {
@@ -399,19 +399,19 @@ func TestNewServer(t *testing.T) {
 				p.JwtRule = c.jwtRule
 			})
 
-			g := NewWithT(t)
+			g := gomega.NewWithT(t)
 			s, err := NewServer(args, func(s *Server) {
 				s.kubeClient = kube.NewFakeClient()
 			})
-			g.Expect(err).To(Succeed())
+			g.Expect(err).To(gomega.Succeed())
 			stop := make(chan struct{})
-			g.Expect(s.Start(stop)).To(Succeed())
+			g.Expect(s.Start(stop)).To(gomega.Succeed())
 			defer func() {
 				close(stop)
 				s.WaitUntilCompletion()
 			}()
 
-			g.Expect(s.environment.DomainSuffix).To(Equal(c.expectedDomain))
+			g.Expect(s.environment.DomainSuffix).To(gomega.Equal(c.expectedDomain))
 
 			assert.Equal(t, s.secureGrpcServer != nil, c.enableSecureGRPC)
 		})
@@ -440,13 +440,13 @@ func TestMultiplex(t *testing.T) {
 		p.ShutdownDuration = 1 * time.Millisecond
 	})
 
-	g := NewWithT(t)
+	g := gomega.NewWithT(t)
 	s, err := NewServer(args, func(s *Server) {
 		s.kubeClient = kube.NewFakeClient()
 	})
-	g.Expect(err).To(Succeed())
+	g.Expect(err).To(gomega.Succeed())
 	stop := make(chan struct{})
-	g.Expect(s.Start(stop)).To(Succeed())
+	g.Expect(s.Start(stop)).To(gomega.Succeed())
 	defer func() {
 		close(stop)
 		s.WaitUntilCompletion()
@@ -532,14 +532,14 @@ func TestIstiodCipherSuites(t *testing.T) {
 				p.ShutdownDuration = 1 * time.Millisecond
 			})
 
-			g := NewWithT(t)
+			g := gomega.NewWithT(t)
 			s, err := NewServer(args, func(s *Server) {
 				s.kubeClient = kube.NewFakeClient()
 			})
-			g.Expect(err).To(Succeed())
+			g.Expect(err).To(gomega.Succeed())
 
 			stop := make(chan struct{})
-			g.Expect(s.Start(stop)).To(Succeed())
+			g.Expect(s.Start(stop)).To(gomega.Succeed())
 			defer func() {
 				close(stop)
 				s.WaitUntilCompletion()
@@ -617,6 +617,7 @@ func TestWatchDNSCertForK8sCA(t *testing.T) {
 		kubeClient:              kube.NewFakeClient(csr),
 		dnsNames:                []string{"abc.xyz"},
 	}
+	s.kubeClient.RunAndWait(test.NewStop(t))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -662,4 +663,107 @@ func checkCert(t *testing.T, s *Server, cert, key []byte) bool {
 		t.Fatalf("fail to load test certs.")
 	}
 	return bytes.Equal(actual.Certificate[0], expected.Certificate[0])
+}
+
+func TestGetDNSNames(t *testing.T) {
+	tests := []struct {
+		name             string
+		customHost       string
+		discoveryAddress string
+		revision         string
+		sans             []string
+	}{
+		{
+			name:             "no customHost",
+			customHost:       "",
+			discoveryAddress: "istiod.istio-system.svc.cluster.local",
+			revision:         "default",
+			sans: []string{
+				"istio-pilot.istio-system.svc",
+				"istiod-remote.istio-system.svc",
+				"istiod.istio-system.svc",
+				"istiod.istio-system.svc.cluster.local",
+			},
+		},
+		{
+			name:             "default revision",
+			customHost:       "a.com,b.com,c.com",
+			discoveryAddress: "istiod.istio-system.svc.cluster.local",
+			revision:         "default",
+			sans: []string{
+				"a.com", "b.com", "c.com",
+				"istio-pilot.istio-system.svc",
+				"istiod-remote.istio-system.svc",
+				"istiod.istio-system.svc",
+				"istiod.istio-system.svc.cluster.local",
+			},
+		},
+		{
+			name:             "empty revision",
+			customHost:       "a.com,b.com,c.com",
+			discoveryAddress: "istiod.istio-system.svc.cluster.local",
+			revision:         "",
+			sans: []string{
+				"a.com", "b.com", "c.com",
+				"istio-pilot.istio-system.svc",
+				"istiod-remote.istio-system.svc",
+				"istiod.istio-system.svc",
+				"istiod.istio-system.svc.cluster.local",
+			},
+		},
+		{
+			name:             "canary revision",
+			customHost:       "a.com,b.com,c.com",
+			discoveryAddress: "istiod.istio-system.svc.cluster.local",
+			revision:         "canary",
+			sans: []string{
+				"a.com", "b.com", "c.com",
+				"istio-pilot.istio-system.svc",
+				"istiod-canary.istio-system.svc",
+				"istiod-remote.istio-system.svc",
+				"istiod.istio-system.svc",
+				"istiod.istio-system.svc.cluster.local",
+			},
+		},
+		{
+			name:             "customHost has duplicate hosts with inner default",
+			customHost:       "a.com,b.com,c.com,istiod",
+			discoveryAddress: "istiod.istio-system.svc.cluster.local",
+			revision:         "canary",
+			sans: []string{
+				"a.com", "b.com", "c.com",
+				"istio-pilot.istio-system.svc",
+				"istiod", // from the customHost
+				"istiod-canary.istio-system.svc",
+				"istiod-remote.istio-system.svc",
+				"istiod.istio-system.svc",
+				"istiod.istio-system.svc.cluster.local",
+			},
+		},
+		{
+			name:             "customHost has duplicate hosts with discovery address",
+			customHost:       "a.com,b.com,c.com,test.com",
+			discoveryAddress: "test.com",
+			revision:         "canary",
+			sans: []string{
+				"a.com", "b.com", "c.com",
+				"istio-pilot.istio-system.svc",
+				"istiod-canary.istio-system.svc",
+				"istiod-remote.istio-system.svc",
+				"istiod.istio-system.svc",
+				"test.com",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			features.IstiodServiceCustomHost = tc.customHost
+			var args PilotArgs
+			args.Revision = tc.revision
+			args.Namespace = "istio-system"
+			sans := getDNSNames(&args, tc.discoveryAddress)
+			assert.Equal(t, sans, tc.sans)
+		})
+	}
 }

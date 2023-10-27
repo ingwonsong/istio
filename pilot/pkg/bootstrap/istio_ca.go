@@ -48,7 +48,6 @@ import (
 )
 
 type caOptions struct {
-	// Either extCAK8s or extCAGrpc
 	ExternalCAType   ra.CaExternalType
 	ExternalCASigner string
 	// domain to use in SPIFFE identity URLs
@@ -134,8 +133,7 @@ var (
 
 	// TODO: Likely to be removed and added to mesh config
 	externalCaType = env.Register("EXTERNAL_CA", "",
-		"External CA Integration Type. Permitted Values are ISTIOD_RA_KUBERNETES_API or "+
-			"ISTIOD_RA_ISTIO_API").Get()
+		"External CA Integration Type. Permitted value is ISTIOD_RA_KUBERNETES_API.").Get()
 
 	// TODO: Likely to be removed and added to mesh config
 	k8sSigner = env.Register("K8S_SIGNER", "",
@@ -332,8 +330,20 @@ func handleEvent(s *Server) {
 
 	// Only updating intermediate CA is supported now
 	if !bytes.Equal(currentCABundle, newCABundle) {
-		log.Info("Updating new ROOT-CA not supported")
-		return
+		if !features.MultiRootMesh {
+			log.Warn("Multi root is disabled, updating new ROOT-CA not supported")
+			return
+		}
+
+		// in order to support root ca rotation, or we are removing the old ca,
+		// we need to make the new CA bundle contain both old and new CA certs
+		if bytes.Contains(currentCABundle, newCABundle) ||
+			bytes.Contains(newCABundle, currentCABundle) {
+			log.Info("Updating new ROOT-CA")
+		} else {
+			log.Warn("Updating new ROOT-CA not supported")
+			return
+		}
 	}
 
 	err = s.CA.GetCAKeyCertBundle().UpdateVerifiedKeyCertBundleFromFile(
@@ -391,7 +401,7 @@ func (s *Server) handleCACertsFileWatch() {
 func (s *Server) addCACertsFileWatcher(dir string) error {
 	err := s.cacertsWatcher.Add(dir)
 	if err != nil {
-		log.Infof("AUTO_RELOAD_PLUGIN_CERTS will not work, failed to add file watcher: %v", err)
+		log.Infof("failed to add cacerts file watcher for %s: %v", dir, err)
 		return err
 	}
 
@@ -408,12 +418,13 @@ func (s *Server) initCACertsWatcher() {
 
 	s.cacertsWatcher, err = fsnotify.NewWatcher()
 	if err != nil {
-		log.Infof("failed to add CAcerts watcher: %v", err)
+		log.Warnf("failed to add CAcerts watcher: %v", err)
 		return
 	}
 
 	err = s.addCACertsFileWatcher(LocalCertDir.Get())
 	if err != nil {
+		log.Warnf("failed to add CAcerts file watcher: %v", err)
 		return
 	}
 
@@ -520,7 +531,7 @@ func (s *Server) createSelfSignedCACertificateOptions(fileBundle *ca.SigningCAFi
 		caOpts, err = ca.NewSelfSignedIstioCAOptions(ctx,
 			selfSignedRootCertGracePeriodPercentile.Get(), SelfSignedCACertTTL.Get(),
 			selfSignedRootCertCheckInterval.Get(), workloadCertTTL.Get(),
-			maxWorkloadCertTTL.Get(), opts.TrustDomain, true,
+			maxWorkloadCertTTL.Get(), opts.TrustDomain, features.UseCacertsForSelfSignedCA, true,
 			opts.Namespace, s.kubeClient.Kube().CoreV1(), fileBundle.RootCertFile,
 			enableJitterForRootCertRotator.Get(), caRSAKeySize.Get())
 	} else {

@@ -125,6 +125,7 @@ features:
       mtls-local:
       jwt-token:
       workload-selector:
+      policy-attachment:
       deny-action:
       negative-match:
       ingress-gateway:

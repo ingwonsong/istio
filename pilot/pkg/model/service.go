@@ -145,6 +145,8 @@ const (
 	Passthrough
 	// DNSRoundRobinLB implies that the proxy will resolve a DNS address and forward to the resolved address
 	DNSRoundRobinLB
+	// Alias defines a Service that is an alias for another.
+	Alias
 )
 
 // String converts Resolution in to String.
@@ -673,11 +675,16 @@ type ServiceAttributes struct {
 	Labels map[string]string
 	// ExportTo defines the visibility of Service in
 	// a namespace when the namespace is imported.
-	ExportTo map[visibility.Instance]bool
+	ExportTo sets.Set[visibility.Instance]
 
 	// LabelSelectors are the labels used by the service to select workloads.
 	// Applicable to both Kubernetes and ServiceEntries.
 	LabelSelectors map[string]string
+
+	// Aliases is the resolved set of aliases for this service. This is computed based on a global view of all Service's `AliasFor`
+	// fields.
+	// For example, if I had two Services with `externalName: foo`, "a" and "b", then the "foo" service would have Aliases=[a,b].
+	Aliases []NamespacedHostname
 
 	// For Kubernetes platform
 
@@ -695,6 +702,11 @@ type ServiceAttributes struct {
 	ClusterExternalPorts map[cluster.ID]map[uint32]uint32
 
 	K8sAttributes
+}
+
+type NamespacedHostname struct {
+	Hostname  host.Name
+	Namespace string
 }
 
 type K8sAttributes struct {
@@ -724,10 +736,7 @@ func (s *ServiceAttributes) DeepCopy() ServiceAttributes {
 	}
 
 	if s.ExportTo != nil {
-		out.ExportTo = make(map[visibility.Instance]bool, len(s.ExportTo))
-		for k, v := range s.ExportTo {
-			out.ExportTo[k] = v
-		}
+		out.ExportTo = s.ExportTo.Copy()
 	}
 
 	if s.LabelSelectors != nil {
@@ -754,6 +763,8 @@ func (s *ServiceAttributes) DeepCopy() ServiceAttributes {
 		}
 	}
 
+	out.Aliases = slices.Clone(s.Aliases)
+
 	// AddressMap contains a mutex, which is safe to return a copy in this case.
 	// nolint: govet
 	return out
@@ -777,6 +788,10 @@ func (s *ServiceAttributes) Equals(other *ServiceAttributes) bool {
 	}
 
 	if !maps.Equal(s.ExportTo, other.ExportTo) {
+		return false
+	}
+
+	if !slices.Equal(s.Aliases, other.Aliases) {
 		return false
 	}
 
@@ -814,7 +829,7 @@ type ServiceDiscovery interface {
 	// GetService retrieves a service by host name if it exists
 	GetService(hostname host.Name) *Service
 
-	// GetProxyServiceTargets returns the service instances that co-located with a given Proxy
+	// GetProxyServiceTargets returns the service targets that co-located with a given Proxy
 	//
 	// Co-located generally means running in the same network namespace and security context.
 	//
@@ -822,9 +837,9 @@ type ServiceDiscovery interface {
 	// will return an empty slice.
 	//
 	// There are two reasons why this returns multiple ServiceTargets instead of one:
-	// - A ServiceTargets has a single IstioEndpoint which has a single Port.  But a Service
+	// - A ServiceTargets has a single Port.  But a Service
 	//   may have many ports.  So a workload implementing such a Service would need
-	//   multiple ServiceEndpoints, one for each port.
+	//   multiple ServiceTargets, one for each port.
 	// - A single workload may implement multiple logical Services.
 	//
 	// In the second case, multiple services may be implemented by the same physical port number,
@@ -842,7 +857,7 @@ type ServiceDiscovery interface {
 }
 
 type AmbientIndexes interface {
-	AddressInformation(addresses sets.String) ([]*AddressInfo, []string)
+	AddressInformation(addresses sets.String) ([]*AddressInfo, sets.String)
 	AdditionalPodSubscriptions(
 		proxy *Proxy,
 		allAddresses sets.String,
@@ -856,7 +871,7 @@ type AmbientIndexes interface {
 // NoopAmbientIndexes provides an implementation of AmbientIndexes that always returns nil, to easily "skip" it.
 type NoopAmbientIndexes struct{}
 
-func (u NoopAmbientIndexes) AddressInformation(sets.String) ([]*AddressInfo, []string) {
+func (u NoopAmbientIndexes) AddressInformation(sets.String) ([]*AddressInfo, sets.String) {
 	return nil, nil
 }
 
@@ -960,26 +975,6 @@ func ExtractWorkloadsFromAddresses(addrs []*AddressInfo) []WorkloadInfo {
 			return nil
 		}
 	})
-}
-
-func WorkloadToAddressInfo(w *workloadapi.Workload) *AddressInfo {
-	return &AddressInfo{
-		Address: &workloadapi.Address{
-			Type: &workloadapi.Address_Workload{
-				Workload: w,
-			},
-		},
-	}
-}
-
-func ServiceToAddressInfo(s *workloadapi.Service) *AddressInfo {
-	return &AddressInfo{
-		Address: &workloadapi.Address{
-			Type: &workloadapi.Address_Service{
-				Service: s,
-			},
-		},
-	}
 }
 
 // MCSServiceInfo combines the name of a service with a particular Kubernetes cluster. This

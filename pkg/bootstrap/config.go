@@ -92,7 +92,7 @@ func (cfg Config) toTemplateParams() (map[string]any, error) {
 	}
 
 	// Waypoint overrides
-	metadataDiscovery := false
+	metadataDiscovery := cfg.Metadata.MetadataDiscovery
 	if strings.HasPrefix(cfg.ID, "waypoint~") {
 		xdsType = "DELTA_GRPC"
 		metadataDiscovery = true
@@ -106,7 +106,7 @@ func (cfg Config) toTemplateParams() (map[string]any, error) {
 		option.DiscoveryHost(discHost),
 		option.Metadata(cfg.Metadata),
 		option.XdsType(xdsType),
-		option.MetadataDiscovery(metadataDiscovery))
+		option.MetadataDiscovery(bool(metadataDiscovery)))
 
 	// Add GCPProjectNumber to access in bootstrap template.
 	md := cfg.Metadata.PlatformMetadata
@@ -156,15 +156,18 @@ func (cfg Config) toTemplateParams() (map[string]any, error) {
 				opts = append(opts,
 					option.Localhost(option.LocalhostIPv6),
 					option.Wildcard(option.WildcardIPv6),
+					option.AdditionalWildCard(option.WildcardIPv4),
 					option.DNSLookupFamily(option.DNSLookupFamilyIPS))
 			} else {
 				opts = append(opts,
 					option.Localhost(option.LocalhostIPv4),
 					option.Wildcard(option.WildcardIPv4),
+					option.AdditionalWildCard(option.WildcardIPv6),
 					option.DNSLookupFamily(option.DNSLookupFamilyIPS))
 			}
+			opts = append(opts, option.DualStack(true))
 		} else {
-			// keep the original logic if Dual Stack is disable
+			// keep the original logic if Dual Stack is disabled
 			opts = append(opts,
 				option.Localhost(option.LocalhostIPv4),
 				option.Wildcard(option.WildcardIPv4),
@@ -550,6 +553,7 @@ type MetadataOptions struct {
 	EnvoyStatusPort             int
 	EnvoyPrometheusPort         int
 	ExitOnZeroActiveConnections bool
+	MetadataDiscovery           bool
 }
 
 const (
@@ -605,6 +609,7 @@ func GetNodeMetaData(options MetadataOptions) (*model.Node, error) {
 	meta.EnvoyStatusPort = options.EnvoyStatusPort
 	meta.EnvoyPrometheusPort = options.EnvoyPrometheusPort
 	meta.ExitOnZeroActiveConnections = model.StringBool(options.ExitOnZeroActiveConnections)
+	meta.MetadataDiscovery = model.StringBool(options.MetadataDiscovery)
 
 	meta.ProxyConfig = (*model.NodeMetaProxyConfig)(options.ProxyConfig)
 
