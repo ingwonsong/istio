@@ -46,6 +46,7 @@ import (
 	opconfig "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
 	"istio.io/istio/pilot/cmd/pilot-agent/status"
 	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/log"
@@ -1042,6 +1043,7 @@ func (wh *Webhook) inject(ar *kube.AdmissionReview, path string) *kube.Admission
 		injectedAnnotations: wh.Config.InjectedAnnotations,
 		proxyEnvs:           parseInjectEnvs(path),
 	}
+	asm.InjectProxyEnvFromIstiodEnv(params.proxyEnvs)
 	wh.mu.RUnlock()
 
 	patchBytes, err := injectPod(params)

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"istio.io/istio/pkg/env"
@@ -142,4 +143,18 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 		}
 	}
 	return p, nil
+}
+
+// InjectProxyEnvFromIstiodEnv set the proxy environment variables based on Istiod environment variables,
+// which has "PROXY_ENV_" prefix. The prefix will be trucated in the proxy environment variable.
+func InjectProxyEnvFromIstiodEnv(m map[string]string) {
+	const proxyEnvPrefix = "PROXY_ENV_"
+	envs := os.Environ()
+	for _, e := range envs {
+		if strings.HasPrefix(e, proxyEnvPrefix) {
+			if key, value, found := strings.Cut(e, "="); found {
+				m[strings.TrimPrefix(key, proxyEnvPrefix)] = value
+			}
+		}
+	}
 }
