@@ -87,13 +87,11 @@ kind: DestinationRule
 metadata:
   name: mysvc-dr
 spec:
-  host: {{.host}}
+  host: {{ .host }}
   subsets:
-{{- range .dst }}
   - name: {{ .name }}
     labels:
       topology.istio.io/cluster: {{ .name }}
-{{- end }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -103,17 +101,15 @@ spec:
   hosts:
   - {{.host}}
   http:
-{{- range .dst }}
   - name: "{{ .name }}-local"
     match:
     - sourceLabels:
         topology.istio.io/cluster: {{ .name }}
     route:
     - destination:
-        host: {{$.host}}
+        host: {{ .host }}
         subset: {{ .name }}
-{{- end }}
-`, map[string]any{"src": sources, "dst": to, "host": to.Config().ClusterLocalFQDN(), "name": clName})
+`, map[string]any{"src": sources, "host": to.Config().ClusterLocalFQDN(), "name": clName})
 						t.ConfigIstio().YAML(sources.Config().Namespace.Name(), cfg).ApplyOrFail(t)
 					},
 				},
