@@ -20,6 +20,7 @@ package pilot
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,6 +57,11 @@ func TestClusterLocal(t *testing.T) {
 			sources := apps.A
 			to := apps.B
 
+			clName := to.Config().Cluster.Name()
+			if strings.Contains(clName, "/") {
+				clName = strings.Split(clName, "/")[1]
+			}
+
 			tests := []struct {
 				name  string
 				setup func(t framework.TestContext)
@@ -84,9 +90,9 @@ spec:
   host: {{.host}}
   subsets:
 {{- range .dst }}
-  - name: {{ .Config.Cluster.Name }}
+  - name: {{ .name }}
     labels:
-      topology.istio.io/cluster: {{ .Config.Cluster.Name }}
+      topology.istio.io/cluster: {{ .name }}
 {{- end }}
 ---
 apiVersion: networking.istio.io/v1beta1
@@ -98,16 +104,16 @@ spec:
   - {{.host}}
   http:
 {{- range .dst }}
-  - name: "{{ .Config.Cluster.Name }}-local"
+  - name: "{{ .name }}-local"
     match:
     - sourceLabels:
-        topology.istio.io/cluster: {{ .Config.Cluster.Name }}
+        topology.istio.io/cluster: {{ .name }}
     route:
     - destination:
         host: {{$.host}}
-        subset: {{ .Config.Cluster.Name }}
+        subset: {{ .name }}
 {{- end }}
-`, map[string]any{"src": sources, "dst": to, "host": to.Config().ClusterLocalFQDN()})
+`, map[string]any{"src": sources, "dst": to, "host": to.Config().ClusterLocalFQDN(), "name": clName})
 						t.ConfigIstio().YAML(sources.Config().Namespace.Name(), cfg).ApplyOrFail(t)
 					},
 				},
