@@ -4,7 +4,7 @@ metadata:
   name: asm-ci-aws-mcmn-1p
   namespace: tailorbird-users
 spec:
-  ttlSeconds: 10800 # 3 hours
+  ttlSeconds: 12600
   knests:
   - apiVersion: sut.tailorbird.io/v1alpha1
     kind: Knest
