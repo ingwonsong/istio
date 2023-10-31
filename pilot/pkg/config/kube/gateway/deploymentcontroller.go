@@ -407,7 +407,8 @@ func ManagedGatewayControllerVersion(gw gateway.Gateway) (existing string, takeO
 
 type derivedInput struct {
 	TemplateInput
-	CloudrunAddr string // ASM MCP code
+	CloudrunAddr string            // ASM MCP code
+	MCPExtraEnv  map[string]string // ASM MCP code
 
 	// Inserted from injection config
 	ProxyImage  string
@@ -432,6 +433,8 @@ func (d *DeploymentController) render(templateName string, mi TemplateInput) ([]
 	if cloudrunAddr == "" && asm.IsCloudRun() {
 		return nil, fmt.Errorf("CLOUDRUN_ADDR is a required environment variable for ASM managed control plane")
 	}
+	extraEnv := map[string]string{}
+	asm.InjectProxyEnvFromIstiodEnv(extraEnv)
 	// ASM MCP code
 
 	input := derivedInput{
@@ -445,6 +448,7 @@ func (d *DeploymentController) render(templateName string, mi TemplateInput) ([]
 		MeshConfig:   cfg.MeshConfig,
 		Values:       cfg.Values.Map(),
 		CloudrunAddr: cloudrunAddr, // ASM MCP code
+		MCPExtraEnv:  extraEnv,     // ASM MCP code
 	}
 	results, err := tmpl.Execute(template, input)
 	if err != nil {

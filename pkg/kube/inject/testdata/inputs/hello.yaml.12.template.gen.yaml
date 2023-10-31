@@ -1610,6 +1610,10 @@ templates:
             - name: ISTIO_META_CLOUDRUN_ADDR
               value: "{{ .CloudrunAddr }}"
             {{- end }}
+            {{- range $key, $value := .MCPExtraEnv }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
+            {{- end }}
             {{- with (valueOrDefault .MeshConfig.TrustDomain .Values.global.trustDomain)  }}
             - name: TRUST_DOMAIN
               value: "{{ . }}"
