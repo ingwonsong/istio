@@ -345,6 +345,9 @@ var (
 	EnableGatewayAPIDeploymentController = env.Register("PILOT_ENABLE_GATEWAY_API_DEPLOYMENT_CONTROLLER", true,
 		"If this is set to true, gateway-api resources will automatically provision in cluster deployment, services, etc").Get()
 
+	EnableGatewayAPIGatewayClassController = env.Register("PILOT_ENABLE_GATEWAY_API_GATEWAYCLASS_CONTROLLER", true,
+		"If this is set to true, istiod will create and manage its default GatewayClasses").Get()
+
 	ClusterName = env.Register("CLUSTER_ID", "Kubernetes",
 		"Defines the cluster and service registry that this Istiod instance belongs to").Get()
 
@@ -480,6 +483,10 @@ var (
 
 	MetadataExchange = env.Register("PILOT_ENABLE_METADATA_EXCHANGE", true,
 		"If true, pilot will add metadata exchange filters, which will be consumed by telemetry filter.",
+	).Get()
+
+	DisableMxALPN = env.Register("PILOT_DISABLE_MX_ALPN", false,
+		"If true, pilot will not put istio-peer-exchange ALPN into TLS handshake configuration.",
 	).Get()
 
 	ALPNFilter = env.Register("PILOT_ENABLE_ALPN_FILTER", true,
@@ -656,6 +663,14 @@ var (
 	EnableNativeSidecars = env.Register("ENABLE_NATIVE_SIDECARS", false,
 		"If set, used Kubernetes native Sidecar container support. Requires SidecarContainer feature flag.")
 
+	EnableExternalNameAlias = env.Register("ENABLE_EXTERNAL_NAME_ALIAS", false,
+		"If enabled, ExternalName Services will be treated as simple aliases: anywhere where we would match the concrete service, "+
+			"we also match the ExternalName. In general, this mirrors Kubernetes behavior more closely. However, it means that policies (routes and DestinationRule) "+
+			"cannot be applied to the ExternalName service. "+
+			"If disabled, ExternalName behaves in fairly unexpected manner. Port matters, while it does not in Kubernetes. If it is a TCP port, "+
+			"all traffic on that port will be matched, which can have disastrous consequences. Additionally, the destination is seen as an opaque destination; "+
+			"even if it is another service in the mesh, policies such as mTLS and load balancing will not be used when connecting to it.").Get()
+
 	// This is an experimental feature flag, can be removed once it became stable, and should introduced to Telemetry API.
 	MetricRotationInterval = env.Register("METRIC_ROTATION_INTERVAL", 0*time.Second,
 		"Metric scope rotation interval, set to 0 to disable the metric scope rotation").Get()
@@ -682,6 +697,19 @@ var (
 	// User should not rely on builtin resource labels, this flag will be removed in future releases(1.20).
 	EnableOTELBuiltinResourceLables = env.Register("ENABLE_OTEL_BUILTIN_RESOURCE_LABELS", false,
 		"If enabled, envoy will send builtin lables(e.g. node_name) via OTel sink.").Get()
+
+	EnableSelectorBasedK8sGatewayPolicy = env.Register("ENABLE_SELECTOR_BASED_K8S_GATEWAY_POLICY", true,
+		"If disabled, Gateway API gateways will ignore workloadSelector policies, only"+
+			"applying policies that select the gateway with a targetRef.").Get()
+
+	// Useful for IPv6-only EKS clusters. See https://aws.github.io/aws-eks-best-practices/networking/ipv6/ why it assigns an additional IPv4 NAT address.
+	// Also see https://github.com/istio/istio/issues/46719 why this flag is required
+	EnableAdditionalIpv4OutboundListenerForIpv6Only = env.RegisterBoolVar("ISTIO_ENABLE_IPV4_OUTBOUND_LISTENER_FOR_IPV6_CLUSTERS", false,
+		"If true, pilot will configure an additional IPv4 listener for outbound traffic in IPv6 only clusters, e.g. AWS EKS IPv6 only clusters.").Get()
+
+	UseCacertsForSelfSignedCA = env.Register("USE_CACERTS_FOR_SELF_SIGNED_CA", false,
+		"If enabled, istiod will use a secret named cacerts to store its self-signed istio-"+
+			"generated root certificate.").Get()
 )
 
 // UnsafeFeaturesEnabled returns true if any unsafe features are enabled.

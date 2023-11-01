@@ -24,7 +24,6 @@ import (
 	fileaccesslog "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
 	grpcaccesslog "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	otelaccesslog "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/open_telemetry/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	otlpcommon "go.opentelemetry.io/proto/otlp/common/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
@@ -37,8 +36,10 @@ import (
 	"istio.io/istio/pilot/pkg/util/protoconv"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/protocol"
+	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/test/util/assert"
 	"istio.io/istio/pkg/util/protomarshal"
+	"istio.io/istio/pkg/wellknown"
 )
 
 func TestFileAccessLogFormat(t *testing.T) {
@@ -127,6 +128,25 @@ func TestAccessLogging(t *testing.T) {
 				},
 				Disabled: &wrappers.BoolValue{
 					Value: true,
+				},
+			},
+		},
+	}
+	targetRefClient := &tpb.Telemetry{
+		TargetRef: &v1beta1.PolicyTargetReference{
+			Group: gvk.KubernetesGateway.Group,
+			Kind:  gvk.KubernetesGateway.Kind,
+			Name:  "my-gateway",
+		},
+		AccessLogging: []*tpb.AccessLogging{
+			{
+				Match: &tpb.AccessLogging_LogSelector{
+					Mode: tpb.WorkloadMode_CLIENT,
+				},
+				Providers: []*tpb.ProviderRef{
+					{
+						Name: "envoy",
+					},
 				},
 			},
 		},
@@ -443,6 +463,14 @@ func TestAccessLogging(t *testing.T) {
 		{
 			"client - gateway",
 			[]config.Config{newTelemetry("istio-system", client)},
+			networking.ListenerClassGateway,
+			sidecar,
+			nil,
+			[]string{"envoy"},
+		},
+		{
+			"client - gateway defined by targetRef",
+			[]config.Config{newTelemetry("default", targetRefClient)},
 			networking.ListenerClassGateway,
 			sidecar,
 			nil,

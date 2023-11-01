@@ -24,15 +24,17 @@ import (
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	auth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
 	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 
+	extensions "istio.io/api/extensions/v1alpha1"
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	networking "istio.io/api/networking/v1alpha3"
+	security "istio.io/api/security/v1beta1"
+	telemetry "istio.io/api/telemetry/v1alpha1"
 	"istio.io/istio/pilot/pkg/features"
 	pilot_model "istio.io/istio/pilot/pkg/model"
 	istionetworking "istio.io/istio/pilot/pkg/networking"
@@ -44,11 +46,15 @@ import (
 	"istio.io/istio/pilot/test/xdstest"
 	config "istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/host"
+	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/visibility"
+	"istio.io/istio/pkg/config/xds"
 	"istio.io/istio/pkg/proto"
 	"istio.io/istio/pkg/test"
+	"istio.io/istio/pkg/util/sets"
+	"istio.io/istio/pkg/wellknown"
 )
 
 func TestBuildGatewayListenerTlsContext(t *testing.T) {
@@ -1528,7 +1534,7 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 			proxyConfig: &meshconfig.ProxyConfig{
 				GatewayTopology: &meshconfig.Topology{
 					NumTrustedProxies:        2,
-					ForwardClientCertDetails: meshconfig.Topology_APPEND_FORWARD,
+					ForwardClientCertDetails: meshconfig.ForwardClientCertDetails_APPEND_FORWARD,
 				},
 			},
 			result: &filterChainOpts{
@@ -1570,7 +1576,7 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 			proxyConfig: &meshconfig.ProxyConfig{
 				GatewayTopology: &meshconfig.Topology{
 					NumTrustedProxies:        3,
-					ForwardClientCertDetails: meshconfig.Topology_FORWARD_ONLY,
+					ForwardClientCertDetails: meshconfig.ForwardClientCertDetails_FORWARD_ONLY,
 				},
 			},
 			result: &filterChainOpts{
@@ -1667,7 +1673,7 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 			proxyConfig: &meshconfig.ProxyConfig{
 				GatewayTopology: &meshconfig.Topology{
 					NumTrustedProxies:        3,
-					ForwardClientCertDetails: meshconfig.Topology_FORWARD_ONLY,
+					ForwardClientCertDetails: meshconfig.ForwardClientCertDetails_FORWARD_ONLY,
 				},
 			},
 			result: &filterChainOpts{
@@ -1770,7 +1776,7 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 			proxyConfig: &meshconfig.ProxyConfig{
 				GatewayTopology: &meshconfig.Topology{
 					NumTrustedProxies:        3,
-					ForwardClientCertDetails: meshconfig.Topology_FORWARD_ONLY,
+					ForwardClientCertDetails: meshconfig.ForwardClientCertDetails_FORWARD_ONLY,
 				},
 			},
 			result: &filterChainOpts{
@@ -2893,6 +2899,67 @@ func TestBuildGatewayListeners(t *testing.T) {
 			[]string{"10.0.0.1_443", "10.0.0.2_443", "0.0.0.0_443"},
 		},
 		{
+			"gateway with HTTPS/TCP invalid configuration",
+			&pilot_model.Proxy{},
+			[]config.Config{
+				{
+					Meta: config.Meta{Name: "gateway1", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "https", Number: 443, Protocol: "HTTPS"},
+								Hosts: []string{"*.1.example.com"},
+								Tls:   &networking.ServerTLSSettings{CredentialName: "test", Mode: networking.ServerTLSSettings_SIMPLE},
+							},
+							{
+								Port:  &networking.Port{Name: "tcp", Number: 443, Protocol: "TCP"},
+								Hosts: []string{"*.1.example.com"},
+							},
+						},
+					},
+				},
+				{
+					Meta: config.Meta{Name: "gateway2", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "https", Number: 443, Protocol: "HTTPS"},
+								Hosts: []string{"*.2.example.com"},
+								Tls:   &networking.ServerTLSSettings{CredentialName: "test", Mode: networking.ServerTLSSettings_SIMPLE},
+							},
+							{
+								Port:  &networking.Port{Name: "tcp", Number: 443, Protocol: "TCP"},
+								Hosts: []string{"*.2.example.com"},
+							},
+						},
+					},
+				},
+			},
+			[]config.Config{
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/gateway1"},
+						Hosts:    []string{"*"},
+						Tcp: []*networking.TCPRoute{{
+							Route: []*networking.RouteDestination{{Destination: &networking.Destination{Host: "example.com"}}},
+						}},
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/gateway2"},
+						Hosts:    []string{"*"},
+						Tcp: []*networking.TCPRoute{{
+							Route: []*networking.RouteDestination{{Destination: &networking.Destination{Host: "example.com"}}},
+						}},
+					},
+				},
+			},
+			[]string{"0.0.0.0_443"},
+		},
+		{
 			"gateway with multiple HTTPS servers with bind and same host",
 			&pilot_model.Proxy{},
 			[]config.Config{
@@ -3030,6 +3097,18 @@ func TestBuildNameToServiceMapForHttpRoutes(t *testing.T) {
 				Mirror: &networking.Destination{
 					Host: "baz.example.org",
 				},
+				Mirrors: []*networking.HTTPMirrorPolicy{
+					{
+						Destination: &networking.Destination{
+							Host: "bazs.example.org",
+						},
+					},
+					{
+						Destination: &networking.Destination{
+							Host: "bazs2.example.org",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -3052,9 +3131,7 @@ func TestBuildNameToServiceMapForHttpRoutes(t *testing.T) {
 		}},
 		Attributes: pilot_model.ServiceAttributes{
 			Namespace: "test",
-			ExportTo: map[visibility.Instance]bool{
-				visibility.Private: true,
-			},
+			ExportTo:  sets.New(visibility.Private),
 		},
 	}
 
@@ -3068,9 +3145,7 @@ func TestBuildNameToServiceMapForHttpRoutes(t *testing.T) {
 		}},
 		Attributes: pilot_model.ServiceAttributes{
 			Namespace: "default",
-			ExportTo: map[visibility.Instance]bool{
-				visibility.Public: true,
-			},
+			ExportTo:  sets.New(visibility.Public),
 		},
 	}
 
@@ -3084,15 +3159,42 @@ func TestBuildNameToServiceMapForHttpRoutes(t *testing.T) {
 		}},
 		Attributes: pilot_model.ServiceAttributes{
 			Namespace: "default",
-			ExportTo: map[visibility.Instance]bool{
-				visibility.Private: true,
-			},
+			ExportTo:  sets.New(visibility.Private),
+		},
+	}
+
+	bazsHostName := host.Name("bazs.example.org")
+	bazsServiceInDefaultNamespace := &pilot_model.Service{
+		Hostname: bazsHostName,
+		Ports: []*pilot_model.Port{{
+			Name:     "http",
+			Protocol: "HTTP",
+			Port:     8091,
+		}},
+		Attributes: pilot_model.ServiceAttributes{
+			Namespace: "default",
+			ExportTo:  sets.New(visibility.Private),
+		},
+	}
+	bazs2HostName := host.Name("bazs2.example.org")
+	bazs2ServiceInDefaultNamespace := &pilot_model.Service{
+		Hostname: bazs2HostName,
+		Ports: []*pilot_model.Port{{
+			Name:     "http",
+			Protocol: "HTTP",
+			Port:     8092,
+		}},
+		Attributes: pilot_model.ServiceAttributes{
+			Namespace: "default",
+			ExportTo:  sets.New(visibility.Private),
 		},
 	}
 
 	cg := NewConfigGenTest(t, TestOptions{
-		Configs:  []config.Config{virtualService},
-		Services: []*pilot_model.Service{fooServiceInTestNamespace, barServiceInDefaultNamespace, bazServiceInDefaultNamespace},
+		Configs: []config.Config{virtualService},
+		Services: []*pilot_model.Service{
+			fooServiceInTestNamespace, barServiceInDefaultNamespace, bazServiceInDefaultNamespace, bazsServiceInDefaultNamespace, bazs2ServiceInDefaultNamespace,
+		},
 	})
 	proxy := &pilot_model.Proxy{
 		Type:            pilot_model.Router,
@@ -3102,7 +3204,7 @@ func TestBuildNameToServiceMapForHttpRoutes(t *testing.T) {
 
 	nameToServiceMap := buildNameToServiceMapForHTTPRoutes(proxy, cg.env.PushContext(), virtualService)
 
-	if len(nameToServiceMap) != 3 {
+	if len(nameToServiceMap) != 5 {
 		t.Errorf("The length of nameToServiceMap is wrong.")
 	}
 
@@ -3138,14 +3240,13 @@ func TestBuildNameToServiceMapForHttpRoutes(t *testing.T) {
 func TestBuildGatewayListenersFilters(t *testing.T) {
 	cases := []struct {
 		name             string
-		gateways         []config.Config
-		virtualServices  []config.Config
+		configs          []config.Config
 		proxyConfig      *pilot_model.NodeMetaProxyConfig
 		expectedListener listenertest.ListenerTest
 	}{
 		{
 			name: "http server",
-			gateways: []config.Config{
+			configs: []config.Config{
 				{
 					Meta: config.Meta{Name: "http-server", Namespace: "testns", GroupVersionKind: gvk.Gateway},
 					Spec: &networking.Gateway{
@@ -3157,21 +3258,22 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 					},
 				},
 			},
-			virtualServices: nil,
 			expectedListener: listenertest.ListenerTest{FilterChains: []listenertest.FilterChainTest{
 				{
-					NetworkFilters: []string{wellknown.HTTPConnectionManager},
+					NetworkFilters: []string{
+						wellknown.HTTPConnectionManager,
+					},
 					HTTPFilters: []string{
 						xdsfilters.MxFilterName,
 						xdsfilters.Alpn.GetName(),
-						xdsfilters.Fault.GetName(), xdsfilters.Cors.GetName(), xdsfilters.Router.GetName(),
+						xdsfilters.Fault.GetName(), xdsfilters.Cors.GetName(), wellknown.Router,
 					},
 				},
 			}},
 		},
 		{
 			name: "passthrough server",
-			gateways: []config.Config{
+			configs: []config.Config{
 				{
 					Meta: config.Meta{Name: "passthrough-gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
 					Spec: &networking.Gateway{
@@ -3184,8 +3286,6 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 						},
 					},
 				},
-			},
-			virtualServices: []config.Config{
 				{
 					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
 					Spec: &networking.VirtualService{
@@ -3213,14 +3313,17 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 			},
 			expectedListener: listenertest.ListenerTest{FilterChains: []listenertest.FilterChainTest{
 				{
-					NetworkFilters: []string{wellknown.TCPProxy},
-					HTTPFilters:    []string{},
+					NetworkFilters: []string{
+						wellknown.TCPProxy,
+					},
+					HTTPFilters: []string{},
+					TotalMatch:  true,
 				},
 			}},
 		},
 		{
 			name: "terminated-tls server",
-			gateways: []config.Config{
+			configs: []config.Config{
 				{
 					Meta: config.Meta{Name: "terminated-tls-gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
 					Spec: &networking.Gateway{
@@ -3233,8 +3336,6 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 						},
 					},
 				},
-			},
-			virtualServices: []config.Config{
 				{
 					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
 					Spec: &networking.VirtualService{
@@ -3261,14 +3362,17 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 			},
 			expectedListener: listenertest.ListenerTest{FilterChains: []listenertest.FilterChainTest{
 				{
-					NetworkFilters: []string{wellknown.TCPProxy},
-					HTTPFilters:    []string{},
+					NetworkFilters: []string{
+						wellknown.TCPProxy,
+					},
+					HTTPFilters: []string{},
+					TotalMatch:  true,
 				},
 			}},
 		},
 		{
 			name: "non-http istio-mtls server",
-			gateways: []config.Config{
+			configs: []config.Config{
 				{
 					Meta: config.Meta{Name: "non-http-gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
 					Spec: &networking.Gateway{
@@ -3281,8 +3385,6 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 						},
 					},
 				},
-			},
-			virtualServices: []config.Config{
 				{
 					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
 					Spec: &networking.VirtualService{
@@ -3309,14 +3411,18 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 			},
 			expectedListener: listenertest.ListenerTest{FilterChains: []listenertest.FilterChainTest{
 				{
-					NetworkFilters: []string{xdsfilters.TCPListenerMx.GetName(), wellknown.TCPProxy},
-					HTTPFilters:    []string{},
+					NetworkFilters: []string{
+						xdsfilters.TCPListenerMx.GetName(),
+						wellknown.TCPProxy,
+					},
+					HTTPFilters: []string{},
+					TotalMatch:  true,
 				},
 			}},
 		},
 		{
 			name: "http and tcp istio-mtls server",
-			gateways: []config.Config{
+			configs: []config.Config{
 				{
 					Meta: config.Meta{Name: "gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
 					Spec: &networking.Gateway{
@@ -3334,8 +3440,6 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 						},
 					},
 				},
-			},
-			virtualServices: []config.Config{
 				{
 					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
 					Spec: &networking.VirtualService{
@@ -3387,26 +3491,31 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 				TotalMatch: true,
 				FilterChains: []listenertest.FilterChainTest{
 					{
-						TotalMatch:     true, // there must be only 1 `istio_authn` network filter
-						NetworkFilters: []string{xdsfilters.IstioNetworkAuthenticationFilter.GetName(), wellknown.HTTPConnectionManager},
+						TotalMatch: true, // there must be only 1 `istio_authn` network filter
+						NetworkFilters: []string{
+							wellknown.HTTPConnectionManager,
+						},
 						HTTPFilters: []string{
 							xdsfilters.MxFilterName,
 							xdsfilters.GrpcStats.GetName(),
 							xdsfilters.Alpn.GetName(),
-							xdsfilters.Fault.GetName(), xdsfilters.Cors.GetName(), xdsfilters.Router.GetName(),
+							xdsfilters.Fault.GetName(), xdsfilters.Cors.GetName(), wellknown.Router,
 						},
 					},
 					{
-						TotalMatch:     true, // there must be only 1 `istio_authn` network filter
-						NetworkFilters: []string{xdsfilters.TCPListenerMx.GetName(), xdsfilters.IstioNetworkAuthenticationFilter.GetName(), wellknown.TCPProxy},
-						HTTPFilters:    []string{},
+						TotalMatch: true, // there must be only 1 `istio_authn` network filter
+						NetworkFilters: []string{
+							xdsfilters.TCPListenerMx.GetName(),
+							wellknown.TCPProxy,
+						},
+						HTTPFilters: []string{},
 					},
 				},
 			},
 		},
 		{
 			name: "http server with proxy proto",
-			gateways: []config.Config{
+			configs: []config.Config{
 				{
 					Meta: config.Meta{Name: "http-server", Namespace: "testns", GroupVersionKind: gvk.Gateway},
 					Spec: &networking.Gateway{
@@ -3424,12 +3533,16 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 			expectedListener: listenertest.ListenerTest{
 				FilterChains: []listenertest.FilterChainTest{
 					{
-						NetworkFilters: []string{wellknown.HTTPConnectionManager},
+						NetworkFilters: []string{
+							wellknown.HTTPConnectionManager,
+						},
 						HTTPFilters: []string{
 							xdsfilters.MxFilterName,
+							wellknown.HTTPGRPCStats,
 							xdsfilters.Alpn.GetName(),
-							xdsfilters.Fault.GetName(), xdsfilters.Cors.GetName(), xdsfilters.Router.GetName(),
+							xdsfilters.Fault.GetName(), xdsfilters.Cors.GetName(), wellknown.Router,
 						},
+						TotalMatch: true,
 					},
 				},
 				Filters: []string{wellknown.ProxyProtocol},
@@ -3437,7 +3550,7 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 		},
 		{
 			name: "terminated-tls server with proxy proto",
-			gateways: []config.Config{
+			configs: []config.Config{
 				{
 					Meta: config.Meta{Name: "terminated-tls-gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
 					Spec: &networking.Gateway{
@@ -3450,11 +3563,6 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 						},
 					},
 				},
-			},
-			proxyConfig: &pilot_model.NodeMetaProxyConfig{
-				GatewayTopology: &meshconfig.Topology{ProxyProtocol: &meshconfig.Topology_ProxyProtocolConfiguration{}},
-			},
-			virtualServices: []config.Config{
 				{
 					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
 					Spec: &networking.VirtualService{
@@ -3479,32 +3587,324 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 					},
 				},
 			},
+			proxyConfig: &pilot_model.NodeMetaProxyConfig{
+				GatewayTopology: &meshconfig.Topology{ProxyProtocol: &meshconfig.Topology_ProxyProtocolConfiguration{}},
+			},
 			expectedListener: listenertest.ListenerTest{
 				FilterChains: []listenertest.FilterChainTest{
 					{
-						NetworkFilters: []string{wellknown.TCPProxy},
-						HTTPFilters:    []string{},
+						NetworkFilters: []string{
+							wellknown.TCPProxy,
+						},
+						HTTPFilters: []string{},
+						TotalMatch:  true,
 					},
 				},
 				Filters: []string{wellknown.ProxyProtocol},
 			},
 		},
+		{
+			name: "TCP RBAC and Stats",
+			configs: []config.Config{
+				{
+					Meta: config.Meta{Name: "gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "tcp", Number: 100, Protocol: "TCP"},
+								Hosts: []string{"www.example.com"},
+							},
+						},
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/gateway"},
+						Hosts:    []string{"www.example.com"},
+						Tcp: []*networking.TCPRoute{
+							{
+								Route: []*networking.RouteDestination{
+									{
+										Destination: &networking.Destination{
+											Host: "http.com",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.AuthorizationPolicy},
+					Spec: &security.AuthorizationPolicy{},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.Telemetry},
+					Spec: &telemetry.Telemetry{
+						Metrics: []*telemetry.Metrics{{Providers: []*telemetry.ProviderRef{{Name: "prometheus"}}}},
+					},
+				},
+			},
+			expectedListener: listenertest.ListenerTest{
+				TotalMatch: true,
+				FilterChains: []listenertest.FilterChainTest{
+					{
+						TotalMatch: true,
+						NetworkFilters: []string{
+							wellknown.RoleBasedAccessControl,
+							xds.StatsFilterName,
+							wellknown.TCPProxy,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "mTLS, RBAC, WASM, and Stats",
+			configs: []config.Config{
+				{
+					Meta: config.Meta{Name: "gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "tcp", Number: 100, Protocol: "TCP"},
+								Tls:   &networking.ServerTLSSettings{Mode: networking.ServerTLSSettings_ISTIO_MUTUAL},
+								Hosts: []string{"www.example.com"},
+							},
+						},
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/gateway"},
+						Hosts:    []string{"www.example.com"},
+						Tcp: []*networking.TCPRoute{
+							{
+								Route: []*networking.RouteDestination{
+									{
+										Destination: &networking.Destination{
+											Host: "http.com",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-authz", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_AUTHZ,
+						Type:  extensions.PluginType_NETWORK,
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-authn", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_AUTHN,
+						Type:  extensions.PluginType_NETWORK,
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-stats", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_STATS,
+						Type:  extensions.PluginType_NETWORK,
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.AuthorizationPolicy},
+					Spec: &security.AuthorizationPolicy{},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.AuthorizationPolicy},
+					Spec: &security.AuthorizationPolicy{
+						Action:       security.AuthorizationPolicy_CUSTOM,
+						ActionDetail: &security.AuthorizationPolicy_Provider{Provider: &security.AuthorizationPolicy_ExtensionProvider{Name: "extauthz"}},
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.Telemetry},
+					Spec: &telemetry.Telemetry{
+						Metrics: []*telemetry.Metrics{{Providers: []*telemetry.ProviderRef{{Name: "prometheus"}}}},
+					},
+				},
+			},
+			expectedListener: listenertest.ListenerTest{
+				TotalMatch: true,
+				FilterChains: []listenertest.FilterChainTest{
+					{
+						TotalMatch: true,
+						NetworkFilters: []string{
+							xdsfilters.MxFilterName,
+							// Ext auth makes 2 filters
+							wellknown.RoleBasedAccessControl,
+							wellknown.ExternalAuthorization,
+							"istio-system.wasm-authn",
+							"istio-system.wasm-authz",
+							wellknown.RoleBasedAccessControl,
+							"istio-system.wasm-stats",
+							xds.StatsFilterName,
+							wellknown.TCPProxy,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "HTTP RBAC, WASM, and Stats",
+			configs: []config.Config{
+				{
+					Meta: config.Meta{Name: "gateway", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port:  &networking.Port{Name: "http", Number: 200, Protocol: "HTTP"},
+								Hosts: []string{"www.example.com"},
+							},
+						},
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-network-authz", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_AUTHZ,
+						Type:  extensions.PluginType_NETWORK,
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-network-authn", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_AUTHN,
+						Type:  extensions.PluginType_NETWORK,
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-network-stats", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_STATS,
+						Type:  extensions.PluginType_NETWORK,
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-authz", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_AUTHZ,
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-authn", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_AUTHN,
+					},
+				},
+				{
+					Meta: config.Meta{Name: "wasm-stats", Namespace: "istio-system", GroupVersionKind: gvk.WasmPlugin},
+					Spec: &extensions.WasmPlugin{
+						Phase: extensions.PluginPhase_STATS,
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: uuid.NewString(), GroupVersionKind: gvk.VirtualService},
+					Spec: &networking.VirtualService{
+						Gateways: []string{"testns/gateway"},
+						Hosts:    []string{"www.example.com"},
+						Http: []*networking.HTTPRoute{
+							{
+								Route: []*networking.HTTPRouteDestination{
+									{
+										Destination: &networking.Destination{
+											Host: "http.com",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.AuthorizationPolicy},
+					Spec: &security.AuthorizationPolicy{
+						Action:       security.AuthorizationPolicy_CUSTOM,
+						ActionDetail: &security.AuthorizationPolicy_Provider{Provider: &security.AuthorizationPolicy_ExtensionProvider{Name: "extauthz"}},
+					},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.AuthorizationPolicy},
+					Spec: &security.AuthorizationPolicy{},
+				},
+				{
+					Meta: config.Meta{Name: uuid.NewString(), Namespace: "istio-system", GroupVersionKind: gvk.Telemetry},
+					Spec: &telemetry.Telemetry{
+						Metrics: []*telemetry.Metrics{{Providers: []*telemetry.ProviderRef{{Name: "prometheus"}}}},
+					},
+				},
+			},
+			expectedListener: listenertest.ListenerTest{
+				TotalMatch: true,
+				FilterChains: []listenertest.FilterChainTest{
+					{
+						TotalMatch: true,
+						NetworkFilters: []string{
+							"istio-system.wasm-network-authn",
+							"istio-system.wasm-network-authz",
+							"istio-system.wasm-network-stats",
+							wellknown.HTTPConnectionManager,
+						},
+						HTTPFilters: []string{
+							xdsfilters.MxFilterName,
+							// Ext auth makes 2 filters
+							wellknown.HTTPRoleBasedAccessControl,
+							wellknown.HTTPExternalAuthorization,
+							"istio-system.wasm-authn",
+							"istio-system.wasm-authz",
+							wellknown.HTTPRoleBasedAccessControl,
+							"istio-system.wasm-stats",
+							wellknown.HTTPGRPCStats,
+							xdsfilters.Alpn.Name,
+							xdsfilters.Fault.Name,
+							xdsfilters.Cors.Name,
+							xds.StatsFilterName,
+							wellknown.Router,
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			Configs := make([]config.Config, 0)
-			Configs = append(Configs, tt.gateways...)
-			Configs = append(Configs, tt.virtualServices...)
-			cg := NewConfigGenTest(t, TestOptions{
-				Configs: Configs,
+			mc := mesh.DefaultMeshConfig()
+			mc.ExtensionProviders = append(mc.ExtensionProviders, &meshconfig.MeshConfig_ExtensionProvider{
+				Name: "extauthz",
+				Provider: &meshconfig.MeshConfig_ExtensionProvider_EnvoyExtAuthzGrpc{
+					EnvoyExtAuthzGrpc: &meshconfig.MeshConfig_ExtensionProvider_EnvoyExternalAuthorizationGrpcProvider{
+						Service: "foo/example.local",
+						Port:    1234,
+					},
+				},
 			})
+
+			cg := NewConfigGenTest(t, TestOptions{
+				Configs:    tt.configs,
+				MeshConfig: mc,
+			})
+			cg.PushContext().ServiceIndex.HostnameAndNamespace = map[host.Name]map[string]*pilot_model.Service{
+				"example.local": {
+					"foo": &pilot_model.Service{
+						Hostname: "example.local",
+					},
+				},
+			}
 			proxy := cg.SetupProxy(&proxyGateway)
 			metadata := proxyGatewayMetadata
 			metadata.ProxyConfig = tt.proxyConfig
 			proxy.Metadata = &metadata
-			proxy.IstioVersion = nil // to ensure `util.IsIstioVersionGE117(node.IstioVersion) == true`
 
-			builder := cg.ConfigGen.buildGatewayListeners(&ListenerBuilder{node: proxy, push: cg.PushContext()})
+			lb := NewListenerBuilder(proxy, cg.PushContext())
+			builder := cg.ConfigGen.buildGatewayListeners(lb)
 			listenertest.VerifyListeners(t, builder.gatewayListeners, listenertest.ListenersTest{
 				Listener: tt.expectedListener,
 			})

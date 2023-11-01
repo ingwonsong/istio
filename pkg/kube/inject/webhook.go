@@ -49,7 +49,9 @@ import (
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/kube/kclient"
 	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/platform"
 	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/pkg/util/sets"
@@ -103,6 +105,7 @@ type Webhook struct {
 	Config       *Config
 	meshConfig   *meshconfig.MeshConfig
 	valuesConfig ValuesConfig
+	namespaces   kclient.Client[*corev1.Namespace]
 
 	// please do not call SetHandler() on this watcher, instead us MultiCast.AddHandler()
 	watcher   Watcher
@@ -182,6 +185,8 @@ type WebhookParameters struct {
 
 	// The istio.io/rev this injector is responsible for
 	Revision string
+
+	KubeClient kube.Client
 }
 
 // NewWebhook creates a new instance of a mutating webhook for automatic sidecar injection.
@@ -195,6 +200,12 @@ func NewWebhook(p WebhookParameters) (*Webhook, error) {
 		meshConfig: p.Env.Mesh(),
 		env:        p.Env,
 		revision:   p.Revision,
+	}
+
+	if p.KubeClient != nil {
+		if platform.IsOpenShift() {
+			wh.namespaces = kclient.New[*corev1.Namespace](p.KubeClient)
+		}
 	}
 
 	mc := NewMulticast(p.Watcher, wh.GetConfig)
@@ -223,6 +234,14 @@ func NewWebhook(p WebhookParameters) (*Webhook, error) {
 // Run implements the webhook server
 func (wh *Webhook) Run(stop <-chan struct{}) {
 	go wh.watcher.Run(stop)
+}
+
+func (wh *Webhook) HasSynced() bool {
+	if wh.namespaces != nil {
+		return wh.namespaces.HasSynced()
+	}
+
+	return true
 }
 
 func (wh *Webhook) updateConfig(sidecarConfig *Config, valuesConfig string) error {
@@ -364,6 +383,7 @@ func NewValuesConfig(v string) (ValuesConfig, error) {
 type InjectionParameters struct {
 	pod                 *corev1.Pod
 	deployMeta          metav1.ObjectMeta
+	namespace           *corev1.Namespace
 	typeMeta            metav1.TypeMeta
 	templates           map[string]*template.Template
 	defaultTemplate     []string
@@ -1029,9 +1049,16 @@ func (wh *Webhook) inject(ar *kube.AdmissionReview, path string) *kube.Admission
 
 	proxyConfig := wh.env.GetProxyConfigOrDefault(pod.Namespace, pod.Labels, pod.Annotations, wh.meshConfig)
 	deploy, typeMeta := kube.GetDeployMetaFromPod(&pod)
+
+	var podNamespace *corev1.Namespace
+	if wh.namespaces != nil {
+		podNamespace = wh.namespaces.Get(pod.Namespace, "")
+	}
+
 	params := InjectionParameters{
 		pod:                 &pod,
 		deployMeta:          deploy,
+		namespace:           podNamespace,
 		typeMeta:            typeMeta,
 		templates:           wh.Config.Templates,
 		defaultTemplate:     wh.Config.DefaultTemplates,

@@ -15,10 +15,10 @@
 package model
 
 import (
+	"cmp"
 	"fmt"
 	"net"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -128,6 +128,8 @@ func (mgr *NetworkManager) reloadGateways() {
 }
 
 func (mgr *NetworkManager) reload() bool {
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
 	log.Infof("reloading network gateways")
 
 	// Generate a snapshot of the state of gateways by merging the contents of
@@ -161,8 +163,6 @@ func (mgr *NetworkManager) reload() bool {
 	gatewaySet.InsertAll(mgr.env.NetworkGateways()...)
 	resolvedGatewaySet := mgr.resolveHostnameGateways(gatewaySet)
 
-	mgr.mu.Lock()
-	defer mgr.mu.Unlock()
 	return mgr.NetworkGateways.update(resolvedGatewaySet) || mgr.Unresolved.update(gatewaySet)
 }
 
@@ -296,7 +296,7 @@ func (gws *NetworkGateways) GatewaysForNetwork(nw network.ID) []NetworkGateway {
 func (gws *NetworkGateways) GatewaysForNetworkAndCluster(nw network.ID, c cluster.ID) []NetworkGateway {
 	gws.mu.RLock()
 	defer gws.mu.RUnlock()
-	if gws.byNetwork == nil {
+	if gws.byNetworkAndCluster == nil {
 		return nil
 	}
 	return gws.byNetworkAndCluster[networkAndClusterFor(nw, c)]
@@ -320,11 +320,11 @@ func networkAndClusterFor(nw network.ID, c cluster.ID) networkAndCluster {
 
 // SortGateways sorts the array so that it's stable.
 func SortGateways(gws []NetworkGateway) []NetworkGateway {
-	return slices.SortFunc(gws, func(a, b NetworkGateway) bool {
-		if strings.Compare(a.Addr, b.Addr) < 0 {
-			return true
+	return slices.SortFunc(gws, func(a, b NetworkGateway) int {
+		if r := cmp.Compare(a.Addr, b.Addr); r != 0 {
+			return r
 		}
-		return a.Port < b.Port
+		return cmp.Compare(a.Port, b.Port)
 	})
 }
 

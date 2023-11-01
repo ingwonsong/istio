@@ -107,7 +107,6 @@ spec:
       nodeSelector:
         cloud.google.com/gke-nodepool: gateway
       securityContext:
-        fsGroup: 1337
         runAsGroup: 1337
         runAsNonRoot: true
         runAsUser: 1337

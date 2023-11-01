@@ -18,7 +18,7 @@ const (
 	// UnspecifiedIP constant for empty IP address
 	UnspecifiedIP = "0.0.0.0"
 	// UnspecifiedIPv6 constant for empty IPv6 address
-	UnspecifiedIPv6 = "::/0"
+	UnspecifiedIPv6 = "::"
 
 	// AuthCertsPath is the path location for mTLS certificates
 	AuthCertsPath = "/etc/certs/"
@@ -153,6 +153,10 @@ const (
 	// load balancer, such as an Istio Gateway, is terminating the TLS.
 	CertProviderNone = "none"
 
+	// AlwaysReject is a special internal annotation that is always rejected in the validation webhook. This is used for
+	// testing the validation webhook.
+	AlwaysReject = "internal.istio.io/webhook-always-reject"
+
 	WaypointServiceAccount = "istio.io/for-service-account"
 
 	ManagedGatewayLabel               = "gateway.istio.io/managed"
@@ -164,7 +168,9 @@ const (
 
 	RemoteGatewayClassName   = "istio-remote"
 	WaypointGatewayClassName = "istio-waypoint"
-	// TODO formalize this API
+
+	// GatewayNameLabel indicates the gateway managing a particular proxy instances. Only populated for Gateway API gateways
+	// TODO: Formalize this API
 	GatewayNameLabel = "istio.io/gateway-name"
 
 	// TODO formalize this API

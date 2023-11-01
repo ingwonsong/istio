@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -42,6 +41,7 @@ import (
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/schema/gvr"
+	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/controllers"
 	"istio.io/istio/pkg/kube/inject"
@@ -112,6 +112,9 @@ type classInfo struct {
 
 	// disableRouteGeneration, if set, will make it so the controller ignores this class.
 	disableRouteGeneration bool
+
+	// addressType is the default address type to report
+	addressType gateway.AddressType
 }
 
 var classInfos = getClassInfos()
@@ -136,6 +139,7 @@ func getClassInfos() map[gateway.GatewayController]classInfo {
 			description:        "The default Istio GatewayClass",
 			templates:          "kube-gateway",
 			defaultServiceType: corev1.ServiceTypeLoadBalancer,
+			addressType:        gateway.HostnameAddressType,
 		},
 		constants.UnmanagedGatewayController: {
 			// This represents a gateway that our control plane cannot discover directly via the API server.
@@ -143,6 +147,7 @@ func getClassInfos() map[gateway.GatewayController]classInfo {
 			controller:             constants.UnmanagedGatewayController,
 			description:            "Remote to this cluster. Does not deploy or affect configuration.",
 			disableRouteGeneration: true,
+			addressType:            gateway.HostnameAddressType,
 		},
 	}
 	if features.EnableAmbientControllers {
@@ -151,6 +156,7 @@ func getClassInfos() map[gateway.GatewayController]classInfo {
 			description:        "The default Istio waypoint GatewayClass",
 			templates:          "waypoint",
 			defaultServiceType: corev1.ServiceTypeClusterIP,
+			addressType:        gateway.IPAddressType,
 		}
 	}
 	return m
@@ -316,6 +322,12 @@ func (d *DeploymentController) configureIstioGateway(log *istiolog.Scope, gw gat
 	}
 	log.Info("reconciling")
 
+	var ns *corev1.Namespace
+	if d.namespaces != nil {
+		ns = d.namespaces.Get(gw.Namespace, "")
+	}
+	proxyUID, proxyGID := inject.GetProxyIDs(ns)
+
 	defaultName := getDefaultName(gw.Name, &gw.Spec)
 
 	serviceType := gi.defaultServiceType
@@ -329,9 +341,12 @@ func (d *DeploymentController) configureIstioGateway(log *istiolog.Scope, gw gat
 		ServiceAccount: model.GetOrDefault(gw.Annotations[gatewaySAOverride], defaultName),
 		Ports:          extractServicePorts(gw),
 		ClusterID:      d.clusterID.String(),
+
 		KubeVersion122: kube.IsAtLeastVersion(d.client, 22),
 		Revision:       d.revision,
 		ServiceType:    serviceType,
+		ProxyUID:       proxyUID,
+		ProxyGID:       proxyGID,
 	}
 
 	if overwriteControllerVersion {
@@ -425,11 +440,11 @@ func (d *DeploymentController) render(templateName string, mi TemplateInput) ([]
 		return nil, fmt.Errorf("no %q template defined", templateName)
 	}
 
-	labelToMatch := map[string]string{"istio.io/gateway-name": mi.Name}
+	labelToMatch := map[string]string{constants.GatewayNameLabel: mi.Name}
 	proxyConfig := d.env.GetProxyConfigOrDefault(mi.Namespace, labelToMatch, nil, cfg.MeshConfig)
 
 	// ASM MCP code
-	cloudrunAddr := os.Getenv("CLOUDRUN_ADDR")
+	cloudrunAddr := env.RegisterStringVar("CLOUDRUN_ADDR", "", "cloud run service address").Get()
 	if cloudrunAddr == "" && asm.IsCloudRun() {
 		return nil, fmt.Errorf("CLOUDRUN_ADDR is a required environment variable for ASM managed control plane")
 	}
@@ -540,6 +555,8 @@ type TemplateInput struct {
 	ClusterID      string
 	KubeVersion122 bool
 	Revision       string
+	ProxyUID       int64
+	ProxyGID       int64
 }
 
 func extractServicePorts(gw gateway.Gateway) []corev1.ServicePort {

@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net/netip"
 
-	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +27,7 @@ import (
 
 	"istio.io/api/networking/v1alpha3"
 	apiv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
+	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/serviceregistry/serviceentry"
 	"istio.io/istio/pkg/config/constants"
@@ -35,6 +35,7 @@ import (
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/schema/kind"
 	kubelabels "istio.io/istio/pkg/kube/labels"
+	"istio.io/istio/pkg/maps"
 	"istio.io/istio/pkg/spiffe"
 	"istio.io/istio/pkg/util/sets"
 	"istio.io/istio/pkg/workloadapi"
@@ -106,7 +107,7 @@ func (a *AmbientIndexImpl) handleServiceEntry(svcEntry *apiv1alpha3.ServiceEntry
 			for _, networkAddr := range networkAddressFromWorkload(wl) {
 				a.byWorkloadEntry[networkAddr] = wl
 			}
-			a.byUID[c.generateServiceEntryUID(svcEntry.GetNamespace(), svcEntry.GetName(), w.Spec.GetAddress())] = wl
+			a.byUID[c.generateWorkloadEntryUID(wl.GetNamespace(), wl.GetName())] = wl
 			updates.Insert(model.ConfigKey{Kind: kind.Address, Name: wl.ResourceName()})
 			wls[wl.Uid] = wl
 		}
@@ -205,6 +206,14 @@ func (c *Controller) getWorkloadEntriesInPolicy(ns string, sel map[string]string
 	}
 
 	return c.getSelectedWorkloadEntries(ns, sel)
+}
+
+func (c *Controller) getServiceEntryEndpointsInPolicy(ns string, sel map[string]string) map[*apiv1alpha3.ServiceEntry]sets.Set[*v1alpha3.WorkloadEntry] {
+	if ns == c.meshWatcher.Mesh().GetRootNamespace() {
+		ns = metav1.NamespaceAll
+	}
+
+	return c.getSelectedServiceEntries(ns, sel)
 }
 
 // NOTE: Mutex is locked prior to being called.
@@ -322,7 +331,8 @@ func (a *AmbientIndexImpl) constructWorkloadFromWorkloadEntry(workloadEntry *v1a
 	}
 
 	workloadServices := map[string]*workloadapi.PortList{}
-	if services := getWorkloadEntryServices(c.services.List(workloadEntryNamespace, klabels.Everything()), workloadEntry); len(services) > 0 {
+	services := getWorkloadEntryServices(c.services.List(workloadEntryNamespace, klabels.Everything()), workloadEntry)
+	if features.EnableK8SServiceSelectWorkloadEntries && len(services) > 0 {
 		for _, svc := range services {
 			ports := &workloadapi.PortList{}
 			for _, port := range svc.Spec.Ports {
@@ -396,6 +406,7 @@ func (a *AmbientIndexImpl) constructWorkloadFromWorkloadEntry(workloadEntry *v1a
 		Services:              workloadServices,
 		AuthorizationPolicies: policies,
 		Waypoint:              waypoint,
+		ClusterId:             c.Cluster().String(),
 	}
 	if td := spiffe.GetTrustDomain(); td != "cluster.local" {
 		wl.TrustDomain = td
@@ -482,16 +493,16 @@ func findPortForWorkloadEntry(workloadEntry *v1alpha3.WorkloadEntry, svcPort *v1
 	return uint32(svcPort.Port), nil
 }
 
-func (c *Controller) getWorkloadEntriesInService(svc *v1.Service) []*apiv1alpha3.WorkloadEntry {
-	return c.getSelectedWorkloadEntries(svc.GetNamespace(), svc.Spec.Selector)
-}
-
 func (c *Controller) getSelectedWorkloadEntries(ns string, selector map[string]string) []*apiv1alpha3.WorkloadEntry {
-	allWorkloadEntries := c.getControllerWorkloadEntries(ns)
+	// skip WLE for non config clusters
+	if !c.configCluster {
+		return nil
+	}
 	if len(selector) == 0 {
 		// k8s services and service entry workloadSelector with empty selectors match nothing, not everything.
 		return nil
 	}
+	allWorkloadEntries := c.getControllerWorkloadEntries(ns)
 	var workloadEntries []*apiv1alpha3.WorkloadEntry
 	for _, wl := range allWorkloadEntries {
 		if labels.Instance(selector).SubsetOf(wl.Spec.Labels) {
@@ -516,6 +527,47 @@ func (c *Controller) getControllerWorkloadEntries(ns string) []*apiv1alpha3.Work
 		allWorkloadEntries = append(allWorkloadEntries, c)
 	}
 	return allWorkloadEntries
+}
+
+func (c *Controller) getSelectedServiceEntries(ns string, selector map[string]string) map[*apiv1alpha3.ServiceEntry]sets.Set[*v1alpha3.WorkloadEntry] {
+	// skip WLE for non config clusters
+	if !c.configCluster {
+		return nil
+	}
+	if len(selector) == 0 {
+		// k8s services and service entry workloadSelector with empty selectors match nothing, not everything.
+		return nil
+	}
+	allServiceEntries := c.getControllerServiceEntries(ns)
+	seEndpoints := map[*apiv1alpha3.ServiceEntry]sets.Set[*v1alpha3.WorkloadEntry]{}
+	for _, se := range allServiceEntries {
+		for _, we := range se.Spec.Endpoints {
+			if labels.Instance(selector).SubsetOf(we.Labels) {
+				if seEndpoints[se] == nil {
+					seEndpoints[se] = sets.New[*v1alpha3.WorkloadEntry]()
+				}
+				seEndpoints[se].Insert(we)
+			}
+		}
+	}
+	return seEndpoints
+}
+
+func (c *Controller) getControllerServiceEntries(ns string) []*apiv1alpha3.ServiceEntry {
+	var allServiceEntries []*apiv1alpha3.ServiceEntry
+	allUnstructuredServiceEntries := c.configController.List(gvk.ServiceEntry, ns)
+	for _, se := range allUnstructuredServiceEntries {
+		conv := serviceentry.ConvertServiceEntry(se)
+		if conv == nil {
+			continue
+		}
+		c := &apiv1alpha3.ServiceEntry{
+			ObjectMeta: se.ToObjectMeta(),
+			Spec:       *conv.DeepCopy(),
+		}
+		allServiceEntries = append(allServiceEntries, c)
+	}
+	return allServiceEntries
 }
 
 // name format: <cluster>/<group>/<kind>/<namespace>/<name></section-name>

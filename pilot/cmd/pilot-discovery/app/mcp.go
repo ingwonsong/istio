@@ -113,6 +113,7 @@ func newMCPCommand() *cobra.Command {
 
 				// Create the stop channel for all of the servers.
 				stop := make(chan struct{})
+				client = kubelib.EnableCrdWatcher(client)
 
 				// Create the server for the discovery service. This is the same as the standard OSS code, except we
 				// already have a kube client initialized, so we pre-set that to avoid creating two clients.
