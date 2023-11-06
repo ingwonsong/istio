@@ -39,6 +39,16 @@ type DataPlaneControlSpec struct {
 	// +optional
 	ProxyTargetBasisPoints int32 `json:"proxyTargetBasisPoints,omitempty"`
 
+	// Proxy targets for TD. These fields are separate from above to facilitate
+	// control plane transition without MDP rollouts.
+	// TODO(mostrowski): remove once TD migration is complete.
+	ProxyVersionTD string `json:"proxyVersionTD,omitempty"`
+
+	// ProxyTargetBasisPointsTD is the basis points (1/10000) of proxies which should be
+	// at ProxyVersionTD.
+	// TODO(mostrowski): remove once TD migration is complete.
+	ProxyTargetBasisPointsTD int32 `json:"proxyTargetBasisPointsTD,omitempty"`
+
 	// InstanceUpgradeDurationHours is the duration for proxy upgrades. This controls
 	// the rate of evictions.
 	// +optional
@@ -48,6 +58,10 @@ type DataPlaneControlSpec struct {
 	// becomes invalid.
 	// +optional
 	UpgradeDurationValidUntil string `json:"upgradeDurationValidUntil,omitempty"`
+
+	// ServingMode is the serving mode of the control plane.
+	// +optional
+	ServingMode ServingMode `json:"servingMode,omitempty"`
 }
 
 // DataPlaneControlStatus defines the observed state of data plane revisions.

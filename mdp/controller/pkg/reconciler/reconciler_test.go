@@ -43,9 +43,21 @@ import (
 )
 
 const (
-	version = "0.0.1"
-	myrev   = "myrev"
+	version   = "0.0.1"
+	versionTD = "0.0.2"
+
+	myrev = "myrev"
 )
+
+func versionForServingMode(sm v1alpha1.ServingMode) string {
+	switch sm {
+	case v1alpha1.ServingMode_SERVING_MODE_TD:
+		return versionTD
+	case v1alpha1.ServingMode_SERVING_MODE_ISTIOD, v1alpha1.ServingMode_SERVING_MODE_ISTIOD_WITH_LRS, v1alpha1.ServingMode_SERVING_MODE_UNSPECIFIED:
+		return version
+	}
+	panic(fmt.Sprintf("Unsupported serving mode %v", sm))
+}
 
 type FakePodCache struct{}
 
@@ -64,7 +76,7 @@ func (f FakePodCache) GetPodsInRevisionOutOfVersion(rev, version string) set.Set
 func (f FakePodCache) MarkDirty() {}
 
 type FakeUpgradeWorker struct {
-	upgradeCount int
+	upgradeCount map[string]int
 }
 
 func (f *FakeUpgradeWorker) Start(_ context.Context) {
@@ -74,12 +86,16 @@ func (f *FakeUpgradeWorker) Stop() {
 }
 
 func (f *FakeUpgradeWorker) EnqueueNUpdates(n int, targetVersion string) int {
-	f.upgradeCount += n
+	f.upgradeCount[targetVersion] += n
 	return n
 }
 
 func (f *FakeUpgradeWorker) Len() int {
-	return f.upgradeCount
+	c := 0
+	for _, v := range f.upgradeCount {
+		c += v
+	}
+	return c
 }
 
 func (f *FakeUpgradeWorker) FailingLen() int {
@@ -95,16 +111,19 @@ func (f FakeUpdater) PerformUpgrade(_ context.Context, _ types.NamespacedName) e
 	return nil
 }
 
-func buildClient() client.Client {
+func buildClient(sm v1alpha1.ServingMode) client.Client {
 	myrevCfg := &v1alpha1.DataPlaneControl{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      myrev,
 			Namespace: myrev,
 		},
 		Spec: v1alpha1.DataPlaneControlSpec{
-			Revision:               myrev,
-			ProxyVersion:           version,
-			ProxyTargetBasisPoints: 8000,
+			Revision:                 myrev,
+			ProxyVersion:             version,
+			ProxyTargetBasisPoints:   8000,
+			ProxyVersionTD:           versionTD,
+			ProxyTargetBasisPointsTD: 8000,
+			ServingMode:              sm,
 		},
 	}
 
@@ -113,7 +132,7 @@ func buildClient() client.Client {
 			Name:      fmt.Sprintf("env-%s", myrev),
 			Namespace: "istio-system",
 		},
-		Data: map[string]string{dpTagKey: version},
+		Data: map[string]string{dpTagKey: versionForServingMode(sm)},
 	}
 
 	s := scheme.Scheme
@@ -126,7 +145,9 @@ func buildClient() client.Client {
 
 func TestReconcile(t *testing.T) {
 	// inject fakes of the functions used to build proxyupdater classes
-	fu := &FakeUpgradeWorker{}
+	fu := &FakeUpgradeWorker{
+		upgradeCount: map[string]int{},
+	}
 	workerBuilder = func(revision, version string, limit rate.Limit, burst int, upgrader proxyupdater.DataPlaneUpgrader,
 		podCache revision.ReadPodCache, client client.Client, eventRecorder record.EventRecorder,
 	) proxyupdater.UpdateWorker {
@@ -135,7 +156,7 @@ func TestReconcile(t *testing.T) {
 	upgraderBuilder = func(cs *kubernetes.Clientset) proxyupdater.DataPlaneUpgrader {
 		return FakeUpdater{}
 	}
-	cl := buildClient()
+	cl := buildClient(v1alpha1.ServingMode_SERVING_MODE_UNSPECIFIED)
 	r := NewReconciler{
 		ReadPodCache:  FakePodCache{},
 		updateworkers: map[types.NamespacedName]proxyupdater.UpdateWorker{},
@@ -152,7 +173,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(res.Requeue).NotTo(gomega.BeTrue())
 	g.Expect(res.RequeueAfter).To(gomega.Equal(time.Duration(0)))
-	g.Expect(fu.upgradeCount).To(gomega.Equal(1))
+	g.Expect(fu.upgradeCount[version]).To(gomega.Equal(1))
 
 	res, err = r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{
 		Namespace: myrev,
@@ -161,7 +182,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(res.Requeue).NotTo(gomega.BeTrue())
 	g.Expect(res.RequeueAfter).To(gomega.Equal(time.Duration(0)))
-	g.Expect(fu.upgradeCount).To(gomega.Equal(1))
+	g.Expect(fu.upgradeCount[version]).To(gomega.Equal(1))
 
 	// expect some status calls
 	g.Expect(r.statusWorker.Len()).To(gomega.Equal(1))
@@ -179,6 +200,80 @@ func TestReconcile(t *testing.T) {
 	}})
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(r.statusWorker.Len()).To(gomega.Equal(1))
+}
+
+func TestReconcileServingMode(t *testing.T) {
+	tests := []struct {
+		name        string
+		servingMode v1alpha1.ServingMode
+		wantUpdates int
+	}{
+		{
+			name:        "unspecified",
+			servingMode: v1alpha1.ServingMode_SERVING_MODE_UNSPECIFIED,
+			wantUpdates: 1,
+		},
+		{
+			name:        "istiod",
+			servingMode: v1alpha1.ServingMode_SERVING_MODE_ISTIOD,
+			wantUpdates: 1,
+		},
+		{
+			name:        "istiod lrs",
+			servingMode: v1alpha1.ServingMode_SERVING_MODE_ISTIOD_WITH_LRS,
+			wantUpdates: 1,
+		},
+
+		{
+			name:        "td",
+			servingMode: v1alpha1.ServingMode_SERVING_MODE_TD,
+			wantUpdates: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		// inject fakes of the functions used to build proxyupdater classes
+		fu := &FakeUpgradeWorker{
+			upgradeCount: map[string]int{},
+		}
+		workerBuilder = func(revision, version string, limit rate.Limit, burst int, upgrader proxyupdater.DataPlaneUpgrader,
+			podCache revision.ReadPodCache, client client.Client, eventRecorder record.EventRecorder,
+		) proxyupdater.UpdateWorker {
+			return fu
+		}
+		upgraderBuilder = func(cs *kubernetes.Clientset) proxyupdater.DataPlaneUpgrader {
+			return FakeUpdater{}
+		}
+
+		cl := buildClient(tt.servingMode)
+		r := NewReconciler{
+			ReadPodCache:  FakePodCache{},
+			updateworkers: map[types.NamespacedName]proxyupdater.UpdateWorker{},
+			Client:        cl,
+			statusWorker:  status.NewWorker(rate.Inf, cl),
+			metricsRecord: &metricsRecord{firstUnReadyTime: make(timeEntry)},
+		}
+		res, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{
+			Namespace: myrev,
+			Name:      myrev,
+		}})
+
+		g := gomega.NewGomegaWithT(t)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+		g.Expect(res.Requeue).NotTo(gomega.BeTrue())
+		g.Expect(res.RequeueAfter).To(gomega.Equal(time.Duration(0)))
+		g.Expect(fu.upgradeCount[versionForServingMode(tt.servingMode)]).To(gomega.Equal(tt.wantUpdates))
+
+		// expect some status calls
+		g.Expect(r.statusWorker.Len()).To(gomega.Equal(1))
+		r.statusWorker = status.NewWorker(rate.Inf, cl)
+		dpr := &v1alpha1.DataPlaneControl{}
+		err = cl.Get(context.Background(), client.ObjectKey{Namespace: myrev, Name: myrev}, dpr)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+		dpr.Spec.ProxyVersion = "2.0"
+		err = cl.Update(context.Background(), dpr)
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+	}
 }
 
 func Test_calculateStatus(t *testing.T) {

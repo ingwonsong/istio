@@ -96,8 +96,8 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	// Record reconciliation loop count with result label at the end.
 	defer func() {
 		metrics.ReportReconcileLoopCount(resultMetricLabel, dpc.Spec.Revision)
-		if dpc.Spec.ProxyVersion != "" {
-			metrics.ReportProxyPercentageTarget(dpc.Spec.ProxyVersion, dpc.Spec.Revision, dpc.Spec.ProxyTargetBasisPoints)
+		if proxyVersionForDPC(dpc) != "" {
+			metrics.ReportProxyPercentageTarget(proxyVersionForDPC(dpc), dpc.Spec.Revision, proxyTargetBasisPointsForDPC(dpc))
 		}
 	}()
 	if err := n.Client.Get(ctx, request.NamespacedName, dpc); err != nil {
@@ -130,7 +130,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 	metrics.ReportProxies(versions, dpc.Spec.Revision)
 	if total < 1 {
 		rateLogger.Infof("no pods in revision %s, nothing to upgrade", dpc.Spec.Revision)
-		dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
+		dpc.Status = calculateStatus(dpc, total, versions[proxyVersionForDPC(dpc)],
 			0, n.metricsRecord)
 		n.statusWorker.EnqueueStatus(dpc)
 		metrics.ReportReconcileState(dpc.Spec.Revision, dpc.Status.State)
@@ -157,11 +157,11 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 			"cannot reconcile: %v", dpc.Spec.Revision, err)
 	}
 	rateLogger.Infof("MCP is injecting version %s", cpVersion)
-	if dpc.Spec.ProxyVersion == "" || !expectedProxyVersion(dpc.Spec.ProxyVersion, cpVersion) {
+	if proxyVersionForDPC(dpc) == "" || !expectedProxyVersion(proxyVersionForDPC(dpc), cpVersion) {
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.VersionError
 		err := fmt.Errorf("DataPlaneControl for revision %s expects version '%s', but Control Plane is "+
-			"injecting version '%s', cannot reconcile.  MCP rollout may be in progress", dpc.Spec.Revision, dpc.Spec.ProxyVersion, cpVersion)
+			"injecting version '%s', cannot reconcile.  MCP rollout may be in progress", dpc.Spec.Revision, proxyVersionForDPC(dpc), cpVersion)
 		dpc.Status = v1alpha1.DataPlaneControlStatus{
 			State: v1alpha1.Error,
 			ErrorDetails: &v1alpha1.DataPlaneControlError{
@@ -174,33 +174,33 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		n.statusWorker.EnqueueStatus(dpc)
 		return result, err
 	}
-	targetPct := float32(dpc.Spec.ProxyTargetBasisPoints*100) / totalBasisPoints
-	newVersion := dpc.Spec.ProxyVersion
+	targetPct := float32(proxyTargetBasisPointsForDPC(dpc)*100) / totalBasisPoints
+	newVersion := proxyVersionForDPC(dpc)
 	rateLogger.Infof("target version: %s, percent: %v", newVersion, targetPct)
 
-	bptsFraction := float32(dpc.Spec.ProxyTargetBasisPoints) / totalBasisPoints
+	bptsFraction := float32(proxyTargetBasisPointsForDPC(dpc)) / totalBasisPoints
 	desired := int(math.Ceil(float64(float32(total) * bptsFraction)))
 	if desired < 1 {
 		// we have already met our goal, as our goal is zero.  cease updating (if in progress), update status, and exit.
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
-		dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
+		dpc.Status = calculateStatus(dpc, total, versions[proxyVersionForDPC(dpc)],
 			0, n.metricsRecord)
 		n.statusWorker.EnqueueStatus(dpc)
 		log.Infof("revision %s meets goal of zero proxies", dpc.Spec.Revision)
 		resultMetricLabel = metrics.Success
 		return result, nil
 	}
-	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, dpc.Spec.ProxyVersion, rateLimitForRollout(dpc, total))
-	projectedActual := versions[dpc.Spec.ProxyVersion] + u.Len()
+	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, proxyVersionForDPC(dpc), rateLimitForRollout(dpc, total))
+	projectedActual := versions[proxyVersionForDPC(dpc)] + u.Len()
 	log.Debugf("update count projected: %v, desired: %v", projectedActual, desired)
 	if projectedActual < desired {
 		needed := desired - projectedActual
-		enqueued := u.EnqueueNUpdates(needed, dpc.Spec.ProxyVersion)
+		enqueued := u.EnqueueNUpdates(needed, proxyVersionForDPC(dpc))
 		if enqueued < needed {
 			result.Requeue = true
 		}
 	} else if u.Len() > 0 &&
-		float32(projectedActual)/float32(desired) > 1.1 && dpc.Spec.ProxyTargetBasisPoints < totalBasisPoints {
+		float32(projectedActual)/float32(desired) > 1.1 && proxyTargetBasisPointsForDPC(dpc) < totalBasisPoints {
 		// we're projected to overshoot by more than 10%.  Purge the updater.
 		log.Infof("Dataplane Update Queue for revision %s is expected to overshoot the desired "+
 			"ProxyTargetBasisPoints, and the queue will be restarted.", dpc.Spec.Revision)
@@ -208,13 +208,37 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		delete(n.updateworkers, request.NamespacedName)
 		result.Requeue = true
 	}
-	dpc.Status = calculateStatus(dpc, total, versions[dpc.Spec.ProxyVersion],
+	dpc.Status = calculateStatus(dpc, total, versions[proxyVersionForDPC(dpc)],
 		u.FailingLen(), n.metricsRecord)
 	n.statusWorker.EnqueueStatus(dpc)
 	metrics.ReportReconcileState(dpc.Spec.Revision, dpc.Status.State)
 
 	resultMetricLabel = metrics.Success
 	return result, nil
+}
+
+func proxyVersionForDPC(dpc *v1alpha1.DataPlaneControl) string {
+	switch dpc.Spec.ServingMode {
+	case v1alpha1.ServingMode_SERVING_MODE_TD:
+		return dpc.Spec.ProxyVersionTD
+	// UNSPECIFIED is to continue existing behavior before ServingMode is populated.
+	case v1alpha1.ServingMode_SERVING_MODE_ISTIOD, v1alpha1.ServingMode_SERVING_MODE_ISTIOD_WITH_LRS, v1alpha1.ServingMode_SERVING_MODE_UNSPECIFIED:
+	default:
+		log.Errorf("Unexpected serving mode %v, using Istiod proxy version", dpc.Spec.ServingMode)
+	}
+	return dpc.Spec.ProxyVersion
+}
+
+func proxyTargetBasisPointsForDPC(dpc *v1alpha1.DataPlaneControl) int32 {
+	switch dpc.Spec.ServingMode {
+	case v1alpha1.ServingMode_SERVING_MODE_TD:
+		return dpc.Spec.ProxyTargetBasisPointsTD
+	// UNSPECIFIED is to continue existing behavior before ServingMode is populated.
+	case v1alpha1.ServingMode_SERVING_MODE_ISTIOD, v1alpha1.ServingMode_SERVING_MODE_ISTIOD_WITH_LRS, v1alpha1.ServingMode_SERVING_MODE_UNSPECIFIED:
+	default:
+		log.Errorf("Unexpected serving mode %v, using Istiod proxy %", dpc.Spec.ProxyTargetBasisPoints)
+	}
+	return dpc.Spec.ProxyTargetBasisPoints
 }
 
 // expectedProxyVersion reports whether the injectedVersion is expected for the given MDP version.
@@ -279,7 +303,7 @@ func (n *NewReconciler) getOrMakeUpdater(ctx context.Context, dprNsName types.Na
 }
 
 func calculateStatus(dpc *v1alpha1.DataPlaneControl, total int, actual int, failingPodCount int, mr *metricsRecord) v1alpha1.DataPlaneControlStatus {
-	revision, generation, targetPoints, UID := dpc.Spec.Revision, dpc.Generation, dpc.Spec.ProxyTargetBasisPoints, string(dpc.UID)
+	revision, generation, targetPoints, UID := dpc.Spec.Revision, dpc.Generation, proxyTargetBasisPointsForDPC(dpc), string(dpc.UID)
 	var state v1alpha1.DataPlaneState
 	var err *v1alpha1.DataPlaneControlError
 	var achievedBpts int32
