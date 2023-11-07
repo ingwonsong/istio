@@ -57,6 +57,9 @@ racetest: $(JUNIT_REPORT)
 	CGO_ENABLED=1 go test ${GOBUILDFLAGS} ${T} -race ./... 2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 	$(MAKE) tester-unit-tests
 
+gen-third-party-notice:
+	./bin/gen-third-party-notice.sh
+
 include mdp/manifest/gen.mk
 
 #-----------------------------------------------------------------------------
