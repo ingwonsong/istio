@@ -55,6 +55,9 @@ type Settings struct {
 	// flag to provision GSM
 	UseGSM bool `flag:"use-gsm" desc:"Feature flag to provision GSM and test minimal integration tests on GSM"`
 
+	// flag to support off-GCP regionalised membership
+	RegionalisedMembership bool `flag:"regionalised-membership" desc:"Feature flag to test off GCP regionalised membership"`
+
 	// MulticloudOverrideEnvironProject makes GCPProjects take precedence over hardcoded values for multicloud projects.
 	MulticloudOverrideEnvironProject bool `flag:"multicloud-override-environ-project" desc:"When running on multicloud clusters, prefer --gcp-projects to hardcoded project names."`
 

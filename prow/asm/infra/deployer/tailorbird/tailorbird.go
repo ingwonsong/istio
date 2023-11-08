@@ -741,6 +741,9 @@ func (d *Instance) rookeryFile() (string, error) {
 	if d.cfg.UseGSM {
 		tmplFileName = fmt.Sprintf("%s-%s", tmplFileName, "gsm")
 	}
+	if d.cfg.RegionalisedMembership {
+		tmplFileName = fmt.Sprintf("%s-%s", tmplFileName, "uci")
+	}
 	tmplFileName = fmt.Sprintf("%s.%s", tmplFileName, "yaml")
 	tmplFile := filepath.Join(d.cfg.RepoRootDir, configRelDir, tmplFileName)
 	if _, err := os.Stat(tmplFile); err != nil {

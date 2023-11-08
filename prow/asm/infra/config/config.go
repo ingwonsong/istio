@@ -68,6 +68,7 @@ type Instance struct {
 	ReleaseChannel                 types.ReleaseChannel
 	Environment                    types.Environment
 	Features                       sets.String
+	RegionalisedMembership         bool
 	Rookery                        string
 	RookeryRequestFile             string
 	SyncUpgrade                    bool
