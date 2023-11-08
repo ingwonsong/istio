@@ -238,7 +238,7 @@ func detectSigningCABundle() (ca.SigningCAFileBundle, error) {
 	tlsSigningFile := path.Join(LocalCertDir.Get(), ca.TLSSecretCACertFile)
 
 	// looking for tls file format (tls.crt)
-	if _, err := os.Stat(tlsSigningFile); !os.IsNotExist(err) {
+	if _, err := os.Stat(tlsSigningFile); err == nil {
 		log.Info("Using kubernetes.io/tls secret type for signing ca files")
 		return ca.SigningCAFileBundle{
 			RootCertFile: path.Join(LocalCertDir.Get(), ca.TLSSecretRootCertFile),
@@ -249,11 +249,10 @@ func detectSigningCABundle() (ca.SigningCAFileBundle, error) {
 			SigningCertFile: tlsSigningFile,
 			SigningKeyFile:  path.Join(LocalCertDir.Get(), ca.TLSSecretCAPrivateKeyFile),
 		}, nil
-	} else if os.IsNotExist(err) {
-		// noop, file does not exist, move on
-	} else if err != nil {
+	} else if !os.IsNotExist(err) {
 		return ca.SigningCAFileBundle{}, err
 	}
+
 	log.Info("Using istiod file format for signing ca files")
 	// default ca file format
 	return ca.SigningCAFileBundle{
@@ -322,7 +321,6 @@ func handleEvent(s *Server) {
 		return
 	}
 	newCABundle, err = os.ReadFile(fileBundle.RootCertFile)
-
 	if err != nil {
 		log.Errorf("failed reading root-cert.pem: %v", err)
 		return
@@ -446,12 +444,8 @@ func (s *Server) createIstioCA(opts *caOptions) (*ca.IstioCA, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine signing file format %v", err)
 	}
-	if _, err := os.Stat(fileBundle.RootCertFile); err != nil {
-		// In Citadel, normal self-signed doesn't use a root-cert.pem file for additional roots.
-		// In Istiod, it is possible to provide one via "cacerts" secret in both cases, for consistency.
-		fileBundle.RootCertFile = ""
-	}
 
+	// ASM code
 	if len(keyManagementEndpoint.Get()) != 0 {
 		// The KMS endpoint is set. Run the KMS backed CA.
 		log.Info("Use KMS backed CA")
@@ -459,13 +453,12 @@ func (s *Server) createIstioCA(opts *caOptions) (*ca.IstioCA, error) {
 		// Abort after 100 days. This does not really matter.
 		ctx, cancel := context.WithTimeout(context.Background(), time.Hour*2400)
 		defer cancel()
-
 		caOpts, err = ca.NewKMSBackedCAOptions(ctx, workloadCertTTL.Get(), maxWorkloadCertTTL.Get(), opts.TrustDomain, true,
 			opts.Namespace, s.kubeClient.Kube().CoreV1(), caRSAKeySize.Get(), keyManagementEndpoint.Get(), []byte(keyManagementKeyID.Get()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a KMS backed CA: %v", err)
 		}
-
+		// ^ASM code
 	} else {
 		if _, err := os.Stat(fileBundle.SigningKeyFile); err == nil {
 			detectedSigningCABundle = true
@@ -474,18 +467,19 @@ func (s *Server) createIstioCA(opts *caOptions) (*ca.IstioCA, error) {
 			}
 		}
 
-		if !detectedSigningCABundle || (detectedSigningCABundle && istioGenerated) {
-			if detectedSigningCABundle && istioGenerated {
-				log.Infof("%s secret found is IstioGenerated, use it as the CA certificate", ca.CACertsSecret)
+		if !detectedSigningCABundle || (features.UseCacertsForSelfSignedCA && istioGenerated) {
+			if features.UseCacertsForSelfSignedCA && istioGenerated {
+				log.Infof("IstioGenerated %s secret found, use it as the CA certificate", ca.CACertsSecret)
 
-				// TODO(jaellio): Currently, istiod handles a "cacerts" secret with the "istio-generated" key the same way
-				// it handles the "istio-ca-secret" secret. Even though "cacerts" is file mounted, istiod will only watch the
-				// secret. If an "istio-ca-secret" exists in the control plane ns, it will be used instead of a "cacerts"
-				// secret with the "istio-generated" key.
-				// This will change in the future, and istiod will watch the file mount instead.
+				// TODO(jaellio): Currently, when the USE_CACERTS_FOR_SELF_SIGNED_CA flag is true istiod
+				// handles loading and updating the "cacerts" secret with the "istio-generated" key the
+				// same way it handles the "istio-ca-secret" secret. Isitod utilizes a secret watch instead
+				// of file watch to check for secret updates. This may change in the future, and istiod
+				// will watch the file mount instead.
 			}
 
-			// Either the secret is not mounted, or it is mounted but the "istio-generated" key is used.
+			// Either the secret is not mounted because it is named `istio-ca-secret`,
+			// or it is `cacerts` secret mounted with "istio-generated" key set.
 			caOpts, err = s.createSelfSignedCACertificateOptions(&fileBundle, opts)
 			if err != nil {
 				return nil, err
@@ -507,10 +501,6 @@ func (s *Server) createIstioCA(opts *caOptions) (*ca.IstioCA, error) {
 		return nil, fmt.Errorf("failed to create an istiod CA: %v", err)
 	}
 
-	// TODO: provide an endpoint returning all the roots. SDS can only pull a single root in current impl.
-	// ca.go saves or uses the secret, but also writes to the configmap "istio-security", under caTLSRootCert
-	// rootCertRotatorChan channel accepts signals to stop root cert rotator for
-	// self-signed CA.
 	// Start root cert rotator in a separate goroutine.
 	istioCA.Run(s.internalStop)
 	return istioCA, nil

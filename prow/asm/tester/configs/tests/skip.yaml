@@ -776,6 +776,7 @@ tests:
           - TestCloudESFApiKeyGrpc
           - TestCloudESFGrpcEcho
         reason: it requires installing istiod first
+
   - selectors:
       gce_vms: true
     targets:
@@ -1209,3 +1210,11 @@ packages:
     - names:
       - /mdp/installation
       reason: tests meant for asmcli install in VPC-SC environment
+
+  # MCP multi-cluster tests skips the following packages.
+  - selectors:
+      control_plane: managed
+    targets:
+    - names:
+      - /ambient
+      buganizerID: 308005899
