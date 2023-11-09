@@ -1,0 +1,40 @@
+apiVersion: sut.tailorbird.io/v1alpha1
+kind: Rookery
+metadata:
+ name: asm-ci-onprem-sc-uci
+ namespace: tailorbird-users
+spec:
+ ttlSeconds: 28800 # 8 hours
+ knests:
+ - apiVersion: sut.tailorbird.io/v1alpha1
+   kind: Knest
+   metadata:
+     name: asm-ci-onprem-sc-uci-knest
+   spec:
+     clusters:
+     - apiVersion: sut.tailorbird.io/v1alpha1
+       kind: Cluster
+       metadata:
+         name: asm-ci-onprem-sc-uci-cluster
+       spec:
+         provider: vsphere
+         distribution: gke
+         provisionerArgs:
+           username: prowuser
+           {{- if .Version }}
+           gkectlVersion: "{{ .Version }}"
+           {{- end }}
+           {{- if .VersionPrefix }}
+           gkectlVersionPrefix: "{{ .VersionPrefix }}"
+           releaseMode: "true"
+           useStagingBucket: "true"
+           {{- end }}
+           connectLocation: us-central1
+           gkectlConfigSeedVersion: "v1"
+           vipNetwork: "fe"
+           gkeConnectProject: "{{ .OnPremHubDevProject }}"
+           stackdriverProjectId: "{{ .OnPremHubDevProject }}"
+           # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
+           herculesEnvTtl: "4h"
+           vsphereVersion: "7.0"
+           esxiVersion: "7.0"
