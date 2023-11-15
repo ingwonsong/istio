@@ -362,10 +362,18 @@ func Test_calculateStatus(t *testing.T) {
 }
 
 func TestMaxTimeToReconcile(t *testing.T) {
+	timeNow := time.Now()
+	prevNow := now
+	defer func() { now = prevNow }()
+	now = func() time.Time {
+		return timeNow
+	}
+
 	testCases := []struct {
-		name           string
-		dpc            *v1alpha1.DataPlaneControl
-		expectDuration int64
+		name                    string
+		dpc                     *v1alpha1.DataPlaneControl
+		expectDuration          int64
+		expectDurationStartTime time.Time
 	}{
 		{
 			name: "default",
@@ -379,17 +387,17 @@ func TestMaxTimeToReconcile(t *testing.T) {
 			dpc: &v1alpha1.DataPlaneControl{
 				Spec: v1alpha1.DataPlaneControlSpec{
 					InstanceUpgradeDurationHours: 1,
-					UpgradeDurationValidUntil:    time.Now().Add(time.Hour).Format(time.RFC3339),
+					UpgradeDurationValidUntil:    timeNow.Add(time.Hour).Format(time.RFC3339),
 				},
 			},
-			expectDuration: int64(time.Hour),
+			expectDurationStartTime: timeNow,
 		},
 		{
 			name: "duration from dpc expired",
 			dpc: &v1alpha1.DataPlaneControl{
 				Spec: v1alpha1.DataPlaneControlSpec{
 					InstanceUpgradeDurationHours: 1,
-					UpgradeDurationValidUntil:    time.Now().Format(time.RFC3339),
+					UpgradeDurationValidUntil:    timeNow.Format(time.RFC3339),
 				},
 			},
 			expectDuration: int64(MaxTimeToReconcile),
@@ -399,7 +407,7 @@ func TestMaxTimeToReconcile(t *testing.T) {
 			dpc: &v1alpha1.DataPlaneControl{
 				Spec: v1alpha1.DataPlaneControlSpec{
 					InstanceUpgradeDurationHours: 24,
-					UpgradeDurationValidUntil:    time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+					UpgradeDurationValidUntil:    timeNow.Add(24 * time.Hour).Format(time.RFC3339),
 				},
 			},
 			expectDuration: int64(MaxTimeToReconcile),
@@ -408,8 +416,19 @@ func TestMaxTimeToReconcile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := maxTimeToReconcile(tc.dpc); got != tc.expectDuration {
-				t.Errorf("maxTimeToReconcile(#%v) failed, got %v, want %v", tc.dpc, got, tc.expectDuration)
+			var expectedTimeToReconcile int64
+			if tc.expectDuration != 0 {
+				expectedTimeToReconcile = tc.expectDuration
+			} else {
+				upgradeDurationValidUntil, err := time.Parse(time.RFC3339, tc.dpc.Spec.UpgradeDurationValidUntil)
+				if err != nil {
+					t.Errorf("parsing upgrade duration valid timestamp failed: %v, falling back to the default.", err)
+				}
+				expectedTimeToReconcile = int64(upgradeDurationValidUntil.Sub(tc.expectDurationStartTime))
+			}
+
+			if got := maxTimeToReconcile(tc.dpc); got != expectedTimeToReconcile {
+				t.Errorf("maxTimeToReconcile(#%v) failed, got %v, want %v", tc.dpc, got, expectedTimeToReconcile)
 			}
 		})
 	}

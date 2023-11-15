@@ -67,6 +67,11 @@ var (
 
 	workerBuilder   = proxyupdater.NewWorker
 	upgraderBuilder = proxyupdater.NewEvictorUpgrader
+
+	// nolint: gocritic
+	now = func() time.Time {
+		return time.Now()
+	}
 )
 
 var rateLogger = ratelog.New(1*time.Hour, nil)
@@ -174,9 +179,12 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		n.statusWorker.EnqueueStatus(dpc)
 		return result, err
 	}
+
+	totalToUpgrade := total - versions[proxyVersionForDPC(dpc)]
+	rateLogger.Infof("%d pods are upgraded to %s. %d among %d pods are still waiting to be upgraded.",
+		versions[proxyVersionForDPC(dpc)], proxyVersionForDPC(dpc), totalToUpgrade, total)
 	targetPct := float32(proxyTargetBasisPointsForDPC(dpc)*100) / totalBasisPoints
-	newVersion := proxyVersionForDPC(dpc)
-	rateLogger.Infof("target version: %s, percent: %v", newVersion, targetPct)
+	rateLogger.Infof("target version: %s, percent: %v", proxyVersionForDPC(dpc), targetPct)
 
 	bptsFraction := float32(proxyTargetBasisPointsForDPC(dpc)) / totalBasisPoints
 	desired := int(math.Ceil(float64(float32(total) * bptsFraction)))
@@ -190,7 +198,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		resultMetricLabel = metrics.Success
 		return result, nil
 	}
-	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, proxyVersionForDPC(dpc), rateLimitForRollout(dpc, total))
+	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, proxyVersionForDPC(dpc), rateLimitForRollout(dpc, totalToUpgrade))
 	projectedActual := versions[proxyVersionForDPC(dpc)] + u.Len()
 	log.Debugf("update count projected: %v, desired: %v", projectedActual, desired)
 	if projectedActual < desired {
@@ -278,13 +286,13 @@ func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl) (maxTimeToReconcile int6
 			log.Errorf("parsing upgrade duration valid timestamp failed: %v, falling back to the default.", err)
 			return int64(MaxTimeToReconcile)
 		}
-		if !time.Now().Before(upgradeDurationValidUntil) {
+		if !now().Before(upgradeDurationValidUntil) {
 			// Invalid upgrade start timestamp or the duration has expired, revert back to default.
 			log.Infof("upgrade duration expired, falling back to the default.")
 			return int64(MaxTimeToReconcile)
 		}
-		// Cap the maxTimeToReconcile to be the default global.
-		return min(int64(dpc.Spec.InstanceUpgradeDurationHours)*int64(time.Hour), int64(MaxTimeToReconcile))
+		// Return the gap between Now and upgradeDurationValidUntil.
+		return min(int64(upgradeDurationValidUntil.Sub(now())), int64(MaxTimeToReconcile))
 	}
 	return int64(MaxTimeToReconcile)
 }

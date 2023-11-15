@@ -4,5 +4,5 @@ metadata:
   name: test-mdp
 spec:
   proxyVersion: {{ .NewProxyVersion }}
-  proxyTargetBasisPoints: 10000
+  proxyTargetBasisPoints: {{ default 10000 .NewProxyTargetBasisPoints }}
   revision: "asm-master"
