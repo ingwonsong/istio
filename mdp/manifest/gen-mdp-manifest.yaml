@@ -132,6 +132,13 @@ rules:
   resources:
   - configmaps
   - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - pods/eviction
   verbs:
   - get
