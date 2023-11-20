@@ -157,7 +157,13 @@ func ProxyVersion(pod *v1.Pod) (string, bool) {
 		if len(vv) == 1 {
 			continue
 		}
-		return vv[1], true
+
+		version := vv[1]
+		if strings.Contains(version, "@") {
+			version = strings.Split(version, "@")[0]
+		}
+
+		return version, true
 	}
 	return "", false
 }

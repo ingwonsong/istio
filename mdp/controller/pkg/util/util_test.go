@@ -17,6 +17,7 @@ package util
 import (
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -120,6 +121,74 @@ func TestLabelSelectorCache(t *testing.T) {
 			}
 			if l.selectorInits != tt.wantInits {
 				t.Errorf("Got %d calls to labels.LabelSelectorAsSelector(), want %d", l.selectorInits, tt.wantInits)
+			}
+		})
+	}
+}
+
+func TestProxyVersion(t *testing.T) {
+	tests := []struct {
+		name        string
+		pod         *corev1.Pod
+		wantVersion string
+	}{
+		{
+			name: "regular version",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "test",
+						},
+						{
+							Image: "gcr.io/gke-release/asm/proxyv2:1.16.7-asm.10",
+						},
+					},
+				},
+			},
+			wantVersion: "1.16.7-asm.10",
+		},
+		{
+			name: "distroless version",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "test",
+						},
+						{
+							Image: "gcr.io/gke-release/asm/proxyv2:1.16.7-asm.10-distroless",
+						},
+					},
+				},
+			},
+			wantVersion: "1.16.7-asm.10-distroless",
+		},
+		{
+			name: "version including @sha",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "test",
+						},
+						{
+							Image: "gcr.io/gke-release/asm/proxyv2:1.16.7-asm.10-distroless@sha256:f65123ouiop432908sdfasfawes4r5123112234uo1i3uop12i34j2op41o34ui12iop3",
+						},
+					},
+				},
+			},
+			wantVersion: "1.16.7-asm.10-distroless",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := ProxyVersion(tt.pod)
+			if !ok {
+				t.Errorf("Parsing proxy version in the pod %v failed.", tt.pod)
+			}
+			if got != tt.wantVersion {
+				t.Errorf("Got version %s, but want %s", got, tt.wantVersion)
 			}
 		})
 	}
