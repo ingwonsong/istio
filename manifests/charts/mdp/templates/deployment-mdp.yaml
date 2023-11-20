@@ -57,8 +57,6 @@ spec:
         env:
         - name: WATCH_NAMESPACE
           value: {{.Values.mdp.istioNamespace | quote}}
-        - name: LEADER_ELECTION_NAMESPACE
-          value: {{.Values.mdp.mdpNamespace | quote}}
         - name: POD_NAME
           valueFrom:
             fieldRef:

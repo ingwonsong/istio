@@ -110,9 +110,6 @@ func run() {
 		Metrics: metricsserver.Options{
 			BindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
 		},
-		LeaderElection:          false,
-		LeaderElectionNamespace: "istio-system",
-		LeaderElectionID:        "mdp-eviction-leader",
 		// nolint: gocritic
 		NewClient: func(config *rest.Config, options client.Options) (client.Client, error) {
 			return client.New(config, options)

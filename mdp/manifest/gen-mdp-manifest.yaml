@@ -108,18 +108,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - "coordination.k8s.io"
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - delete
-  - patch
-  - update
-  - create
-- apiGroups:
   - admissionregistration.k8s.io
   resources:
   - mutatingwebhookconfigurations
@@ -417,8 +405,6 @@ spec:
             memory: 128Mi
         env:
         - name: WATCH_NAMESPACE
-          value: "istio-system"
-        - name: LEADER_ELECTION_NAMESPACE
           value: "istio-system"
         - name: POD_NAME
           valueFrom:
