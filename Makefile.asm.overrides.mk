@@ -9,7 +9,7 @@ export AUTH_HEADER ?= Authorization: Bearer $(shell gcloud auth print-access-tok
 ISTIO_ENVOY_BASE_URL ?= https://storage.googleapis.com/asm-testing/istio/dev
 GOBUILDFLAGS := -tags="netgo,osusergo"
 
-BASE_VERSION := master-asm-2023-11-16T14-07-35
+BASE_VERSION := master-asm-2023-11-23T14-07-08
 ISTIO_BASE_REGISTRY := gcr.io/asm-staging-images
 
 # cloudesf specific overrides
