@@ -45,7 +45,6 @@ import (
 
 const (
 	autoscalingV2MinK8SVersion = 23
-	pdbV1MinK8SVersion         = 21
 )
 
 var (
@@ -84,18 +83,13 @@ func NamespacedResources(version *version.Info) []schema.GroupVersionKind {
 		{Group: "", Version: "v1", Kind: name.SAStr},
 		{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: name.RoleBindingStr},
 		{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: name.RoleStr},
+		{Group: "policy", Version: "v1", Kind: name.PDBStr},
 	}
 	// autoscaling v2 API is available on >=1.23
 	if kube.IsKubeAtLeastOrLessThanVersion(version, autoscalingV2MinK8SVersion, true) {
 		res = append(res, schema.GroupVersionKind{Group: "autoscaling", Version: "v2", Kind: name.HPAStr})
 	} else {
 		res = append(res, schema.GroupVersionKind{Group: "autoscaling", Version: "v2beta2", Kind: name.HPAStr})
-	}
-	// policy/v1 is available on >=1.21
-	if kube.IsKubeAtLeastOrLessThanVersion(version, pdbV1MinK8SVersion, true) {
-		res = append(res, schema.GroupVersionKind{Group: "policy", Version: "v1", Kind: name.PDBStr})
-	} else {
-		res = append(res, schema.GroupVersionKind{Group: "policy", Version: "v1beta1", Kind: name.PDBStr})
 	}
 	return res
 }
@@ -249,23 +243,9 @@ func (h *HelmReconciler) GetPrunedResources(revision string, includeClusterResou
 	gvkList := append(resources, ClusterCPResources...)
 	if includeClusterResources {
 		gvkList = append(resources, AllClusterResources...)
+		// Cleanup IstioOperator, which may be used with in-cluster operator.
 		if ioplist := h.getIstioOperatorCR(); ioplist.Items != nil {
 			usList = append(usList, ioplist)
-		}
-	} else if componentName == "" {
-		// Remove Istio operator CR with specified revision if it is uninstalled
-		ioplist := h.getIstioOperatorCR()
-		if ioplist.Items != nil {
-			for _, iop := range ioplist.Items {
-				revisionIop := getIstioOperatorCRName(revision)
-				if iop.GetName() == revisionIop {
-					if iopToList, err := iop.ToList(); err == nil {
-						iopToList.Items = []unstructured.Unstructured{iop}
-						usList = append(usList, iopToList)
-						break
-					}
-				}
-			}
 		}
 	}
 	for _, gvk := range gvkList {

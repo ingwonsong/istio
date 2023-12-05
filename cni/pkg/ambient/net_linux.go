@@ -217,12 +217,12 @@ func getLinkWithDestinationOf(ip string) (netlink.Link, error) {
 		return nil, err
 	}
 
-	if len(routes) == 0 {
-		return nil, fmt.Errorf("no routes found for %s", ip)
+	if len(routes) > 0 {
+		linkIndex := routes[0].LinkIndex
+		return netlink.LinkByIndex(linkIndex)
 	}
 
-	linkIndex := routes[0].LinkIndex
-	return netlink.LinkByIndex(linkIndex)
+	return findVethLinkForPeerIP(net.ParseIP(ip))
 }
 
 func getVethWithDestinationOf(ip string) (*netlink.Veth, error) {
@@ -237,6 +237,49 @@ func getVethWithDestinationOf(ip string) (*netlink.Veth, error) {
 	return veth, nil
 }
 
+func findVethLinkForPeerIP(peerIP net.IP) (*netlink.Veth, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list links: %v", err)
+	}
+	var v netlink.Veth
+	for _, l := range links {
+		if l.Type() != v.Type() {
+			continue
+		}
+		veth := l.(*netlink.Veth)
+		peerIndex, err := getPeerIndex(veth)
+		if err != nil {
+			continue
+		}
+		peerNs, err := getNsNameFromNsID(veth.Attrs().NetNsID)
+		if err != nil {
+			continue
+		}
+		var peerVethFound bool
+		if err := netns.WithNetNSPath(filepath.Join(constants.NetNsPath, filepath.Base(peerNs)), func(netns.NetNS) error {
+			peerLink, err := netlink.LinkByIndex(peerIndex)
+			if err != nil {
+				return fmt.Errorf("failed to get veth interface '%s' by peer index: %v", veth.Name, err)
+			}
+			addrs, err := netlink.AddrList(peerLink, netlink.FAMILY_V4)
+			if err != nil {
+				return fmt.Errorf("failed to get address for veth interface '%s': %v", veth.Name, err)
+			}
+			if addrs[0].IP.Equal(peerIP) {
+				peerVethFound = true
+			}
+			return nil
+		}); err != nil {
+			log.Warnf("failed to inspect peer link in the network namespace '%s': %v", peerNs, err)
+		}
+		if peerVethFound {
+			return veth, nil
+		}
+	}
+	return nil, fmt.Errorf("no veth interface found for peer IP %s", peerIP)
+}
+
 func getDeviceWithDestinationOf(ip string) (string, error) {
 	link, err := getLinkWithDestinationOf(ip)
 	if err != nil {
@@ -245,12 +288,11 @@ func getDeviceWithDestinationOf(ip string) (string, error) {
 	return link.Attrs().Name, nil
 }
 
-func GetIndexAndPeerMac(podIfName, ns string) (int, net.HardwareAddr, error) {
+func GetIndexAndPeerMac(podIfName, nspath string) (int, net.HardwareAddr, error) {
 	var hostIfIndex int
 	var hwAddr net.HardwareAddr
 
-	ns = filepath.Base(ns)
-	err := netns.WithNetNSPath(fmt.Sprintf("/var/run/netns/%s", ns), func(netns.NetNS) error {
+	err := netns.WithNetNSPath(nspath, func(netns.NetNS) error {
 		link, err := netlink.LinkByName(podIfName)
 		if err != nil {
 			return err
@@ -271,18 +313,18 @@ func GetIndexAndPeerMac(podIfName, ns string) (int, net.HardwareAddr, error) {
 		return nil
 	})
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get info for if(%s) in ns(%s): %v", podIfName, ns, err)
+		return 0, nil, fmt.Errorf("failed to get info for if(%s) in ns(%s): %v", podIfName, nspath, err)
 	}
 
 	return hostIfIndex, hwAddr, nil
 }
 
-func getMacFromNsIdx(ns string, ifIndex int) (net.HardwareAddr, error) {
+func getMacFromNsIdx(nsName string, ifIndex int) (net.HardwareAddr, error) {
 	var hwAddr net.HardwareAddr
-	err := netns.WithNetNSPath(fmt.Sprintf("/var/run/netns/%s", ns), func(netns.NetNS) error {
+	err := netns.WithNetNSPath(filepath.Join(constants.NetNsPath, nsName), func(netns.NetNS) error {
 		link, err := netlink.LinkByIndex(ifIndex)
 		if err != nil {
-			return fmt.Errorf("failed to get link(%d) in ns(%s): %v", ifIndex, ns, err)
+			return fmt.Errorf("failed to get link(%d) in ns(%s): %v", ifIndex, nsName, err)
 		}
 		hwAddr = link.Attrs().HardwareAddr
 		return nil
@@ -296,7 +338,7 @@ func getMacFromNsIdx(ns string, ifIndex int) (net.HardwareAddr, error) {
 func getNsNameFromNsID(nsid int) (string, error) {
 	foundNs := errors.New("nsid found, stop iterating")
 	nsName := ""
-	err := filepath.WalkDir("/var/run/netns", func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(constants.NetNsPath, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -849,7 +891,7 @@ func determineDstPortForGeneveLink(remoteIP net.IP, vnis ...uint32) uint16 {
 func (s *Server) CreateEBPFRulesWithinNodeProxyNS(proxyNsVethIdx int, ztunnelIP, ztunnelNetNS string) error {
 	ns := filepath.Base(ztunnelNetNS)
 	log.Debugf("CreateEBPFRulesWithinNodeProxyNS: proxyNsVethIdx=%d, ztunnelIP=%s, from within netns=%s", proxyNsVethIdx, ztunnelIP, ztunnelNetNS)
-	err := netns.WithNetNSPath(fmt.Sprintf("/var/run/netns/%s", ns), func(netns.NetNS) error {
+	err := netns.WithNetNSPath(filepath.Join(constants.NetNsPath, ns), func(netns.NetNS) error {
 		// Make sure we flush table 100 before continuing - it should be empty in a new namespace
 		// but better to ensure that.
 		if err := routeFlushTable(constants.RouteTableInbound); err != nil {
@@ -996,7 +1038,7 @@ func (s *Server) createTProxyRulesForLegacyEBPF(ztunnelIP, ifName string) error 
 func (s *Server) CreateRulesWithinNodeProxyNS(proxyNsVethIdx int, ztunnelIP, ztunnelNetNS, hostIP string, geneveDstPort uint16) error {
 	ns := filepath.Base(ztunnelNetNS)
 	log.Debugf("CreateRulesWithinNodeProxyNS: proxyNsVethIdx=%d, ztunnelIP=%s, hostIP=%s, from within netns=%s", proxyNsVethIdx, ztunnelIP, hostIP, ztunnelNetNS)
-	err := netns.WithNetNSPath(fmt.Sprintf("/var/run/netns/%s", ns), func(netns.NetNS) error {
+	err := netns.WithNetNSPath(filepath.Join(constants.NetNsPath, ns), func(netns.NetNS) error {
 		//"p" is just to visually distinguish from the host-side tunnel links in logs
 		inboundGeneveLinkName := "p" + constants.InboundTun
 		outboundGeneveLinkName := "p" + constants.OutboundTun
@@ -1309,7 +1351,7 @@ func (s *Server) cleanupNode() {
 	}
 }
 
-func (s *Server) getEnrolledIPSets() sets.Set[string] {
+func (s *Server) getEnrolledIPSets() sets.String {
 	pods := sets.New[string]()
 	switch s.redirectMode {
 	case IptablesMode:
@@ -1324,6 +1366,16 @@ func (s *Server) getEnrolledIPSets() sets.Set[string] {
 		pods = s.ebpfServer.DumpAppIPs()
 	}
 	return pods
+}
+
+func (s *Server) IsPodEnrolledInAmbient(pod *corev1.Pod) bool {
+	switch s.redirectMode {
+	case IptablesMode:
+		return IsPodInIpset(pod)
+	case EbpfMode:
+		return s.ebpfServer.IsPodIPEnrolled(pod.Status.PodIP)
+	}
+	return false
 }
 
 func addTProxyMarkRule() error {

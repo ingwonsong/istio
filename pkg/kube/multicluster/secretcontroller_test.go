@@ -20,11 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/rest"
 
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config/mesh"
@@ -32,7 +31,6 @@ import (
 	"istio.io/istio/pkg/kube/multicluster/translation"
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/istio/pkg/util/sets"
 )
 
 const secretNamespace string = "istio-system"
@@ -95,8 +93,53 @@ func resetCallbackData() {
 	deleted = ""
 }
 
-func Test_SecretController(t *testing.T) {
-	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, cache translation.Cache) (kube.Client, error) {
+func TestKubeConfigOverride(t *testing.T) {
+	var (
+		expectedQPS   = float32(100)
+		expectedBurst = 200
+	)
+	fakeRestConfig := &rest.Config{}
+	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, cache translation.Cache, configOverrides ...func(*rest.Config)) (kube.Client, error) {
+		for _, override := range configOverrides {
+			override(fakeRestConfig)
+		}
+		return kube.NewFakeClient(), nil
+	}
+	clientset := kube.NewFakeClient()
+	stopCh := test.NewStop(t)
+	c := NewController(clientset, secretNamespace, "", mesh.NewFixedWatcher(nil), func(cfg *rest.Config) {
+		cfg.QPS = expectedQPS
+		cfg.Burst = expectedBurst
+	})
+	clientset.RunAndWait(stopCh)
+	c.AddHandler(&handler{})
+	clientset.RunAndWait(stopCh)
+	_ = c.Run(stopCh)
+	t.Run("sync timeout", func(t *testing.T) {
+		retry.UntilOrFail(t, c.HasSynced, retry.Timeout(2*time.Second))
+	})
+	kube.WaitForCacheSync("test", stopCh, c.HasSynced)
+	secret0 := makeSecret(secretNamespace, "s0",
+		clusterCredential{"c0", []byte("kubeconfig0-0")})
+
+	t.Run("test kube config override", func(t *testing.T) {
+		g := NewWithT(t)
+		_, err := clientset.Kube().CoreV1().Secrets(secret0.Namespace).Create(context.TODO(), secret0, metav1.CreateOptions{})
+		g.Expect(err).Should(BeNil())
+
+		g.Eventually(func() *Cluster {
+			return c.cs.GetByID("c0")
+		}, 10*time.Second).ShouldNot(BeNil())
+
+		g.Expect(fakeRestConfig).Should(Equal(&rest.Config{
+			QPS:   expectedQPS,
+			Burst: expectedBurst,
+		}))
+	})
+}
+
+func TestSecretController(t *testing.T) {
+	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, cache translation.Cache, configOverrides ...func(*rest.Config)) (kube.Client, error) {
 		return kube.NewFakeClient(), nil
 	}
 
@@ -249,261 +292,6 @@ func Test_SecretController(t *testing.T) {
 					defer mu.Unlock()
 					return added == "" && updated == "" && deleted == ""
 				}).Should(Equal(true))
-			}
-		})
-	}
-}
-
-func TestSanitizeKubeConfig(t *testing.T) {
-	cases := []struct {
-		name            string
-		config          api.Config
-		allowlist       sets.String
-		ipConfigMapping map[string]api.Config
-		want            api.Config
-		wantErr         bool
-	}{
-		{
-			name:    "empty",
-			config:  api.Config{},
-			want:    api.Config{},
-			wantErr: false,
-		},
-		{
-			name: "exec",
-			config: api.Config{
-				AuthInfos: map[string]*api.AuthInfo{
-					"default": {
-						Exec: &api.ExecConfig{
-							Command: "sleep",
-						},
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name:      "exec allowlist",
-			allowlist: sets.New("exec"),
-			config: api.Config{
-				AuthInfos: map[string]*api.AuthInfo{
-					"default": {
-						Exec: &api.ExecConfig{
-							Command: "sleep",
-						},
-					},
-				},
-			},
-			want: api.Config{
-				AuthInfos: map[string]*api.AuthInfo{
-					"default": {
-						Exec: &api.ExecConfig{
-							Command: "sleep",
-						},
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "gcp unmatched cluster",
-			config: api.Config{
-				AuthInfos: map[string]*api.AuthInfo{
-					"default": {
-						AuthProvider: &api.AuthProviderConfig{
-							Name: "gcp",
-						},
-					},
-				},
-				Contexts: map[string]*api.Context{
-					"default": {
-						Cluster:  "non-existent",
-						AuthInfo: "default",
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "gcp auth plugin ignores proxy URL",
-			config: api.Config{
-				AuthInfos: map[string]*api.AuthInfo{
-					"default": {
-						AuthProvider: &api.AuthProviderConfig{
-							Name: "gcp",
-						},
-					},
-				},
-				Clusters: map[string]*api.Cluster{
-					"default": {
-						Server:   "https://connectgateway.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test",
-						ProxyURL: "https://malicious-endpoint.com",
-					},
-				},
-				Contexts: map[string]*api.Context{
-					"default": {
-						Cluster:  "default",
-						AuthInfo: "default",
-					},
-				},
-			},
-			want: api.Config{
-				AuthInfos: map[string]*api.AuthInfo{
-					"gcp": {
-						AuthProvider: &api.AuthProviderConfig{
-							Name:   "gcp",
-							Config: map[string]string{},
-						},
-					},
-				},
-				Clusters: map[string]*api.Cluster{
-					"cgw": {
-						Server: "https://connectgateway.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test",
-					},
-				},
-				Contexts: map[string]*api.Context{
-					"cgw": {
-						Cluster:  "cgw",
-						AuthInfo: "gcp",
-					},
-				},
-				CurrentContext: "cgw",
-			},
-		},
-		{
-			name: "IP based remote secret translated with match",
-			config: api.Config{
-				Clusters: map[string]*api.Cluster{
-					"default": {
-						Server: "https://1.2.3.4",
-					},
-				},
-				Contexts: map[string]*api.Context{
-					"default": {
-						Cluster: "default",
-					},
-				},
-			},
-			ipConfigMapping: map[string]api.Config{
-				"1.2.3.4": {
-					Clusters: map[string]*api.Cluster{
-						"cgw": {
-							Server: "https://cached-endpoint.com",
-						},
-					},
-					Contexts: map[string]*api.Context{
-						"cgw": {
-							Cluster: "cgw",
-						},
-					},
-				},
-			},
-			want: api.Config{
-				Clusters: map[string]*api.Cluster{
-					"cgw": {
-						Server: "https://cached-endpoint.com",
-					},
-				},
-				Contexts: map[string]*api.Context{
-					"cgw": {
-						Cluster: "cgw",
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			sanitized, err := sanitizedKubeConfig(tt.config, tt.allowlist, translation.NewMockMembershipCache(tt.ipConfigMapping))
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("sanitizedKubeConfig() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err != nil {
-				return
-			}
-			if diff := cmp.Diff(sanitized, tt.want); diff != "" {
-				t.Fatal(diff)
-			}
-		})
-	}
-}
-
-func TestConnectGatewayKubeConfig(t *testing.T) {
-	cases := []struct {
-		server  string
-		wantErr bool
-	}{
-		{
-			server:  "https://connectgateway.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
-			wantErr: false,
-		},
-		{
-			server:  "https://staging-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
-			wantErr: false,
-		},
-		{
-			server:  "https://autopush-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
-			wantErr: false,
-		},
-		{
-			server:  "https://us-west1-staging-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/us-west1/gkeMemberships/test-membership",
-			wantErr: false,
-		},
-		{
-			server:  "https://staging-connectgateway.sandbox.googleapis.com/v1/projects/123/locations/us-west1/gkeMemberships/test-membership",
-			wantErr: false,
-		},
-		{
-			server:  "https://us-west1-connectgateway.googleapis.com/v1/projects/123/locations/us-west1/gkeMemberships/test-membership",
-			wantErr: false,
-		},
-		{
-			server:  "https://malicious-site.com",
-			wantErr: true,
-		},
-		{
-			server:  "https://malicious-site.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
-			wantErr: true,
-		},
-		{
-			server:  "https://connectgateway.googleapis.com.malicious-site.com",
-			wantErr: true,
-		},
-		{
-			server:  "https://connectgateway.googleapis.com.malicious-site.com/v1/projects/123/locations/global/gkeMemberships/test-membership",
-			wantErr: true,
-		},
-		{
-			server:  "https://staging-connectgateway.sandbox.googleapis.com.malicious-site.com",
-			wantErr: true,
-		},
-		{
-			server:  "nonsense-server-value",
-			wantErr: true,
-		},
-	}
-	for _, tt := range cases {
-		t.Run(tt.server, func(t *testing.T) {
-			cluster := &api.Cluster{
-				Server: tt.server,
-			}
-			config, err := connectGatewayKubeConfig(cluster)
-			if err != nil {
-				if !tt.wantErr {
-					t.Fatalf("sanitizedKubeConfig() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				return
-			}
-
-			if len(config.Clusters) != 1 {
-				t.Fatalf("expected 1 cluster in config, got %d", len(config.Clusters))
-			}
-			var server string
-			for _, c := range config.Clusters {
-				server = c.Server
-			}
-			if server != tt.server {
-				t.Fatalf("expected constructed server %s, got %s", tt.server, server)
 			}
 		})
 	}

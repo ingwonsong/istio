@@ -37,6 +37,7 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry/kube"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
+	kubeconfig "istio.io/istio/pkg/config/gateway/kube"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/config/schema/gvk"
@@ -1958,7 +1959,7 @@ func convertGateways(r configContext) ([]config.Config, map[parentKey][]*parentI
 				Meta: config.Meta{
 					CreationTimestamp: obj.CreationTimestamp,
 					GroupVersionKind:  gvk.Gateway,
-					Name:              fmt.Sprintf("%s-%s-%s", obj.Name, constants.KubernetesGatewayName, l.Name),
+					Name:              kubeconfig.InternalGatewayName(obj.Name, string(l.Name)),
 					Annotations:       meta,
 					Namespace:         obj.Namespace,
 					Domain:            r.Domain,
@@ -2063,7 +2064,7 @@ func reportGatewayStatus(
 	gatewayErr *ConfigError,
 ) {
 	// TODO: we lose address if servers is empty due to an error
-	internal, internalIP, external, pending, warnings := r.Context.ResolveGatewayInstances(obj.Namespace, gatewayServices, servers)
+	internal, internalIP, external, pending, warnings, allUsable := r.Context.ResolveGatewayInstances(obj.Namespace, gatewayServices, servers)
 
 	// Setup initial conditions to the success state. If we encounter errors, we will update this.
 	// We have two status
@@ -2097,15 +2098,21 @@ func reportGatewayStatus(
 		}
 	} else if len(warnings) > 0 {
 		var msg string
+		var reason string
 		if len(internal) != 0 {
 			msg = fmt.Sprintf("Assigned to service(s) %s, but failed to assign to all requested addresses: %s",
 				humanReadableJoin(internal), strings.Join(warnings, "; "))
 		} else {
 			msg = fmt.Sprintf("Failed to assign to any requested addresses: %s", strings.Join(warnings, "; "))
 		}
+		if allUsable {
+			reason = string(k8sv1.GatewayReasonAddressNotAssigned)
+		} else {
+			reason = string(k8sv1.GatewayReasonAddressNotUsable)
+		}
 		gatewayConditions[string(k8sv1.GatewayConditionProgrammed)].error = &ConfigError{
 			// TODO: this only checks Service ready, we should also check Deployment ready?
-			Reason:  string(k8sv1.GatewayReasonAddressNotAssigned),
+			Reason:  reason,
 			Message: msg,
 		}
 	}

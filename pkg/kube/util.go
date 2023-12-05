@@ -17,7 +17,9 @@ package kube
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,15 +33,35 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth" //  allow out of cluster authentication
 	"istio.io/istio/pilot/pkg/config/kube/crd"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pkg/config"
+	"istio.io/istio/pkg/kube/multicluster/translation"
+	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
+	"istio.io/istio/pkg/util/sets"
 	istioversion "istio.io/istio/pkg/version"
 )
 
-var cronJobNameRegexp = regexp.MustCompile(`(.+)-\d{8,10}$`)
+var (
+	cronJobNameRegexp                   = regexp.MustCompile(`(.+)-\d{8,10}$`)
+	ipBasedRemoteSecretsTranslatedCount = monitoring.NewGauge(
+		"ip_based_remote_secrets_translated",
+		"Number of remote secrets with IP for server field translated to use connect gateway endpoint",
+	)
+	success                   = monitoring.CreateLabel("success")
+	successfulTranslations    = ipBasedRemoteSecretsTranslatedCount.With(success.Value("true"))
+	failedTranslations        = ipBasedRemoteSecretsTranslatedCount.With(success.Value("false"))
+	ipBasedRemoteSecretsCount = monitoring.NewGauge(
+		"ip_based_remote_secrets",
+		"Number of remote secrets with IP for server field",
+	)
+	cgwHostRegex = regexp.MustCompile(`^([^\.]*)-?(autopush|staging)?\-?connectgateway.(?:sandbox\.)?googleapis.com$`)
+	cgwPathRegex = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/gkeMemberships/([^/]+)$`)
+)
 
 // BuildClientConfig builds a client rest config from a kubeconfig filepath and context.
 // It overrides the current context with the one provided (empty to use default).
@@ -102,13 +124,39 @@ func CreateClientset(kubeconfig, context string, fns ...func(*rest.Config)) (*ku
 	return kubernetes.NewForConfig(c)
 }
 
+// NewRestConfigFromContext returns the rest.Config for the given kube config context.
+func NewRestConfigFromContext(kubeConfig []byte, cache translation.Cache, configOverrides ...func(*rest.Config)) (*rest.Config, error) {
+	if len(kubeConfig) == 0 {
+		return nil, fmt.Errorf("kubeconfig is empty")
+	}
+	rawConfig, err := clientcmd.Load(kubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("kubeconfig cannot be loaded: %v", err)
+	}
+	if err := clientcmd.Validate(*rawConfig); err != nil {
+		return nil, fmt.Errorf("kubeconfig is not valid: %v", err)
+	}
+	config, err := sanitizeKubeConfig(*rawConfig, features.InsecureKubeConfigOptions, cache)
+	if err != nil {
+		return nil, fmt.Errorf("kubeconfig is not allowed: %v", err)
+	}
+	clientConfig := clientcmd.NewDefaultClientConfig(config, &clientcmd.ConfigOverrides{})
+	restConfig, err := clientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	for _, co := range configOverrides {
+		co(restConfig)
+	}
+	return restConfig, nil
+}
+
 // DefaultRestConfig returns the rest.Config for the given kube config file and context.
 func DefaultRestConfig(kubeconfig, configContext string, fns ...func(*rest.Config)) (*rest.Config, error) {
 	config, err := BuildClientConfig(kubeconfig, configContext)
 	if err != nil {
 		return nil, err
 	}
-	config = SetRestDefaults(config)
 
 	for _, fn := range fns {
 		fn(config)
@@ -408,3 +456,179 @@ func SlowConvertToRuntimeObject(in *crd.IstioKind) (runtime.Object, error) {
 	}
 	return obj, nil
 }
+
+// sanitizeKubeConfig sanitizes a kubeconfig file to strip out insecure settings which may leak
+// confidential materials.
+// See https://github.com/kubernetes/kubectl/issues/697
+func sanitizeKubeConfig(config api.Config, allowlist sets.String, cache translation.Cache) (api.Config, error) {
+	for k, auths := range config.AuthInfos {
+		if ap := auths.AuthProvider; ap != nil {
+			// We currently are importing 5 authenticators: gcp, azure, exec, and openstack
+			switch ap.Name {
+			case "oidc":
+				// OIDC is safe as it doesn't read files or execute code.
+				// create-remote-secret specifically supports OIDC so its probably important to not break this.
+			case "gcp":
+				for name, c := range config.Contexts {
+					// If any auth context is using gcp auth plugin, build a custom config based on the associated cluster.
+					if k == c.AuthInfo {
+						cluster, ok := config.Clusters[c.Cluster]
+						if !ok {
+							return api.Config{}, fmt.Errorf("cluster %s referenced in context %s not found",
+								c.Cluster, name)
+						}
+						return connectGatewayKubeConfig(cluster)
+					}
+				}
+			default:
+				if !allowlist.Contains(ap.Name) {
+					// All the others - gcp, azure, exec, and openstack - are unsafe
+					return api.Config{}, fmt.Errorf("auth provider %s is not allowed", ap.Name)
+				}
+			}
+		}
+		if auths.ClientKey != "" && !allowlist.Contains("clientKey") {
+			return api.Config{}, fmt.Errorf("clientKey is not allowed")
+		}
+		if auths.ClientCertificate != "" && !allowlist.Contains("clientCertificate") {
+			return api.Config{}, fmt.Errorf("clientCertificate is not allowed")
+		}
+		if auths.TokenFile != "" && !allowlist.Contains("tokenFile") {
+			return api.Config{}, fmt.Errorf("tokenFile is not allowed")
+		}
+		if auths.Exec != nil && !allowlist.Contains("exec") {
+			return api.Config{}, fmt.Errorf("exec is not allowed")
+		}
+		// Reconstruct the AuthInfo so if a new field is added we will not include it without review
+		config.AuthInfos[k] = &api.AuthInfo{
+			// LocationOfOrigin: Not needed
+			ClientCertificate:     auths.ClientCertificate,
+			ClientCertificateData: auths.ClientCertificateData,
+			ClientKey:             auths.ClientKey,
+			ClientKeyData:         auths.ClientKeyData,
+			Token:                 auths.Token,
+			TokenFile:             auths.TokenFile,
+			Impersonate:           auths.Impersonate,
+			ImpersonateGroups:     auths.ImpersonateGroups,
+			ImpersonateUserExtra:  auths.ImpersonateUserExtra,
+			Username:              auths.Username,
+			Password:              auths.Password,
+			AuthProvider:          auths.AuthProvider, // Included because it is sanitized above
+			Exec:                  auths.Exec,
+			// Extensions: Not needed,
+		}
+
+		// Other relevant fields that are not acted on:
+		// * Cluster.Server (and ProxyURL). This allows the user to send requests to arbitrary URLs, enabling potential SSRF attacks.
+		//   However, we don't actually know what valid URLs are, so we cannot reasonably constrain this. Instead,
+		//   we try to limit what confidential information could be exfiltrated (from AuthInfo). Additionally, the user cannot control
+		//   the paths we send requests to, limiting potential attack scope.
+		// * Cluster.CertificateAuthority. While this reads from files, the result is not attached to the request and is instead
+		//   entirely local
+	}
+	// ASM-ONLY-CODE BEGIN
+	// Translate secrets with raw IP to use connect gateway endpoint if possible.
+	if cache == nil {
+		return config, nil
+	}
+	for _, cluster := range config.Clusters {
+		serverURL, err := url.Parse(cluster.Server)
+		if err != nil {
+			continue
+		}
+		if net.ParseIP(serverURL.Host) != nil {
+			ipBasedRemoteSecretsCount.Increment()
+			cgwConfig, found, public := cache.Get(serverURL.Host)
+			if public {
+				continue
+			}
+			if found {
+				log.Infof("Translated secret with host: %s\nconfig: %v", serverURL.Host, config)
+				successfulTranslations.Increment()
+				return cgwConfig, nil
+			}
+			log.Warnf("Failed to translate secret with host: %s\nconfig: %v", serverURL.Host, config)
+			failedTranslations.Increment()
+		}
+	}
+	// ASM-ONLY-CODE END
+
+	return config, nil
+}
+
+// ASM-ONLY-CODE BEGIN
+func connectGatewayKubeConfig(cluster *api.Cluster) (api.Config, error) {
+	// Connect Gateway URL must be in the form:
+	// https://[LOCATION]-[ENVIRONMENT]-connectgateway.[sandbox.]googleapis.com/v1/projects/[PROJECT NUMBER]/locations/[LOCATION]/gkeMemberships/[MEMBERSHIP NAME]
+	cgwURL, err := url.Parse(cluster.Server)
+	if err != nil {
+		return api.Config{}, fmt.Errorf("failed to parse connect gateway URL from server %s", cluster.Server)
+	}
+
+	// Parse the membership location and GKE Connect environment from the host if possible.
+	hostMatches := cgwHostRegex.FindStringSubmatch(cgwURL.Host)
+	if len(hostMatches) == 0 {
+		return api.Config{}, fmt.Errorf("cannot parse host regex from host: %s", cgwURL.Host)
+	}
+
+	prefixMembershipLocation := hostMatches[1]
+	connectEnvironment := hostMatches[2]
+
+	// For the case where the regex captures the environment as the first group (when URL starts [ENV]-connectgateway..)
+	// Can be handled in the regex, but it's simpler to fix here in the code.
+	if strings.Contains(prefixMembershipLocation, "staging") ||
+		strings.Contains(prefixMembershipLocation, "autopush") {
+		connectEnvironment = hostMatches[1]
+		prefixMembershipLocation = ""
+	}
+
+	pathMatches := cgwPathRegex.FindStringSubmatch(cgwURL.Path)
+	if len(pathMatches) == 0 {
+		return api.Config{}, fmt.Errorf("cannot parse path regex from path: %s", cgwURL.Path)
+	}
+
+	projectNumber := pathMatches[1]
+	pathMembershipLocation := pathMatches[2]
+	membershipName := pathMatches[3]
+
+	sb := strings.Builder{}
+	sb.WriteString("https://")
+	if prefixMembershipLocation != "" {
+		sb.WriteString(prefixMembershipLocation)
+	}
+	if connectEnvironment != "" {
+		sb.WriteString(connectEnvironment)
+	}
+	sb.WriteString("connectgateway.")
+	if connectEnvironment != "" {
+		sb.WriteString("sandbox.")
+	}
+	sb.WriteString("googleapis.com")
+	sb.WriteString(fmt.Sprintf("/v1/projects/%s/locations/%s/gkeMemberships/%s",
+		projectNumber, pathMembershipLocation, membershipName))
+
+	return api.Config{
+		Clusters: map[string]*api.Cluster{
+			"cgw": {
+				Server: sb.String(),
+			},
+		},
+		AuthInfos: map[string]*api.AuthInfo{
+			"gcp": {
+				AuthProvider: &api.AuthProviderConfig{
+					Name:   "gcp",
+					Config: map[string]string{},
+				},
+			},
+		},
+		Contexts: map[string]*api.Context{
+			"cgw": {
+				Cluster:  "cgw",
+				AuthInfo: "gcp",
+			},
+		},
+		CurrentContext: "cgw",
+	}, nil
+}
+
+// ASM-ONLY-CODE END
