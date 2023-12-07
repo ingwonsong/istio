@@ -124,8 +124,22 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 		// http://cloud/anthos/multicluster-management/gateway
 		cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
 		if err != nil {
-			log.Errorf("failed to setup Connect Gateway: %v", err)
+			err = fmt.Errorf("failed to setup Connect Gateway for private cluster: %w", err)
+			log.Error(err)
 			if asm.IsInitPhasePrivateClusterIPFallbackDisabled() {
+				return nil, err
+			}
+			mcpcallback.RecordError(err)
+		} else {
+			endpoint = strings.TrimPrefix(cgwURL, "https://")
+			caCertificate = ""
+		}
+	} else if asm.ConnectGatewayForPublicCluster() != asm.CGWForPublicClusterDisabled {
+		cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
+		err = fmt.Errorf("failed to setup Connect Gateway for public cluster: %w", err)
+		if err != nil {
+			log.Error(err)
+			if asm.ConnectGatewayForPublicCluster() == asm.CGWForPublicClusterEnabledWithoutFallback {
 				return nil, err
 			}
 			mcpcallback.RecordError(err)

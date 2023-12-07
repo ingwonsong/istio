@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/slices"
 )
 
 var (
@@ -32,6 +33,14 @@ var (
 		"If disabled, Istiod initialization will return an error if setting up Connect Gateway failed for GKE private cluster.").Get()
 	enableRegionalConnectGateway = env.RegisterBoolVar("ENABLE_REGIONAL_CONNECT_GATEWAY", false,
 		"If enabled, regional Connect Gateway will be used to communicate with GKE Private Cluster when the membership is regional").Get()
+	connectGatewayForPublicCluster = env.RegisterStringVar("CONNECT_GATEWAY_FOR_PUBLIC_CLUSTER", "DISABLED",
+		"If enabled, Connect Gateway will be used to communicate with GKE Public Cluster. Values are DISABLED, ENABLED_WITH_FALLBACK, ENABLED_WITHOUT_FALLBACK.").Get() // nolint: lll
+)
+
+const (
+	CGWForPublicClusterDisabled               = "DISABLED"
+	CGWForPublicClusterEnabledWithFallback    = "ENABLED_WITH_FALLBACK"
+	CGWForPublicClusterEnabledWithoutFallback = "ENABLED_WITHOUT_FALLBACK"
 )
 
 func IsCloudRun() bool {
@@ -51,6 +60,10 @@ func IsEnableRegionalConnectGateway() bool {
 
 func IsInitPhasePrivateClusterIPFallbackDisabled() bool {
 	return disableInitPhasePrivateClusterIPFallback
+}
+
+func ConnectGatewayForPublicCluster() string {
+	return connectGatewayForPublicCluster
 }
 
 // MCPParameters represents the set of inputs from the CloudRun service environment variables
@@ -141,6 +154,10 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 		if err != nil {
 			return p, fmt.Errorf("parsing AFC_MANAGED_WEBHOOK: %w", err)
 		}
+	}
+	cgwForPublicClusterStates := []string{CGWForPublicClusterDisabled, CGWForPublicClusterEnabledWithFallback, CGWForPublicClusterEnabledWithoutFallback}
+	if !slices.Contains(cgwForPublicClusterStates, ConnectGatewayForPublicCluster()) {
+		return p, fmt.Errorf("invalid value for CONNECT_GATEWAY_FOR_PUBLIC_CLUSTER: %s", ConnectGatewayForPublicCluster())
 	}
 	return p, nil
 }
