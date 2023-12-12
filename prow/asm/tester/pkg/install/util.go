@@ -39,8 +39,12 @@ var enableOptionsArgs = []string{}
 
 func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (string, error) {
 	scriptBranch := settings.NewtaroCommit
-	if rev != nil && rev.Version != "" {
-		scriptBranch = fmt.Sprintf("release-%s", rev.Version)
+	if rev != nil {
+		if settings.ASMPackage != "" {
+			scriptBranch = strings.TrimPrefix(settings.ASMPackage, "@")
+		}	else if rev.Version != "" {
+			scriptBranch = fmt.Sprintf("release-%s", rev.Version)
+		}
 	}
 	scriptBaseName := "asmcli"
 	resp, err := downloadInstallScriptFromUrl(scriptBranch, scriptBaseName)

@@ -65,6 +65,9 @@ type Settings struct {
 	// Format is similar to revision versions, e.g. 1.10, 1.11.
 	ASMVersion string `flag:"asm-version" desc:"asm-version pins scripts and istiod versions to release versions, instead of specific commits and locally-built binary. For example: 1.10, 1.11."`
 
+	// ASMPackage sets the kpt/asmcli version to use for tests deployment
+	ASMPackage string `flag:"asm-package" desc:"asm-package pins kpt/asmcli version to use for installation when asm-version is set."`
+
 	// A list of http proxy used for multicloud cluster connection
 	ClusterProxy []string
 
@@ -222,6 +225,7 @@ func (s *Settings) String() string {
 	result += fmt.Sprintf("UseOnePlatform:                   %v\n", s.UseOnePlatform)
 	result += fmt.Sprintf("MulticloudOverrideEnvironProject: %v\n", s.MulticloudOverrideEnvironProject)
 	result += fmt.Sprintf("ASMVersion:                       %v\n", s.ASMVersion)
+	result += fmt.Sprintf("ASMPackage:                       %v\n", s.ASMPackage)
 	result += fmt.Sprintf("ClusterProxy:                     %v\n", s.ClusterProxy)
 	result += fmt.Sprintf("ClusterSSHUser:                   %v\n", s.ClusterSSHUser)
 	result += fmt.Sprintf("ClusterSSHKey:                    %v\n", s.ClusterSSHKey)
