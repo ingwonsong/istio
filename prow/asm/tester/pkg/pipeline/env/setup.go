@@ -661,13 +661,14 @@ func fixAWS(settings *resource.Settings) error {
 	if settings.UseOnePlatform {
 		configs := filepath.SplitList(settings.Kubeconfig)
 		for _, config := range configs {
-			if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+			if err := configMulticloudSOCKS5ClusterProxy(settings, multicloudClusterConfig{
 				// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
-				clusterArtifactsPath: filepath.Dir(config),
-				scriptRelPath:        ".deployer/tunnel.sh",
-				regexMatcher:         `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
-				sshKeyRelPath:        ".deployer/id_rsa",
-				kubeconfig:           config,
+				clusterArtifactsPath:     filepath.Dir(config),
+				scriptRelPath:            ".deployer/tunnel.sh",
+				regexMatcher:             `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
+				sshKeyRelPath:            ".deployer/id_rsa",
+				kubeconfig:               config,
+				connectivityMetadataPath: filepath.Dir(config) + "/connectivity-metadata/connectivity_metadata.json",
 			}); err != nil {
 				return err
 			}
