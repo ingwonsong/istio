@@ -22,6 +22,11 @@ import (
 
 // NewMDPExporter is a helper function to create a MDP opencensus exporter.
 func NewMDPExporter() (*gcpmonitoring.ASMExporter, error) {
+	// Metrics must be registered before they are exported.
+	if err := registerMetrics(); err != nil {
+		return nil, err
+	}
+
 	gcpmonitoring.SetPodName(getEnv("POD_NAME", "unknown"))
 	gcpmonitoring.SetPodNamespace(getEnv("POD_NAMESPACE", "unknown"))
 	return gcpmonitoring.NewMDPExporter(viewMap)

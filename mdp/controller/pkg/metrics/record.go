@@ -124,3 +124,13 @@ func ReportMDPUpTime(ut float64) {
 func ReportServingState(state string) {
 	servingState.With(stateLabel.Value(state)).Increment()
 }
+
+// ReportPodAddition reports a pod addition event. If the pod addition occurs successfully, errReason should be empty.
+func ReportPodAddition(errReason string) {
+	addPodCount.With(errorReasonLabel.Value(errReason)).Increment()
+}
+
+// ReportPodRemoval reports a pod removal event. If the pod removal occurs successfully, errReason should be empty.
+func ReportPodRemoval(errReason string) {
+	removePodCount.With(errorReasonLabel.Value(errReason)).Increment()
+}

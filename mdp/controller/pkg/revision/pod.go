@@ -269,14 +269,22 @@ func (p *PodCache) AddPod(ctx context.Context, object rtclient.Object) string {
 }
 
 func (p *PodCache) addPodUnsafe(ctx context.Context, object rtclient.Object) string {
+	// Update the error reason if pod addition does not occur successfully.
+	removalErrReason := "none"
+	defer func() {
+		metrics.ReportPodAddition(removalErrReason)
+	}()
+
 	pod := object.(*v1.Pod)
 	rev, err := p.mapper.RevisionForPod(ctx, object.(*v1.Pod))
 	if err != nil {
 		p.MarkDirty()
 		log.Errorf("can't identify revision for pod %s: %s", pod.Name, err)
+		removalErrReason = "unknown_rev"
 		return ""
 	}
 	if !p.podIsEnabled(ctx, pod, rev) {
+		removalErrReason = "unmanaged_pod"
 		// The cache only cares about managed pods, discard this one.
 		// Return the correct rev though to trigger a reconciliation and perform any required metrics change.
 		return rev
@@ -349,13 +357,14 @@ func prefer(inputs ...*bool) *bool {
 	return inputs[len(inputs)-1]
 }
 
-// RemovePod implements WritePodCache
+// RemovePod implements WritePodCache.
 func (p *PodCache) RemovePod(ctx context.Context, object rtclient.Object) string {
 	pod := object.(*v1.Pod)
-	rev, err := p.mapper.RevisionForPod(ctx, object.(*v1.Pod))
+	rev, err := p.mapper.RevisionForPod(ctx, pod)
 	if err != nil {
 		p.MarkDirty()
-		log.Errorf("can't identify revision for pod %s: %s", pod.Name, err)
+		log.Errorf("not removing pod %s, can't identify revision: %s", pod.Name, err)
+		metrics.ReportPodRemoval("unknown_rev")
 		return ""
 	}
 	proxyVersion, _ := util.ProxyVersion(pod)
@@ -367,22 +376,35 @@ func (p *PodCache) RemovePod(ctx context.Context, object rtclient.Object) string
 func (p *PodCache) RemovePodByName(rev, namespace, version, podname string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	// Update the error reason if pod removal does not occur successfully.
+	removalErrReason := "none"
+	defer func() {
+		metrics.ReportPodRemoval(removalErrReason)
+	}()
+
 	nsmap, ok := p.state[rev]
 	if !ok {
+		log.Infof("not removing pod %s in namespace %s with version %s, cache is dirty", podname, namespace, version)
 		p.MarkDirty()
+		removalErrReason = "dirty"
 		return
 	}
+
 	pvmap, ok := nsmap[namespace]
 	if !ok {
+		log.Infof("not removing pod %s in namespace %s with version %s, namespace map is empty", podname, namespace, version)
+		removalErrReason = "ns_not_found"
 		return
 	}
+
 	if version == "" {
 		// we may not know the version of the pod when removing from the cache, but we can safely remove from all
 		// versions since each pod should exist in only one.
 		for version, pods := range pvmap {
 			pods.Delete(podname)
 			// if empty, remove dead branches
-			if len(*pods) < 1 {
+			if pods.Length() == 0 {
 				delete(pvmap, version)
 			}
 			metrics.ReportProxiesSingleVersion(version, rev, pods.Length())
@@ -390,6 +412,7 @@ func (p *PodCache) RemovePodByName(rev, namespace, version, podname string) {
 	} else {
 		pods, ok := pvmap[version]
 		if !ok {
+			removalErrReason = "pod_not_found"
 			return
 		}
 		pods.Delete(podname)

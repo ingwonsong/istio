@@ -19,7 +19,13 @@ package ratelimiter
 import (
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/util/workqueue"
+
+	"istio.io/istio/pkg/metrics"
 )
+
+func init() {
+	workqueue.SetProvider(metrics.NewMetricsProvider())
+}
 
 // AdjustableRateLimitingInterface allows modifying rate limiter during the lifespan of the queue.
 type AdjustableRateLimitingInterface interface {
@@ -82,6 +88,7 @@ type MDPUpdateRateLimiter interface {
 func NewMDPRateLimitingQueueWithSpeedLimit(limit rate.Limit, burst int, speedLimit workqueue.RateLimiter,
 	failureLimiter workqueue.RateLimiter,
 ) MDPUpdateRateLimiter {
+	workqueue.SetProvider(metrics.NewMetricsProvider())
 	l := rate.NewLimiter(limit, burst)
 	bucketltr := &workqueue.BucketRateLimiter{Limiter: l}
 	maxSuccess := workqueue.NewMaxOfRateLimiter(bucketltr, speedLimit)

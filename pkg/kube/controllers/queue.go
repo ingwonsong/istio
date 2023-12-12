@@ -24,7 +24,12 @@ import (
 
 	"istio.io/istio/pkg/config"
 	istiolog "istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/metrics"
 )
+
+func init() {
+	workqueue.SetProvider(metrics.NewMetricsProvider())
+}
 
 type ReconcilerFn func(key types.NamespacedName) error
 
