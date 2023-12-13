@@ -271,6 +271,11 @@ function onprem::configure_ingress_ip() {
   INGRESS_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
     jq -r ".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.${INGRESS_ID}.ip_address")
 
+  if [[ -z "$INGRESS_IP" || "$INGRESS_IP" == "null" ]]; then
+    INGRESS_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
+        jq -r ".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.${INGRESS_ID}.ip_address")
+  fi
+
   # Inject the external IP for Ingress GW
   echo "----------Configuring external IP for ingress gw----------"
   kubectl patch svc istio-ingressgateway -n istio-system \
@@ -297,10 +302,18 @@ function onprem::configure_expansion_ip() {
   EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
     jq -r ".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.${EXPANSION_ID}.ip_address")
   if [[ -z "${EXPANSION_IP}" || "${EXPANSION_IP}" == "null" ]]; then
+    EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
+        jq -r ".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.${EXPANSION_ID}.ip_address")
+  fi
+  if [[ -z "${EXPANSION_IP}" || "${EXPANSION_IP}" == "null" ]]; then
     echo "Requesting herc for expansion IP"
     herc allocateIPs --parent "${HERC_PARENT}" -f "${CONFIG_DIR}/herc/expansion-ip.yaml"
     EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
       jq -r ".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.${EXPANSION_ID}.ip_address")
+    if [[ -z "${EXPANSION_IP}" || "${EXPANSION_IP}" == "null" ]]; then
+      EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
+          jq -r ".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.${EXPANSION_ID}.ip_address")
+    fi
   else
     echo "Using ${EXPANSION_IP} as the expansion IP"
   fi
