@@ -136,8 +136,8 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 		}
 	} else if p.HubMembership != "" && asm.ConnectGatewayForPublicCluster() != asm.CGWForPublicClusterDisabled {
 		cgwURL, err := connectGatewayURL(ctx, p.FleetProjectNumber, p.HubMembership)
-		err = fmt.Errorf("failed to setup Connect Gateway for public cluster: %w", err)
 		if err != nil {
+			err = fmt.Errorf("failed to setup Connect Gateway for public cluster: %w", err)
 			log.Error(err)
 			if asm.ConnectGatewayForPublicCluster() == asm.CGWForPublicClusterEnabledWithoutFallback {
 				return nil, err
