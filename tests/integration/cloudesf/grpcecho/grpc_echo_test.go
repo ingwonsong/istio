@@ -61,7 +61,8 @@ func TestCloudESFGrpcEcho(t *testing.T) {
 				},
 				"gcr.io/cloudesf-testing/grpc_echo_asm_e2e_config_ic_image",
 				"us.gcr.io/cloudesf-testing/e2e_grpc_echo_test_client",
-				[]string{},
+				[]string{"/grpc_echo_test"},
+				/* testClientImageExtraArgs */ []string{},
 				"us.gcr.io/cloudesf-testing/e2e_grpc_echo_test_server:"+cloudesf.Version(),
 			))
 }

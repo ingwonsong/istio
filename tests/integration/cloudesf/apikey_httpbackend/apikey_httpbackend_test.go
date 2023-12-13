@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apikeygrpc
+package apikeyhttpbackend
 
 import (
 	"path/filepath"
@@ -30,8 +30,8 @@ import (
 )
 
 var (
-	i                          istio.Instance
-	apiKeyGrpcTestConfigFolder = filepath.Join(env.IstioSrc, "cloudesf/testconfigs/apikeygrpc")
+	i                                 istio.Instance
+	apiKeyHTTPBackendTestConfigFolder = filepath.Join(env.IstioSrc, "cloudesf/testconfigs/apikey_httpbackend")
 
 	// This image wraps CloudESF test logic and its source is located at
 	// https://source.corp.google.com/piper///depot/google3/apiserving/cloudesf/tests/e2e/cep/clients/BUILD;rcl=392444512;l=39
@@ -49,23 +49,23 @@ func TestMain(m *testing.M) {
 		Run()
 }
 
-func TestCloudESFApiKeyGrpc(t *testing.T) {
+func TestCloudESFApiKeyHttpBackend(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("cloudesf.apikeygrpc").
+		Features("cloudesf.apikeyhttpbackend").
 		Run(
 			testflow.GenTestFlow(
 				i,
 				[]string{
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_envoyfilter.json",
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_gateway.json",
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_virtual_service.json",
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_service_entry.json",
-					apiKeyGrpcTestConfigFolder + "/apikey_grpc_asm_e2e_config_custom_bootstrap.json",
+					apiKeyHTTPBackendTestConfigFolder + "/apikey_grpc_asm_e2e_http_backend_config_envoyfilter.json",
+					apiKeyHTTPBackendTestConfigFolder + "/apikey_grpc_asm_e2e_http_backend_config_gateway.json",
+					apiKeyHTTPBackendTestConfigFolder + "/apikey_grpc_asm_e2e_http_backend_config_virtual_service.json",
+					apiKeyHTTPBackendTestConfigFolder + "/apikey_grpc_asm_e2e_http_backend_config_service_entry.json",
+					apiKeyHTTPBackendTestConfigFolder + "/apikey_grpc_asm_e2e_http_backend_config_custom_bootstrap.json",
 				},
-				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_config_ic_image",
+				"gcr.io/cloudesf-testing/apikey_grpc_asm_e2e_http_backend_config_ic_image",
 				cloudESFTestClientImage,
-				[]string{"/apikey_grpc_test"},
+				[]string{"/apikey_http_test"},
 				[]string{
 					"--skip_overrides_by_request_protocol_tests",
 				},

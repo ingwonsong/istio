@@ -199,4 +199,5 @@ features:
     upgrade:
   cloudesf:
     apikeygrpc:
+    apikeyhttpbackend:
     grpcecho:

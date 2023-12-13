@@ -328,6 +328,9 @@ spec:
   - name: grpc-8080
     port: 8080 # The port of the service
     targetPort: 26000 # The port of the backend.
+  - name: http-8081
+    port: 8081 # The port of the HTTP service
+    targetPort: 26001 # The port of the backend.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -348,6 +351,7 @@ spec:
         image: {{ .backendContainerImage }}
         ports:
         - containerPort: 26000
+        - containerPort: 26001
 `
 )
 
@@ -355,8 +359,8 @@ func isCustomBootstrap(path string) bool {
 	return strings.Contains(path, "custom_bootstrap.json")
 }
 
-func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImagePath,
-	testClientImageAddr string, testClientImageExtraArgs []string, backendImageAddr string,
+func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImagePath, testClientImageAddr string,
+	testClientImageCommands, testClientImageExtraArgs []string, backendImageAddr string,
 ) func(t framework.TestContext) {
 	return func(t framework.TestContext) {
 		// Deploy CloudESF config.
@@ -366,9 +370,10 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageP
 				t.Logf("deploy config %s", configPath)
 				namespace := ""
 
-				// The custom bootstrap config is a ConfigMap, and it should be deployed to the
-				// same namespace as the custom ingress gateway. It can be deployed in any namespace
-				// you want, and in this test it is `istio-system`.
+				// The custom bootstrap config is a ConfigMap, and it should be deployed
+				// to the same namespace as the custom ingress gateway. It can be
+				// deployed in any namespace you want, and in this test it is
+				// `istio-system`.
 				if isCustomBootstrap(configPath) {
 					namespace = "istio-system"
 				}
@@ -458,9 +463,10 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageP
 				ServiceAccountName: clientKSA,
 				Containers: []kubeApiCore.Container{
 					{
-						Image: fmt.Sprintf("%s:%s", testClientImageAddr, cloudesf.Version()),
-						Name:  clientContainer,
-						Args:  append(testClientImageExtraArgs, fmt.Sprintf("-host=%s:80", address)),
+						Image:   fmt.Sprintf("%s:%s", testClientImageAddr, cloudesf.Version()),
+						Name:    clientContainer,
+						Command: testClientImageCommands,
+						Args:    append(testClientImageExtraArgs, fmt.Sprintf("-host=%s:80", address)),
 					},
 				},
 			},
