@@ -21,6 +21,7 @@ spec:
           distribution: gke-1p
           provisionerArgs:
             region: us-east-2
+            useDynamicTopology: "false"
             nodeCount: "3"
             {{- if eq .Version "latest" }}
             kubernetesVersion: 1.28.3-gke.700
@@ -45,6 +46,7 @@ spec:
           distribution: gke-1p
           provisionerArgs:
             region: us-east-2
+            useDynamicTopology: "false"
             nodeCount: "3"
             {{- if eq .Version "latest" }}
             kubernetesVersion: 1.28.3-gke.700
