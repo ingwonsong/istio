@@ -165,6 +165,8 @@ func generateASMInstallEnvvars(settings *resource.Settings, rev *revision.Config
 		for k, v := range masterVars {
 			varMap[k] = v
 		}
+	} else if settings.ASMPackage != "" {
+		varMap["_CI_ASM_KPT_BRANCH"] = strings.TrimPrefix(settings.ASMPackage, "@")
 	}
 	// If we install revision from master or specified version not as revision.
 	if rev.Version == "" || rev.Name == "" {
