@@ -761,6 +761,9 @@ tests:
         - TestReachability/global_automtls_passthrough
         - TestReachability/mtls_disabled
         buganizerID: 238942267
+      - names:
+        - TestAuthz_JWT
+        buganizerID: 311066926
 
       # cloudesf/tests
       - names:
