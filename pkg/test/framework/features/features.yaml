@@ -90,6 +90,7 @@ features:
       file-mounted-certs:
       ecc-signature-algorithm:
       multiple-root:
+      cacert-rotation:
     migrationca:
       citadel-meshca:
       meshca-privateca:

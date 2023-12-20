@@ -23,6 +23,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
+	v1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/gateway-api/conformance/tests"
 	"sigs.k8s.io/gateway-api/conformance/utils/config"
 	"sigs.k8s.io/gateway-api/conformance/utils/suite"
@@ -56,8 +57,7 @@ var conformanceNamespaces = []string{
 }
 
 var skippedTests = map[string]string{
-	"MeshFrontendHostname":   "https://github.com/istio/istio/issues/44702",
-	"GatewayStaticAddresses": "https://github.com/istio/istio/issues/47467",
+	"MeshFrontendHostname": "https://github.com/istio/istio/issues/44702",
 }
 
 func init() {
@@ -105,16 +105,19 @@ func TestGatewayConformance(t *testing.T) {
 			}
 			config.SetupTimeoutConfig(&timeoutConfig)
 			features := suite.AllFeatures
+			hostnameType := v1.AddressType("Hostname")
 			opts := suite.Options{
-				Client:               c,
-				Clientset:            gatewayConformanceInputs.Client.Kube(),
-				RestConfig:           gatewayConformanceInputs.Client.RESTConfig(),
-				GatewayClassName:     "istio",
-				Debug:                scopes.Framework.DebugEnabled(),
-				CleanupBaseResources: gatewayConformanceInputs.Cleanup,
-				SupportedFeatures:    features,
-				SkipTests:            maps.Keys(skippedTests),
-				TimeoutConfig:        timeoutConfig,
+				Client:                   c,
+				Clientset:                gatewayConformanceInputs.Client.Kube(),
+				RestConfig:               gatewayConformanceInputs.Client.RESTConfig(),
+				GatewayClassName:         "istio",
+				Debug:                    scopes.Framework.DebugEnabled(),
+				CleanupBaseResources:     gatewayConformanceInputs.Cleanup,
+				SupportedFeatures:        features,
+				SkipTests:                maps.Keys(skippedTests),
+				UsableNetworkAddresses:   []v1.GatewayAddress{{Value: "infra-backend-v1.gateway-conformance-infra.svc.cluster.local", Type: &hostnameType}},
+				UnusableNetworkAddresses: []v1.GatewayAddress{{Value: "foo", Type: &hostnameType}},
+				TimeoutConfig:            timeoutConfig,
 			}
 			if rev := ctx.Settings().Revisions.Default(); rev != "" {
 				opts.NamespaceLabels = map[string]string{
