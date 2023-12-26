@@ -54,12 +54,12 @@ metadata:
   labels:
     app: istio-cni
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "watch", "delete", "patch", "update" ]
-- apiGroups: [""]
-  resources: ["events"]
-  verbs: ["get", "list", "watch", "delete", "patch", "update", "create" ]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["watch", "get", "list"]
 ---
 # Source: cni/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -158,7 +158,7 @@ spec:
             runAsGroup: 0
             runAsUser: 0
             runAsNonRoot: false
-            privileged: false
+            privileged: true
           command: ["install-cni"]
           args:
             - --log_output_level=default:"{{ .LOG_LEVEL }}",cni:"{{ .LOG_LEVEL }}"
@@ -181,9 +181,11 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: REPAIR_LABEL_PODS
-              value: "true"
+              value: "false"
             # Set to true to enable pod deletion
             - name: REPAIR_DELETE_PODS
+              value: "false"
+            - name: REPAIR_REPAIR_PODS
               value: "true"
             - name: REPAIR_RUN_AS_DAEMON
               value: "true"
@@ -213,6 +215,8 @@ spec:
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir
+            - mountPath: /host/proc
+              name: cni-host-procfs
             - mountPath: /host/etc/cni/net.d
               name: cni-net-dir
             - mountPath: /var/run/istio-cni
@@ -229,6 +233,10 @@ spec:
         - name: cni-bin-dir
           hostPath:
             path: /home/kubernetes/bin
+        - name: cni-host-procfs
+          hostPath:
+            path: /proc
+            type: Directory
         - name: cni-net-dir
           hostPath:
             path: /etc/cni/net.d
@@ -241,3 +249,9 @@ spec:
             path: /var/run/netns
             type: Directory # this directory must exist on the node, if it does not,
             # consult your container runtime documentation for the appropriate path
+---
+# Source: cni/templates/clusterrole.yaml
+---
+---
+# Source: cni/templates/clusterrolebinding.yaml
+---

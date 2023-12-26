@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,18 +72,15 @@ func TestNetworkUpdateTriggers(t *testing.T) {
 	}
 
 	c.AppendNetworkGatewayHandler(func() {
-		notifyCh <- struct{}{}
 		setGws(c.NetworkGateways())
+		notifyCh <- struct{}{}
 	})
 	expectGateways := func(t *testing.T, expectedGws int) {
-		retry.UntilSuccessOrFail(t, func() error {
-			// wait for a notification
-			assert.ChannelHasItem(t, notifyCh)
-			if n := len(getGws()); n != expectedGws {
-				return fmt.Errorf("expected %d gateways but got %d", expectedGws, n)
-			}
-			return nil
-		}, retry.Timeout(5*time.Second), retry.Delay(10*time.Millisecond))
+		// wait for a notification
+		assert.ChannelHasItem(t, notifyCh)
+		if n := len(getGws()); n != expectedGws {
+			t.Errorf("expected %d gateways but got %d", expectedGws, n)
+		}
 	}
 
 	t.Run("add meshnetworks", func(t *testing.T) {
@@ -229,7 +225,7 @@ func addMeshNetworksFromRegistryGateway(t *testing.T, c *FakeController, watcher
 	}})
 }
 
-func TestSyncAllWorkloadsFromAmbient(t *testing.T) {
+func TestAmbientSystemNamespaceNetworkChange(t *testing.T) {
 	test.SetForTest(t, &features.EnableAmbientControllers, true)
 
 	s := newAmbientTestServer(t, testC, "")
@@ -247,17 +243,28 @@ func TestSyncAllWorkloadsFromAmbient(t *testing.T) {
 				return fmt.Errorf("no network notify")
 			}
 			podNames := sets.New[string]("pod1", "pod2")
+			svcNames := sets.New[string]("svc1")
 			addresses := c.ambientIndex.All()
 			for _, addr := range addresses {
 				wl := addr.GetWorkload()
-				if wl == nil {
-					continue
+				if wl != nil {
+					if !podNames.Contains(wl.Name) {
+						continue
+					}
+					if addr.GetWorkload().Network != network {
+						return fmt.Errorf("no network notify")
+					}
 				}
-				if !podNames.Contains(wl.Name) {
-					continue
-				}
-				if addr.GetWorkload().Network != network {
-					return fmt.Errorf("no network notify")
+				svc := addr.GetService()
+				if svc != nil {
+					if !svcNames.Contains(svc.Name) {
+						continue
+					}
+					for _, saddr := range svc.GetAddresses() {
+						if saddr.GetNetwork() != network {
+							return fmt.Errorf("no network notify")
+						}
+					}
 				}
 			}
 			return nil
@@ -269,6 +276,14 @@ func TestSyncAllWorkloadsFromAmbient(t *testing.T) {
 
 	s.addPods(t, "127.0.0.2", "pod2", "sa2", map[string]string{"app": "a"}, nil, true, corev1.PodRunning)
 	s.assertAddresses(t, s.addrXdsName("127.0.0.2"), "pod2")
+
+	s.addService(t, "svc1", map[string]string{}, // labels
+		map[string]string{}, // annotations
+		[]int32{80},
+		map[string]string{"app": "a"}, // selector
+		"10.0.0.1",
+	)
+	s.assertAddresses(t, "", "pod1", "pod2", "svc1")
 
 	createOrUpdateNamespace(t, s.controller, testNS, "")
 	createOrUpdateNamespace(t, s.controller, systemNS, "")

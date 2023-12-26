@@ -243,6 +243,14 @@ var (
 	// ReferencedInternalGateway defines a diag.MessageType for message "ReferencedInternalGateway".
 	// Description: VirtualServices should not reference internal Gateways.
 	ReferencedInternalGateway = diag.NewMessageType(diag.Warning, "IST0165", "Gateway reference in VirtualService %s is to an implementation-generated internal Gateway: %s.")
+
+	// IneffectiveSelector defines a diag.MessageType for message "IneffectiveSelector".
+	// Description: Selector has no effect when applied to Kubernetes Gateways.
+	IneffectiveSelector = diag.NewMessageType(diag.Warning, "IST0166", "Ineffective selector on Kubernetes Gateway %s. Use the TargetRef field instead.")
+
+	// IneffectivePolicy defines a diag.MessageType for message "IneffectivePolicy".
+	// Description: The policy applied has no impact.
+	IneffectivePolicy = diag.NewMessageType(diag.Warning, "IST0167", "The policy has no impact: %s.")
 )
 
 // All returns a list of all known message types.
@@ -307,6 +315,8 @@ func All() []*diag.MessageType {
 		InvalidExternalControlPlaneConfig,
 		ExternalControlPlaneAddressIsNotAHostname,
 		ReferencedInternalGateway,
+		IneffectiveSelector,
+		IneffectivePolicy,
 	}
 }
 
@@ -889,5 +899,23 @@ func NewReferencedInternalGateway(r *resource.Instance, virtualservice string, g
 		r,
 		virtualservice,
 		gateway,
+	)
+}
+
+// NewIneffectiveSelector returns a new diag.Message based on IneffectiveSelector.
+func NewIneffectiveSelector(r *resource.Instance, gateway string) diag.Message {
+	return diag.NewMessage(
+		IneffectiveSelector,
+		r,
+		gateway,
+	)
+}
+
+// NewIneffectivePolicy returns a new diag.Message based on IneffectivePolicy.
+func NewIneffectivePolicy(r *resource.Instance, reason string) diag.Message {
+	return diag.NewMessage(
+		IneffectivePolicy,
+		r,
+		reason,
 	)
 }

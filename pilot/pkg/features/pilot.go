@@ -15,6 +15,7 @@
 package features
 
 import (
+	"runtime"
 	"strings"
 	"time"
 
@@ -58,17 +59,43 @@ var (
 		return f
 	}()
 
-	PushThrottle = env.Register(
-		"PILOT_PUSH_THROTTLE",
-		100,
-		"Limits the number of concurrent pushes allowed. On larger machines this can be increased for faster pushes",
-	).Get()
+	PushThrottle = func() int {
+		v := env.Register(
+			"PILOT_PUSH_THROTTLE",
+			0,
+			"Limits the number of concurrent pushes allowed. On larger machines this can be increased for faster pushes. "+
+				"If set to 0 or unset, the max will be automatically determined based on the machine size",
+		).Get()
+		if v > 0 {
+			return v
+		}
+		procs := runtime.GOMAXPROCS(0)
+		// Heuristic to scale with cores. We end up with...
+		// 1: 20
+		// 2: 25
+		// 4: 35
+		// 32: 100
+		return min(15+5*procs, 100)
+	}()
 
-	RequestLimit = env.Register(
-		"PILOT_MAX_REQUESTS_PER_SECOND",
-		25.0,
-		"Limits the number of incoming XDS requests per second. On larger machines this can be increased to handle more proxies concurrently.",
-	).Get()
+	RequestLimit = func() float64 {
+		v := env.Register(
+			"PILOT_MAX_REQUESTS_PER_SECOND",
+			0.0,
+			"Limits the number of incoming XDS requests per second. On larger machines this can be increased to handle more proxies concurrently. "+
+				"If set to 0 or unset, the max will be automatically determined based on the machine size",
+		).Get()
+		if v > 0 {
+			return v
+		}
+		procs := runtime.GOMAXPROCS(0)
+		// Heuristic to scale with cores. We end up with...
+		// 1: 20
+		// 2: 25
+		// 4: 35
+		// 32: 100
+		return min(float64(15+5*procs), 100.0)
+	}()
 
 	// FilterGatewayClusterConfig controls if a subset of clusters(only those required) should be pushed to gateways
 	FilterGatewayClusterConfig = env.Register("PILOT_FILTER_GATEWAY_CLUSTER_CONFIG", false,
@@ -225,7 +252,7 @@ var (
 		"The group to be used for the Kubernetes Multi-Cluster Services (MCS) API.").Get()
 
 	MCSAPIVersion = env.Register("MCS_API_VERSION", "v1alpha1",
-		"The version to be used for the Kubernets Multi-Cluster Services (MCS) API.").Get()
+		"The version to be used for the Kubernetes Multi-Cluster Services (MCS) API.").Get()
 
 	EnableMCSAutoExport = env.Register(
 		"ENABLE_MCS_AUTO_EXPORT",
@@ -695,8 +722,8 @@ var (
 		"If enabled, istiod will skip verifying the certificate of the JWKS server.").Get()
 
 	// User should not rely on builtin resource labels, this flag will be removed in future releases(1.20).
-	EnableOTELBuiltinResourceLables = env.Register("ENABLE_OTEL_BUILTIN_RESOURCE_LABELS", false,
-		"If enabled, envoy will send builtin lables(e.g. node_name) via OTel sink.").Get()
+	EnableOTELBuiltinResourceLabels = env.Register("ENABLE_OTEL_BUILTIN_RESOURCE_LABELS", false,
+		"If enabled, envoy will send builtin labels(e.g. node_name) via OTel sink.").Get()
 
 	EnableSelectorBasedK8sGatewayPolicy = env.Register("ENABLE_SELECTOR_BASED_K8S_GATEWAY_POLICY", true,
 		"If disabled, Gateway API gateways will ignore workloadSelector policies, only"+
@@ -713,6 +740,10 @@ var (
 
 	StackdriverAuditLog = env.Register("STACKDRIVER_AUDIT_LOG", false, ""+
 		"If enabled, StackDriver audit logging will be enabled.").Get()
+
+	PersistOldestWinsHeuristicForVirtualServiceHostMatching = env.Register("PERSIST_OLDEST_FIRST_HEURISTIC_FOR_VIRTUAL_SERVICE_HOST_MATCHING", false,
+		"If enabled, istiod will persist the oldest first heuristic for subtly conflicting traffic policy selection"+
+			"(such as with overlapping wildcard hosts)").Get()
 )
 
 // UnsafeFeaturesEnabled returns true if any unsafe features are enabled.
