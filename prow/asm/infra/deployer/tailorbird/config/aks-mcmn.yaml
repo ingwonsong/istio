@@ -25,7 +25,7 @@ spec:
             kubernetesVersion: "1.28"
             username: asm-svc-acct
             region: centralus
-            nodeVmSize: "Standard_D8_v3"
+            nodeVmSize: "Standard_B4ms"
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
         metadata:
@@ -39,4 +39,4 @@ spec:
             username: asm-svc-acct
             region: centralus
             kubernetesVersion: "1.28"
-            nodeVmSize: "Standard_D8_v3"
+            nodeVmSize: "Standard_B4ms"

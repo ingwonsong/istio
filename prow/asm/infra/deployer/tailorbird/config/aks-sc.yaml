@@ -30,4 +30,4 @@ spec:
             {{- end }}
             username: asm-svc-acct
             compressArtifacts: "true"
-            nodeVmSize: "Standard_D8_v3"
+            nodeVmSize: "Standard_B4ms"
