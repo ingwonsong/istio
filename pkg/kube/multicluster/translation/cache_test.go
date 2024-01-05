@@ -25,6 +25,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleapis/gax-go/v2"
 	"k8s.io/client-go/tools/clientcmd/api"
+
+	"istio.io/istio/pkg/asm"
 )
 
 type mockMembershipLister struct {
@@ -63,6 +65,7 @@ func TestCache(t *testing.T) {
 		ip                         string
 		projectNumber              string
 		hubEndpoint                string
+		cgwForPublicMultiCluster   string
 		existingMemberships        []*gkehubpb.Membership
 		existingClusters           []*containerpb.Cluster
 		existingCacheState         map[string]*gkehubpb.Membership
@@ -80,8 +83,9 @@ func TestCache(t *testing.T) {
 					Name: "projects/example/locations/global/memberships/random",
 				},
 			},
-			wantFound:     true,
-			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
+			cgwForPublicMultiCluster: asm.CGWForPublicClusterDisabled,
+			wantFound:                true,
+			wantAPIConfig:            createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name:        "config exists in cache with autopush hub endpoint",
@@ -92,8 +96,9 @@ func TestCache(t *testing.T) {
 					Name: "projects/example/locations/global/memberships/random",
 				},
 			},
-			wantFound:     true,
-			wantAPIConfig: createAPIConfig("https://autopush-connectgateway.sandbox.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
+			cgwForPublicMultiCluster: asm.CGWForPublicClusterDisabled,
+			wantFound:                true,
+			wantAPIConfig:            createAPIConfig("https://autopush-connectgateway.sandbox.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name: "config exists in cache with multiple entries",
@@ -106,8 +111,9 @@ func TestCache(t *testing.T) {
 					Name: "projects/example/locations/global/memberships/random2",
 				},
 			},
-			wantFound:     true,
-			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
+			cgwForPublicMultiCluster: asm.CGWForPublicClusterDisabled,
+			wantFound:                true,
+			wantAPIConfig:            createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name: "config does not exist in cache or in existing memberships",
@@ -117,7 +123,8 @@ func TestCache(t *testing.T) {
 					Name: "projects/example/locations/global/memberships/random",
 				},
 			},
-			wantAPICalls: true,
+			cgwForPublicMultiCluster: asm.CGWForPublicClusterDisabled,
+			wantAPICalls:             true,
 		},
 		{
 			name:               "config does not exist in cache but fleet membership exists with corresponding IP",
@@ -130,14 +137,16 @@ func TestCache(t *testing.T) {
 			existingClusters: []*containerpb.Cluster{
 				createPrivateCluster("projects/example/locations/us-west1-a/clusters/cluster", "5.6.7.8", ""),
 			},
-			wantFound:     true,
-			wantAPICalls:  true,
-			wantAPIConfig: createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
+			cgwForPublicMultiCluster: asm.CGWForPublicClusterDisabled,
+			wantFound:                true,
+			wantAPICalls:             true,
+			wantAPIConfig:            createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
 		},
 		{
 			name:                       "cache contains IP in known public cluster cache",
 			ip:                         "1.2.3.4",
 			existingKnownPublicIPCache: map[string]bool{"1.2.3.4": true},
+			cgwForPublicMultiCluster:   asm.CGWForPublicClusterDisabled,
 			wantPublic:                 true,
 		},
 		{
@@ -152,8 +161,37 @@ func TestCache(t *testing.T) {
 			existingClusters: []*containerpb.Cluster{
 				createPublicCluster("projects/example/locations/us-west1-a/clusters/cluster", "1.2.3.4"),
 			},
-			wantAPICalls: true,
-			wantPublic:   true,
+			cgwForPublicMultiCluster: asm.CGWForPublicClusterDisabled,
+			wantAPICalls:             true,
+			wantPublic:               true,
+		},
+		{
+			name:                       "IP matches with public cluster and CGW for public multi-cluster enabled with fallback",
+			ip:                         "1.2.3.4",
+			existingKnownPublicIPCache: map[string]bool{},
+			existingCacheState:         map[string]*gkehubpb.Membership{},
+			existingMemberships: []*gkehubpb.Membership{
+				createMembership("projects/5678/locations/global/memberships/random",
+					"//container.googleapis.com/projects/example/locations/us-west1-a/clusters/cluster"),
+			},
+			existingClusters: []*containerpb.Cluster{
+				createPublicCluster("projects/example/locations/us-west1-a/clusters/cluster", "1.2.3.4"),
+			},
+			cgwForPublicMultiCluster: asm.CGWForPublicClusterEnabledWithFallback,
+			wantFound:                true,
+			wantAPICalls:             true,
+			wantPublic:               true,
+			wantAPIConfig:            createAPIConfig("https://connectgateway.googleapis.com/v1/projects/5678/locations/global/gkeMemberships/random"),
+		},
+		{
+			name:                       "IP matches with public cluster and CGW for public multi-cluster enabled without fallback",
+			ip:                         "1.2.3.4",
+			existingKnownPublicIPCache: map[string]bool{},
+			existingCacheState:         map[string]*gkehubpb.Membership{},
+			cgwForPublicMultiCluster:   asm.CGWForPublicClusterEnabledWithoutFallback,
+			wantFound:                  false,
+			wantAPICalls:               true,
+			wantPublic:                 false,
 		},
 	}
 
@@ -174,6 +212,7 @@ func TestCache(t *testing.T) {
 				privateIPToMembership: tc.existingCacheState,
 				knownPublicIPs:        tc.existingKnownPublicIPCache,
 			}
+			asm.SetConnectGatewayForPublicRemoteCluster(tc.cgwForPublicMultiCluster)
 
 			config, found, public := c.Get(tc.ip)
 			if found != tc.wantFound {

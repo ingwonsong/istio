@@ -35,6 +35,8 @@ var (
 		"If enabled, regional Connect Gateway will be used to communicate with GKE Private Cluster when the membership is regional").Get()
 	connectGatewayForPublicCluster = env.RegisterStringVar("CONNECT_GATEWAY_FOR_PUBLIC_CLUSTER", "DISABLED",
 		"If enabled, Connect Gateway will be used to communicate with GKE Public Cluster. Values are DISABLED, ENABLED_WITH_FALLBACK, ENABLED_WITHOUT_FALLBACK.").Get() // nolint: lll
+	connectGatewayForPublicRemoteCluster = env.RegisterStringVar("CONNECT_GATEWAY_FOR_PUBLIC_REMOTE_CLUSTER", "DISABLED",
+		"If enabled, Connect Gateway will be used to communicate with remote clusters for GKE Public Cluster. Values are DISABLED, ENABLED_WITH_FALLBACK, ENABLED_WITHOUT_FALLBACK.").Get() // nolint: lll
 )
 
 const (
@@ -64,6 +66,15 @@ func IsInitPhasePrivateClusterIPFallbackDisabled() bool {
 
 func ConnectGatewayForPublicCluster() string {
 	return connectGatewayForPublicCluster
+}
+
+func ConnectGatewayForPublicRemoteCluster() string {
+	return connectGatewayForPublicRemoteCluster
+}
+
+// For unit testing only.
+func SetConnectGatewayForPublicRemoteCluster(val string) {
+	connectGatewayForPublicRemoteCluster = val
 }
 
 // MCPParameters represents the set of inputs from the CloudRun service environment variables
@@ -155,9 +166,16 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 			return p, fmt.Errorf("parsing AFC_MANAGED_WEBHOOK: %w", err)
 		}
 	}
-	cgwForPublicClusterStates := []string{CGWForPublicClusterDisabled, CGWForPublicClusterEnabledWithFallback, CGWForPublicClusterEnabledWithoutFallback}
+	cgwForPublicClusterStates := []string{
+		CGWForPublicClusterDisabled,
+		CGWForPublicClusterEnabledWithFallback,
+		CGWForPublicClusterEnabledWithoutFallback,
+	}
 	if !slices.Contains(cgwForPublicClusterStates, ConnectGatewayForPublicCluster()) {
 		return p, fmt.Errorf("invalid value for CONNECT_GATEWAY_FOR_PUBLIC_CLUSTER: %s", ConnectGatewayForPublicCluster())
+	}
+	if !slices.Contains(cgwForPublicClusterStates, ConnectGatewayForPublicRemoteCluster()) {
+		return p, fmt.Errorf("invalid value for CONNECT_GATEWAY_FOR_PUBLIC_REMOTE_CLUSTER: %s", ConnectGatewayForPublicRemoteCluster())
 	}
 	return p, nil
 }

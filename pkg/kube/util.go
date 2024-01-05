@@ -38,6 +38,7 @@ import (
 	_ "istio.io/istio/pilot/pkg/clientauthplugin/auth" //  allow out of cluster authentication
 	"istio.io/istio/pilot/pkg/config/kube/crd"
 	"istio.io/istio/pilot/pkg/features"
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/kube/multicluster/translation"
 	"istio.io/istio/pkg/log"
@@ -531,6 +532,10 @@ func sanitizeKubeConfig(config api.Config, allowlist sets.String, cache translat
 	if cache == nil {
 		return config, nil
 	}
+	// Currently, api.Config (Kubernetes secret) maps to only one cluster. More specifically, we create one secret
+	// per cluster and we don't merge the cluster.
+	// https://cloud.google.com/service-mesh/docs/unified-install/gke-install-multi-cluster#private-clusters-endpoint
+	// TODO(ruigu): Change the following "continue" to "return" for better readability.
 	for _, cluster := range config.Clusters {
 		serverURL, err := url.Parse(cluster.Server)
 		if err != nil {
@@ -539,7 +544,7 @@ func sanitizeKubeConfig(config api.Config, allowlist sets.String, cache translat
 		if net.ParseIP(serverURL.Host) != nil {
 			ipBasedRemoteSecretsCount.Increment()
 			cgwConfig, found, public := cache.Get(serverURL.Host)
-			if public {
+			if public && asm.ConnectGatewayForPublicRemoteCluster() == asm.CGWForPublicClusterDisabled {
 				continue
 			}
 			if found {
@@ -547,8 +552,12 @@ func sanitizeKubeConfig(config api.Config, allowlist sets.String, cache translat
 				successfulTranslations.Increment()
 				return cgwConfig, nil
 			}
-			log.Warnf("Failed to translate secret with host: %s\nconfig: %v", serverURL.Host, config)
+			err := fmt.Errorf("failed to translate secret with host: %s\nconfig: %v", serverURL.Host, config)
+			log.Warn(err)
 			failedTranslations.Increment()
+			if asm.ConnectGatewayForPublicRemoteCluster() == asm.CGWForPublicClusterEnabledWithoutFallback {
+				return api.Config{}, err
+			}
 		}
 	}
 	// ASM-ONLY-CODE END

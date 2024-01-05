@@ -32,6 +32,7 @@ import (
 	"google.golang.org/api/option"
 	"k8s.io/client-go/tools/clientcmd/api"
 
+	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/log"
 )
 
@@ -128,37 +129,39 @@ func (m *membershipCache) BootstrapFinished() {
 
 // Get accepts an IP and returns an API config if translated, whether the secret was translated,
 // and then whether or not the secret mapped to a public IP.
-func (m *membershipCache) Get(ip string) (api.Config, bool, bool) {
-	if _, ok := m.knownPublicIPs[ip]; ok {
-		log.Infof("Skipping cache refresh for public cluster with endpoint %s", ip)
-		return api.Config{}, false, true
+func (m *membershipCache) Get(ip string) (_ api.Config, translated bool, public bool) {
+	_, public = m.knownPublicIPs[ip]
+	if public && asm.ConnectGatewayForPublicRemoteCluster() == asm.CGWForPublicClusterDisabled {
+		log.Infof("ConnectGateway %s for remote cluster discovery with public cluster. Skipping cache refresh for public cluster with endpoint %s", asm.ConnectGatewayForPublicRemoteCluster(), ip) // nolint: lll
+		return api.Config{}, false, public
 	}
 	apiConfig, ok := m.apiConfig(ip)
 	if ok {
-		return apiConfig, true, false
+		return apiConfig, true, public
 	}
 
 	// If the cache has been initialized and the bootstrap is not finished yet,
 	// do not refersh and just return false.
 	if m.cacheInitialized && !m.bootstrapFinished {
-		return api.Config{}, false, false
+		return api.Config{}, false, public
 	}
 
 	if err := m.refreshCache(); err != nil {
 		log.Warnf("Failed to refresh translation cache: %v", err)
-		return api.Config{}, false, false
+		return api.Config{}, false, public
 	}
 
-	if _, ok := m.knownPublicIPs[ip]; ok {
-		log.Infof("Skipping cache refresh for public cluster with endpoint %s", ip)
-		return api.Config{}, false, true
+	_, public = m.knownPublicIPs[ip]
+	if public && asm.ConnectGatewayForPublicRemoteCluster() == asm.CGWForPublicClusterDisabled {
+		log.Infof("ConnectGateway %s for remote cluster discovery with public cluster. Skipping cache refresh for public cluster with endpoint %s", asm.ConnectGatewayForPublicRemoteCluster(), ip) // nolint: lll
+		return api.Config{}, false, public
 	}
 	apiConfig, ok = m.apiConfig(ip)
 	if ok {
-		return apiConfig, true, false
+		return apiConfig, true, public
 	}
 
-	return api.Config{}, false, false
+	return api.Config{}, false, public
 }
 
 func (m *membershipCache) Run(stop <-chan struct{}) {
@@ -198,6 +201,9 @@ func (m *membershipCache) refreshCache() error {
 				m.privateIPToMembership[privateConfig.PrivateEndpoint] = membership
 			} else {
 				m.knownPublicIPs[cluster.GetEndpoint()] = true
+				if asm.ConnectGatewayForPublicRemoteCluster() != asm.CGWForPublicClusterDisabled {
+					m.publicIPToMembership[cluster.GetEndpoint()] = membership
+				}
 			}
 		}()
 	}
