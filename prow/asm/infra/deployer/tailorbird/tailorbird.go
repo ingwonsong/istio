@@ -53,7 +53,7 @@ const (
 	tracConfigRelDirForVersionFiles = "../../team/anthos-trac-team/configs/upgrade/asm/gen-0"
 
 	// GCS path for downloading kubetest2-tailorbird binary
-	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2022-12-16-192919/kubetest2-tailorbird"
+	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2024-01-05-223651/kubetest2-tailorbird"
 
 	installawsIamAuthenticatorCmd = `curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/aws-iam-authenticator \
 			&& chmod +x ./aws-iam-authenticator \
@@ -960,9 +960,7 @@ func (d *Instance) waitForUpgradeToFinish(clusterName string) error {
 // Otherwise, returns false (if status is Pending or Failed). If failed, an
 // error is also returned.
 func (d *Instance) IsUpgradeDone(clusterName string) (bool, error) {
-	// TODO(aayushtyagi): change this back to getUpgradeStatusUsingKubetest when b/261093252 gets resolved
-	// changed the method through which upgrade status is retrieved, using kubectl instead of kt2-tb
-	s, err := d.getUpgradeStatusUsingKubectl(clusterName)
+	s, err := d.getUpgradeStatusUsingKubetest(clusterName)
 	if err != nil {
 		return false, err
 	}
