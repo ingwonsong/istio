@@ -11,8 +11,8 @@ FROM gcr.io/cloudesf-release/proxy:${CLOUDESF_VERSION} as cloudesf_gcr
 # This image is a custom built debian11 distroless image with multiarchitecture support.
 # It is built on the base distroless image, with iptables binary and libraries added
 # The source can be found at https://github.com/istio/distroless/tree/iptables
-# This version is from commit a8b3fb577adb785211ce704fdf892983fc268b11.
-FROM gcr.io/istio-release/iptables@sha256:4be99c4dbc0a158fc4404d66198bf18f321292ffeff55201e9c8fa518a54b81e as distroless
+# This version is from commit 973bd8e0048479c770ab4332063921e22d222c9b.
+FROM ${ISTIO_BASE_REGISTRY}/iptables@sha256:4dac4c82f3370abfeacda0eb7e5a513c8f52b9ac78badf17cdc96f0b341871fd as distroless
 
 # The following section is used as base image if BASE_DISTRIBUTION=debug
 FROM ${ISTIO_BASE_REGISTRY}/base:${BASE_VERSION} as debug
