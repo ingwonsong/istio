@@ -175,7 +175,8 @@ tests:
           - TestTraffic/serverfirst/auto-tcp-server.*
           - TestCustomGateway
           - TestAddToAndRemoveFromMesh
-          - TestGateway
+          - TestGateway/.*
+          - TestGatewayConformance
           - TestVMRegistrationLifecycle
           - TestValidation
           - TestServiceExports*
