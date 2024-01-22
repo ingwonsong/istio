@@ -634,7 +634,7 @@ spec:
 					rev = t.Settings().Revisions.Default()
 				}
 				os.WriteFile(d, []byte(fmt.Sprintf(`
-revision: %v
+revision: %q
 service:
   type: ClusterIP # LoadBalancer is slow and not necessary for this tests
 autoscaling:

@@ -30,7 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
@@ -112,21 +111,10 @@ func BuildClientCmd(kubeconfig, context string, overrides ...func(*clientcmd.Con
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 }
 
-// CreateClientset is a helper function that builds a kubernetes Clienset from a kubeconfig
-// filepath. See `BuildClientConfig` for kubeconfig loading rules.
-func CreateClientset(kubeconfig, context string, fns ...func(*rest.Config)) (*kubernetes.Clientset, error) {
-	c, err := BuildClientConfig(kubeconfig, context)
-	if err != nil {
-		return nil, fmt.Errorf("build client config: %v", err)
-	}
-	for _, fn := range fns {
-		fn(c)
-	}
-	return kubernetes.NewForConfig(c)
-}
-
-// NewRestConfigFromContext returns the rest.Config for the given kube config context.
-func NewRestConfigFromContext(kubeConfig []byte, cache translation.Cache, configOverrides ...func(*rest.Config)) (*rest.Config, error) {
+// NewUntrustedRestConfig returns the rest.Config for the given kube config context.
+// This is suitable for access to remote clusters from untrusted kubeConfig inputs.
+// The kubeconfig is sanitized and unsafe auth methods are denied.
+func NewUntrustedRestConfig(kubeConfig []byte, cache translation.Cache, configOverrides ...func(*rest.Config)) (*rest.Config, error) {
 	if len(kubeConfig) == 0 {
 		return nil, fmt.Errorf("kubeconfig is empty")
 	}
@@ -149,7 +137,23 @@ func NewRestConfigFromContext(kubeConfig []byte, cache translation.Cache, config
 	for _, co := range configOverrides {
 		co(restConfig)
 	}
-	return restConfig, nil
+
+	return SetRestDefaults(restConfig), nil
+}
+
+// InClusterConfig returns the rest.Config for in cluster usage.
+// Typically, DefaultRestConfig is used and this is auto detected; usage directly allows explicitly overriding to use in-cluster.
+func InClusterConfig(fns ...func(*rest.Config)) (*rest.Config, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fn := range fns {
+		fn(config)
+	}
+
+	return SetRestDefaults(config), nil
 }
 
 // DefaultRestConfig returns the rest.Config for the given kube config file and context.

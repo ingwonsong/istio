@@ -1191,6 +1191,10 @@ message Values {
 
   string defaultRevision = 40;
 
+  string profile = 42;
+
+  string compatibilityVersion = 43;
+
   // Managed Data Plane (MDP) config is ASM-specific.
   MDPConfig mdp = 101;
 }
