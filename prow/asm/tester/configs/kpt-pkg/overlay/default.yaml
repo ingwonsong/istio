@@ -11,9 +11,6 @@ spec:
       v2:
         prometheus:
           enabled: true
-        stackdriver:
-          configOverride:
-            enable_audit_log: true
   meshConfig:
     defaultConfig:
       gatewayTopology:

@@ -250,7 +250,6 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 		"--cluster_name", cluster.Name,
 		"--cluster_location", cluster.Location,
 		"--verbose",
-		"--option", "audit-authorizationpolicy",
 	)
 	installFlags = append(installFlags, getInstallEnableFlags()...)
 

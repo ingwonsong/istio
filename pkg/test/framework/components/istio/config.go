@@ -395,7 +395,8 @@ func ClaimSystemNamespace(ctx resource.Context) (namespace.Instance, error) {
 		Prefix: istioCfg.SystemNamespace,
 		Inject: false,
 		// Already handled directly
-		SkipDump: true,
+		SkipDump:    true,
+		SkipCleanup: true,
 	}
 	return namespace.Claim(ctx, nsCfg)
 }

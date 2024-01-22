@@ -998,6 +998,16 @@ func TestValidateGateway(t *testing.T) {
 			"", "",
 		},
 		{
+			"happy k8s gateway-api server with no attached routes",
+			&networking.Gateway{
+				Servers: []*networking.Server{{
+					Hosts: []string{"~/foo.bar.com"},
+					Port:  &networking.Port{Name: "name1", Number: 7, Protocol: "http"},
+				}},
+			},
+			"invalid namespace value", "",
+		},
+		{
 			"invalid port",
 			&networking.Gateway{
 				Servers: []*networking.Server{
@@ -1091,6 +1101,42 @@ func TestValidateGateway(t *testing.T) {
 	}
 }
 
+func TestValidateK8sGateway(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      proto.Message
+		out     string
+		warning string
+	}{
+		{
+			"happy k8s gateway-api server with no attached routes",
+			&networking.Gateway{
+				Servers: []*networking.Server{{
+					Hosts: []string{"~/foo.bar.com"},
+					Port:  &networking.Port{Name: "name1", Number: 7, Protocol: "http"},
+				}},
+			},
+			"", "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			annotations := map[string]string{}
+			annotations[constants.InternalGatewaySemantics] = constants.GatewaySemanticsGateway
+
+			warn, err := ValidateGateway(config.Config{
+				Meta: config.Meta{
+					Name:        someName,
+					Namespace:   someNamespace,
+					Annotations: annotations,
+				},
+				Spec: tt.in,
+			})
+			checkValidationMessage(t, warn, err, tt.warning, tt.out)
+		})
+	}
+}
+
 func TestValidateServer(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1138,6 +1184,14 @@ func TestValidateServer(t *testing.T) {
 				Port:  &networking.Port{Number: 7, Name: "http", Protocol: "http"},
 			},
 			"",
+		},
+		{
+			"invalid ~/name",
+			&networking.Server{
+				Hosts: []string{"~/foo.bar.com"},
+				Port:  &networking.Port{Number: 7, Name: "http", Protocol: "http"},
+			},
+			"namespace",
 		},
 		{
 			"invalid domain ns/name format",
@@ -1247,7 +1301,7 @@ func TestValidateServer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := validateServer(tt.in)
+			v := validateServer(tt.in, false)
 			warn, err := v.Unwrap()
 			checkValidationMessage(t, warn, err, "", tt.out)
 		})
@@ -2756,6 +2810,26 @@ func TestValidateHTTPRoute(t *testing.T) {
 				},
 			}},
 		}, valid: false},
+		{name: "empty exact header match", route: &networking.HTTPRoute{
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.bar"},
+			}},
+			Match: []*networking.HTTPMatchRequest{{
+				Headers: map[string]*networking.StringMatch{
+					"emptyexact": {MatchType: &networking.StringMatch_Exact{Exact: ""}},
+				},
+			}},
+		}, valid: false},
+		{name: "empty regex header match", route: &networking.HTTPRoute{
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.bar"},
+			}},
+			Match: []*networking.HTTPMatchRequest{{
+				Headers: map[string]*networking.StringMatch{
+					"emptyregex": {MatchType: &networking.StringMatch_Regex{Regex: ""}},
+				},
+			}},
+		}, valid: false},
 		{name: "nil match", route: &networking.HTTPRoute{
 			Route: []*networking.HTTPRouteDestination{{
 				Destination: &networking.Destination{Host: "foo.bar"},
@@ -2851,6 +2925,184 @@ func TestValidateHTTPRoute(t *testing.T) {
 			Mirrors: []*networking.HTTPMirrorPolicy{{
 				Destination: &networking.Destination{Host: "foo.bar"},
 			}},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		// method
+		{name: "empty exact method match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Method: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Exact{
+							Exact: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty prefix method match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Method: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Prefix{
+							Prefix: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty regex method match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Method: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Regex{
+							Regex: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		// scheme
+		{name: "empty exact scheme match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Scheme: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Exact{
+							Exact: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty prefix scheme match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Scheme: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Prefix{
+							Prefix: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty regex scheme match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Scheme: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Regex{
+							Regex: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		// authority
+		{name: "empty exact authority match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Authority: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Exact{
+							Exact: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty prefix authority match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Authority: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Prefix{
+							Prefix: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty regex authority match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					Authority: &networking.StringMatch{
+						MatchType: &networking.StringMatch_Regex{
+							Regex: "",
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		// query param
+		{name: "empty exact QueryParams match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					QueryParams: map[string]*networking.StringMatch{
+						"q": {
+							MatchType: &networking.StringMatch_Exact{
+								Exact: "",
+							},
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty prefix QueryParams match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					QueryParams: map[string]*networking.StringMatch{
+						"q": {
+							MatchType: &networking.StringMatch_Prefix{
+								Prefix: "",
+							},
+						},
+					},
+				},
+			},
+			Route: []*networking.HTTPRouteDestination{{
+				Destination: &networking.Destination{Host: "foo.baz"},
+			}},
+		}, valid: false},
+		{name: "empty regex QueryParams match", route: &networking.HTTPRoute{
+			Match: []*networking.HTTPMatchRequest{
+				{
+					QueryParams: map[string]*networking.StringMatch{
+						"q": {
+							MatchType: &networking.StringMatch_Regex{
+								Regex: "",
+							},
+						},
+					},
+				},
+			},
 			Route: []*networking.HTTPRouteDestination{{
 				Destination: &networking.Destination{Host: "foo.baz"},
 			}},
