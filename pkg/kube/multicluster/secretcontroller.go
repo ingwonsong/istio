@@ -99,16 +99,12 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 	// Istiod is running on the external cluster. Use the inCluster credentials to
 	// create a kubeclientset
 	if features.LocalClusterSecretWatcher && features.ExternalIstiod {
-		config, err := rest.InClusterConfig()
+		config, err := kube.InClusterConfig(configOverrides...)
 		if err != nil {
 			log.Errorf("Could not get istiod incluster configuration: %v", err)
 			return nil
 		}
 		log.Info("Successfully retrieved incluster config.")
-
-		for _, overwrite := range configOverrides {
-			overwrite(config)
-		}
 
 		localKubeClient, err := kube.NewClient(kube.NewClientConfigForRestConfig(config), clusterID)
 		if err != nil {
@@ -239,7 +235,7 @@ func (c *Controller) processItem(key types.NamespacedName) error {
 var BuildClientsFromConfig = func(kubeConfig []byte, clusterId cluster.ID,
 	cache translation.Cache, configOverrides ...func(*rest.Config),
 ) (kube.Client, error) {
-	restConfig, err := kube.NewRestConfigFromContext(kubeConfig, cache, configOverrides...)
+	restConfig, err := kube.NewUntrustedRestConfig(kubeConfig, cache, configOverrides...)
 	if err != nil {
 		return nil, err
 	}

@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/cobra/doc"
 	"github.com/spf13/viper"
 
 	"istio.io/istio/istioctl/cmd/asm"
@@ -253,7 +252,7 @@ debug and diagnose their Istio mesh.
 	hideInheritedFlags(asmCmd, "namespace", "istioNamespace", "charts")
 	rootCmd.AddCommand(asmCmd)
 
-	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, &doc.GenManHeader{
+	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, collateral.Metadata{
 		Title:   "Istio Control",
 		Section: "istioctl CLI",
 		Manual:  "Istio Control",
