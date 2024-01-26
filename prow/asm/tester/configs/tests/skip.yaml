@@ -770,6 +770,7 @@ tests:
       - names:
           - TestCloudESFApiKeyGrpc
           - TestCloudESFGrpcEcho
+          - TestCloudESFApiKeyHttpBackend
         reason: it requires installing istiod first
 
   - selectors:
