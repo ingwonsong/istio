@@ -292,7 +292,7 @@ MARKDOWN_LINT_ALLOWLIST=localhost:8080,storage.googleapis.com/istio-artifacts/pi
 lint-helm-global:
 	find manifests -name 'Chart.yaml' -print0 | ${XARGS} -L 1 dirname | xargs -r helm lint
 
-lint: lint-python lint-copyright-banner lint-scripts lint-go lint-dockerfiles lint-markdown lint-yaml lint-licenses lint-helm-global lint-skip-config ## Runs all linters.
+lint: lint-python lint-copyright-banner lint-scripts lint-go lint-dockerfiles lint-markdown lint-yaml lint-licenses lint-helm-global ## Runs all linters.
 	@bin/check_samples.sh
 	@testlinter
 	@envvarlinter istioctl pilot security
@@ -382,17 +382,17 @@ copy-addonmigration-manifest:
 #-----------------------------------------------------------------------------
 
 # Non-static istioctl targets. These are typically a build artifact.
-${TARGET_OUT}/release/istioctl-linux-amd64: depend
+${TARGET_OUT}/release/istioctl-linux-amd64:
 	GOOS=linux GOARCH=amd64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
-${TARGET_OUT}/release/istioctl-linux-armv7: depend
+${TARGET_OUT}/release/istioctl-linux-armv7:
 	GOOS=linux GOARCH=arm GOARM=7 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
-${TARGET_OUT}/release/istioctl-linux-arm64: depend
+${TARGET_OUT}/release/istioctl-linux-arm64:
 	GOOS=linux GOARCH=arm64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
-${TARGET_OUT}/release/istioctl-osx: depend
+${TARGET_OUT}/release/istioctl-osx:
 	GOOS=darwin GOARCH=amd64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
-${TARGET_OUT}/release/istioctl-osx-arm64: depend
+${TARGET_OUT}/release/istioctl-osx-arm64:
 	GOOS=darwin GOARCH=arm64 LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
-${TARGET_OUT}/release/istioctl-win.exe: depend
+${TARGET_OUT}/release/istioctl-win.exe:
 	GOOS=windows LDFLAGS=$(RELEASE_LDFLAGS) CGO_ENABLED=0 common/scripts/gobuild.sh $@ ./istioctl/cmd/istioctl
 
 # generate the istioctl completion files
