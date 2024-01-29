@@ -224,6 +224,12 @@ func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config,
 			flags = append(flags, "--option", "cni-onprem")
 		case resource.GKEOnGCP:
 			flags = append(flags, "--option", "cni-gcp")
+		case resource.BareMetal:
+			if strings.Contains(settings.BMServerOS, "rhel") {
+				flags = append(flags, "--option", "cni-onprem-rhel")
+			} else {
+				flags = append(flags, "--option", "cni-onprem")
+			}
 		default:
 			log.Println("Adding default (cni enabled) CNI overlay.")
 			flags = append(flags, "--option", "cni-onprem")

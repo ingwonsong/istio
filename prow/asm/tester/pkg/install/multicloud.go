@@ -136,12 +136,17 @@ func (c *installer) installASMOnMulticloudClusters(rev *revision.Config) error {
 
 	if len(kubeconfigs) > 1 {
 		if c.settings.ClusterType == resource.BareMetal {
+			interfaceName := "ens4"
+			if strings.Contains(c.settings.BMServerOS, "rhel") {
+				interfaceName = "eth0"
+			}
 			return exec.Dispatch(
 				c.settings.RepoRootDir,
 				"configure_remote_secrets_for_baremetal",
 				nil,
 				exec.WithAdditionalEnvs([]string{
 					fmt.Sprintf("HTTP_PROXY_LIST=%s", strings.Join(c.settings.ClusterProxy, ",")),
+					fmt.Sprintf("INTERFACE_NAME=%s", interfaceName),
 				}),
 			)
 		} else if c.settings.ClusterType == resource.OnPrem { // TODO(samnaser) should we use `asmcli create-mesh`?

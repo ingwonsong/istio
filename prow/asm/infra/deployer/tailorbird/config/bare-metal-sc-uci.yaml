@@ -34,6 +34,9 @@ spec:
               distribution: gke
               provisionerArgs:
                 username: asm-svc-acct
+                {{- if .BMServerOS }}
+                serverOS: "{{ .BMServerOS }}"
+                {{- end }}
                 bmctlVersion: "{{ .Version }}"
                 bmctlVersionPrefix: "{{ .VersionPrefix }}"
                 {{- if .UpgradeVersion }}

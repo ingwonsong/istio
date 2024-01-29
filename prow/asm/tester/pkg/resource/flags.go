@@ -94,6 +94,9 @@ func ReconcileAndValidateSettings(settings *Settings) error {
 	if settings.UseKubevirtVM && settings.ClusterType != BareMetal {
 		errs = append(errs, errors.New("--use-kubevirt-vm can only be used with Bare Metal"))
 	}
+	if len(settings.BMServerOS) != 0 && settings.ClusterType != BareMetal {
+		errs = append(errs, errors.New("--bm-server-os can only be used with Bare Metal"))
+	}
 
 	return multierr.Combine(errs...)
 }

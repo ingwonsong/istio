@@ -137,6 +137,9 @@ type Settings struct {
 	// Use v2 API to attach clusters
 	UseAttachedV2 bool `flag:"use-attached-v2" desc:"Whether to use v2 API to attach EKS and AKS clusters."`
 
+	//Server OS for baremetal platform
+	BMServerOS string `flag:"bm-server-os" desc:"Server OS for baremetal platform."`
+
 	VMSettings
 
 	MCPSettings

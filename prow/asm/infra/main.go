@@ -81,6 +81,7 @@ func main() {
 	flag.BoolVar(&cfg.RegionalisedMembership, "regionalised-membership", cfg.RegionalisedMembership, "Feature flag to test off GCP regionalised membership")
 	flag.StringVar((*string)(&cfg.Topology), "topology", string(cfg.Topology),
 		fmt.Sprintf("the cluster topology for the SUT (optional). Can be one of %v", types.SupportedTopologies))
+	flag.StringVar(&cfg.BMServerOS, "bm-server-os", cfg.BMServerOS, "Server OS for baremetal platform")
 	flag.StringVar((*string)(&cfg.WIP), "wip", string(cfg.WIP),
 		fmt.Sprintf("Workload Identity Pool, can be one of %v", types.SupportedWIPs))
 	flag.StringSliceVar(&features, "feature", []string{},

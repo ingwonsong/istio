@@ -104,6 +104,7 @@ type Instance struct {
 
 type TemplateParameters struct {
 	GCSBucket                    string
+	BMServerOS                   string
 	Version                      string
 	VersionPrefix                string
 	UpgradeVersion               string
@@ -772,6 +773,7 @@ func (d *Instance) rookeryFile() (string, error) {
 
 	rep := TemplateParameters{
 		GCSBucket:           d.getGCSBucket(),
+		BMServerOS:          d.cfg.BMServerOS,
 		Version:             version,
 		VersionPrefix:       versionPrefix,
 		OnPremHubDevProject: onPremHubDevProject,

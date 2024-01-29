@@ -62,6 +62,7 @@ type Instance struct {
 	UpgradeClusterVersion          []string
 	UpgradeClusterVersionTracIndex []int
 	GCSBucket                      string
+	BMServerOS                     string
 	IsCloudESFTest                 bool
 	Topology                       types.Topology
 	WIP                            types.WIP
@@ -131,6 +132,9 @@ func (c Instance) GetTesterFlags() ([]string, error) {
 	}
 	if c.UseGSM {
 		testerFlags = append(testerFlags, "--use-gsm")
+	}
+	if len(c.BMServerOS) != 0 {
+		testerFlags = append(testerFlags, "--bm-server-os="+c.BMServerOS)
 	}
 	return append(testerFlags, extraTestFlagArr...), nil
 }
