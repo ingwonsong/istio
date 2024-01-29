@@ -224,8 +224,7 @@ STANDARD_BINARIES:=./istioctl/cmd/istioctl \
   ./samples/extauthz/cmd/extauthz \
   ./operator/cmd/operator \
   ./mdp/controller/cmd/mdp \
-  ./tools/packaging/knative/addonmigration \
-  ./tools/bug-report
+  ./tools/packaging/knative/addonmigration
 
 # These are binaries that require Linux to build, and should
 # be skipped on other platforms. Notably this includes the current Linux-only Istio CNI plugin
@@ -236,7 +235,7 @@ LINUX_AGENT_BINARIES:=./cni/cmd/istio-cni \
 BINARIES:=$(STANDARD_BINARIES) $(AGENT_BINARIES) $(LINUX_AGENT_BINARIES)
 
 # List of binaries that have their size tested
-RELEASE_SIZE_TEST_BINARIES:=pilot-discovery pilot-agent istioctl bug-report envoy ztunnel client server
+RELEASE_SIZE_TEST_BINARIES:=pilot-discovery pilot-agent istioctl envoy ztunnel client server
 
 # agent: enables agent-specific files. Usually this is used to trim dependencies where they would be hard to trim through standard refactoring
 # disable_pgv: disables protoc-gen-validation. This is not used buts adds many MB to Envoy protos

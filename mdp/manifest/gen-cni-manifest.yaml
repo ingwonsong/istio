@@ -27,6 +27,7 @@ data:
           "log_level": "{{ .LOG_LEVEL }}",
           "log_uds_address": "__LOG_UDS_ADDRESS__",
           
+          "cni_event_address": "__CNI_EVENT_ADDRESS__",
           "kubernetes": {
               "kubeconfig": "__KUBECONFIG_FILEPATH__",
               "cni_bin_dir": "/home/kubernetes/bin",
@@ -217,10 +218,11 @@ spec:
               name: cni-bin-dir
             - mountPath: /host/proc
               name: cni-host-procfs
+              readOnly: true
             - mountPath: /host/etc/cni/net.d
               name: cni-net-dir
             - mountPath: /var/run/istio-cni
-              name: cni-log-dir
+              name: cni-socket-dir
           resources:
             limits:
               cpu: 400m
@@ -240,15 +242,16 @@ spec:
         - name: cni-net-dir
           hostPath:
             path: /etc/cni/net.d
-        # Used for UDS log
-        - name: cni-log-dir
+        # Used for UDS sockets for logging, ambient eventing
+        - name: cni-socket-dir
           hostPath:
             path: /var/run/istio-cni
         - name: cni-netns-dir
           hostPath:
             path: /var/run/netns
-            type: Directory # this directory must exist on the node, if it does not,
-            # consult your container runtime documentation for the appropriate path
+            type: DirectoryOrCreate # DirectoryOrCreate instead of Directory for the following reason - CNI may not bind mount this until a non-hostnetwork pod is scheduled on the node,
+            # and we don't want to block CNI agent pod creation on waiting for the first non-hostnetwork pod.
+            # Once the CNI does mount this, it will get populated and we're good.
 ---
 # Source: cni/templates/clusterrole.yaml
 ---

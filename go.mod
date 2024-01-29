@@ -20,7 +20,6 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/cheggaaa/pb/v3 v3.1.4
-	github.com/cilium/ebpf v0.12.3
 	github.com/cncf/xds/go v0.0.0-20231128003011-0fa0005c9caa
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.4.0
@@ -32,7 +31,6 @@ require (
 	github.com/fatih/color v1.16.0
 	github.com/felixge/fgprof v0.9.3
 	github.com/florianl/go-nflog/v2 v2.0.1
-	github.com/florianl/go-tc v0.4.2
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-jose/go-jose/v3 v3.0.1
 	github.com/go-logr/logr v1.4.1
@@ -51,7 +49,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/josharian/native v1.1.0
 	github.com/kr/pretty v0.3.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/lestrrat-go/jwx v1.2.28
@@ -76,6 +73,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
 	github.com/stoewer/go-strcase v1.3.0
+	github.com/stretchr/testify v1.8.4
 	github.com/thalescpl-io/k8s-kms-plugin v0.5.1-0.20200921230108-72051fb36f12 // Latest release doesn't include required APIs
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/yl2chen/cidranger v1.0.2
@@ -108,8 +106,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.13.3
-	istio.io/api v1.19.0-alpha.1.0.20240125172533-cc05e6259edf
-	istio.io/client-go v1.19.0-alpha.1.0.20240125173231-0f298e1e13eb
+	istio.io/api v1.19.0-alpha.1.0.20240126145958-9911a0a6990a
+	istio.io/client-go v1.19.0-alpha.1.0.20240126150359-d26889f75e9f
 	k8s.io/api v0.29.0
 	k8s.io/apiextensions-apiserver v0.29.0
 	k8s.io/apimachinery v0.29.0
@@ -186,6 +184,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/josharian/native v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -232,7 +231,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tidwall/gjson v1.12.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
