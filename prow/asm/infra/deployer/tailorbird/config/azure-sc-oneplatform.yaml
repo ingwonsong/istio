@@ -22,11 +22,11 @@ spec:
               provisionerArgs:
                 nodeCount: "3"
                 {{- if eq .Version "latest" }}
-                kubernetesVersion: 1.28.3-gke.700
+                kubernetesVersion: 1.28.5-gke.100
                 {{- else if .Version }}
                 kubernetesVersion: "{{ .Version }}"
                 {{- else }}
-                kubernetesVersion: 1.28.3-gke.700
+                kubernetesVersion: 1.28.5-gke.100
                 {{- end }}
                 username: asm-svc-acct
                 nodepoolPatch: |
