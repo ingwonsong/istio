@@ -95,10 +95,11 @@ type MCPParameters struct {
 	XDSAuthProvider    string
 	GKEClusterURL      string
 	FleetProjectNumber string
-	AFCManagedWebhook  bool
 	GKEHubMembership   string
 	CAAddr             string
 	CAType             string
+	AFCManagedWebhook  bool
+	EnableManagedCNI   bool
 }
 
 // nolint: golint
@@ -159,12 +160,15 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	p.PodName = fmt.Sprintf("%s-%d", p.KRevision, time.Now().Nanosecond())
 	p.CAAddr = os.Getenv("CAAddr")
 	p.CAType = os.Getenv("CA")
-	if v := os.Getenv("AFC_MANAGED_WEBHOOK"); v != "" {
-		var err error
-		p.AFCManagedWebhook, err = strconv.ParseBool(v)
-		if err != nil {
-			return p, fmt.Errorf("parsing AFC_MANAGED_WEBHOOK: %w", err)
-		}
+
+	var err error
+	p.AFCManagedWebhook, err = getBoolEnv("AFC_MANAGED_WEBHOOK")
+	if err != nil {
+		return p, err
+	}
+	p.EnableManagedCNI, err = getBoolEnv("ENABLE_MANAGED_CNI")
+	if err != nil {
+		return p, err
 	}
 	cgwForPublicClusterStates := []string{
 		CGWForPublicClusterDisabled,
@@ -192,4 +196,17 @@ func InjectProxyEnvFromIstiodEnv(m map[string]string) {
 			}
 		}
 	}
+}
+
+func getBoolEnv(env string) (bool, error) {
+	val := os.Getenv(env)
+	if val == "" {
+		return false, nil
+	}
+
+	boolVal, err := strconv.ParseBool(val)
+	if err != nil {
+		return false, fmt.Errorf("parsing %s: %w", env, err)
+	}
+	return boolVal, nil
 }

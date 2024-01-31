@@ -143,9 +143,13 @@ func newMCPCommand() *cobra.Command {
 }
 
 func generateTemplateParameters(p asm.MCPParameters, options *AsmOptions, client kubelib.Client, cluster *containerpb.Cluster) (TemplateParameters, error) {
-	cniEnabled, err := getCniEnabled(options, client)
-	if err != nil {
-		return TemplateParameters{}, err
+	cniEnabled := p.EnableManagedCNI
+	if !cniEnabled {
+		var err error
+		cniEnabled, err = getCniEnabled(options, client)
+		if err != nil {
+			return TemplateParameters{}, err
+		}
 	}
 	templateParams := TemplateParameters{
 		MCPParameters:           p,
