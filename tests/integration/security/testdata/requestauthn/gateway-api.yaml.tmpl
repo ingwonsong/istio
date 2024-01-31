@@ -2,6 +2,9 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: Gateway
 metadata:
   name: {{ .To.ServiceName }}-gateway
+  # TODO: b/323100711 remove below annotation
+  annotations:
+      service.beta.kubernetes.io/port_80_health-probe_protocol: tcp
 spec:
   gatewayClassName: istio
   listeners:
