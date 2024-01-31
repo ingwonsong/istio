@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	k8ssets "k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 	v1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -105,6 +106,14 @@ func TestGatewayConformance(t *testing.T) {
 			}
 			config.SetupTimeoutConfig(&timeoutConfig)
 			features := suite.AllFeatures
+			if ctx.Settings().GatewayConformanceStandardOnly {
+				features = k8ssets.New[suite.SupportedFeature]().
+					Insert(suite.GatewayExtendedFeatures.UnsortedList()...).
+					Insert(suite.ReferenceGrantCoreFeatures.UnsortedList()...).
+					Insert(suite.HTTPRouteCoreFeatures.UnsortedList()...).
+					Insert(suite.HTTPRouteExtendedFeatures.UnsortedList()...).
+					Insert(suite.MeshCoreFeatures.UnsortedList()...)
+			}
 			hostnameType := v1.AddressType("Hostname")
 			opts := suite.Options{
 				Client:                   c,
