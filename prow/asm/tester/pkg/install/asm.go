@@ -226,7 +226,7 @@ func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config,
 			flags = append(flags, "--option", "cni-gcp")
 		case resource.BareMetal:
 			if strings.Contains(settings.BMServerOS, "rhel") {
-				flags = append(flags, "--option", "cni-onprem-rhel")
+				flags = append(flags, "--option", "cni-baremetal-rhel")
 			} else {
 				flags = append(flags, "--option", "cni-onprem")
 			}
