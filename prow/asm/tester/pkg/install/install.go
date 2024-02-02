@@ -156,8 +156,8 @@ func (c *installer) postInstall(rev *revision.Config) error {
 		if err := multiversion.ReplaceWebhook(rev, context); err != nil {
 			return err
 		}
-		if c.settings.ControlPlane != resource.Managed {
-			// for managed cases, we by default enable StackDriver logging. Enable access logs in this method
+		if c.settings.ControlPlane != resource.Managed && c.settings.ClusterType != resource.GKEOnGCP {
+			// for managed or unmanaged on GKE cases, we by default enable StackDriver logging. Enable access logs in this method
 			// will actually disable the SD logging. Instead, we configure them separately to avoid this issue.
 			if err := EnableAccessLogging(context); err != nil {
 				return err
