@@ -26,7 +26,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/docker/cli v25.0.1+incompatible
-	github.com/envoyproxy/go-control-plane v0.12.1-0.20240117015050-472addddff92
+	github.com/envoyproxy/go-control-plane v0.12.1-0.20240201193905-4becb1e82b0c
 	github.com/evanphx/json-patch/v5 v5.7.0
 	github.com/fatih/color v1.16.0
 	github.com/felixge/fgprof v0.9.3
@@ -57,7 +57,7 @@ require (
 	github.com/miekg/dns v1.1.58
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/moby/buildkit v0.12.4
+	github.com/moby/buildkit v0.12.5
 	github.com/onsi/gomega v1.31.1
 	github.com/openshift/api v0.0.0-20240125191952-1e2afa0f76cf
 	github.com/pires/go-proxyproto v0.7.0
@@ -107,8 +107,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.14.0
-	istio.io/api v1.19.0-alpha.1.0.20240131071142-22665f38610f
-	istio.io/client-go v1.19.0-alpha.1.0.20240131071536-30f8e6cc2c83
+	istio.io/api v1.19.0-alpha.1.0.20240201214940-2b08fa3c3263
+	istio.io/client-go v1.19.0-alpha.1.0.20240201215540-c92494ee42bd
 	k8s.io/api v0.29.1
 	k8s.io/apiextensions-apiserver v0.29.1
 	k8s.io/apimachinery v0.29.1
@@ -176,7 +176,7 @@ require (
 	github.com/grafana/regexp v0.0.0-20221122212121-6b5c0a4cb7fd // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 // indirect
 	github.com/gruntwork-io/terratest v0.40.7 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -218,6 +218,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/planetscale/vtprotobuf v0.6.0 // indirect
 	github.com/prometheus/statsd_exporter v0.22.7 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/rivo/uniseg v0.4.6 // indirect
