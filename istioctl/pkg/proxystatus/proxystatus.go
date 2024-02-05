@@ -26,6 +26,7 @@ import (
 	"istio.io/istio/istioctl/pkg/cli"
 	"istio.io/istio/istioctl/pkg/clioptions"
 	"istio.io/istio/istioctl/pkg/completion"
+	"istio.io/istio/istioctl/pkg/csm/csds"
 	"istio.io/istio/istioctl/pkg/multixds"
 	"istio.io/istio/istioctl/pkg/util/ambient"
 	"istio.io/istio/istioctl/pkg/writer/compare"
@@ -153,6 +154,8 @@ func XdsStatusCommand(ctx cli.Context) *cobra.Command {
 	var opts clioptions.ControlPlaneOptions
 	var centralOpts clioptions.CentralControlPlaneOptions
 	var multiXdsOpts multixds.Options
+	var meshName string
+	var projectNumber int64
 
 	statusCmd := &cobra.Command{
 		Use:   "proxy-status [<type>/]<name>[.<namespace>]",
@@ -213,6 +216,22 @@ Retrieves last sent and last acknowledged xDS sync from Istiod to each Envoy in 
 					return fmt.Errorf("could not contact sidecar: %w", err)
 				}
 
+				// CSM code begin
+				// First call CSDS API to check if the pod connects to TD
+				if csdsResponses, err := csds.New(csds.ClientOptions{
+					ProjectNumber: projectNumber,
+					MeshName:      meshName,
+					NodeID:        podName + "." + ns,
+					EnvoyDump:     envoyDump,
+				}).Run(); err != nil {
+					return fmt.Errorf("returning error when calling CSDS API: %w", err)
+				} else if csdsResponses != nil {
+					// TODO(siyiwang): Prints both control plane config dump and envoy config dump
+					return nil
+				}
+				// CSM code end
+
+				// Check istiod
 				xdsRequest := discovery.DiscoveryRequest{
 					ResourceNames: []string{fmt.Sprintf("%s.%s", podName, ns)},
 					TypeUrl:       pilotxds.TypeDebugConfigDump,
@@ -238,7 +257,18 @@ Retrieves last sent and last acknowledged xDS sync from Istiod to each Envoy in 
 				Writer:    c.OutOrStdout(),
 				Namespace: ctx.Namespace(),
 			}
-			return sw.PrintAll(xdsResponses)
+			// CSM code begin
+			// Call CSDS API
+			csdsResponses, err := csds.New(csds.ClientOptions{
+				ProjectNumber: projectNumber,
+				MeshName:      meshName,
+			}).Run()
+			if err != nil {
+				// Fail instantly returning error from csds client
+				return fmt.Errorf("error calling csds API: %w", err)
+			}
+			return sw.CSMPrintAll(xdsResponses, csdsResponses)
+			// CSM code end
 		},
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return completion.ValidPodsNameArgs(cmd, ctx, args, toComplete)
@@ -254,6 +284,9 @@ Retrieves last sent and last acknowledged xDS sync from Istiod to each Envoy in 
 	statusCmd.PersistentFlags().IntVar(&multiXdsOpts.XdsViaAgentsLimit, "xds-via-agents-limit", 100,
 		"Maximum number of pods being visited by istioctl when `xds-via-agent` flag is true."+
 			"To iterate all the agent pods without limit, set to 0")
-
+	// CSM code begin
+	statusCmd.PersistentFlags().Int64Var(&projectNumber, "projectNumber", 0, "Target projectNumber for troubleshooting")
+	statusCmd.PersistentFlags().StringVar(&meshName, "meshName", "", "MeshName for the target cluster for troubleshooting")
+	// CSM code end
 	return statusCmd
 }

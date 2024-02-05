@@ -25,6 +25,7 @@ import (
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	xdsstatus "github.com/envoyproxy/go-control-plane/envoy/service/status/v3"
 
+	"istio.io/istio/istioctl/pkg/csm/csds"
 	"istio.io/istio/istioctl/pkg/multixds"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/xds"
@@ -157,7 +158,7 @@ func xdsStatus(sent, acked string, typ model.NodeType) string {
 
 // PrintAll takes a slice of Istiod syncz responses and outputs them using a tabwriter
 func (s *XdsStatusWriter) PrintAll(statuses map[string]*discovery.DiscoveryResponse) error {
-	w, fullStatus, err := s.setupStatusPrint(statuses)
+	w, fullStatus, err := s.setupStatusPrint(statuses, nil) // CSM code
 	if err != nil {
 		return err
 	}
@@ -172,11 +173,72 @@ func (s *XdsStatusWriter) PrintAll(statuses map[string]*discovery.DiscoveryRespo
 	return nil
 }
 
-func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryResponse) (*tabwriter.Writer, []*xdsWriterStatus, error) {
+// CSMPrintAll takes a slice of Istiod syncz responses and outputs them using a tabwriter
+func (s *XdsStatusWriter) CSMPrintAll(statuses map[string]*discovery.DiscoveryResponse, csdsResponses map[string]*xdsstatus.ClientStatusResponse) error {
+	// Print xds from response
+	w, fullStatus, err := s.setupStatusPrint(statuses, csdsResponses)
+	if err != nil {
+		return err
+	}
+	for _, status := range fullStatus {
+		if err := xdsStatusPrintln(w, status); err != nil {
+			return err
+		}
+	}
+	if w != nil {
+		return w.Flush()
+	}
+	return nil
+}
+
+func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryResponse,
+	csdsResponses map[string]*xdsstatus.ClientStatusResponse,
+) (*tabwriter.Writer, []*xdsWriterStatus, error) {
 	// Gather the statuses before printing so they may be sorted
 	var fullStatus []*xdsWriterStatus
 	mappedResp := map[string]string{}
 	var w *tabwriter.Writer
+
+	// CSM code begin
+	csdsFound := map[string]struct{}{}
+	for _, csdsResponse := range csdsResponses {
+		if csdsResponse.GetConfig() == nil || len(csdsResponse.GetConfig()) == 0 {
+			continue
+		}
+		for _, config := range csdsResponse.GetConfig() {
+			if config.GetNode() == nil {
+				continue
+			}
+			id := config.GetNode().GetId()
+			if config.GetGenericXdsConfigs() != nil {
+				// parse config status
+				syncStatus := map[string]string{
+					"CDS": "Not Found",
+					"LDS": "Not Found",
+					"RDS": "Not Found",
+				}
+				for _, genericXdsConfig := range config.GenericXdsConfigs {
+					status := genericXdsConfig.GetConfigStatus().String()
+					xds := xdsresource.GetShortType(genericXdsConfig.GetTypeUrl())
+					if status != "" && xds != "" {
+						syncStatus[xds] = status
+					}
+				}
+				fullStatus = append(fullStatus, &xdsWriterStatus{
+					proxyID:               csds.ClientIDToEnvoyName(id),
+					clusterStatus:         syncStatus["CDS"],
+					listenerStatus:        syncStatus["LDS"],
+					routeStatus:           syncStatus["RDS"],
+					endpointStatus:        "Not supported",
+					extensionconfigStatus: "Not supported",
+					istiodID:              "Do not apply", // Do not apply infer the control plane is TD
+				})
+				csdsFound[csds.ClientIDToEnvoyName(id)] = struct{}{}
+			}
+		}
+	}
+	// CSM code end
+
 	for id, dr := range drs {
 		for _, resource := range dr.Resources {
 			switch resource.TypeUrl {
@@ -194,6 +256,16 @@ func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryRe
 					continue
 				}
 				cds, lds, eds, rds, ecds := getSyncStatus(&clientConfig)
+				// CSM code begin
+				id := clientConfig.GetNode().GetId()
+				// Skip this proxy if it's connected with TD
+				if _, ok := csdsFound[id]; ok {
+					// meaning this proxy is not connected to istiod while it's connected to TD
+					if cds == "NOT_SENT" {
+						continue
+					}
+				}
+				// CSM code end
 				cp := multixds.CpInfo(dr)
 				fullStatus = append(fullStatus, &xdsWriterStatus{
 					proxyID:               clientConfig.GetNode().GetId(),
@@ -206,16 +278,7 @@ func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryRe
 					endpointStatus:        eds,
 					extensionconfigStatus: ecds,
 				})
-				if len(fullStatus) == 0 {
-					return nil, nil, fmt.Errorf("no proxies found (checked %d istiods)", len(drs))
-				}
 
-				w = new(tabwriter.Writer).Init(s.Writer, 0, 8, 5, ' ', 0)
-				_, _ = fmt.Fprintln(w, "NAME\tCLUSTER\tCDS\tLDS\tEDS\tRDS\tECDS\tISTIOD\tVERSION")
-
-				sort.Slice(fullStatus, func(i, j int) bool {
-					return fullStatus[i].proxyID < fullStatus[j].proxyID
-				})
 			default:
 				for _, resource := range dr.Resources {
 					if s.InternalDebugAllIstiod {
@@ -229,6 +292,17 @@ func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryRe
 			}
 		}
 	}
+
+	// CSM code begin
+	if len(fullStatus) > 0 {
+		w = new(tabwriter.Writer).Init(s.Writer, 0, 8, 5, ' ', 0)
+		fmt.Fprintln(w, "NAME\tCLUSTER\tCDS\tLDS\tEDS\tRDS\tECDS\tISTIOD\tVERSION")
+		sort.Slice(fullStatus, func(i, j int) bool {
+			return fullStatus[i].proxyID < fullStatus[j].proxyID
+		})
+	}
+	// CSM code end
+
 	if len(mappedResp) > 0 {
 		mresp, err := json.MarshalIndent(mappedResp, "", "  ")
 		if err != nil {
