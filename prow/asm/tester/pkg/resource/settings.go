@@ -184,6 +184,9 @@ type MCPSettings struct {
 
 	// Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP.
 	UseAFC bool `flag:"~use-afc" desc:"Only used if ControlPlane = MANAGED. Determines if AFC is used to install MCP."`
+
+	// Only used if ControlPlane = MANAGED and useAFC = true. Determines if the hybrid mode while fetch the jwks pubKey.
+	UseHybridModeForJWT bool `flag:"~hybrid-jwt-fetch" desc:"Only used if ControlPlane = MANAGED and useAFC = true. Use the hybrid mode while fetch the jwks pubKey"`
 }
 
 // RuntimeSettings contains fields that are only populated and shared during the

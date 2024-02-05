@@ -15,6 +15,7 @@
 package install
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -42,7 +43,7 @@ func downloadInstallScript(settings *resource.Settings, rev *revision.Config) (s
 	if rev != nil {
 		if settings.ASMPackage != "" {
 			scriptBranch = strings.TrimPrefix(settings.ASMPackage, "@")
-		}	else if rev.Version != "" {
+		} else if rev.Version != "" {
 			scriptBranch = fmt.Sprintf("release-%s", rev.Version)
 		}
 	}
@@ -206,6 +207,28 @@ data:
   "multicluster_mode": "connected"
 EOF'`, context)); err != nil {
 			return fmt.Errorf("failed to enable managed multicluster for context %q: %w", context, err)
+		}
+	}
+	return nil
+}
+
+// setting up testOverrides for MCP via AFC
+type testOverrides struct {
+	DisableIstiodJWKS bool `json:"disable_istiod_jwks"`
+}
+
+// buildTestOverrides creates addition test overrides. JwtMode is one of the examples.
+func buildTestOverrides(settings *resource.Settings) error {
+	testOverrides := testOverrides{DisableIstiodJWKS: !settings.MCPSettings.UseHybridModeForJWT}
+	testOverridesJSONData, err := json.Marshal(testOverrides)
+	if err != nil {
+		return fmt.Errorf("failed to marshalling json for test_overrides %w", err)
+	}
+	for _, context := range settings.KubeContexts {
+		if err := exec.Run(fmt.Sprintf(`kubectl --context=%s patch configmap asm-options -n istio-system --type merge -p '{"data":{"test_overrides":%s}}'`,
+			context,
+			string(testOverridesJSONData))); err != nil {
+			return fmt.Errorf("failed to update the asm-options config map with testOverrides for context %q: %w", context, err)
 		}
 	}
 	return nil

@@ -473,6 +473,10 @@ EOF'`, map[string]any{
 		return fmt.Errorf("failed to enable managed multicluster: %w", err)
 	}
 
+	if err := buildTestOverrides(c.settings); err != nil {
+		return fmt.Errorf("failed to add the testOverrides: %w", err)
+	}
+
 	return nil
 }
 
