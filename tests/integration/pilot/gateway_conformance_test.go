@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	k8ssets "k8s.io/apimachinery/pkg/util/sets"
+	k8ssets "k8s.io/apimachinery/pkg/util/sets" //nolint: depguard
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 	v1 "sigs.k8s.io/gateway-api/apis/v1"

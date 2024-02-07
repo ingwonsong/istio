@@ -352,11 +352,12 @@ func (d *DeploymentController) configureIstioGateway(log *istiolog.Scope, gw gat
 	isWaypointGateway := strings.Contains(string(gw.Spec.GatewayClassName), "waypoint")
 
 	// Default the network label for waypoints if not explicitly set in gateway's labels
-	if _, ok := gw.GetLabels()["topology.istio.io/network"]; !ok && isWaypointGateway {
+	network := d.injectConfig().Values.Struct().GetGlobal().GetNetwork()
+	if _, ok := gw.GetLabels()[label.TopologyNetwork.Name]; !ok && network != "" && isWaypointGateway {
 		if gw.Labels == nil {
 			gw.Labels = make(map[string]string)
 		}
-		gw.Labels["topology.istio.io/network"] = d.injectConfig().Values.Struct().GetGlobal().GetNetwork()
+		gw.Labels[label.TopologyNetwork.Name] = d.injectConfig().Values.Struct().GetGlobal().GetNetwork()
 	}
 
 	input := TemplateInput{
@@ -366,7 +367,7 @@ func (d *DeploymentController) configureIstioGateway(log *istiolog.Scope, gw gat
 		Ports:          extractServicePorts(gw),
 		ClusterID:      d.clusterID.String(),
 
-		KubeVersion122:            kube.IsAtLeastVersion(d.client, 22),
+		KubeVersion:               kube.GetVersionAsInt(d.client),
 		Revision:                  d.revision,
 		ServiceType:               serviceType,
 		ProxyUID:                  proxyUID,
@@ -390,8 +391,8 @@ func (d *DeploymentController) configureIstioGateway(log *istiolog.Scope, gw gat
 		// Default the network label for waypoints if not explicitly set in infra labels
 		// We do this a second time here for correctness since if infra labels are set (according to the gwapi spec),
 		// the gateway's labels are ignored.
-		if _, ok := infraLabels["topology.istio.io/network"]; !ok && isWaypointGateway {
-			infraLabels["topology.istio.io/network"] = d.injectConfig().Values.Struct().GetGlobal().GetNetwork()
+		if _, ok := infraLabels[label.TopologyNetwork.Name]; !ok && network != "" && isWaypointGateway {
+			infraLabels[label.TopologyNetwork.Name] = network
 		}
 
 		input.InfrastructureLabels = infraLabels
@@ -638,7 +639,7 @@ type TemplateInput struct {
 	Ports                     []corev1.ServicePort
 	ServiceType               corev1.ServiceType
 	ClusterID                 string
-	KubeVersion122            bool
+	KubeVersion               int
 	Revision                  string
 	ProxyUID                  int64
 	ProxyGID                  int64
