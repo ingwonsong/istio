@@ -67,11 +67,6 @@ var (
 
 	workerBuilder   = proxyupdater.NewWorker
 	upgraderBuilder = proxyupdater.NewEvictorUpgrader
-
-	// nolint: gocritic
-	now = func() time.Time {
-		return time.Now()
-	}
 )
 
 var rateLogger = ratelog.New(1*time.Hour, nil)
@@ -179,17 +174,9 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		n.statusWorker.EnqueueStatus(dpc)
 		return result, err
 	}
-
-	totalToUpgrade := total - versions[proxyVersionForDPC(dpc)]
-	if totalToUpgrade < 1 {
-		rateLogger.Infof("All pods have the latest proxy version.")
-		return result, nil
-	}
-
-	rateLogger.Infof("%d pods are upgraded to %s. %d among %d pods queued and will be upgraded.",
-		versions[proxyVersionForDPC(dpc)], proxyVersionForDPC(dpc), totalToUpgrade, total)
 	targetPct := float32(proxyTargetBasisPointsForDPC(dpc)*100) / totalBasisPoints
-	rateLogger.Infof("target version: %s, percent: %v", proxyVersionForDPC(dpc), targetPct)
+	newVersion := proxyVersionForDPC(dpc)
+	rateLogger.Infof("target version: %s, percent: %v", newVersion, targetPct)
 
 	bptsFraction := float32(proxyTargetBasisPointsForDPC(dpc)) / totalBasisPoints
 	desired := int(math.Ceil(float64(float32(total) * bptsFraction)))
@@ -203,7 +190,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		resultMetricLabel = metrics.Success
 		return result, nil
 	}
-	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, proxyVersionForDPC(dpc), rateLimitForRollout(dpc, totalToUpgrade))
+	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, proxyVersionForDPC(dpc), rateLimitForRollout(dpc, total))
 	projectedActual := versions[proxyVersionForDPC(dpc)] + u.Len()
 	log.Debugf("update count projected: %v, desired: %v", projectedActual, desired)
 	if projectedActual < desired {
@@ -292,25 +279,21 @@ func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl) (maxTimeToReconcile int6
 		}
 		rateLogger.Infof("Use the configured maximum hours to reconcile proxies: %d", maxTimeToReconcile)
 	}()
-
-	// No configured duration hours. Use default.
-	if dpc.Spec.InstanceUpgradeDurationHours < 1 {
-		return
+	if dpc.Spec.InstanceUpgradeDurationHours > 0 {
+		upgradeDurationValidUntil, err := time.Parse(time.RFC3339, dpc.Spec.UpgradeDurationValidUntil)
+		if err != nil {
+			log.Errorf("parsing upgrade duration valid timestamp failed: %v, falling back to the default.", err)
+			return int64(MaxTimeToReconcile)
+		}
+		if !time.Now().Before(upgradeDurationValidUntil) {
+			// Invalid upgrade start timestamp or the duration has expired, revert back to default.
+			log.Infof("upgrade duration expired, falling back to the default.")
+			return int64(MaxTimeToReconcile)
+		}
+		// Cap the maxTimeToReconcile to be the default global.
+		return min(int64(dpc.Spec.InstanceUpgradeDurationHours)*int64(time.Hour), int64(MaxTimeToReconcile))
 	}
-	// Get configured duration hours.
-	upgradeDurationValidUntil, err := time.Parse(time.RFC3339, dpc.Spec.UpgradeDurationValidUntil)
-	if err != nil {
-		log.Errorf("Parsing the upgrade duration valid timestamp failed. Falling back to the default value: %w", err)
-		return
-	}
-	if !now().Before(upgradeDurationValidUntil) {
-		// Invalid upgrade start timestamp or the duration has expired, revert back to default.
-		log.Infof("The upgrade duration %d is already expired. Falling back to the default value.", upgradeDurationValidUntil)
-		return
-	}
-	// Return the gap between Now and upgradeDurationValidUntil.
-	maxTimeToReconcile = min(int64(upgradeDurationValidUntil.Sub(now())), int64(MaxTimeToReconcile))
-	return
+	return int64(MaxTimeToReconcile)
 }
 
 func (n *NewReconciler) getOrMakeUpdater(ctx context.Context, dprNsName types.NamespacedName, rev, version string, limit rate.Limit) proxyupdater.UpdateWorker {

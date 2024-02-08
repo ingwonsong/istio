@@ -138,8 +138,7 @@ func TestProxiesRestarted(t *testing.T) {
 				verifyProxyVersion(t, cs, 100, test.oldRevision)
 				updateNamespace(t, ns, test.newRevision)
 				data := map[string]interface{}{
-					"NewProxyVersion":           builtProxyVersion,
-					"NewProxyTargetBasisPoints": fmt.Sprintf("%.f", test.expectedPercentage*100),
+					"NewProxyVersion": builtProxyVersion,
 				}
 				createAndApplyTemplate(t, crTemplatePath, "", data)
 				// check proxy version after upgrade, upgraded proxies percentage should be larger than expected.
