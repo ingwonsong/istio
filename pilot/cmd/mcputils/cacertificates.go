@@ -77,7 +77,6 @@ func (s *server) addCACertificate(req *http.Request) (any, error) {
 		configMaps, err = getConfigMapsToAddCertificates(r.Channels, client)
 		return err
 	}, retry.Timeout(20*time.Second))
-
 	if err != nil {
 		return false, internalErrorResponse(err)
 	}
@@ -87,7 +86,6 @@ func (s *server) addCACertificate(req *http.Request) (any, error) {
 		err = retry.UntilSuccess(func() error {
 			return addCertToConfigMaps(client, configMap, r.CaCertificates)
 		}, retry.Timeout(20*time.Second))
-
 		if err != nil {
 			return false, internalErrorResponse(err)
 		}

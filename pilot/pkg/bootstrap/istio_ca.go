@@ -351,7 +351,6 @@ func handleEvent(s *Server) {
 		fileBundle.SigningKeyFile,
 		fileBundle.CertChainFiles,
 		fileBundle.RootCertFile)
-
 	if err != nil {
 		log.Errorf("Failed to update new Plug-in CA certs: %v", err)
 		return

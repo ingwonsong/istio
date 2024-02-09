@@ -161,14 +161,14 @@ func (c *Client) Run() (map[string]*csds.ClientStatusResponse, error) {
 		return nil, err
 	}
 
-	clientIds := parseAllConfigResponse(resp)
+	clientIDs := parseAllConfigResponse(resp)
 
 	// Need to make one more call per proxy to CSDS to fetch sync status.
 	// Find the new NodeIds to update the nodeMatcher with the new NodeMacher
-	if len(clientIds) == 0 {
+	if len(clientIDs) == 0 {
 		return nil, nil
 	}
-	for id := range clientIds {
+	for id := range clientIDs {
 		if c.opts.NodeID != "" && c.opts.NodeID != ClientIDToEnvoyName(id) {
 			continue
 		}
@@ -203,17 +203,17 @@ func (c *Client) doRequest(
 	return streamClientStatus.Recv()
 }
 
-// printOutResponse processes response and get all the clientIds connected to TD
+// printOutResponse processes response and get all the clientIDs connected to TD
 func parseAllConfigResponse(response *csds.ClientStatusResponse) sets.Set[string] {
 	if len(response.GetConfig()) == 0 {
 		log.Warnf("No xDS clients connected to TD.")
 		return nil
 	}
-	clientIds := sets.Set[string]{}
+	clientIDs := sets.Set[string]{}
 	for _, config := range response.GetConfig() {
 		if config.GetNode() != nil {
-			clientIds[config.GetNode().GetId()] = struct{}{}
+			clientIDs[config.GetNode().GetId()] = struct{}{}
 		}
 	}
-	return clientIds
+	return clientIDs
 }
