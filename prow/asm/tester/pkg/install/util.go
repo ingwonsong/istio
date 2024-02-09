@@ -220,14 +220,18 @@ type testOverrides struct {
 // buildTestOverrides creates addition test overrides. JwtMode is one of the examples.
 func buildTestOverrides(settings *resource.Settings) error {
 	testOverrides := testOverrides{DisableIstiodJWKS: !settings.MCPSettings.UseHybridModeForJWT}
-	testOverridesJSONData, err := json.Marshal(testOverrides)
+	testOverridesJSON, err := json.Marshal(testOverrides)
 	if err != nil {
-		return fmt.Errorf("failed to marshalling json for test_overrides %w", err)
+		return fmt.Errorf("failed to marshalling json for test_overrides struct %w", err)
+	}
+	escapedJSON, err := json.Marshal(string(testOverridesJSON))
+	if err != nil {
+		return fmt.Errorf("failed to marshalling json for test_overrides json object %w", err)
 	}
 	for _, context := range settings.KubeContexts {
 		if err := exec.Run(fmt.Sprintf(`kubectl --context=%s patch configmap asm-options -n istio-system --type merge -p '{"data":{"test_overrides":%s}}'`,
 			context,
-			string(testOverridesJSONData))); err != nil {
+			string(escapedJSON))); err != nil {
 			return fmt.Errorf("failed to update the asm-options config map with testOverrides for context %q: %w", context, err)
 		}
 	}
