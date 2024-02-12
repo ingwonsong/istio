@@ -40,13 +40,6 @@ const (
 	initTimeout = 10 * time.Second
 )
 
-// Cache returns an API config cached for the given IP.
-type Cache interface {
-	Get(ip string) (api.Config, bool, bool)
-	Run(stop <-chan struct{})
-	BootstrapFinished()
-}
-
 type membershipCache struct {
 	opts environmentOpts
 
@@ -62,15 +55,9 @@ type membershipCache struct {
 	// before adding to the cache.
 	validateEndpoint bool
 
-	shutdown func()
-
 	// If cacheInitialized is false, the cache has been never refreshed.
 	// In that case, `refreshCache` will be called regardless of bootstrapping time.
 	cacheInitialized bool
-	// bootstrapFinished is false means the cache is used during bootstrapping time.
-	// In the boostrapping time, `refreshCache` will be not called in `Get` to suppress
-	// unnecessary API call. After bootstrapping time, this should be set to `true`.
-	bootstrapFinished bool
 }
 
 type environmentOpts struct {
@@ -81,8 +68,8 @@ type environmentOpts struct {
 	fleetProjectID       string
 }
 
-// NewIPMembershipCache returns a cache that correlates remote secret IPs to their connect gateway endpoints.
-func NewIPMembershipCache() (Cache, error) {
+// newIPMembershipCache returns a cache that correlates remote secret IPs to their connect gateway endpoints.
+func newIPMembershipCache() (*membershipCache, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), initTimeout)
 	defer cancel()
 
@@ -109,10 +96,6 @@ func NewIPMembershipCache() (Cache, error) {
 		privateIPToMembership: map[string]*gkehubpb.Membership{},
 		knownPublicIPs:        map[string]bool{},
 		validateEndpoint:      true,
-		shutdown: func() {
-			cc.Close()
-			hc.Close()
-		},
 	}
 	if err := mc.refreshCache(); err != nil {
 		log.Warnf("Failed to seed translation cache: %v", err)
@@ -121,15 +104,9 @@ func NewIPMembershipCache() (Cache, error) {
 	return mc, nil
 }
 
-// BootstrapFinished notify that the bootstrap is finished, so the cache can refresh the mapping between IP to the membership.
-// Before calling this method, the mapping will not be refreshed when calling `Get`.
-func (m *membershipCache) BootstrapFinished() {
-	m.bootstrapFinished = true
-}
-
-// Get accepts an IP and returns an API config if translated, whether the secret was translated,
+// get accepts an IP and returns an API config if translated, whether the secret was translated,
 // and then whether or not the secret mapped to a public IP.
-func (m *membershipCache) Get(ip string) (_ api.Config, translated bool, public bool) {
+func (m *membershipCache) get(ip string, refresh bool) (_ api.Config, translated bool, public bool) {
 	_, public = m.knownPublicIPs[ip]
 	if public && asm.ConnectGatewayForPublicRemoteCluster() == asm.CGWForPublicClusterDisabled {
 		log.Infof("ConnectGateway %s for remote cluster discovery with public cluster. Skipping cache refresh for public cluster with endpoint %s", asm.ConnectGatewayForPublicRemoteCluster(), ip) // nolint: lll
@@ -142,7 +119,7 @@ func (m *membershipCache) Get(ip string) (_ api.Config, translated bool, public 
 
 	// If the cache has been initialized and the bootstrap is not finished yet,
 	// do not refersh and just return false.
-	if m.cacheInitialized && !m.bootstrapFinished {
+	if m.cacheInitialized && !refresh {
 		return api.Config{}, false, public
 	}
 
@@ -162,14 +139,6 @@ func (m *membershipCache) Get(ip string) (_ api.Config, translated bool, public 
 	}
 
 	return api.Config{}, false, public
-}
-
-func (m *membershipCache) Run(stop <-chan struct{}) {
-	go func(stop <-chan struct{}) {
-		<-stop
-		log.Infof("Shutting down membership cache")
-		m.shutdown()
-	}(stop)
 }
 
 func (m *membershipCache) refreshCache() error {

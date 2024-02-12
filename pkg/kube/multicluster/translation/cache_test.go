@@ -214,7 +214,7 @@ func TestCache(t *testing.T) {
 			}
 			asm.SetConnectGatewayForPublicRemoteCluster(tc.cgwForPublicMultiCluster)
 
-			config, found, public := c.Get(tc.ip)
+			config, found, public := c.get(tc.ip, true)
 			if found != tc.wantFound {
 				t.Errorf("expected translation found: %t, got: %t", tc.wantFound, found)
 			}

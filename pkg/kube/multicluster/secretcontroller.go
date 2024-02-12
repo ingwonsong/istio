@@ -30,7 +30,6 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config/mesh"
-	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/controllers"
 	"istio.io/istio/pkg/kube/kclient"
@@ -60,9 +59,6 @@ var (
 
 	localClusters  = clustersCount.With(clusterType.Value("local"))
 	remoteClusters = clustersCount.With(clusterType.Value("remote"))
-
-	enableTranslationCache = env.RegisterBoolVar("ENABLE_TRANSLATION_CACHE", false,
-		"If enabled, attempt to translated remote secrets with IP endpoints to CGW endpoint.").Get()
 )
 
 type ClusterHandler interface {
@@ -84,7 +80,7 @@ type Controller struct {
 
 	DiscoveryNamespacesFilter filter.DiscoveryNamespacesFilter
 	cs                        *ClusterStore
-	ipMembershipCache         translation.Cache
+	configHook                *translation.ConfigHook // ASM code
 
 	handlers []ClusterHandler
 }
@@ -124,17 +120,6 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 	localClusters.Record(1.0)
 	remoteClusters.Record(0.0)
 
-	// ASM code
-	var cache translation.Cache
-	if enableTranslationCache {
-		var err error
-		cache, err = translation.NewIPMembershipCache()
-		if err != nil {
-			log.Errorf("Failed to create translation cache: %v", err)
-		}
-	}
-	// ^ASM code
-
 	controller := &Controller{
 		namespace:           namespace,
 		configClusterID:     clusterID,
@@ -142,8 +127,9 @@ func NewController(kubeclientset kube.Client, namespace string, clusterID cluste
 		cs:                  newClustersStore(),
 		secrets:             secrets,
 		configOverrides:     configOverrides,
-		ipMembershipCache:   cache, // ASM code
 	}
+
+	controller.configHook = translation.MaybeNewConfigHook() // ASM code
 
 	namespaces := kclient.New[*corev1.Namespace](kubeclientset)
 	controller.namespaces = namespaces
@@ -193,24 +179,12 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-// mcpQueueSynced notifies that the queue has done to sync, which means the bootstrap is
-// now finished.
-// ASM-ONLY-CODE
-func (c *Controller) mcpQueueSynced() {
-	if c.ipMembershipCache != nil {
-		// Notify that bootstrap is finished to the cache, so that refreshing can happen.
-		// This should be called after the queue is initially synced.
-		c.ipMembershipCache.BootstrapFinished()
-	}
-}
-
 func (c *Controller) HasSynced() bool {
 	if !c.queue.HasSynced() {
 		log.Debug("secret controller did not sync secrets presented at startup")
 		// we haven't finished processing the secrets that were present at startup
 		return false
 	}
-	c.mcpQueueSynced() // ASM-ONLY-CODE: This should be called just after knowing that the queue was synced.
 	return c.cs.HasSynced()
 }
 
@@ -232,10 +206,8 @@ func (c *Controller) processItem(key types.NamespacedName) error {
 }
 
 // BuildClientsFromConfig creates kube.Clients from the provided kubeconfig. This is overridden for testing only
-var BuildClientsFromConfig = func(kubeConfig []byte, clusterId cluster.ID,
-	cache translation.Cache, configOverrides ...func(*rest.Config),
-) (kube.Client, error) {
-	restConfig, err := kube.NewUntrustedRestConfig(kubeConfig, cache, configOverrides...)
+var BuildClientsFromConfig = func(kubeConfig []byte, clusterId cluster.ID, configOverrides ...func(*rest.Config)) (kube.Client, error) {
+	restConfig, err := kube.NewUntrustedRestConfig(kubeConfig, configOverrides...)
 	if err != nil {
 		return nil, err
 	}
@@ -250,8 +222,19 @@ var BuildClientsFromConfig = func(kubeConfig []byte, clusterId cluster.ID,
 	return clients, nil
 }
 
+func (c *Controller) mcpBuildClientsFromConfig(kubeConfig []byte, clusterID cluster.ID) (kube.Client, error) {
+	var hookErr error
+	// To apply given overrides to configs overwritten for using CGW, put the confighook in the first place.
+	configOverrides := append([]func(*rest.Config){c.configHook.Inject(&hookErr, c.queue.HasSynced())}, c.configOverrides...)
+	client, err := BuildClientsFromConfig(kubeConfig, clusterID, configOverrides...)
+	if hookErr != nil {
+		return nil, hookErr
+	}
+	return client, err
+}
+
 func (c *Controller) createRemoteCluster(kubeConfig []byte, clusterID string) (*Cluster, error) {
-	clients, err := BuildClientsFromConfig(kubeConfig, cluster.ID(clusterID), c.ipMembershipCache, c.configOverrides...)
+	clients, err := c.mcpBuildClientsFromConfig(kubeConfig, cluster.ID(clusterID)) // ASM code
 	if err != nil {
 		return nil, err
 	}

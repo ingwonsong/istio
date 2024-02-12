@@ -28,7 +28,6 @@ import (
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/kube"
-	"istio.io/istio/pkg/kube/multicluster/translation"
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/util/retry"
 )
@@ -99,7 +98,7 @@ func TestKubeConfigOverride(t *testing.T) {
 		expectedBurst = 200
 	)
 	fakeRestConfig := &rest.Config{}
-	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, cache translation.Cache, configOverrides ...func(*rest.Config)) (kube.Client, error) {
+	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, configOverrides ...func(*rest.Config)) (kube.Client, error) {
 		for _, override := range configOverrides {
 			override(fakeRestConfig)
 		}
@@ -139,7 +138,7 @@ func TestKubeConfigOverride(t *testing.T) {
 }
 
 func TestSecretController(t *testing.T) {
-	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, cache translation.Cache, configOverrides ...func(*rest.Config)) (kube.Client, error) {
+	BuildClientsFromConfig = func(kubeConfig []byte, c cluster.ID, configOverrides ...func(*rest.Config)) (kube.Client, error) {
 		return kube.NewFakeClient(), nil
 	}
 

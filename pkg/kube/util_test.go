@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	networkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
-	"istio.io/istio/pkg/kube/multicluster/translation"
 	"istio.io/istio/pkg/util/sets"
 )
 
@@ -381,12 +380,11 @@ func TestStripUnusedFields(t *testing.T) {
 
 func TestSanitizeKubeConfig(t *testing.T) {
 	cases := []struct {
-		name            string
-		config          api.Config
-		allowlist       sets.String
-		ipConfigMapping map[string]api.Config
-		want            api.Config
-		wantErr         bool
+		name      string
+		config    api.Config
+		allowlist sets.String
+		want      api.Config
+		wantErr   bool
 	}{
 		{
 			name:    "empty",
@@ -433,14 +431,14 @@ func TestSanitizeKubeConfig(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			sanitized, err := sanitizeKubeConfig(tt.config, tt.allowlist, translation.NewMockMembershipCache(tt.ipConfigMapping))
+			err := sanitizeKubeConfig(tt.config, tt.allowlist)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("sanitizeKubeConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(sanitized, tt.want); diff != "" {
+			if diff := cmp.Diff(tt.config, tt.want); diff != "" {
 				t.Fatal(diff)
 			}
 		})
