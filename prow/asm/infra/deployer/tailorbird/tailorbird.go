@@ -284,6 +284,26 @@ func getPlatformVersion(rookeryfile string) string {
 	return ""
 }
 
+func getBMServerOS(rookeryfile string) string {
+	f, e := os.Open(rookeryfile)
+	if e != nil {
+		log.Printf("unable to open rookery file %v: $v", rookeryfile, e)
+		return ""
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "serverOS:") {
+			return strings.Trim(strings.Split(line, ":")[1], " \"")
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("unable to read rookery file %v : %v", rookeryfile, err)
+	}
+	return ""
+}
+
 // update metadata.json file
 func (d *Instance) createMetadataFile() {
 	rookeryFile := d.cfg.Rookery
@@ -434,6 +454,15 @@ func (d *Instance) flags() ([]string, error) {
 
 	// Append the test script.
 	flags = append(flags, "--test=exec", "--", d.cfg.TestScript)
+
+	// Try to set BMServerOS from rookery file for TRAC.
+	if string(d.cfg.Cluster) == string(types.GKEOnBareMetal) && len(d.cfg.BMServerOS) == 0 && isTracConfig(d.cfg) {
+		tracRookeryPath, err := d.tracRookeryPath()
+		if err != nil {
+			return nil, err
+		}
+		d.cfg.BMServerOS = getBMServerOS(tracRookeryPath)
+	}
 
 	// Append the test flags.
 	testerFlags, err := d.cfg.GetTesterFlags()
@@ -724,7 +753,7 @@ func featureVPCSCParameters(topology types.Topology, template *TemplateParameter
 // rookeryFile returns the full path for the rookery config file.
 func (d *Instance) rookeryFile() (string, error) {
 	// Use the TRAC-generated rookery file, if specified via config
-	if d.cfg.TRACPlatformIndex >= 0 || d.cfg.TRACComponentIndex >= 0 {
+	if isTracConfig(d.cfg) {
 		return d.tracRookeryPath()
 	}
 
@@ -1020,4 +1049,11 @@ func (d *Instance) getUpgradeStatusUsingKubectl(clusterName string) (types.Type,
 
 	// Trimming the result string as it has an extra new line character at the end
 	return types.Type(strings.TrimRight(string(upgradeStatus), "\n")), nil
+}
+
+func isTracConfig(cfg config.Instance) bool {
+	if cfg.TRACPlatformIndex >= 0 || cfg.TRACComponentIndex >= 0 {
+		return true
+	}
+	return false
 }
