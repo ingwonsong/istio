@@ -253,13 +253,7 @@ func configureExternalIP(settings *resource.Settings, kubeconfig string, idx int
 		return nil
 	} else if settings.ClusterType == resource.OnPrem { // Patch onprem
 		const herculesLab = "atl_shared"
-		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_ingress_ip",
-			[]string{kubeconfig},
-			exec.WithAdditionalEnvs(
-				[]string{fmt.Sprintf("HERCULES_CLI_LAB=%s", herculesLab)})); err != nil {
-			return err
-		}
-		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_expansion_ip",
+		if err := exec.Dispatch(settings.RepoRootDir, "onprem::configure_ips",
 			[]string{kubeconfig},
 			exec.WithAdditionalEnvs(
 				[]string{fmt.Sprintf("HERCULES_CLI_LAB=%s", herculesLab)})); err != nil {

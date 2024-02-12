@@ -30,6 +30,7 @@ spec:
           provider: vsphere
           distribution: gke
           provisionerArgs:
+            lbkind: "MetalLB"
             username: prowuser
             workerNumNodes: "4"
             {{- if .Version }}
@@ -42,23 +43,14 @@ spec:
             {{- end }}
             # workaround for b/181781346
             gkectlConfigSeedVersion: "v1"
-            vipNetwork: "fe"
-            # Assign the first cluster under one VPC
-            vsphereVpc: "atl-shared-vpc-02"
-            networkType: "any"
-            # useVipNetworkLabel requires use=frontent and i-know-what-i-am-doing=true
-            # if you dont know what you're doing, the request will fail (it knows).
-            useVipNetworkLabel: "use=frontend,i-know-what-i-am-doing=true"
-            # useNetworkLabel requires use=private and i-know-what-i-am-doing=true
-            useNetworkLabel: "use=private,i-know-what-i-am-doing=true"
             gkeConnectProject: "{{ .OnPremHubDevProject }}"
             stackdriverProjectId: "{{ .OnPremHubDevProject }}"
             # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
             vsphereVersion: "7.0"
             esxiVersion: "7.0"
-            herculesEnvTtl: "4h"
-            # default is 192.168.0.0/16 and 10.96.232.0/24, we split pod subnet in two and use lower subnet
-            userExtraConfig: "network.podCIDR=192.168.0.0/17,network.serviceCIDR=10.96.232.0/24"
+            controlPlaneV2Enabled: "true"
+            additionalNodes: "4"
+            ipAllocationStrategy: static
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
         metadata:
@@ -67,6 +59,7 @@ spec:
           provider: vsphere
           distribution: gke
           provisionerArgs:
+            lbkind: "MetalLB"
             username: prowuser
             workerNumNodes: "4"
             {{- if .Version }}
@@ -79,17 +72,12 @@ spec:
             {{- end }}
             # workaround for b/181781346
             gkectlConfigSeedVersion: "v1"
-            vipNetwork: "fe"
-            # Assign the second cluster under a second VPC
-            vsphereVpc: "atl-shared-vpc-03"
-            networkType: "any"
-            useVipNetworkLabel: "use=frontend,i-know-what-i-am-doing=true"
-            useNetworkLabel: "use=private,i-know-what-i-am-doing=true"
             gkeConnectProject: "{{ .OnPremHubDevProject }}"
             stackdriverProjectId: "{{ .OnPremHubDevProject }}"
             # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
             vsphereVersion: "7.0"
             esxiVersion: "7.0"
-            herculesEnvTtl: "4h"
-            # default is 192.168.0.0/16 and 10.96.232.0/24, we split pod in two and use higher subnet, and use next /24 for service
-            userExtraConfig: "network.podCIDR=192.168.128.0/17,network.serviceCIDR=10.96.233.0/24"
+            controlPlaneV2Enabled: "true"
+            userAcnMode: "true"
+            additionalNodes: "4"
+            ipAllocationStrategy: static

@@ -21,6 +21,11 @@ spec:
          distribution: gke
          provisionerArgs:
            username: prowuser
+           lbkind: "MetalLB"
+           ipAllocationStrategy: static
+           controlPlaneV2Enabled: "true"
+           userAcnMode: "true"
+           additionalNodes: "4"
            {{- if .Version }}
            gkectlVersion: "{{ .Version }}"
            {{- end }}
@@ -30,10 +35,8 @@ spec:
            useStagingBucket: "true"
            {{- end }}
            gkectlConfigSeedVersion: "v1"
-           vipNetwork: "fe"
            gkeConnectProject: "{{ .OnPremHubDevProject }}"
            stackdriverProjectId: "{{ .OnPremHubDevProject }}"
            # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
-           herculesEnvTtl: "4h"
            vsphereVersion: "7.0"
            esxiVersion: "7.0"

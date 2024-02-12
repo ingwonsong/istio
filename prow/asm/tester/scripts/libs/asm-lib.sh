@@ -256,73 +256,41 @@ function configure_remote_secrets_for_gcp_baremetal_hybrid() {
   kubectl apply --kubeconfig="${GCP_CONFIG}" -f "secret-bm"
 }
 
-# on-prem specific fucntion to configure external ips for the ingress gateway
+# on-prem specific fucntion to configure ips for MetalLB so that MetalLB can allocate them to LB services
 # Parameters:
 # $1    kubeconfig
-function onprem::configure_ingress_ip() {
+function onprem::configure_ips() {
   local HERC_ENV_ID
   HERC_ENV_ID=$(echo "$1" | rev | cut -d '/' -f 2 | rev)
-  local INGRESS_ID=\"lb-test-ip\"
-  local INGRESS_IP
+  local ip_list=()
 
   echo "Installing herc CLI..."
   gsutil cp "gs://anthos-hercules-public-artifacts/herc/latest/herc" "/usr/local/bin/" && chmod 755 "/usr/local/bin/herc"
 
-  INGRESS_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-    jq -r ".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.${INGRESS_ID}.ip_address")
+  # loop iterations are same as additionalNodes value in rookeries.
+  for (( i=1; i<=4; i++ ));
+  do
+    # shellcheck disable=SC2089
+    jq_query=".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.\"user-node-$i\".ip_address"
+    # shellcheck disable=SC2090
+    LB_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
+    jq -r $jq_query)
 
-  if [[ -z "$INGRESS_IP" || "$INGRESS_IP" == "null" ]]; then
-    INGRESS_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-        jq -r ".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.${INGRESS_ID}.ip_address")
-  fi
-
-  # Inject the external IP for Ingress GW
-  echo "----------Configuring external IP for ingress gw----------"
-  kubectl patch svc istio-ingressgateway -n istio-system \
-    --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": "'"${INGRESS_IP}"'"}]' \
-    --kubeconfig="$1"
-}
-
-# on-prem specific fucntion to configure external ips for the expansion gateway
-# Parameters:
-# $1    kubeconfig
-function onprem::configure_expansion_ip() {
-  local HERC_ENV_ID
-  HERC_ENV_ID=$(echo "$1" | rev | cut -d '/' -f 2 | rev)
-  local EXPANSION_ID=\"expansion-ip\"
-
-  echo "Installing herc CLI..."
-  gsutil cp "gs://anthos-hercules-public-artifacts/herc/latest/herc" "/usr/local/bin/" && chmod 755 "/usr/local/bin/herc"
-
-  # Request additional external IP for expansion gw
-  local HERC_PARENT
-  HERC_PARENT=$(herc getEnvironment "${HERC_ENV_ID}" | \
-    grep "name: environments.*lb-test-ip$" | awk -F' ' '{print $2}' | sed 's/\/ips\/lb-test-ip//')
-  local EXPANSION_IP
-  EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-    jq -r ".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.${EXPANSION_ID}.ip_address")
-  if [[ -z "${EXPANSION_IP}" || "${EXPANSION_IP}" == "null" ]]; then
-    EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-        jq -r ".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.${EXPANSION_ID}.ip_address")
-  fi
-  if [[ -z "${EXPANSION_IP}" || "${EXPANSION_IP}" == "null" ]]; then
-    echo "Requesting herc for expansion IP"
-    herc allocateIPs --parent "${HERC_PARENT}" -f "${CONFIG_DIR}/herc/expansion-ip.yaml"
-    EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-      jq -r ".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.${EXPANSION_ID}.ip_address")
-    if [[ -z "${EXPANSION_IP}" || "${EXPANSION_IP}" == "null" ]]; then
-      EXPANSION_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-          jq -r ".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.${EXPANSION_ID}.ip_address")
+    if [[ -z "$LB_IP" || "$LB_IP" == "null" ]]; then
+      # shellcheck disable=SC2089
+      jq_query=".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.\"user-node-$i\".ip_address"
+      # shellcheck disable=SC2090
+      LB_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
+      jq -r $jq_query)
     fi
-  else
-    echo "Using ${EXPANSION_IP} as the expansion IP"
-  fi
+    ip_list+=("$LB_IP")
+  done
 
-  # Inject the external IP for expansion GW
-  echo "----------Configuring external IP for expansion gw----------"
-  kubectl patch svc istio-eastwestgateway -n istio-system \
-    --type='json' -p '[{"op": "add", "path": "/spec/loadBalancerIP", "value": "'"${EXPANSION_IP}"'"}]' \
-    --kubeconfig="$1"
+  kubectl get configmap metallb-config --kubeconfig="$1" -n kube-system -o jsonpath='{.data.config}' > temp.txt
+  sed -i "/address-pools:/a\- name: new-pool\n\ \ protocol: layer2\n\ \ addresses:\n\ \ - ${ip_list[0]}-${ip_list[0]}\n\ \ - ${ip_list[1]}-${ip_list[1]}\n\ \ - ${ip_list[2]}-${ip_list[2]}\n\ \ - ${ip_list[3]}-${ip_list[3]}\n \ avoid-buggy-ips: false\n\ \ auto-assign: true" temp.txt
+  new_config=$(cat temp.txt)
+  kubectl create configmap metallb-config --kubeconfig="$1" -n kube-system --from-literal config="$new_config" --dry-run=client -o yaml | kubectl replace --kubeconfig="$1" -f -
+  rm -rf temp.txt
 }
 
 # baremetal specific fucntion to configure external ips for the eastwest gateway

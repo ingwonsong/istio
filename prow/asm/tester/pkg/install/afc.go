@@ -104,7 +104,7 @@ EOF'`, context, kubeconfigs[i])); err != nil {
 		}
 
 		if c.settings.ClusterType == resource.OnPrem {
-			if err := exec.Dispatch(c.settings.RepoRootDir, "onprem::configure_ingress_ip",
+			if err := exec.Dispatch(c.settings.RepoRootDir, "onprem::configure_ips",
 				[]string{kubeconfigs[i]},
 				exec.WithAdditionalEnvs(
 					[]string{"HERCULES_CLI_LAB=atl_shared"})); err != nil {

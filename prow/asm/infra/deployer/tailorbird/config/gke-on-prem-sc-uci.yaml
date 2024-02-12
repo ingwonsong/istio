@@ -20,6 +20,11 @@ spec:
          provider: vsphere
          distribution: gke
          provisionerArgs:
+           lbkind: "MetalLB"
+           ipAllocationStrategy: static
+           controlPlaneV2Enabled: "true"
+           userAcnMode: "true"
+           additionalNodes: "4"
            username: prowuser
            {{- if .Version }}
            gkectlVersion: "{{ .Version }}"
@@ -31,10 +36,8 @@ spec:
            {{- end }}
            connectLocation: us-central1
            gkectlConfigSeedVersion: "v1"
-           vipNetwork: "fe"
            gkeConnectProject: "{{ .OnPremHubDevProject }}"
            stackdriverProjectId: "{{ .OnPremHubDevProject }}"
            # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
-           herculesEnvTtl: "4h"
            vsphereVersion: "7.0"
            esxiVersion: "7.0"
