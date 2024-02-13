@@ -1,0 +1,6 @@
+# used for testing MDP with asmcli
+revisions:
+- name: "asm-1-18"
+  version: "1.18"
+- name: "asm-master"
+  overlay: "overlay/mdp.yaml"
