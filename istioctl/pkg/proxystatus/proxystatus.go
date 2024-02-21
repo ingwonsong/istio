@@ -30,6 +30,7 @@ import (
 	"istio.io/istio/istioctl/pkg/multixds"
 	"istio.io/istio/istioctl/pkg/util/ambient"
 	"istio.io/istio/istioctl/pkg/writer/compare"
+	"istio.io/istio/istioctl/pkg/writer/compare/csmcompare"
 	"istio.io/istio/istioctl/pkg/writer/pilot"
 	pilotxds "istio.io/istio/pilot/pkg/xds"
 	"istio.io/istio/pkg/log"
@@ -226,8 +227,11 @@ Retrieves last sent and last acknowledged xDS sync from Istiod to each Envoy in 
 				}).Run(); err != nil {
 					return fmt.Errorf("returning error when calling CSDS API: %w", err)
 				} else if csdsResponses != nil {
-					// TODO(siyiwang): Prints both control plane config dump and envoy config dump
-					return nil
+					csmComparator, err := csmcompare.NewComparator(c.OutOrStdout(), csdsResponses, envoyDump)
+					if err != nil {
+						return fmt.Errorf("failed generating csm config comparator: %w", err)
+					}
+					return csmComparator.Diff()
 				}
 				// CSM code end
 

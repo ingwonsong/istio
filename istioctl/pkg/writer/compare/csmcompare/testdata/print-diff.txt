@@ -1,0 +1,39 @@
+Cluster resources config diff prints below:
+Printing config diff for: InboundPassthroughClusterIpv4
+--- TD Clusters
++++ Envoy Clusters
+@@ -3,14 +3,33 @@
+ 	"ClusterDiscoveryType": {
+ 		"Type": 4
+ 	},
+ 	"connect_timeout": {
+ 		"seconds": 10
+ 	},
+ 	"lb_policy": 6,
++	"circuit_breakers": {
++		"thresholds": [
++			{
++				"max_connections": {
++					"value": 4294967295
++				},
++				"max_pending_requests": {
++					"value": 4294967295
++				},
++				"max_requests": {
++					"value": 4294967295
++				},
++				"max_retries": {
++					"value": 4294967295
++				},
++				"track_remaining": true
++			}
++		]
++	},
+ 	"upstream_bind_config": {
+ 		"source_address": {
+ 			"address": "127.0.0.6",
+ 			"PortSpecifier": {
+ 				"PortValue": 0
+ 			}
+ 		}
+

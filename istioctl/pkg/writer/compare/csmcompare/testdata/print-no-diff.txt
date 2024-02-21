@@ -1,0 +1,1 @@
+Cluster resources are identical between envoy and the control plane

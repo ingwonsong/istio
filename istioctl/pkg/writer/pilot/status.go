@@ -231,7 +231,7 @@ func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryRe
 					routeStatus:           syncStatus["RDS"],
 					endpointStatus:        "Not supported",
 					extensionconfigStatus: "Not supported",
-					istiodID:              "Do not apply", // Do not apply infer the control plane is TD
+					istiodID:              "N/A", // N/A infer the control plane is TD
 				})
 				csdsFound[csds.ClientIDToEnvoyName(id)] = struct{}{}
 			}
