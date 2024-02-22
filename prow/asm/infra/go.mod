@@ -13,7 +13,7 @@ require (
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-20220408200757-466c02050528
-	k8s.io/apimachinery v0.29.1
+	k8s.io/apimachinery v0.29.2
 	sigs.k8s.io/boskos v0.0.0-20210823185622-ae371c628ac9
 	sigs.k8s.io/kubetest2 v0.0.0-20220713164938-2aac35a0b4ba
 )

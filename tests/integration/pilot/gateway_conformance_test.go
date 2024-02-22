@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/gateway-api/conformance/utils/config"
 	"sigs.k8s.io/gateway-api/conformance/utils/suite"
 
+	"istio.io/istio/pilot/pkg/config/kube/gateway"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/maps"
@@ -105,7 +106,7 @@ func TestGatewayConformance(t *testing.T) {
 				RouteMustHaveParents:           60 * time.Second * gatewayConformanceTimeoutScaler,
 			}
 			config.SetupTimeoutConfig(&timeoutConfig)
-			features := suite.AllFeatures
+			features := gateway.SupportedFeatures
 			if ctx.Settings().GatewayConformanceStandardOnly {
 				features = k8ssets.New[suite.SupportedFeature]().
 					Insert(suite.GatewayExtendedFeatures.UnsortedList()...).
