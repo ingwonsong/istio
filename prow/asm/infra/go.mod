@@ -1,8 +1,8 @@
 module istio.io/istio/prow/asm/infra
 
-go 1.21
+go 1.22
 
-toolchain go1.21.3
+toolchain go1.22.0
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
