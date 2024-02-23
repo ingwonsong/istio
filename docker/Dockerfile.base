@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM us-docker.pkg.dev/artifact-foundry-prod/docker-3p/ubuntu:jammy
 
 ENV DEBIAN_FRONTEND=noninteractive
 
