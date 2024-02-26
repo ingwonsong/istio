@@ -46,6 +46,7 @@ import (
 	"istio.io/istio/pilot/pkg/keycertbundle"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core/v1alpha3"
+	sec_model "istio.io/istio/pilot/pkg/security/model"
 	"istio.io/istio/pilot/pkg/server"
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 	"istio.io/istio/pilot/pkg/serviceregistry/provider"
@@ -765,6 +766,8 @@ func (s *Server) initSecureDiscoveryService(args *PilotArgs) error {
 		MinVersion:   tls.VersionTLS12,
 		CipherSuites: args.ServerOptions.TLSOptions.CipherSuits,
 	}
+	// Compliance for xDS server TLS.
+	sec_model.EnforceGoCompliance(cfg)
 
 	tlsCreds := credentials.NewTLS(cfg)
 
