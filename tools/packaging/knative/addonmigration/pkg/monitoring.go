@@ -111,7 +111,7 @@ func (m *migrationWorker) RefreshToken() error {
 	if err != nil {
 		return fmt.Errorf("failed to create a token under service account %s in namespace: %v", serviceAccount, err)
 	}
-	if err := os.WriteFile(model.K8sSATrustworthyJwtFileName, []byte(tokenReq.Status.Token), os.FileMode(0o744)); err != nil {
+	if err := os.WriteFile(model.ThirdPartyJwtPath, []byte(tokenReq.Status.Token), os.FileMode(0o744)); err != nil {
 		return fmt.Errorf("failed to write jwt to local fs: %v", err)
 	}
 	log.Info("Security token for service account has been generated and stored")
