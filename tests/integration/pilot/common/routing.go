@@ -1039,9 +1039,9 @@ spec:
 			workloadAgnostic: true,
 		})
 
-		// deny all access.
+		// allow only when `end-user` header present.
 		t.RunTraffic(TrafficTestCase{
-			name: "without headers using regex",
+			name: "without headers regex convert to present_match",
 			config: `
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -1054,7 +1054,7 @@ spec:
   - match:
     - withoutHeaders:
         end-user:
-          regex: \*
+          regex: "*"
     route:
     - destination:
         host: {{ .dstSvc }}
@@ -1082,7 +1082,7 @@ spec:
 									Build(),
 							},
 							Count: 1,
-							Check: check.Status(http.StatusForbidden),
+							Check: check.Status(http.StatusOK),
 						}
 					}(),
 				},
@@ -1100,7 +1100,7 @@ spec:
 									Build(),
 							},
 							Count: 1,
-							Check: check.Status(http.StatusForbidden),
+							Check: check.Status(http.StatusOK),
 						}
 					}(),
 				},
@@ -1116,6 +1116,90 @@ spec:
 							},
 							Count: 1,
 							Check: check.Status(http.StatusForbidden),
+						}
+					}(),
+				},
+			},
+			workloadAgnostic: true,
+		})
+
+		// allow all access.
+		t.RunTraffic(TrafficTestCase{
+			name: "without headers regex match any string",
+			config: `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vs
+spec:
+  hosts:
+  - {{ .dstSvc }}
+  http:
+  - match:
+    - withoutHeaders:
+        end-user:
+          regex: .*
+    route:
+    - destination:
+        host: {{ .dstSvc }}
+    fault:
+      abort:
+        percentage:
+          value: 100
+        httpStatus: 403
+  - route:
+    - destination:
+        host: {{ .dstSvc }}
+`,
+			children: []TrafficCall{
+				{
+					name: "have end-user header and value",
+					opts: func() echo.CallOptions {
+						return echo.CallOptions{
+							Port: echo.Port{
+								Name: "http",
+							},
+							HTTP: echo.HTTP{
+								Path: "/foo",
+								Headers: headers.New().
+									With("end-user", "jason").
+									Build(),
+							},
+							Count: 1,
+							Check: check.Status(http.StatusOK),
+						}
+					}(),
+				},
+				{
+					name: "have end-user header but value is empty",
+					opts: func() echo.CallOptions {
+						return echo.CallOptions{
+							Port: echo.Port{
+								Name: "http",
+							},
+							HTTP: echo.HTTP{
+								Path: "/foo",
+								Headers: headers.New().
+									With("end-user", "").
+									Build(),
+							},
+							Count: 1,
+							Check: check.Status(http.StatusOK),
+						}
+					}(),
+				},
+				{
+					name: "do not have end-user header",
+					opts: func() echo.CallOptions {
+						return echo.CallOptions{
+							Port: echo.Port{
+								Name: "http",
+							},
+							HTTP: echo.HTTP{
+								Path: "/foo",
+							},
+							Count: 1,
+							Check: check.Status(http.StatusOK),
 						}
 					}(),
 				},

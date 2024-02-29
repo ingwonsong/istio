@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
@@ -69,7 +70,9 @@ import (
 	istiokeepalive "istio.io/istio/pkg/keepalive"
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/inject"
+	"istio.io/istio/pkg/kube/kclient"
 	"istio.io/istio/pkg/kube/multicluster"
+	"istio.io/istio/pkg/kube/namespace"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/network"
 	"istio.io/istio/pkg/security"
@@ -268,6 +271,14 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 
 	s.initMeshConfiguration(args, s.fileWatcher)
 	spiffe.SetTrustDomain(s.environment.Mesh().GetTrustDomain())
+	// Setup Kubernetes watch filters
+	// Because this relies on meshconfig, it needs to be outside initKubeClient
+	if s.kubeClient != nil {
+		// Build a namespace watcher. This must have no filter, since this is our input to the filter itself.
+		namespaces := kclient.New[*corev1.Namespace](s.kubeClient)
+		filter := namespace.NewDiscoveryNamespacesFilter(namespaces, s.environment.Watcher, s.internalStop)
+		s.kubeClient = kubelib.SetObjectFilter(s.kubeClient, filter)
+	}
 
 	s.initMeshNetworks(args, s.fileWatcher)
 	s.initMeshHandlers(configGen.MeshConfigChanged)
@@ -280,7 +291,6 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 	caOpts := &caOptions{
 		TrustDomain:      s.environment.Mesh().TrustDomain,
 		Namespace:        args.Namespace,
-		DiscoveryFilter:  args.RegistryOptions.KubeOptions.GetFilter(),
 		ExternalCAType:   ra.CaExternalType(externalCaType),
 		CertSignerDomain: features.CertSignerDomain,
 	}
@@ -851,9 +861,6 @@ func (s *Server) cachesSynced() bool {
 	if !s.configController.HasSynced() {
 		return false
 	}
-	if s.webhookInfo.wh != nil && !s.webhookInfo.wh.HasSynced() {
-		return false
-	}
 	return true
 }
 
@@ -1113,10 +1120,6 @@ func (s *Server) initControllers(args *PilotArgs) error {
 
 	s.initSDSServer()
 
-	if features.EnableEnhancedResourceScoping {
-		// setup namespace filter
-		args.RegistryOptions.KubeOptions.DiscoveryNamespacesFilter = s.multiclusterController.DiscoveryNamespacesFilter
-	}
 	if err := s.initConfigController(args); err != nil {
 		return fmt.Errorf("error initializing config controller: %v", err)
 	}

@@ -266,10 +266,27 @@ spec:
               path: /readyz
               port: 8000
           securityContext:
+            privileged: true # always requires privilege to be useful (install node plugin, etc)
             runAsGroup: 0
             runAsUser: 0
             runAsNonRoot: false
-            privileged: true
+            # Both ambient and sidecar repair mode require elevated node privileges to function.
+            # But we don't need _everything_ in `privileged`, so drop+readd capabilities based on feature.
+            # privileged is redundant with CAP_SYS_ADMIN
+            # since it's redundant, hardcode it to `true`, then manually drop ALL + readd granular
+            # capabilities we actually require
+            capabilities:
+              drop:
+              - ALL
+              add:
+              # CAP_NET_ADMIN is required to allow ipset and route table access
+              - NET_ADMIN
+              # CAP_NET_RAW is required to allow iptables mutation of the `nat` table
+              - NET_RAW
+              # CAP_SYS_ADMIN is required for both ambient and repair, in order to open
+              # network namespaces in `/proc` to obtain descriptors for entering pod netnamespaces.
+              # There does not appear to be a more granular capability for this.
+              - SYS_ADMIN
           command: ["install-cni"]
           args:
             - --log_output_level=default:"{{ .LOG_LEVEL }}",cni:"{{ .LOG_LEVEL }}"
