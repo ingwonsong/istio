@@ -7,10 +7,6 @@ metadata:
   namespace: kube-system
   labels:
     app: mdp-controller
-    release: mdp
-    istio.io/rev: default
-    install.operator.istio.io/owning-resource: unknown
-    operator.istio.io/component: "Cni"
 ---
 # Source: mdp/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -201,4 +197,4 @@ spec:
           - serviceAccountToken:
               path: istio-token
               expirationSeconds: 43200
-              audience: PROJECT_ID.svc.id.goog
+              audience: {{ .PROJECT_ID }}.svc.id.goog

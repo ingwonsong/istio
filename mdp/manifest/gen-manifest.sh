@@ -41,6 +41,12 @@ sed -i 's/PROJECT_ID/{{ .PROJECT_ID }}/' "${CNI_MANIFEST_OUT}"
 MDP_CONTROLLER_MANIFEST_OUT="mdp/manifest/gen-mdp-controller-manifest.yaml"
 helm3 template mdp --namespace kube-system manifests/charts/mdp \
       -f mdp/manifest/values-mdp-controller.yaml > "${MDP_CONTROLLER_MANIFEST_OUT}"
+sed -i '/release:/d' "${MDP_CONTROLLER_MANIFEST_OUT}"
+sed -i '/install.operator.istio.io\/owning-resource:/d' "${MDP_CONTROLLER_MANIFEST_OUT}"
+sed -i '/operator.istio.io\/component:/d' "${MDP_CONTROLLER_MANIFEST_OUT}"
+sed -i '/istio.io\/rev/d' "${MDP_CONTROLLER_MANIFEST_OUT}"
+# helm is not happy with some field values to contain {{}}
+sed -i 's/PROJECT_ID/{{ .PROJECT_ID }}/' "${MDP_CONTROLLER_MANIFEST_OUT}"
 
 # for release build only
 if [[ -d "${TARGET_OUT}/release" ]];then
