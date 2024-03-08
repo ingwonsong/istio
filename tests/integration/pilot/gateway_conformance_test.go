@@ -23,7 +23,6 @@ import (
 
 	k8ssets "k8s.io/apimachinery/pkg/util/sets" //nolint: depguard
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	controllruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 	v1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/gateway-api/conformance/tests"
 	"sigs.k8s.io/gateway-api/conformance/utils/config"
@@ -31,7 +30,6 @@ import (
 
 	"istio.io/istio/pilot/pkg/config/kube/gateway"
 	"istio.io/istio/pkg/kube"
-	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/maps"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/crd"
@@ -60,11 +58,6 @@ var conformanceNamespaces = []string{
 
 var skippedTests = map[string]string{
 	"MeshFrontendHostname": "https://github.com/istio/istio/issues/44702",
-}
-
-func init() {
-	scope := log.RegisterScope("controlleruntime", "scope for controller runtime")
-	controllruntimelog.SetLogger(log.NewLogrAdapter(scope))
 }
 
 const gatewayConformanceTimeoutScaler = 5

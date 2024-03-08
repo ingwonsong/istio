@@ -30,21 +30,23 @@ func SetupEtcHostsFile(ingr ingress.Instance, host string) error {
 		"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
 		"grep", host, "/etc/hosts")
 	out, _ := cmd.Output()
-	addr, _ := ingr.HTTPAddress()
-	hostEntry := addr + " " + host
-	if !strings.Contains(string(out), hostEntry) {
-		cmd = exec.Command("ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
-			"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
-			"sudo sed", "-i", "'/"+host+"/d'", "/etc/hosts")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("command %s failed: %q %v", cmd.String(), string(out), err)
-		}
-		cmd := exec.Command("ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
-			"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
-			"echo", "\""+hostEntry+"\"", " | sudo tee -a /etc/hosts")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("command %s failed: %q %v", cmd.String(), string(out), err)
+	addrs, _ := ingr.HTTPAddresses()
+	for _, addr := range addrs {
+		hostEntry := addr + " " + host
+		if !strings.Contains(string(out), hostEntry) {
+			cmd = exec.Command("ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
+				"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
+				"sudo sed", "-i", "'/"+host+"/d'", "/etc/hosts")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("command %s failed: %q %v", cmd.String(), string(out), err)
+			}
+			cmd := exec.Command("ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
+				"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
+				"echo", "\""+hostEntry+"\"", " | sudo tee -a /etc/hosts")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("command %s failed: %q %v", cmd.String(), string(out), err)
+			}
 		}
 	}
 	return nil

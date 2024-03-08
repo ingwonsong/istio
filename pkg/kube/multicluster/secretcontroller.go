@@ -62,7 +62,7 @@ var (
 
 type handler interface {
 	clusterAdded(cluster *Cluster) ComponentConstraint
-	clusterUpdated(cluster *Cluster)
+	clusterUpdated(cluster *Cluster) ComponentConstraint
 	clusterDeleted(clusterID cluster.ID)
 	HasSynced() bool
 }
@@ -289,9 +289,9 @@ func (c *Controller) addSecret(name types.NamespacedName, s *corev1.Secret) erro
 			continue
 		}
 
-		action, callback := "Adding", func(cluster *Cluster) { c.handleAdd(cluster) }
+		action := Add
 		if prev := c.cs.Get(secretKey, cluster.ID(clusterID)); prev != nil {
-			action, callback = "Updating", c.handleUpdate
+			action = Update
 			// clusterID must be unique even across multiple secrets
 			kubeConfigSha := sha256.Sum256(kubeConfig)
 			if bytes.Equal(kubeConfigSha[:], prev.kubeConfigSha[:]) {
@@ -313,10 +313,11 @@ func (c *Controller) addSecret(name types.NamespacedName, s *corev1.Secret) erro
 			errs = multierror.Append(errs, err)
 			continue
 		}
-		callback(remoteCluster)
-		logger.Infof("finished callback for cluster and starting to sync")
+		// We run cluster async so we do not block, as this requires actually connecting to the cluster and loading configuration.
 		c.cs.Store(secretKey, remoteCluster.ID, remoteCluster)
-		go remoteCluster.Run(c.meshWatcher, c.handlers)
+		go func() {
+			remoteCluster.Run(c.meshWatcher, c.handlers, action)
+		}()
 	}
 
 	log.Infof("Number of remote clusters: %d", c.cs.Len())
@@ -351,12 +352,6 @@ func (c *Controller) handleAdd(cluster *Cluster) []ComponentConstraint {
 		syncers = append(syncers, handler.clusterAdded(cluster))
 	}
 	return syncers
-}
-
-func (c *Controller) handleUpdate(cluster *Cluster) {
-	for _, handler := range c.handlers {
-		handler.clusterUpdated(cluster)
-	}
 }
 
 func (c *Controller) handleDelete(key cluster.ID) {

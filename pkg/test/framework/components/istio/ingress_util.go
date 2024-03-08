@@ -43,15 +43,17 @@ func SetupIngressViaProxy(ingr ingress.Instance, host string) error {
 }
 
 func SetupEtcHostsFile(ingr ingress.Instance, host string) error {
-	addr, _ := ingr.HTTPAddress()
-	hostEntry := addr + " " + host
-	cmd := exec.Command("ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
-		"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
-		"sudo grep", "-qxF", host, "/etc/hosts", "|| echo \""+hostEntry+"\"  | sudo tee -a /etc/hosts")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("command %s failed: %q %v", cmd.String(), string(out), err)
+	addrs, _ := ingr.HTTPAddresses()
+	for _, addr := range addrs {
+		hostEntry := addr + " " + host
+		cmd := exec.Command("ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
+			"-i", ingr.Cluster().SSHKey(), ingr.Cluster().SSHUser(),
+			"sudo grep", "-qxF", host, "/etc/hosts", "|| echo \""+hostEntry+"\"  | sudo tee -a /etc/hosts")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("command %s failed: %q %v", cmd.String(), string(out), err)
+		}
+		hostsAdded.Store(host+ingr.Cluster().Name(), empty)
 	}
-	hostsAdded.Store(host+ingr.Cluster().Name(), empty)
 	return nil
 }

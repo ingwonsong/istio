@@ -451,12 +451,6 @@ func EnableCrdWatcher(c Client) Client {
 
 var NewCrdWatcher func(Client) kubetypes.CrdWatcher
 
-// NewDefaultClient returns a default client, using standard Kubernetes config resolution to determine
-// the cluster to access.
-func NewDefaultClient() (Client, error) {
-	return NewClient(BuildClientCmd("", ""), "")
-}
-
 // NewCLIClient creates a Kubernetes client from the given ClientConfig. The "revision" parameter
 // controls the behavior of GetIstioPods, by selecting a specific revision of the control plane.
 // This is appropriate for use in CLI libraries because it exposes functionality unsafe for in-cluster controllers,
@@ -752,7 +746,7 @@ func (c *client) AllDiscoveryDo(ctx context.Context, istiodNamespace, path strin
 
 	result := map[string][]byte{}
 	for _, istiod := range istiods {
-		monitoringPort := findIstiodMonitoringPort(&istiod)
+		monitoringPort := FindIstiodMonitoringPort(&istiod)
 		res, err := c.portForwardRequest(ctx, istiod.Name, istiod.Namespace, http.MethodGet, path, monitoringPort)
 		if err != nil {
 			return nil, err
@@ -853,7 +847,7 @@ func (c *client) GetIstioVersions(ctx context.Context, namespace string) (*versi
 			Revision:  pod.GetLabels()[label.IoIstioRev.Name],
 		}
 
-		monitoringPort := findIstiodMonitoringPort(&pod)
+		monitoringPort := FindIstiodMonitoringPort(&pod)
 		result, err := c.portForwardRequest(ctx, pod.Name, pod.Namespace, http.MethodGet, "/version", monitoringPort)
 		if err != nil {
 			errs = multierror.Append(errs,
@@ -1223,7 +1217,7 @@ func SetRevisionForTest(c CLIClient, rev string) CLIClient {
 	return tc
 }
 
-func findIstiodMonitoringPort(pod *v1.Pod) int {
+func FindIstiodMonitoringPort(pod *v1.Pod) int {
 	if v, ok := pod.GetAnnotations()["prometheus.io/port"]; ok {
 		if port, err := strconv.Atoi(v); err == nil {
 			return port

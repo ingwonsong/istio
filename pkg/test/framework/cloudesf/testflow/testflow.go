@@ -401,7 +401,8 @@ func GenTestFlow(i istio.Instance, cloudESFConfigs []string, initContainerImageP
 
 		// Get the ingress address.
 		name := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "istio-system"}
-		address, _ := i.CustomIngressFor(t.Clusters().Default(), name, "ingressgateway").HTTPAddress()
+		addresses, _ := i.CustomIngressFor(t.Clusters().Default(), name, "ingressgateway").HTTPAddresses()
+		address := addresses[0]
 		t.Logf("The ingress address is: %v", address)
 
 		// Wait for CloudESF to be healthy.

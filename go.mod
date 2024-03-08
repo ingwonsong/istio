@@ -26,7 +26,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/docker/cli v25.0.1+incompatible
-	github.com/envoyproxy/go-control-plane v0.12.1-0.20240221204751-2259f2656a1f
+	github.com/envoyproxy/go-control-plane v0.12.1-0.20240229170157-f82c59662ea6
 	github.com/evanphx/json-patch/v5 v5.7.0
 	github.com/fatih/color v1.16.0
 	github.com/felixge/fgprof v0.9.3
@@ -35,7 +35,7 @@ require (
 	github.com/go-jose/go-jose/v3 v3.0.1
 	github.com/go-logr/logr v1.4.1
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.4
 	github.com/google/cel-go v0.17.7
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-containerregistry v0.19.0
@@ -103,13 +103,13 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240125205218-1f4bbc51befe
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe
 	google.golang.org/grpc v1.61.0
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.14.2
-	istio.io/api v1.19.0-alpha.1.0.20240228185338-ccd5cd40965c
-	istio.io/client-go v1.19.0-alpha.1.0.20240228185940-7042681d6384
+	istio.io/api v1.19.0-alpha.1.0.20240305222620-e799e9291a3f
+	istio.io/client-go v1.19.0-alpha.1.0.20240305223320-dd3067392a51
 	k8s.io/api v0.29.2
 	k8s.io/apiextensions-apiserver v0.29.2
 	k8s.io/apimachinery v0.29.2
@@ -120,7 +120,7 @@ require (
 	k8s.io/kubectl v0.29.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/controller-runtime v0.16.3
-	sigs.k8s.io/gateway-api v1.0.1-0.20240222012914-7a4c26cfe93e
+	sigs.k8s.io/gateway-api v1.0.1-0.20240301190905-f6102784e488
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/yaml v1.4.0
 )
