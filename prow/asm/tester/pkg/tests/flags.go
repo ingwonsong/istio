@@ -31,7 +31,7 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	testFlags := []string{"--istio.test.kube.deploy=false"}
 	if settings.ControlPlane != resource.Unmanaged {
 		if !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
-			testFlags = append(testFlags, "--istio.test.skipDelta")
+			testFlags = append(testFlags)
 			if settings.UseAutoCPManagement {
 				// Auto CP management determines the MCP channel from the GKE release channel.
 				// Assume if there are multiple clusters, the channels are the same.
@@ -56,7 +56,7 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 		} else {
 			testFlags = append(testFlags,
 				// TODO(b/208667932) VPC-SC does not run using latest config
-				"--istio.test.revisions=asm-managed-rapid=1.11.2", "--istio.test.skipDelta")
+				"--istio.test.revisions=asm-managed-rapid=1.11.2")
 		}
 	}
 

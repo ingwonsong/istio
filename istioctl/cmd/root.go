@@ -159,12 +159,14 @@ debug and diagnose their Istio mesh.
 	}
 
 	xdsBasedTroubleshooting := []*cobra.Command{
+		// TODO(hanxiaop): I think experimental version still has issues, so we keep the old version for now.
 		version.XdsVersionCommand(ctx),
+		// TODO(hanxiaop): this is kept for some releases in case someone is using it.
 		proxystatus.XdsStatusCommand(ctx),
 	}
-	debugBasedTroubleshooting := []*cobra.Command{
+	troubleshootingCommands := []*cobra.Command{
 		version.NewVersionCommand(ctx),
-		proxystatus.StatusCommand(ctx),
+		proxystatus.StableXdsStatusCommand(ctx),
 	}
 	var debugCmdAttachmentPoint *cobra.Command
 	if viper.GetBool("PREFER-EXPERIMENTAL") {
@@ -183,7 +185,7 @@ debug and diagnose their Istio mesh.
 	for _, c := range xdsBasedTroubleshooting {
 		experimentalCmd.AddCommand(c)
 	}
-	for _, c := range debugBasedTroubleshooting {
+	for _, c := range troubleshootingCommands {
 		debugCmdAttachmentPoint.AddCommand(c)
 	}
 

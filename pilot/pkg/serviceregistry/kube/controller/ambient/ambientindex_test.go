@@ -873,12 +873,14 @@ func TestPodLifecycleWorkloadGates(t *testing.T) {
 
 	s.addPods(t, "127.0.0.2", "pod2", "sa1", map[string]string{"app": "a", "other": "label"}, nil, false, corev1.PodRunning)
 	s.addPods(t, "127.0.0.3", "pod3", "sa1", map[string]string{"app": "other"}, nil, false, corev1.PodPending)
+	s.addPods(t, "", "pod4", "sa1", map[string]string{"app": "another"}, nil, false, corev1.PodPending)
 	s.assertEvent(t, "//Pod/ns1/pod2")
 	// Still healthy
 	s.assertWorkloads(t, "", workloadapi.WorkloadStatus_HEALTHY, "pod1")
 	// Unhealthy
-	s.assertWorkloads(t, "", workloadapi.WorkloadStatus_UNHEALTHY, "pod2")
-	// pod3 isn't running at all
+	s.assertWorkloads(t, "", workloadapi.WorkloadStatus_UNHEALTHY, "pod2", "pod3")
+	// pod3 is pending but have be assigned IP
+	// pod4 is pending and not have IP
 }
 
 func TestAddressInformation(t *testing.T) {
@@ -1060,6 +1062,31 @@ func TestWorkloadsForWaypoint(t *testing.T) {
 	s.assertEvent(t, s.podXdsName("pod1"))
 	assertWaypoint(t, model.WaypointScope{Namespace: testNS}, s.podXdsName("pod1"), s.podXdsName("pod2"))
 	assertWaypoint(t, model.WaypointScope{Namespace: testNS, ServiceAccount: "sa1"}, s.podXdsName("pod1"))
+}
+
+func TestWorkloadsForWaypointOrder(t *testing.T) {
+	test.SetForTest(t, &features.EnableAmbientControllers, true)
+	s := newAmbientTestServer(t, "", "")
+
+	assertOrderedWaypoint := func(t *testing.T, waypoint model.WaypointScope, expected ...string) {
+		t.Helper()
+		wls := s.WorkloadsForWaypoint(waypoint)
+		wl := make([]string, len(wls))
+		for i, e := range wls {
+			wl[i] = e.ResourceName()
+		}
+		assert.Equal(t, wl, expected)
+	}
+
+	// expected order is pod3, pod1, pod2, which is the order of creation
+	s.addPods(t, "127.0.0.3", "pod3", "sa3", map[string]string{"app": "a"}, nil, true, corev1.PodRunning)
+	s.assertEvent(t, s.podXdsName("pod3"))
+	s.addPods(t, "127.0.0.1", "pod1", "sa1", map[string]string{"app": "a"}, nil, true, corev1.PodRunning)
+	s.assertEvent(t, s.podXdsName("pod1"))
+	s.addPods(t, "127.0.0.2", "pod2", "sa2", map[string]string{"app": "a"}, nil, true, corev1.PodRunning)
+	s.assertEvent(t, s.podXdsName("pod2"))
+	assertOrderedWaypoint(t, model.WaypointScope{Namespace: testNS},
+		s.podXdsName("pod3"), s.podXdsName("pod1"), s.podXdsName("pod2"))
 }
 
 // This is a regression test for a case where policies added after pods were not applied when
@@ -1513,6 +1540,9 @@ func generatePod(ip, name, namespace, saName, node string, labels map[string]str
 			Labels:      labels,
 			Annotations: annotations,
 			Namespace:   namespace,
+			CreationTimestamp: metav1.Time{
+				Time: time.Now(),
+			},
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName:           saName,

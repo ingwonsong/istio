@@ -118,7 +118,7 @@ func (a *index) WorkloadsCollection(
 			w.CanonicalName, w.CanonicalRevision = kubelabels.CanonicalService(se.Labels, w.WorkloadName)
 
 			setTunnelProtocol(se.Labels, se.Annotations, w)
-			res = append(res, model.WorkloadInfo{Workload: w, Labels: se.Labels, Source: kind.WorkloadEntry})
+			res = append(res, model.WorkloadInfo{Workload: w, Labels: se.Labels, Source: kind.WorkloadEntry, CreationTime: se.CreationTimestamp.Time})
 		}
 		return res
 	}, krt.WithName("ServiceEntryWorkloads"))
@@ -187,7 +187,7 @@ func (a *index) workloadEntryWorkloadBuilder(
 		w.CanonicalName, w.CanonicalRevision = kubelabels.CanonicalService(p.Labels, w.WorkloadName)
 
 		setTunnelProtocol(p.Labels, p.Annotations, w)
-		return &model.WorkloadInfo{Workload: w, Labels: p.Labels, Source: kind.WorkloadEntry}
+		return &model.WorkloadInfo{Workload: w, Labels: p.Labels, Source: kind.WorkloadEntry, CreationTime: p.CreationTimestamp.Time}
 	}
 }
 
@@ -199,7 +199,10 @@ func (a *index) podWorkloadBuilder(
 	WorkloadServices krt.Collection[model.ServiceInfo],
 ) func(ctx krt.HandlerContext, p *v1.Pod) *model.WorkloadInfo {
 	return func(ctx krt.HandlerContext, p *v1.Pod) *model.WorkloadInfo {
-		if !IsPodRunning(p) || p.Spec.HostNetwork {
+		// Pod Is Pending but have a pod IP should be a valid workload, we should build it ,
+		// Such as the pod have initContainer which is initialing.
+		// See https://github.com/istio/istio/issues/48854
+		if (!IsPodRunning(p) && !IsPodPending(p)) || p.Spec.HostNetwork {
 			return nil
 		}
 		podIP, err := netip.ParseAddr(p.Status.PodIP)
@@ -258,7 +261,7 @@ func (a *index) podWorkloadBuilder(
 		w.CanonicalName, w.CanonicalRevision = kubelabels.CanonicalService(p.Labels, w.WorkloadName)
 
 		setTunnelProtocol(p.Labels, p.Annotations, w)
-		return &model.WorkloadInfo{Workload: w, Labels: p.Labels, Source: kind.Pod}
+		return &model.WorkloadInfo{Workload: w, Labels: p.Labels, Source: kind.Pod, CreationTime: p.CreationTimestamp.Time}
 	}
 }
 

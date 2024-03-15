@@ -23,16 +23,20 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 	authorizationapi "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	crd "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"istio.io/api/label"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/istioctl/pkg/cli"
 	"istio.io/istio/istioctl/pkg/clioptions"
 	"istio.io/istio/istioctl/pkg/install/k8sversion"
 	"istio.io/istio/istioctl/pkg/util/formatting"
+	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/analysis"
 	"istio.io/istio/pkg/config/analysis/analyzers/maturity"
 	"istio.io/istio/pkg/config/analysis/diag"
@@ -93,7 +97,7 @@ func Cmd(ctx cli.Context) *cobra.Command {
 					outputMsgs = append(outputMsgs, m)
 				}
 			}
-			output, err := formatting.Print(msgs, msgOutputFormat, true)
+			output, err := formatting.Print(outputMsgs, msgOutputFormat, true)
 			if err != nil {
 				return err
 			}
@@ -143,7 +147,12 @@ func checkFromVersion(ctx cli.Context, revision, version string) (diag.Messages,
 	}
 
 	var messages diag.Messages = make([]diag.Message, 0)
-
+	if minor <= 21 {
+		// ENHANCED_RESOURCE_SCOPING
+		if err := checkPilot(cli, ctx.IstioNamespace(), &messages); err != nil {
+			return nil, err
+		}
+	}
 	if minor <= 20 {
 		// VERIFY_CERTIFICATE_AT_CLIENT and ENABLE_AUTO_SNI
 		if err := checkDestinationRuleTLS(cli, &messages); err != nil {
@@ -158,7 +167,34 @@ func checkFromVersion(ctx cli.Context, revision, version string) (diag.Messages,
 			return nil, err
 		}
 	}
+
+	if minor <= 21 {
+		if err := checkTracing(cli, &messages); err != nil {
+			return nil, err
+		}
+	}
 	return messages, nil
+}
+
+func checkTracing(cli kube.CLIClient, messages *diag.Messages) error {
+	// In 1.22, we remove the default tracing config which points to zipkin.istio-system
+	// This has no effect for users, unless they have this service.
+	svc, err := cli.Kube().CoreV1().Services("istio-system").Get(context.Background(), "zipkin", metav1.GetOptions{})
+	if err != nil && !kerrors.IsNotFound(err) {
+		return err
+	}
+	if err != nil {
+		// not found
+		return nil
+	}
+	// found
+	res := ObjectToInstance(svc)
+	messages.Add(msg.NewUpdateIncompatibility(res,
+		"meshConfig.defaultConfig.tracer", "1.21",
+		"tracing is no longer by default enabled to send to 'zipkin.istio-system.svc'; "+
+			"follow https://istio.io/latest/docs/tasks/observability/distributed-tracing/telemetry-api/",
+		"1.21"))
+	return nil
 }
 
 func checkExternalNameAlias(cli kube.CLIClient, messages *diag.Messages) error {
@@ -175,6 +211,67 @@ func checkExternalNameAlias(cli kube.CLIClient, messages *diag.Messages) error {
 			"ENABLE_EXTERNAL_NAME_ALIAS", "1.20",
 			"ExternalName services now behavior differently; consult upgrade notes for more information", "1.20"))
 
+	}
+	return nil
+}
+
+func checkPilot(cli kube.CLIClient, namespace string, messages *diag.Messages) error {
+	deployments, err := cli.Kube().AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "app=istiod",
+	})
+	if err != nil {
+		return err
+	}
+	for _, deployment := range deployments.Items {
+		scopingImpacted := false
+
+		// Obtain configmap to verify if affected features are used
+		configMapName := "istio"
+		if rev := deployment.Labels[label.IoIstioRev.Name]; rev != "default" {
+			configMapName += fmt.Sprintf("-%s", rev)
+		}
+		configMap, err := cli.Kube().CoreV1().ConfigMaps(namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
+		if err != nil {
+			fmt.Printf("Error getting configmap %s: %v\n", configMapName, err)
+		}
+		meshData := make(map[string]interface{})
+		if data, exists := configMap.Data["mesh"]; exists {
+			if err := yaml.Unmarshal([]byte(data), &meshData); err != nil {
+				fmt.Printf("Error parsing meshConfig: %v\n", err)
+				return err
+			}
+		}
+		if scopingImpacted = meshData["discoverySelectors"] != nil; !scopingImpacted {
+			continue
+		}
+		// Check if mitigation is already in place
+		for _, container := range deployment.Spec.Template.Spec.Containers {
+			if container.Name == "discovery" {
+				for _, envVar := range container.Env {
+					if envVar.Name == "ENHANCED_RESOURCE_SCOPING" && envVar.Value == "true" {
+						scopingImpacted = false
+						break
+					}
+				}
+			}
+		}
+		if scopingImpacted {
+			res := &resource.Instance{
+				Origin: &legacykube.Origin{
+					Type: config.GroupVersionKind(deployment.GroupVersionKind()),
+					FullName: resource.FullName{
+						Namespace: resource.Namespace(deployment.GetNamespace()),
+						Name:      resource.LocalName(deployment.GetName()),
+					},
+					ResourceVersion: resource.Version(deployment.GetResourceVersion()),
+					Ref:             nil,
+					FieldsMap:       nil,
+				},
+			}
+			messages.Add(msg.NewUpdateIncompatibility(res,
+				"ENHANCED_RESOURCE_SCOPING", "1.22",
+				"previously, the enhanced scoping of custom resources was disabled by default; now it will be enabled by default", "1.21"))
+		}
 	}
 	return nil
 }
