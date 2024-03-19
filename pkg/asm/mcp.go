@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/slices"
 )
 
@@ -80,26 +81,27 @@ func SetConnectGatewayForPublicRemoteCluster(val string) {
 // MCPParameters represents the set of inputs from the CloudRun service environment variables
 // This is currently configured from google3/cloud/services_platform/thetis/meshconfig/cloudrun.go
 type MCPParameters struct {
-	Project            string
-	ProjectNumber      string
-	Zone               string
-	Cluster            string
-	KRevision          string
-	Revision           string
-	TrustDomain        string
-	PodName            string
-	CloudrunAddr       string
-	Hub                string
-	Tag                string
-	XDSAddr            string
-	XDSAuthProvider    string
-	GKEClusterURL      string
-	FleetProjectNumber string
-	GKEHubMembership   string
-	CAAddr             string
-	CAType             string
-	AFCManagedWebhook  bool
-	EnableManagedCNI   bool
+	Project             string
+	ProjectNumber       string
+	TenantProjectNumber string
+	Zone                string
+	Cluster             string
+	KRevision           string
+	Revision            string
+	TrustDomain         string
+	PodName             string
+	CloudrunAddr        string
+	Hub                 string
+	Tag                 string
+	XDSAddr             string
+	XDSAuthProvider     string
+	GKEClusterURL       string
+	FleetProjectNumber  string
+	GKEHubMembership    string
+	CAAddr              string
+	CAType              string
+	AFCManagedWebhook   bool
+	EnableManagedCNI    bool
 }
 
 // nolint: golint
@@ -112,6 +114,13 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 	p.ProjectNumber = os.Getenv("PROJECT_NUMBER")
 	if p.ProjectNumber == "" {
 		return p, fmt.Errorf("PROJECT_NUMBER is a required environment variable")
+	}
+	p.TenantProjectNumber = os.Getenv("TENANT_PROJECT_NUMBER")
+	if p.TenantProjectNumber == "" {
+		// TODO(igsong): after Thetis is stable to set TENANT_PROJECT_NUMBER, return the error if
+		// TENANT_PROJECT_NUMBER is not set.
+		log.Warnf("TENANT_PROJECT_NUMBER is not set. It will be falled back to PROJECT_NUMBER")
+		p.TenantProjectNumber = p.ProjectNumber
 	}
 	p.Zone = os.Getenv("ZONE")
 	if p.Zone == "" {

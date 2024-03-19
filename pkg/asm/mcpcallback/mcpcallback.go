@@ -156,7 +156,7 @@ var (
 func reportStatusURL(p asm.MCPParameters) string {
 	api := strings.TrimSuffix(p.XDSAddr, ":443")
 	const apiFmt = "https://%s/v1internal/projects/%s/locations/%s/clusters/%s/controlPlanes/%s:reportStatus"
-	return fmt.Sprintf(apiFmt, api, p.Project, p.Zone, p.Cluster, p.Revision)
+	return fmt.Sprintf(apiFmt, api, p.TenantProjectNumber, p.Zone, p.Cluster, p.Revision)
 }
 
 func toPayload(st *status.Status, startupDuration time.Duration, rev, instanceID string) (string, error) {
