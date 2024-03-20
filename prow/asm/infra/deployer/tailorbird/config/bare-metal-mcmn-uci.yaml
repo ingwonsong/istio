@@ -43,7 +43,8 @@ spec:
               {
                  "MANIFEST_PROFILE_ENV": "staging",
                  "NUM_GCE_VIPS": "2",
-                 "GKE_CONNECT_LOCATION": "us-central1"
+                 "GKE_CONNECT_LOCATION": "us-central1",
+                 "CONTROLPLANE_USE_GCE_VIP": "true"
               }
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
@@ -70,5 +71,6 @@ spec:
               {
                  "MANIFEST_PROFILE_ENV": "staging",
                  "NUM_GCE_VIPS": "2",
-                 "GKE_CONNECT_LOCATION": "us-central1"
+                 "GKE_CONNECT_LOCATION": "us-central1",
+                 "CONTROLPLANE_USE_GCE_VIP": "true"
               }
