@@ -43,13 +43,10 @@ func SetPrintConfigTypeInSummary(p bool) {
 
 // Prime loads the config dump into the writer ready for printing
 func (c *ConfigWriter) Prime(b []byte) error {
-	cd := &adminv3.ConfigDump{}
-	err := protomarshal.UnmarshalWithGlobalTypesResolver(b, cd)
+	c.configDump = &configdump.Wrapper{}
+	err := c.configDump.UnmarshalJSON(b)
 	if err != nil {
 		return fmt.Errorf("error unmarshalling config dump response from Envoy: %v", err)
-	}
-	c.configDump = &configdump.Wrapper{
-		ConfigDump: cd,
 	}
 	return nil
 }
