@@ -154,7 +154,7 @@ Retrieves last sent and last acknowledged xDS sync from Istiod to each Envoy in 
 					EnvoyDump:     envoyDump,
 				}).Run(); err != nil {
 					return fmt.Errorf("returning error when calling CSDS API: %w", err)
-				} else if csdsResponses != nil {
+				} else if len(csdsResponses) != 0 {
 					csmComparator, err := csmcompare.NewComparator(c.OutOrStdout(), csdsResponses, envoyDump)
 					if err != nil {
 						return fmt.Errorf("failed generating csm config comparator: %w", err)

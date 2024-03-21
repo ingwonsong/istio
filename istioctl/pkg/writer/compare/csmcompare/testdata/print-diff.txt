@@ -1,7 +1,7 @@
 Cluster resources config diff prints below:
-Printing config diff for: InboundPassthroughClusterIpv4
---- TD Clusters
-+++ Envoy Clusters
+Printing cluster config diff for: InboundPassthroughClusterIpv4
+--- TD Configs
++++ Envoy Configs
 @@ -3,14 +3,33 @@
  	"ClusterDiscoveryType": {
  		"Type": 4

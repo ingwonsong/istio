@@ -50,7 +50,10 @@ type xdsWriterStatus struct {
 	extensionconfigStatus string
 }
 
-const ignoredStatus = "IGNORED"
+const (
+	ignoredStatus = "IGNORED"
+	notSentStatus = "NOT SENT"
+)
 
 // PrintAll takes a slice of Istiod syncz responses and outputs them using a tabwriter
 func (s *XdsStatusWriter) PrintAll(statuses map[string]*discovery.DiscoveryResponse) error {
@@ -114,6 +117,10 @@ func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryRe
 					"LDS": "Not Found",
 					"RDS": "Not Found",
 				}
+				meta, err := model.ParseMetadata(config.GetNode().GetMetadata())
+				if err != nil {
+					return nil, nil, fmt.Errorf("could not parse node metadata: %w", err)
+				}
 				for _, genericXdsConfig := range config.GenericXdsConfigs {
 					status := genericXdsConfig.GetConfigStatus().String()
 					xds := xdsresource.GetShortType(genericXdsConfig.GetTypeUrl())
@@ -123,12 +130,14 @@ func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryRe
 				}
 				fullStatus = append(fullStatus, &xdsWriterStatus{
 					proxyID:               csds.ClientIDToEnvoyName(id),
+					clusterID:             meta.ClusterID.String(),
 					clusterStatus:         syncStatus["CDS"],
 					listenerStatus:        syncStatus["LDS"],
 					routeStatus:           syncStatus["RDS"],
 					endpointStatus:        "Not supported",
 					extensionconfigStatus: "Not supported",
 					istiodID:              "N/A", // N/A infer the control plane is TD
+					istiodVersion:         "N/A",
 				})
 				csdsFound[csds.ClientIDToEnvoyName(id)] = struct{}{}
 			}
@@ -156,7 +165,7 @@ func (s *XdsStatusWriter) setupStatusPrint(drs map[string]*discovery.DiscoveryRe
 			// Skip this proxy if it's connected with TD
 			if _, ok := csdsFound[id]; ok {
 				// meaning this proxy is not connected to istiod while it's connected to TD
-				if cds == "NOT_SENT" {
+				if cds == notSentStatus {
 					continue
 				}
 			}
@@ -219,7 +228,7 @@ func formatStatus(s *xdsstatus.ClientConfig_GenericXdsConfig) string {
 	case xdsstatus.ConfigStatus_UNKNOWN:
 		return ignoredStatus
 	case xdsstatus.ConfigStatus_NOT_SENT:
-		return "NOT SENT"
+		return notSentStatus
 	default:
 		return s.GetConfigStatus().String()
 	}

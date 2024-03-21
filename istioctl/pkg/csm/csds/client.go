@@ -158,7 +158,12 @@ func (c *Client) Run() (map[string]*csds.ClientStatusResponse, error) {
 
 	resp, err := c.doRequest(streamClientStatus, nm)
 	if err != nil {
+		log.Errorf("Error calling trafficdirector.googleapis.com. Error details: {%v}", err)
 		return nil, err
+	}
+	err = streamClientStatus.CloseSend()
+	if err != nil {
+		log.Infof("Error closing client stream send. Error details: {%v}", err)
 	}
 
 	clientIDs := parseAllConfigResponse(resp)
@@ -177,15 +182,24 @@ func (c *Client) Run() (map[string]*csds.ClientStatusResponse, error) {
 			MeshName:      c.opts.MeshName,
 			NodeID:        id,
 		})
+
+		streamClientStatus, err := c.csdsClient.StreamClientStatus(ctx)
+		if err != nil {
+			return nil, err
+		}
 		resp, err := c.doRequest(streamClientStatus, nnm)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("Error calling trafficdirector.googleapis.com. Error details: {%v}", err)
 			continue
 		}
+		if err = streamClientStatus.CloseSend(); err != nil {
+			log.Infof("Error closing client stream send. Error details: {%v}", err)
+		}
+
 		csdsResponses[ClientIDToEnvoyName(id)] = resp
 	}
 
-	return csdsResponses, streamClientStatus.CloseSend()
+	return csdsResponses, nil
 }
 
 // doRequest sends request

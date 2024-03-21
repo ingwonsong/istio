@@ -18,24 +18,34 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	tlspb "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	csds "github.com/envoyproxy/go-control-plane/envoy/service/status/v3"
 	"github.com/pmezard/go-difflib/difflib"
+	anypb "google.golang.org/protobuf/types/known/anypb"
 
 	"istio.io/istio/istioctl/pkg/util/configdump"
 	v3 "istio.io/istio/pilot/pkg/xds/v3"
 	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/slices"
 )
 
 // Comparator prints diffs between a config dump from TD and one from Envoy
 
 const (
-	upstreamTLSContextType = "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext"
-	metadataExchangeType   = "type.googleapis.com/envoy.tcp.metadataexchange.config.MetadataExchange"
+	// Cluster config types
+	upstreamTLSContextType   = "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext"
+	downstreamTLSContextType = "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext"
+	metadataExchangeType     = "type.googleapis.com/envoy.tcp.metadataexchange.config.MetadataExchange"
+
+	// Listener config types
+	envoyFiltersNetworkWasmType           = "type.googleapis.com/envoy.extensions.filters.network.wasm.v3.Wasm"
+	envoyFiltersHTTPConnectionManagerType = "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
 )
 
 type Comparator struct {
@@ -158,20 +168,37 @@ func (c *Comparator) ClusterDiff() error {
 		}
 		// unmarshal the config TransportSocket field specifically for both envoy and td
 		for _, ts := range append(envoyConfig.GetTransportSocketMatches(), clusterConfig.GetTransportSocketMatches()...) {
-			if ts.GetTransportSocket() != nil && ts.GetTransportSocket().GetTypedConfig() != nil &&
-				ts.GetTransportSocket().GetTypedConfig().TypeUrl == upstreamTLSContextType {
-				tlsContext := &tlspb.UpstreamTlsContext{}
+			if ts.GetTransportSocket() != nil && ts.GetTransportSocket().GetTypedConfig() != nil {
 				tlsb := ts.GetTransportSocket().GetTypedConfig()
-				if err := tlsb.UnmarshalTo(tlsContext); err != nil {
-					log.Errorf("Unable to unmarshal to tls", err)
-					continue
+				if tlsb.TypeUrl == upstreamTLSContextType {
+					tlsContext := &tlspb.UpstreamTlsContext{}
+					if err := tlsb.UnmarshalTo(tlsContext); err != nil {
+						log.Errorf("Unable to unmarshal to tls", err)
+						continue
+					}
+					ntlsb, err := anypb.New(tlsContext)
+					if err != nil {
+						log.Errorf("Unable to unmarshal to tls", err)
+						continue
+					}
+					ts.GetTransportSocket().ConfigType = &corev3.TransportSocket_TypedConfig{
+						TypedConfig: ntlsb,
+					}
+				} else if tlsb.TypeUrl == downstreamTLSContextType {
+					tlsContext := &tlspb.DownstreamTlsContext{}
+					if err := tlsb.UnmarshalTo(tlsContext); err != nil {
+						log.Errorf("Unable to unmarshal to tls", err)
+						continue
+					}
+					ntlsb, err := anypb.New(tlsContext)
+					if err != nil {
+						log.Errorf("Unable to unmarshal to tls", err)
+						continue
+					}
+					ts.GetTransportSocket().ConfigType = &corev3.TransportSocket_TypedConfig{
+						TypedConfig: ntlsb,
+					}
 				}
-				tlsContextBytes, err := json.Marshal(tlsContext)
-				if err != nil {
-					log.Errorf("Unable to marshal tls context", err)
-					continue
-				}
-				ts.GetTransportSocket().GetTypedConfig().Value = tlsContextBytes
 			}
 		}
 
@@ -198,9 +225,9 @@ func (c *Comparator) ClusterDiff() error {
 		}
 
 		diff := difflib.UnifiedDiff{
-			FromFile: "TD Clusters",
+			FromFile: "TD Configs",
 			A:        difflib.SplitLines(string(tdBytes)),
-			ToFile:   "Envoy Clusters",
+			ToFile:   "Envoy Configs",
 			B:        difflib.SplitLines(string(envoyBytes)),
 			Context:  c.context,
 		}
@@ -213,7 +240,7 @@ func (c *Comparator) ClusterDiff() error {
 				isIdentical = false
 				fmt.Fprintln(c.w, "Cluster resources config diff prints below:")
 			}
-			fmt.Fprintln(c.w, "Printing config diff for: "+envoyConfig.Name)
+			fmt.Fprintln(c.w, "Printing cluster config diff for: "+envoyConfig.Name)
 			fmt.Fprintln(c.w, text)
 		}
 	}
@@ -249,6 +276,32 @@ func (c *Comparator) ListenerDiff() error {
 			continue
 		}
 
+		for _, f := range append(envoyConfig.GetFilterChains(), listenerConfig.GetFilterChains()...) {
+			for _, c := range f.GetFilters() {
+				if c.GetTypedConfig().GetTypeUrl() == envoyFiltersNetworkWasmType ||
+					c.GetTypedConfig().GetTypeUrl() == envoyFiltersHTTPConnectionManagerType ||
+					c.GetTypedConfig().GetTypeUrl() == metadataExchangeType {
+					// Even the config is synced, this is different. Skip this check
+					c.GetTypedConfig().Value = []byte{}
+				}
+			}
+
+			if f.GetTransportSocket() != nil && f.GetTransportSocket().GetTypedConfig() != nil {
+				if f.GetTransportSocket().GetTypedConfig().GetTypeUrl() == upstreamTLSContextType ||
+					f.GetTransportSocket().GetTypedConfig().GetTypeUrl() == downstreamTLSContextType {
+					f.GetTransportSocket().GetTypedConfig().Value = []byte{}
+				}
+			}
+		}
+
+		for _, f := range append(envoyConfig.GetDefaultFilterChain().GetFilters(), listenerConfig.GetDefaultFilterChain().GetFilters()...) {
+			if f.GetTypedConfig().GetTypeUrl() == envoyFiltersNetworkWasmType ||
+				f.GetTypedConfig().GetTypeUrl() == envoyFiltersHTTPConnectionManagerType ||
+				f.GetTypedConfig().GetTypeUrl() == metadataExchangeType {
+				f.GetTypedConfig().Value = []byte{}
+			}
+		}
+
 		envoyBytes, err := json.MarshalIndent(envoyConfig, "", "\t")
 		if err != nil {
 			log.Errorf("Failed to parse envoy", err)
@@ -262,9 +315,9 @@ func (c *Comparator) ListenerDiff() error {
 		}
 
 		diff := difflib.UnifiedDiff{
-			FromFile: "TD Clusters",
+			FromFile: "TD Configs",
 			A:        difflib.SplitLines(string(tdBytes)),
-			ToFile:   "Envoy Clusters",
+			ToFile:   "Envoy Configs",
 			B:        difflib.SplitLines(string(envoyBytes)),
 			Context:  c.context,
 		}
@@ -277,14 +330,14 @@ func (c *Comparator) ListenerDiff() error {
 				isIdentical = false
 				fmt.Fprintln(c.w, "Listener resources config diff prints below:")
 			}
-			fmt.Fprintln(c.w, "Printing config diff for: "+envoyConfig.Name)
+			fmt.Fprintln(c.w, "Printing listener config diff for: "+envoyConfig.Name)
 			fmt.Fprintln(c.w, text)
 		} else {
 			fmt.Fprintln(c.w, "Listener Config Match: "+envoyConfig.Name)
 		}
 	}
 	if isIdentical {
-		fmt.Fprintln(c.w, "Cluster resources are identical between envoy and the control plane")
+		fmt.Fprintln(c.w, "Listener resources are identical between envoy and the control plane")
 	}
 	return nil
 }
@@ -313,6 +366,19 @@ func (c *Comparator) RouteDiff() error {
 		if !ok {
 			continue
 		}
+
+		// Specific processing before certain config fields before comparing
+		if envoyConfig.GetVirtualHosts() != nil && routeConfig.GetVirtualHosts() != nil {
+			slices.SortFunc(envoyConfig.GetVirtualHosts(), compareVirtualHost)
+			slices.SortFunc(routeConfig.GetVirtualHosts(), compareVirtualHost)
+		}
+
+		for _, f := range append(envoyConfig.GetVirtualHosts(), routeConfig.GetVirtualHosts()...) {
+			for _, c := range f.GetRoutes() {
+				c.TypedPerFilterConfig = nil
+			}
+		}
+
 		envoyBytes, err := json.MarshalIndent(envoyConfig, "", "\t")
 		if err != nil {
 			log.Errorf("Failed to parse envoy", err)
@@ -326,9 +392,9 @@ func (c *Comparator) RouteDiff() error {
 		}
 
 		diff := difflib.UnifiedDiff{
-			FromFile: "TD Clusters",
+			FromFile: "TD Configs",
 			A:        difflib.SplitLines(string(tdBytes)),
-			ToFile:   "Envoy Clusters",
+			ToFile:   "Envoy Configs",
 			B:        difflib.SplitLines(string(envoyBytes)),
 			Context:  c.context,
 		}
@@ -341,7 +407,7 @@ func (c *Comparator) RouteDiff() error {
 				isIdentical = false
 				fmt.Fprintln(c.w, "Route resources config diff prints below:")
 			}
-			fmt.Fprintln(c.w, "Printing config diff for: "+envoyConfig.Name)
+			fmt.Fprintln(c.w, "Printing route config diff for: "+envoyConfig.Name)
 			fmt.Fprintln(c.w, text)
 		} else {
 			fmt.Fprintln(c.w, "Route Config Match: "+envoyConfig.Name)
@@ -351,4 +417,8 @@ func (c *Comparator) RouteDiff() error {
 		fmt.Fprintln(c.w, "Route resources are identical between envoy and the control plane")
 	}
 	return nil
+}
+
+func compareVirtualHost(i, j *route.VirtualHost) int {
+	return strings.Compare(i.Name, j.Name)
 }
