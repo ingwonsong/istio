@@ -289,6 +289,7 @@ func (c *Comparator) ListenerDiff() error {
 			if f.GetTransportSocket() != nil && f.GetTransportSocket().GetTypedConfig() != nil {
 				if f.GetTransportSocket().GetTypedConfig().GetTypeUrl() == upstreamTLSContextType ||
 					f.GetTransportSocket().GetTypedConfig().GetTypeUrl() == downstreamTLSContextType {
+					// Even the config is synced, this is different. Skip this check for now
 					f.GetTransportSocket().GetTypedConfig().Value = []byte{}
 				}
 			}
@@ -298,6 +299,7 @@ func (c *Comparator) ListenerDiff() error {
 			if f.GetTypedConfig().GetTypeUrl() == envoyFiltersNetworkWasmType ||
 				f.GetTypedConfig().GetTypeUrl() == envoyFiltersHTTPConnectionManagerType ||
 				f.GetTypedConfig().GetTypeUrl() == metadataExchangeType {
+				// Even the config is synced, this is different. Skip this check for now
 				f.GetTypedConfig().Value = []byte{}
 			}
 		}
@@ -375,6 +377,7 @@ func (c *Comparator) RouteDiff() error {
 
 		for _, f := range append(envoyConfig.GetVirtualHosts(), routeConfig.GetVirtualHosts()...) {
 			for _, c := range f.GetRoutes() {
+				// Even the config is synced, this is different. Skip this check for now
 				c.TypedPerFilterConfig = nil
 			}
 		}
