@@ -22,6 +22,13 @@ spec:
           provider: aws
           provisionerArgs:
             auth: SAToken
+            {{- if eq .Version "latest" }}
+            kubernetesVersion: "1.28"
+            {{- else if .Version }}
+            kubernetesVersion: "{{ .Version }}"
+            {{- else }}
+            kubernetesVersion: "1.28"
+            {{- end }}
             compressArtifacts: "true"
             nodeCount: "4"
             nodeType: "t3.large"
@@ -37,6 +44,13 @@ spec:
           provider: aws
           provisionerArgs:
             auth: SAToken
+            {{- if eq .Version "latest" }}
+            kubernetesVersion: "1.28"
+            {{- else if .Version }}
+            kubernetesVersion: "{{ .Version }}"
+            {{- else }}
+            kubernetesVersion: "1.28"
+            {{- end }}
             compressArtifacts: "true"
             nodeCount: "4"
             nodeType: "t3.large"
