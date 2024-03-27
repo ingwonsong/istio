@@ -38,6 +38,7 @@ import (
 	"istio.io/istio/istioctl/pkg/xds"
 	pilotxds "istio.io/istio/pilot/pkg/xds"
 	"istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/log"
 	istioversion "istio.io/istio/pkg/version"
 )
 
@@ -217,7 +218,9 @@ func queryDebugSynczViaAgents(all bool, dr *discovery.DiscoveryRequest, istioNam
 				}
 				resp, err := queryToOnePod(&pod)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Skip the agent in Pod %s due to the error: %s\n", namespacedName, err.Error())
+					// CSM code starts
+					log.Warnf("Skip the agent in Pod %s due to the error: %s\n", namespacedName, err.Error())
+					// CSM code ends
 					continue
 				}
 				responses = append(responses, resp)
