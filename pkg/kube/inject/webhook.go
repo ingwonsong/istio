@@ -49,6 +49,7 @@ import (
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/cluster"
+	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/kubetypes"
@@ -58,7 +59,7 @@ import (
 	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/pkg/util/sets"
-	"istio.io/istio/tools/istio-iptables/pkg/constants"
+	iptablesConstants "istio.io/istio/tools/istio-iptables/pkg/constants"
 )
 
 var (
@@ -582,7 +583,7 @@ func resetFieldsInAutoImageContainer(original *corev1.Container, template *corev
 	// does not exist, OpenShift automatically assigns a value which is based on an annotation in the namespace. Regardless if the user
 	// provided that value or if it was assigned by OpenShift, the correct value is the one in the template, as set by the `.ProxyUID` field.
 	if original.SecurityContext != nil && template.SecurityContext != nil && template.SecurityContext.RunAsUser != nil &&
-		*template.SecurityContext.RunAsUser != constants.DefaultProxyUIDInt {
+		*template.SecurityContext.RunAsUser != iptablesConstants.DefaultProxyUIDInt {
 		original.SecurityContext.RunAsUser = nil
 		original.SecurityContext.RunAsGroup = nil
 	}
@@ -1081,7 +1082,7 @@ func (wh *Webhook) inject(ar *kube.AdmissionReview, path string) *kube.Admission
 	if platform.IsOpenShift() && wh.namespaces != nil {
 		clusterID, _ := extractClusterAndNetwork(params)
 		if clusterID == "" {
-			clusterID = "Kubernetes"
+			clusterID = constants.DefaultClusterName
 		}
 		client := wh.namespaces.ForCluster(cluster.ID(clusterID))
 		if client != nil {
