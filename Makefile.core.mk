@@ -49,7 +49,7 @@ endif
 export VERSION
 
 # Base version of Istio image to use
-BASE_VERSION ?= master-2024-03-19T19-01-01
+BASE_VERSION ?= master-2024-03-28T19-01-22
 ISTIO_BASE_REGISTRY ?= gcr.io/istio-release
 
 export GO111MODULE ?= on
@@ -291,10 +291,20 @@ MARKDOWN_LINT_ALLOWLIST=localhost:8080,storage.googleapis.com/istio-artifacts/pi
 lint-helm-global:
 	find manifests -name 'Chart.yaml' -print0 | ${XARGS} -L 1 dirname | xargs -r helm lint
 
-lint: lint-python lint-copyright-banner lint-scripts lint-go lint-dockerfiles lint-markdown lint-yaml lint-licenses lint-helm-global ## Runs all linters.
+lint: lint-python lint-copyright-banner lint-scripts lint-go lint-dockerfiles lint-markdown lint-yaml lint-licenses lint-helm-global check-agent-deps ## Runs all linters.
 	@bin/check_samples.sh
 	@testlinter
 	@envvarlinter istioctl pilot security
+
+.PHONY: check-agent-deps
+check-agent-deps:
+	@go list -e ./pkg/bootstrap/option/instances.go -f '{{ join .Deps "\n" }}' \
+			./security/pkg/nodeagent/caclient/... \
+			./security/pkg/nodeagent/plugin/... \
+			./security/pkg/nodeagent/cache/... \
+			./pkg/bootstrap/... \
+			./pkg/envoy/... |\
+		(! grep -P 'k8s.io/api/|k8s.io/apiextensions-apiserver|k8s.io/client-go|sigs.k8s.io/gateway-api|cel|antlr|go-control-plane/envoy/extensions/filters')
 
 go-gen:
 	@mkdir -p /tmp/bin

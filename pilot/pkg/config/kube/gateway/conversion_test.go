@@ -37,7 +37,7 @@ import (
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/model/kstatus"
-	"istio.io/istio/pilot/pkg/networking/core/v1alpha3"
+	"istio.io/istio/pilot/pkg/networking/core"
 	"istio.io/istio/pilot/test/util"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
@@ -435,12 +435,12 @@ func TestConvertResources(t *testing.T) {
 					Endpoint:    &model.IstioEndpoint{},
 				})
 			}
-			cg := v1alpha3.NewConfigGenTest(t, v1alpha3.TestOptions{
+			cg := core.NewConfigGenTest(t, core.TestOptions{
 				Services:  services,
 				Instances: instances,
 			})
 			kr := splitInput(t, input)
-			kr.Context = NewGatewayContext(cg.PushContext())
+			kr.Context = NewGatewayContext(cg.PushContext(), "Kubernetes")
 			output := convertResources(kr)
 			output.AllowedReferences = AllowedReferences{} // Not tested here
 			output.ReferencedNamespaceKeys = nil           // Not tested here
@@ -1113,9 +1113,9 @@ spec:
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			input := readConfigString(t, tt.config, validator, nil)
-			cg := v1alpha3.NewConfigGenTest(t, v1alpha3.TestOptions{})
+			cg := core.NewConfigGenTest(t, core.TestOptions{})
 			kr := splitInput(t, input)
-			kr.Context = NewGatewayContext(cg.PushContext())
+			kr.Context = NewGatewayContext(cg.PushContext(), "Kubernetes")
 			output := convertResources(kr)
 			c := &Controller{
 				state: output,
@@ -1338,7 +1338,7 @@ func BenchmarkBuildHTTPVirtualServices(b *testing.B) {
 		Ports:    ports,
 		Hostname: "example.com",
 	}
-	cg := v1alpha3.NewConfigGenTest(b, v1alpha3.TestOptions{
+	cg := core.NewConfigGenTest(b, core.TestOptions{
 		Services: []*model.Service{ingressSvc, altIngressSvc},
 		Instances: []*model.ServiceInstance{
 			{Service: ingressSvc, ServicePort: ingressSvc.Ports[0], Endpoint: &model.IstioEndpoint{EndpointPort: 8080}},
@@ -1351,7 +1351,7 @@ func BenchmarkBuildHTTPVirtualServices(b *testing.B) {
 	validator := crdvalidation.NewIstioValidator(b)
 	input := readConfig(b, "testdata/benchmark-httproute.yaml", validator, nil)
 	kr := splitInput(b, input)
-	kr.Context = NewGatewayContext(cg.PushContext())
+	kr.Context = NewGatewayContext(cg.PushContext(), "Kubernetes")
 	ctx := configContext{
 		GatewayResources:  kr,
 		AllowedReferences: convertReferencePolicies(kr),

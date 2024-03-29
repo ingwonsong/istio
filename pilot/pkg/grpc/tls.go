@@ -25,9 +25,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	sec_model "istio.io/istio/pilot/pkg/security/model"
 	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/log"
+	sec_model "istio.io/istio/pkg/model"
 	"istio.io/istio/security/pkg/pki/util"
 )
 

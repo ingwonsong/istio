@@ -356,6 +356,15 @@ func deploymentParams(ctx resource.Context, cfg echo.Config, settings *resource.
 		})
 	}
 
+	if cfg.WorkloadWaypointProxy != "" {
+		for _, subset := range cfg.Subsets {
+			if subset.Annotations == nil {
+				subset.Annotations = echo.NewAnnotations()
+			}
+			subset.Annotations.Set(echo.AmbientUseWaypoint, cfg.WorkloadWaypointProxy)
+		}
+	}
+
 	params := map[string]any{
 		"ImageHub":                settings.Image.Hub,
 		"ImageTag":                strings.TrimSuffix(settings.Image.Tag, "-distroless"),
@@ -413,6 +422,12 @@ func deploymentParams(ctx resource.Context, cfg echo.Config, settings *resource.
 // TODO Similar to TemplateParams ancestor make this exported in OSS rather
 // than in this fork
 func ServiceParams(cfg echo.Config) map[string]any {
+	if cfg.ServiceWaypointProxy != "" {
+		if cfg.ServiceAnnotations == nil {
+			cfg.ServiceAnnotations = echo.NewAnnotations()
+		}
+		cfg.ServiceAnnotations.Set(echo.AmbientUseWaypoint, cfg.ServiceWaypointProxy)
+	}
 	return map[string]any{
 		"Service":            cfg.Service,
 		"Headless":           cfg.Headless,
