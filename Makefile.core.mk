@@ -298,7 +298,7 @@ lint: lint-python lint-copyright-banner lint-scripts lint-go lint-dockerfiles li
 
 .PHONY: check-agent-deps
 check-agent-deps:
-	@go list -e ./pkg/bootstrap/option/instances.go -f '{{ join .Deps "\n" }}' \
+	@go list -f '{{ join .Deps "\n" }}' \
 			./security/pkg/nodeagent/caclient/... \
 			./security/pkg/nodeagent/plugin/... \
 			./security/pkg/nodeagent/cache/... \

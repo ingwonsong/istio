@@ -23,10 +23,10 @@ import (
 
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 
-	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/bootstrap/platform"
 	istiokeepalive "istio.io/istio/pkg/keepalive"
 	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/model"
 	"istio.io/istio/pkg/util/protomarshal"
 )
 
