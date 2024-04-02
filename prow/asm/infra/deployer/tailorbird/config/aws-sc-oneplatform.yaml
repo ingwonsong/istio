@@ -23,11 +23,11 @@ spec:
                 useDynamicTopology: "true"
                 nodeCount: "3"
                 {{- if eq .Version "latest" }}
-                kubernetesVersion: 1.28.5-gke.100
+                kubernetesVersion: 1.28.7-gke.1700
                 {{- else if .Version }}
                 kubernetesVersion: "{{ .Version }}"
                 {{- else }}
-                kubernetesVersion: 1.28.5-gke.100
+                kubernetesVersion: 1.28.7-gke.1700
                 {{- end }}
                 username: asm-svc-acct
                 nodepoolPatch: |

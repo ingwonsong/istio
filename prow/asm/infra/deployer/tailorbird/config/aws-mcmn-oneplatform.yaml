@@ -24,11 +24,11 @@ spec:
             useDynamicTopology: "false"
             nodeCount: "3"
             {{- if eq .Version "latest" }}
-            kubernetesVersion: 1.28.3-gke.700
+            kubernetesVersion: 1.28.7-gke.1700
             {{- else if .Version }}
             kubernetesVersion: "{{ .Version }}"
             {{- else }}
-            kubernetesVersion: 1.28.3-gke.700
+            kubernetesVersion: 1.28.7-gke.1700
             {{- end }}
             username: asm-svc-acct
             nodepoolPatch: |
@@ -49,11 +49,11 @@ spec:
             useDynamicTopology: "false"
             nodeCount: "3"
             {{- if eq .Version "latest" }}
-            kubernetesVersion: 1.28.3-gke.700
+            kubernetesVersion: 1.28.7-gke.1700
             {{- else if .Version }}
             kubernetesVersion: "{{ .Version }}"
             {{- else }}
-            kubernetesVersion: 1.28.3-gke.700
+            kubernetesVersion: 1.28.7-gke.1700
             {{- end }}
             username: asm-svc-acct
             nodepoolPatch: |
