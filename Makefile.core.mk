@@ -299,7 +299,7 @@ lint: lint-python lint-copyright-banner lint-scripts lint-go lint-dockerfiles li
 # Allow-list:
 # (k8s) Machinery, utils, klog
 # (proto) TLS for SDS
-# (proto) Wasm/RBAC for wasm xDS proxy
+# (proto) Wasm for wasm xDS proxy
 .PHONY: check-agent-deps
 check-agent-deps:
 	@go list -f '{{ join .Deps "\n" }}' -tags=agent \
@@ -316,11 +316,12 @@ check-agent-deps:
 			./pkg/bootstrap/... \
 			./pkg/wasm/... \
 			./pkg/envoy/... | sort | uniq |\
-		grep -Pv 'k8s.io/(utils|klog|apimachinery)/' |\
+		grep -Pv '^k8s.io/(utils|klog|apimachinery)/' |\
+		grep -Pv 'envoy/type/|envoy/annotations|envoy/config/core/' |\
 		grep -Pv 'envoy/extensions/transport_sockets/tls/' |\
 		grep -Pv 'envoy/extensions/wasm/' |\
-		grep -Pv 'envoy/extensions/filters/(http|network)/(rbac|wasm)/' |\
-		(! grep -P '^k8s.io|^sigs.k8s.io/gateway-api|cel|antlr|envoy/extensions')
+		grep -Pv 'envoy/extensions/filters/(http|network)/wasm/' |\
+		(! grep -P '^k8s.io|^sigs.k8s.io/gateway-api|cel|antlr|envoy/')
 
 go-gen:
 	@mkdir -p /tmp/bin

@@ -75,6 +75,7 @@ features:
       remote-clusters:
       analysis:
         line-numbers:
+        multi-cluster:
       tcp-probe:
       grpc-probe:
     helpers:
