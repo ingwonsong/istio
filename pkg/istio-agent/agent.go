@@ -36,7 +36,6 @@ import (
 	mesh "istio.io/api/mesh/v1alpha1"
 	"istio.io/istio/pilot/cmd/pilot-agent/config"
 	"istio.io/istio/pilot/cmd/pilot-agent/status/ready"
-	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/backoff"
 	"istio.io/istio/pkg/bootstrap"
 	"istio.io/istio/pkg/bootstrap/platform"
@@ -49,7 +48,7 @@ import (
 	grpcproxy "istio.io/istio/pkg/grpcproxy"
 	"istio.io/istio/pkg/istio-agent/grpcxds"
 	"istio.io/istio/pkg/log"
-	sec_model "istio.io/istio/pkg/model"
+	"istio.io/istio/pkg/model"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/wasm"
 	"istio.io/istio/security/pkg/nodeagent/cache"
@@ -57,7 +56,6 @@ import (
 	citadel "istio.io/istio/security/pkg/nodeagent/caclient/providers/citadel"
 	gca "istio.io/istio/security/pkg/nodeagent/caclient/providers/google"
 	cas "istio.io/istio/security/pkg/nodeagent/caclient/providers/google-cas"
-	"istio.io/istio/security/pkg/nodeagent/sds"
 )
 
 const (
@@ -91,6 +89,11 @@ const (
 	ExitLifecycleEvent  LifecycleEvent = "exit"
 )
 
+type SDSService interface {
+	OnSecretUpdate(resourceName string)
+	Stop()
+}
+
 // Agent contains the configuration of the agent, based on the injected
 // environment:
 // - SDS hostPath if node-agent was used
@@ -106,7 +109,7 @@ type Agent struct {
 
 	envoyAgent *envoy.Agent
 
-	sdsServer   *sds.Server
+	sdsServer   SDSService
 	secretCache *cache.SecretManagerClient
 
 	// Used when proxying envoy xds via istio-agent is enabled.
@@ -202,6 +205,8 @@ type AgentOptions struct {
 
 	// Enable metadata discovery bootstrap extension
 	MetadataDiscovery bool
+
+	SDSFactory func(options *security.Options, workloadSecretCache security.SecretManager, pkpConf *mesh.PrivateKeyProvider) SDSService
 }
 
 // NewAgent hosts the functionality for local SDS and XDS. This consists of the local SDS server and
@@ -421,7 +426,7 @@ func (a *Agent) initSdsServer() error {
 		}()
 	} else {
 		pkpConf := a.proxyConfig.GetPrivateKeyProvider()
-		a.sdsServer = sds.NewServer(a.secOpts, a.secretCache, pkpConf)
+		a.sdsServer = a.cfg.SDSFactory(a.secOpts, a.secretCache, pkpConf)
 		a.secretCache.RegisterSecretHandler(a.sdsServer.OnSecretUpdate)
 	}
 
@@ -773,7 +778,7 @@ func (a *Agent) newSecretManager() (*cache.SecretManagerClient, error) {
 	} else if a.secOpts.CAProviderName == security.GoogleCASProvider {
 		// Use a plugin
 		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
-		sec_model.EnforceGoCompliance(tlsConfig)
+		model.EnforceGoCompliance(tlsConfig)
 		opts := []option.ClientOption{}
 		// Both options need not be provided. PerGRPCCredentials need to be removed after testing
 		opts = append(opts,
