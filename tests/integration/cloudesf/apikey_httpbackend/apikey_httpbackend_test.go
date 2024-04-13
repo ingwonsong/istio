@@ -52,7 +52,6 @@ func TestMain(m *testing.M) {
 func TestCloudESFApiKeyHttpBackend(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("cloudesf.apikeyhttpbackend").
 		Run(
 			testflow.GenTestFlow(
 				i,

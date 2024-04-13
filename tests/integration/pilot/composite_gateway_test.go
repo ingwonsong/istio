@@ -40,7 +40,6 @@ func TestCompositeGateway(t *testing.T) {
 	framework.
 		NewTest(t).
 		Label(label.CompositeGateway).
-		Features("traffic.ingress.gateway").
 		Run(func(t framework.TestContext) {
 			gwName := "composite-gateway"
 			retry.UntilSuccessOrFail(t, func() error {

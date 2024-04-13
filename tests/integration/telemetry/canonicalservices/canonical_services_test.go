@@ -37,7 +37,6 @@ var echoNames = []string{"foo", "bar"}
 func TestCanonicalServices(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("observability.telemetry.canonical-services").
 		Run(func(ctx framework.TestContext) {
 			retry.UntilSuccessOrFail(ctx, func() error {
 				return verifyCanonicalServices(ctx, echoNames)

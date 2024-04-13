@@ -86,7 +86,6 @@ func setupApps(ctx resource.Context) error {
 
 func TestStackdriverLegacy(t *testing.T) {
 	framework.NewTest(t).
-		Features("observability.telemetry.stackdriver").
 		Run(func(ctx framework.TestContext) {
 			projectID1 := os.Getenv("GCR_PROJECT_ID_1")
 			st := stackdriver.NewOrFail(context.Background(), ctx, option.WithQuotaProject(projectID1))
@@ -107,7 +106,6 @@ func TestStackdriverLegacy(t *testing.T) {
 
 func TestAuditStackdriver(t *testing.T) {
 	framework.NewTest(t).
-		Features("observability.telemetry.stackdriver").
 		Run(func(ctx framework.TestContext) {
 			ctx.Skip("https://buganizer.corp.google.com/issues/184872790")
 			projectID, projectID2 := os.Getenv("GCR_PROJECT_ID_1"), os.Getenv("GCR_PROJECT_ID_2")

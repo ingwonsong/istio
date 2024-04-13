@@ -48,7 +48,6 @@ func TestMain(m *testing.M) {
 func TestCloudESFGrpcEcho(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("cloudesf.grpcecho").
 		Run(
 			testflow.GenTestFlow(
 				i,

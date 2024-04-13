@@ -52,7 +52,6 @@ const (
 
 func TestReachability(t *testing.T) {
 	framework.NewTest(t).
-		Features("security.reachability").
 		Run(func(t framework.TestContext) {
 			systemNS := istio.ClaimSystemNamespaceOrFail(t, t)
 

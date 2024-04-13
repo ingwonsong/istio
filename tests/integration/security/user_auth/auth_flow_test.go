@@ -36,7 +36,6 @@ const (
 func TestBasicAuthFlow(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.user.auth").
 		Run(func(ctx framework.TestContext) {
 			util.SetupConfig(ctx)
 			util.ApplyUserAuthConfigIfNotExist(ctx)

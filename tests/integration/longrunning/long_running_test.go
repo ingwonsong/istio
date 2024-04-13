@@ -104,7 +104,6 @@ func echoConfig(ns namespace.Instance, name string) echo.Config {
 
 func TestLongRunning(t *testing.T) {
 	framework.NewTest(t).
-		Features("installation.clusters.upgrade").
 		Run(func(t framework.TestContext) {
 			g := traffic.NewGenerator(t, traffic.Config{
 				SourceEcho: PodA[0],

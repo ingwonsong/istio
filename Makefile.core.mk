@@ -242,8 +242,8 @@ RELEASE_SIZE_TEST_BINARIES:=pilot-discovery pilot-agent istioctl envoy ztunnel c
 # not set vtprotobuf: this adds some performance improvement, but at a binary cost increase that is not worth it for the agent
 AGENT_TAGS=agent,disable_pgv
 # disable_pgv: disables protoc-gen-validation. This is not used buts adds many MB to Envoy protos
-# vtprotobuf: enables optimized protobuf marshalling. Disabled until https://github.com/istio/istio/issues/49790 lands
-STANDARD_TAGS=disable_pgv
+# vtprotobuf: enables optimized protobuf marshalling.
+STANDARD_TAGS=vtprotobuf,disable_pgv
 
 .PHONY: build
 build: depend ## Builds all go binaries.
@@ -304,14 +304,7 @@ lint: lint-python lint-copyright-banner lint-scripts lint-go lint-dockerfiles li
 .PHONY: check-agent-deps
 check-agent-deps:
 	@go list -f '{{ join .Deps "\n" }}' -tags=agent \
-			./security/pkg/nodeagent/caclient/... \
-			./security/pkg/nodeagent/plugin/... \
-			./security/pkg/nodeagent/cache/... \
-			./pilot/cmd/pilot-agent/metrics \
-			./pilot/cmd/pilot-agent/status \
-			./pilot/cmd/pilot-agent/status/ready \
-			./pilot/cmd/pilot-agent/status/grpcready \
-			./pilot/cmd/pilot-agent/config \
+			./pilot/cmd/pilot-agent/app \
 			./pkg/istio-agent/... | sort | uniq |\
 		grep -Pv '^k8s.io/(utils|klog|apimachinery)/' |\
 		grep -Pv 'envoy/type/|envoy/annotations|envoy/config/core/' |\

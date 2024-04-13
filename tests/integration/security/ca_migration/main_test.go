@@ -75,7 +75,6 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 	// nolint: staticcheck
 	framework.NewTest(t).
 		RequiresSingleCluster().
-		Features("security.migrationca.citadel-meshca").
 		Run(func(ctx framework.TestContext) {
 			nsA := namespace.NewOrFail(t, ctx, namespace.Config{
 				Prefix:   "nsa",

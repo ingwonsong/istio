@@ -52,7 +52,6 @@ func TestMain(m *testing.M) {
 func TestCloudESFApiKeyGrpc(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("cloudesf.apikeygrpc").
 		Run(
 			testflow.GenTestFlow(
 				i,

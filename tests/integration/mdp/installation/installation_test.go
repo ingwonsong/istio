@@ -32,7 +32,6 @@ import (
 
 func TestInstallSuccess(t *testing.T) {
 	framework.NewTest(t).
-		Features("mdp.install").
 		Run(func(tc framework.TestContext) {
 			cs := tc.Clusters().Default()
 

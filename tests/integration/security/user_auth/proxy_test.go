@@ -50,7 +50,6 @@ func TestProxy(t *testing.T) {
 	framework.
 		NewTest(t).
 		RequiresSingleCluster().
-		Features("security.user.auth").
 		Run(func(ctx framework.TestContext) {
 			util.SetupConfig(ctx)
 			util.ApplyUserAuthConfigIfNotExist(ctx)

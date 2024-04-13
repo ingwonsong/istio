@@ -215,7 +215,6 @@ var (
 func TestCAMigration(t *testing.T) {
 	// nolint: staticcheck
 	framework.NewTest(t).
-		Features("security.migrationca.meshca-privateca").
 		Run(func(ctx framework.TestContext) {
 			nsA := namespace.NewOrFail(t, ctx, namespace.Config{
 				Prefix: "nsa",

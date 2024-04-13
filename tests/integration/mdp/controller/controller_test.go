@@ -88,7 +88,6 @@ func TestMain(m *testing.M) {
 //  3. verify upgraded proxies percentage, CR status
 func TestProxiesRestarted(t *testing.T) {
 	framework.NewTest(t).
-		Features("mdp.upgrade").
 		Run(func(t framework.TestContext) {
 			defer dump(t)
 			cs := t.Clusters().Default()

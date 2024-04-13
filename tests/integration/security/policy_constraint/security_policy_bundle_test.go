@@ -41,7 +41,6 @@ var expectedExemptionsMap = buildViolationsExemptionsMap()
 func TestSecurityPolicyBundle(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.acm.policy-constraint").
 		Run(func(ctx framework.TestContext) {
 			ctx.Log("Policy Constraint Test!")
 			applyResources(ctx)

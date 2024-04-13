@@ -319,7 +319,7 @@ func ProxyImage(values *opconfig.Values, image *proxyConfig.ProxyImage, annotati
 		tag = fmt.Sprintf("%v", global.GetTag().AsInterface())
 	}
 
-	imageType := ""
+	imageType := global.GetVariant()
 	if image != nil {
 		imageType = image.ImageType
 	}

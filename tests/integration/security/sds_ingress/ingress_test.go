@@ -79,7 +79,6 @@ func TestMain(m *testing.M) {
 func TestSingleTlsGateway_SecretRotation(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.tls.secretrotation").
 		Run(func(t framework.TestContext) {
 			var (
 				credName = "testsingletlsgateway-secretrotation"
@@ -154,7 +153,6 @@ func TestSingleTlsGateway_SecretRotation(t *testing.T) {
 func TestSingleMTLSGateway_ServerKeyCertRotation(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.mtls.secretrotation").
 		Run(func(t framework.TestContext) {
 			var (
 				credName   = "testsinglemtlsgateway-serverkeycertrotation"
@@ -229,7 +227,6 @@ func TestSingleMTLSGateway_ServerKeyCertRotation(t *testing.T) {
 func TestSingleOptionalMTLSGateway(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.tls.gateway.optional-mtls").
 		Run(func(t framework.TestContext) {
 			var (
 				credName   = "testsinglemtlsgateway-serverkeyoptionalmtls"
@@ -290,7 +287,6 @@ func TestSingleOptionalMTLSGateway(t *testing.T) {
 func TestSingleMTLSGateway_CompoundSecretRotation(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.mtls.generic-compoundrotation").
 		Run(func(t framework.TestContext) {
 			var (
 				credName = "testsinglemtlsgateway-generic-compoundrotation"
@@ -364,7 +360,6 @@ func TestSingleMTLSGateway_CompoundSecretRotation(t *testing.T) {
 func TestSingleMTLSGatewayAndNotGeneric_CompoundSecretRotation(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.mtls.nongeneric-compoundrotation").
 		Run(func(t framework.TestContext) {
 			var (
 				credName = "testsinglemtlsgatewayandnotgeneric-compoundsecretrotation"
@@ -438,7 +433,6 @@ func TestSingleMTLSGatewayAndNotGeneric_CompoundSecretRotation(t *testing.T) {
 func TestTlsGateways(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.tls.gateway.valid-secret").
 		Run(func(t framework.TestContext) {
 			ingressutil.RunTestMultiTLSGateways(t, inst, namespace.Future(&echo1NS))
 		})
@@ -450,7 +444,6 @@ func TestTlsGateways(t *testing.T) {
 func TestMtlsGateways(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.mtls.gateway").
 		Run(func(t framework.TestContext) {
 			ingressutil.RunTestMultiMtlsGateways(t, inst, namespace.Future(&echo1NS))
 		})
@@ -461,7 +454,6 @@ func TestMtlsGateways(t *testing.T) {
 func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.tls.gateway.invalid-secret").
 		Run(func(t framework.TestContext) {
 			testCase := []struct {
 				name                     string
@@ -590,7 +582,6 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.mtls.gateway").
 		Run(func(t framework.TestContext) {
 			testCase := []struct {
 				name                     string
@@ -697,7 +688,6 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 func TestMtlsGateway_CRL(t *testing.T) {
 	framework.
 		NewTest(t).
-		Features("security.ingress.mtls.gateway.crl").
 		Run(func(t framework.TestContext) {
 			testCase := []struct {
 				name                     string
