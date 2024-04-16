@@ -15,14 +15,17 @@
 package serviceentry
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
 
+	"istio.io/api/meta/v1alpha1"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
@@ -30,6 +33,7 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pilot/pkg/serviceregistry/provider"
 	"istio.io/istio/pilot/pkg/serviceregistry/util/workloadinstances"
+	statusctl "istio.io/istio/pilot/pkg/status"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
@@ -55,6 +59,8 @@ var (
 	prime  = 65011     // Used for secondary hash function.
 	maxIPs = 256 * 254 // Maximum possible IPs for address allocation.
 )
+
+const ipAllocationStatusCondName = "AutoAllocatedIPs"
 
 // instancesKey acts as a key to identify all instances for a given hostname/namespace pair
 // This is mostly used as an index
@@ -116,6 +122,8 @@ type Controller struct {
 
 	// Indicates whether this controller is for workload entries.
 	workloadEntryController bool
+
+	statusController atomic.Pointer[statusctl.Controller]
 
 	model.NoopAmbientIndexes
 	model.NetworkGatewaysHandler
@@ -180,10 +188,49 @@ func newController(store model.ConfigStore, xdsUpdater model.XDSUpdater, options
 		},
 		edsQueue: queue.NewQueue(time.Second),
 	}
+
 	for _, o := range options {
 		o(s)
 	}
 	return s
+}
+
+func (c *Controller) SetStatusWrite(enabled bool, statusManager *statusctl.Manager) {
+	if enabled && statusManager != nil {
+		c.statusController.Store(
+			statusManager.CreateIstioStatusController(func(st *v1alpha1.IstioStatus, context any) *v1alpha1.IstioStatus {
+				var ipAllocs []ipAllocation
+				if context == nil || st == nil {
+					return nil
+				}
+
+				ipAllocs = context.([]ipAllocation)
+
+				b, err := json.Marshal(ipAllocs)
+				if err != nil {
+					log.Errorf("failed to marshal IP allocation status")
+				}
+				newStatus := string(b)
+
+				cond := status.GetCondition(st.GetConditions(), ipAllocationStatusCondName)
+				if cond == nil {
+					cond = &v1alpha1.IstioCondition{
+						Type: ipAllocationStatusCondName,
+					}
+					st.Conditions = append(st.Conditions, cond)
+					log.Debugf("creates a new IstioStatusCondition")
+				} else if cond.Status == newStatus {
+					// If no change, just return nil to skip the status writing.
+					return nil
+				}
+				log.Debugf("ipallocation: write %#v", newStatus)
+				cond.Status = newStatus
+				return st
+			}),
+		)
+	} else {
+		c.statusController.Store(nil)
+	}
 }
 
 // ConvertServiceEntry convert se from Config.Spec.
@@ -646,6 +693,55 @@ func (s *Controller) HasSynced() bool {
 	return true
 }
 
+func resourceFromModelService(svc *model.Service) statusctl.Resource {
+	if svc.Attributes.ResourceRef == nil {
+		return statusctl.Resource{}
+	}
+	gvr, ok := gvk.ToGVR(svc.Attributes.ResourceRef.GroupVersionKind)
+	if !ok {
+		return statusctl.Resource{}
+	}
+	return statusctl.Resource{
+		GroupVersionResource: gvr,
+		Namespace:            svc.Attributes.Namespace,
+		Name:                 svc.Attributes.ResourceRef.Name,
+		Generation:           strconv.FormatInt(svc.Attributes.ResourceRef.Generation, 10),
+	}
+}
+
+type ipAllocation struct {
+	Host string `json:"host"`
+	IPv4 string `json:"ipv4"`
+	IPv6 string `json:"ipv6"`
+}
+
+func (s *Controller) UpdateStatus() {
+	s.updateStatus(s.services.getAllServices())
+}
+
+func (s *Controller) updateStatus(allServices []*model.Service) {
+	ipAllocsByResource := make(map[statusctl.Resource]map[string]ipAllocation)
+	for _, svc := range allServices {
+		rsrc := resourceFromModelService(svc)
+		if svc.AutoAllocatedIPv4Address != "" {
+			if ipAllocsByResource[rsrc] == nil {
+				ipAllocsByResource[rsrc] = make(map[string]ipAllocation)
+			}
+			if _, ok := ipAllocsByResource[rsrc][svc.Hostname.String()]; !ok {
+				ipAllocsByResource[rsrc][svc.Hostname.String()] = ipAllocation{svc.Hostname.String(), svc.AutoAllocatedIPv4Address, svc.AutoAllocatedIPv6Address}
+			}
+		}
+	}
+	if statusController := s.statusController.Load(); statusController != nil {
+		for rsrc, ipAllocs := range ipAllocsByResource {
+			sorted := slices.SortBy(maps.Values(ipAllocs), func(i ipAllocation) string {
+				return i.Host
+			})
+			statusController.EnqueueStatusUpdateResource(sorted, rsrc)
+		}
+	}
+}
+
 // Services list declarations of all services in the system
 func (s *Controller) Services() []*model.Service {
 	s.mutex.Lock()
@@ -654,6 +750,7 @@ func (s *Controller) Services() []*model.Service {
 	if s.services.allocateNeeded {
 		autoAllocateIPs(allServices)
 		s.services.allocateNeeded = false
+		s.updateStatus(allServices)
 	}
 	s.mutex.Unlock()
 	for _, svc := range allServices {
