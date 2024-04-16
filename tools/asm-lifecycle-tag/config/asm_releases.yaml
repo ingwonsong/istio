@@ -1,0 +1,9 @@
+registry: gcr.io/gke-release-staging
+repos:
+  - asm/pilot
+  - asm/proxyv2
+  - asm/install-cni
+  - asm/mdp
+versions:
+  - name: 1.20.4-asm.0
+    status: live
