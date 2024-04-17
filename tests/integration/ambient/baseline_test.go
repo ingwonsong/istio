@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -164,14 +165,17 @@ func TestServices(t *testing.T) {
 		}
 
 		if src.Config().ZTunnelCaptured() && dst.Config().HasWorkloadAddressedWaypointProxy() {
-			// ztunnel is going to send to a waypoint which won't accept this traffic
-			t.Skip("https://github.com/istio/ztunnel/pull/855")
+			// this is to svc traffic on a wl with only a workload addressed waypoint, it is going to bypass the waypoint by design
+			// we can't check http because we bypass the waypoint
+			// I don't think it makes sense to change the supportsL7 function for this case since it requires contect
+			// about how the traffic will be addressed
+			opt.Check = tcpValidator
 		}
 
 		if src.Config().HasSidecar() && dst.Config().HasWorkloadAddressedWaypointProxy() {
 			// We are testing to svc traffic but presently sidecar has not been updated to know that to svc traffic should not
 			// go to a workload-attached waypoint
-			t.Skip("TODO: open issue")
+			t.Skip("https://github.com/istio/istio/pull/50182")
 		}
 
 		// TODO test from all source workloads as well
@@ -192,15 +196,19 @@ func TestPodIP(t *testing.T) {
 								if src.Config().HasSidecar() {
 									t.Skip("not supported yet")
 								}
-								if src.Config().IsUncaptured() && dst.Config().HasWorkloadAddressedWaypointProxy() {
-									t.Skip("https://github.com/istio/istio/issues/44530")
-								}
 								for _, opt := range callOptions {
 									opt := opt.DeepCopy()
 									selfSend := dstWl.Address() == srcWl.Address()
 									if supportsL7(opt, src, dst) {
 										opt.Check = httpValidator
 									} else {
+										opt.Check = tcpValidator
+									}
+
+									if src.Config().IsUncaptured() && dst.Config().HasAnyWaypointProxy() {
+										// hairpinning isn't going to be implemented AND
+										// waypoint requirements are expressed via L4 policy which is not in place for this test:
+										// expected result is a plaintext passthrough by ztunnel
 										opt.Check = tcpValidator
 									}
 
@@ -692,21 +700,23 @@ spec:
   rules:
   - from:
     - source:
-        principals: ["cluster.local/ns/{{.Namespace}}/sa/{{.Source}}"]
+        principals: ["cluster.local/ns/{{.Namespace}}/sa/{{.Source}}", "cluster.local/ns/{{.Namespace}}/sa/{{.WaypointName}}-istio-waypoint"]
 `
 				t.ConfigIstio().Eval(apps.Namespace.Name(), map[string]string{
-					"Destination": dst.Config().Service,
-					"Source":      src.Config().Service,
-					"Namespace":   apps.Namespace.Name(),
+					"Destination":  dst.Config().Service,
+					"Source":       src.Config().Service,
+					"Namespace":    apps.Namespace.Name(),
+					"WaypointName": dst.Config().ServiceWaypointProxy,
 				}, `
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: policy-waypoint
 spec:
-  selector:
-    matchLabels:
-      gateway.networking.k8s.io/gateway-name: waypoint
+  targetRef:
+    kind: Gateway
+    group: gateway.networking.k8s.io
+    name: waypoint
 `+policySpec+`
 ---
 apiVersion: security.istio.io/v1beta1
@@ -749,9 +759,10 @@ kind: AuthorizationPolicy
 metadata:
   name: policy-waypoint
 spec:
-  selector:
-    matchLabels:
-      gateway.networking.k8s.io/gateway-name: waypoint
+  targetRef:
+    kind: Gateway
+    group: gateway.networking.k8s.io
+    name: waypoint
 `+policySpec).ApplyOrFail(t)
 				opt = opt.DeepCopy()
 				opt.Check = CheckDeny
@@ -797,50 +808,33 @@ spec:
 				return
 			}
 
-			// sidecar-uncaptured is failing the Ambient destination port test
-			// seems like a bug in the sidecar HBONE implementation that
-			// may need rules transformation as well
-			if dst.Config().HasSidecar() {
-				t.Skip("https://github.com/istio/istio/issues/42929")
-			}
-
-			if dst.Config().HasWorkloadAddressedWaypointProxy() {
-				// this case should bypass waypoints because traffic is svc addressed but
-				// presently a ztunnel bug will drop this traffic because it doesn't differentiate
-				// between svc and wl addressed traffic when determining if the connection
-				// should have gone through a waypoint.
-				t.Skip("TODO: open an issue to address this ztunnel issue")
-			}
-
 			// Ensure we don't get stuck on old connections with old RBAC rules. This causes 45s test times
 			// due to draining.
 			opt.NewConnectionPerRequest = true
 
 			policySpec := `
   rules:
-  - to:
-    - operation:
-        paths: ["/allowed"]
-        methods: ["GET"]
   - from:
     - source:
         principals: ["cluster.local/ns/istio-system/sa/{{.Source}}"]
     to:
     - operation:
-        paths: ["/allowed-identity"]
-        methods: ["GET"]
+        ports: ["{{.PortAllowWorkload}}"]
   - from:
     - source:
         principals: ["cluster.local/ns/{{.Namespace}}/sa/someone-else"]
     to:
     - operation:
-        paths: ["/denied-identity"]
-        methods: ["GET"]
+        ports: ["{{.PortDenyWorkload}}"]
 `
 			t.ConfigIstio().Eval(apps.Namespace.Name(), map[string]string{
-				"Destination": dst.Config().Service,
-				"Source":      "istio-ingressgateway-service-account",
-				"Namespace":   apps.Namespace.Name(),
+				"Destination":       dst.Config().Service,
+				"Source":            "istio-ingressgateway-service-account",
+				"Namespace":         apps.Namespace.Name(),
+				"PortAllow":         strconv.Itoa(ports.HTTP.ServicePort),
+				"PortAllowWorkload": strconv.Itoa(ports.HTTP.WorkloadPort),
+				"PortDeny":          strconv.Itoa(ports.HTTP2.ServicePort),
+				"PortDenyWorkload":  strconv.Itoa(ports.HTTP2.WorkloadPort),
 			}, `
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
@@ -850,16 +844,6 @@ spec:
   selector:
     matchLabels:
       app: "{{ .Destination }}"
-`+policySpec+`
----
-apiVersion: security.istio.io/v1beta1
-kind: AuthorizationPolicy
-metadata:
-  name: policy-waypoint
-spec:
-  selector:
-    matchLabels:
-      gateway.networking.k8s.io/gateway-name: waypoint
 `+policySpec+`
 ---
 apiVersion: networking.istio.io/v1alpha3
@@ -886,18 +870,28 @@ spec:
   hosts:
   - "*"
   http:
-  - route:
+  - match:
+    - uri:
+        exact: /allowed
+    route:
     - destination:
         host: "{{.Destination}}"
+        port:
+          number: {{.PortAllow}}
+  - match:
+    - uri:
+        exact: /deny
+    route:
+    - destination:
+        host: "{{.Destination}}"
+        port:
+          number: {{.PortDeny}}
 `).ApplyOrFail(t)
 			overrideCheck := func(opt *echo.CallOptions) {
 				switch {
-				case dst.Config().IsUncaptured() && !dst.Config().HasSidecar():
-					// No destination means no RBAC to apply. Make sure we do not accidentally reject
+				case !dst.Config().HasProxyCapabilities():
+					// No destination proxy means no RBAC to apply. Make sure we do not accidentally reject
 					opt.Check = check.OK()
-				case !dst.Config().HasServiceAddressedWaypointProxy() && !dst.Config().HasSidecar():
-					// Only waypoint proxy can handle L7 policies
-					opt.Check = CheckDeny
 				}
 			}
 			t.NewSubTest("simple deny").Run(func(t framework.TestContext) {
@@ -910,20 +904,6 @@ spec:
 			t.NewSubTest("simple allow").Run(func(t framework.TestContext) {
 				opt = opt.DeepCopy()
 				opt.HTTP.Path = "/allowed"
-				opt.Check = check.OK()
-				overrideCheck(&opt)
-				src.CallOrFail(t, opt)
-			})
-			t.NewSubTest("identity deny").Run(func(t framework.TestContext) {
-				opt = opt.DeepCopy()
-				opt.HTTP.Path = "/denied-identity"
-				opt.Check = CheckDeny
-				overrideCheck(&opt)
-				src.CallOrFail(t, opt)
-			})
-			t.NewSubTest("identity allow").Run(func(t framework.TestContext) {
-				opt = opt.DeepCopy()
-				opt.HTTP.Path = "/allowed-identity"
 				opt.Check = check.OK()
 				overrideCheck(&opt)
 				src.CallOrFail(t, opt)
@@ -964,6 +944,7 @@ spec:
 				// should have gone through a waypoint.
 				t.Skip("TODO: open an issue to address this ztunnel issue")
 			}
+
 			policySpec := `
   rules:
   - to:
@@ -1007,10 +988,22 @@ spec:
     - operation:
         paths: ["/explicit-deny"]
 `
+			// for most cases just use the normal policy spec
+			policySpecWL := policySpec
+			if dst.Config().HasServiceAddressedWaypointProxy() {
+				// for svc addressed traffic we want the WL policy to allow Waypoint -> Workload
+				policySpecWL = `
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/{{.Namespace}}/sa/{{.WaypointName}}-istio-waypoint"]
+`
+			}
 			t.ConfigIstio().Eval(apps.Namespace.Name(), map[string]string{
-				"Destination": dst.Config().Service,
-				"Source":      src.Config().Service,
-				"Namespace":   apps.Namespace.Name(),
+				"Destination":  dst.Config().Service,
+				"Source":       src.Config().Service,
+				"Namespace":    apps.Namespace.Name(),
+				"WaypointName": dst.Config().ServiceWaypointProxy,
 			}, `
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
@@ -1020,16 +1013,17 @@ spec:
   selector:
     matchLabels:
       app: "{{ .Destination }}"
-`+policySpec+`
+`+policySpecWL+`
 ---
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: policy-waypoint
 spec:
-  selector:
-    matchLabels:
-      gateway.networking.k8s.io/gateway-name: waypoint
+  targetRef:
+    kind: Gateway
+    group: gateway.networking.k8s.io
+    name: waypoint
 `+policySpec+`
 ---
 apiVersion: security.istio.io/v1beta1
@@ -1047,9 +1041,10 @@ kind: AuthorizationPolicy
 metadata:
   name: deny-policy-waypoint
 spec:
-  selector:
-    matchLabels:
-      gateway.networking.k8s.io/gateway-name: waypoint
+  targetRef:
+    kind: Gateway
+    group: gateway.networking.k8s.io
+    name: waypoint
 `+denySpec).ApplyOrFail(t)
 			overrideCheck := func(opt *echo.CallOptions) {
 				switch {

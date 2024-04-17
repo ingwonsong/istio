@@ -40,7 +40,7 @@ data:
           "kubernetes": {
               "kubeconfig": "__KUBECONFIG_FILEPATH__",
               "cni_bin_dir": "/home/kubernetes/bin",
-              "exclude_namespaces": [ "istio-system", "kube-system" ]
+              "exclude_namespaces": [ "kube-system" ]
           }
         }
 ---

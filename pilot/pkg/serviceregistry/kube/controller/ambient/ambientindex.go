@@ -46,7 +46,6 @@ type Index interface {
 	All() []model.AddressInfo
 	WorkloadsForWaypoint(key model.WaypointKey) []model.WorkloadInfo
 	ServicesForWaypoint(key model.WaypointKey) []model.ServiceInfo
-	Waypoint(network, address string) []netip.Addr
 	SyncAll()
 	HasSynced() bool
 	model.AmbientIndexes
@@ -410,29 +409,6 @@ func (a *index) WorkloadsForWaypoint(key model.WaypointKey) []model.WorkloadInfo
 	return workloads
 }
 
-func (a *index) Waypoint(network, address string) []netip.Addr {
-	res := sets.Set[netip.Addr]{}
-	networkAddr := networkAddress{
-		network: network,
-		ip:      address,
-	}
-	addressInfos := a.Lookup(networkAddr.String())
-	for _, addressInfo := range addressInfos {
-		waypointAddress := addressInfo.GetService().GetWaypoint().GetAddress().GetAddress()
-		if a, ok := netip.AddrFromSlice(waypointAddress); ok {
-			res.Insert(a)
-			// This was a service, therefore it is not a workload and we can just move on
-			continue
-		}
-
-		waypointAddress = addressInfo.GetWorkload().GetWaypoint().GetAddress().GetAddress()
-		if a, ok := netip.AddrFromSlice(waypointAddress); ok {
-			res.Insert(a)
-		}
-	}
-	return res.UnsortedList()
-}
-
 func (a *index) AdditionalPodSubscriptions(
 	proxy *model.Proxy,
 	allAddresses sets.String,
@@ -486,8 +462,8 @@ func (a *index) HasSynced() bool {
 
 type LookupNetwork func(endpointIP string, labels labels.Instance) network.ID
 
-func PushXds[T any](xds model.XDSUpdater, f func(T) model.ConfigKey) func(events []krt.Event[T]) {
-	return func(events []krt.Event[T]) {
+func PushXds[T any](xds model.XDSUpdater, f func(T) model.ConfigKey) func(events []krt.Event[T], initialSync bool) {
+	return func(events []krt.Event[T], initialSync bool) {
 		cu := sets.New[model.ConfigKey]()
 		for _, e := range events {
 			for _, i := range e.Items() {

@@ -1,8 +1,6 @@
 module istio.io/istio/tests/taaa/test-artifact
 
-go 1.22
-
-toolchain go1.22.0
+go 1.22.0
 
 replace istio.io/istio/prow/asm/tester => ../../../prow/asm/tester
 
@@ -85,11 +83,11 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
 	istio.io/istio v0.0.0-00010101000000-000000000000 // indirect
-	k8s.io/api v0.29.3 // indirect
-	k8s.io/apimachinery v0.29.3 // indirect
-	k8s.io/client-go v0.29.3 // indirect
+	k8s.io/api v0.30.0-rc.2 // indirect
+	k8s.io/apimachinery v0.30.0-rc.2 // indirect
+	k8s.io/client-go v0.30.0-rc.2 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20240126223410-2919ad4fcfec // indirect
+	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect

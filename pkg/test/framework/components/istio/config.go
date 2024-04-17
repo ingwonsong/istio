@@ -73,6 +73,9 @@ const (
 	// tagValuesKey values key for the Docker image tag.
 	tagValuesKey = "global.tag"
 
+	// variantValuesKey values key for the Docker image variant.
+	variantValuesKey = "global.variant"
+
 	// imagePullPolicyValuesKey values key for the Docker image pull policy.
 	imagePullPolicyValuesKey = "global.imagePullPolicy"
 
@@ -216,7 +219,7 @@ global:
 `, s.Image.Hub, s.Image.Tag)
 }
 
-func (c *Config) IstioOperatorConfigYAML(s *resource.Settings, iopYaml string) string {
+func (c *Config) IstioOperatorConfigYAML(iopYaml string) string {
 	data := ""
 	if iopYaml != "" {
 		data = Indent(iopYaml, "  ")
@@ -226,10 +229,8 @@ func (c *Config) IstioOperatorConfigYAML(s *resource.Settings, iopYaml string) s
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 spec:
-  hub: %s
-  tag: %s
 %s
-`, s.Image.Hub, s.Image.Tag, data)
+`, data)
 }
 
 func (c *Config) fillDefaults(ctx resource.Context) {
@@ -318,6 +319,7 @@ func newHelmValues(ctx resource.Context) (map[string]string, error) {
 	s := ctx.Settings()
 	values[hubValuesKey] = s.Image.Hub
 	values[tagValuesKey] = s.Image.Tag
+	values[variantValuesKey] = s.Image.Variant
 	values[imagePullPolicyValuesKey] = s.Image.PullPolicy
 
 	// Copy the user values.
