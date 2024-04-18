@@ -17,8 +17,9 @@ package serviceentry
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
+	"net/netip"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -36,7 +37,6 @@ import (
 	statusctl "istio.io/istio/pilot/pkg/status"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
-	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/schema/gvk"
@@ -67,11 +67,6 @@ const ipAllocationStatusCondName = "AutoAllocatedIPs"
 type instancesKey struct {
 	hostname  host.Name
 	namespace string
-}
-
-type octetPair struct {
-	thirdOctet  int
-	fourthOctet int
 }
 
 func makeInstanceKey(i *model.ServiceInstance) instancesKey {
@@ -123,6 +118,7 @@ type Controller struct {
 	// Indicates whether this controller is for workload entries.
 	workloadEntryController bool
 
+	ipAllocator      *ipAllocator
 	statusController atomic.Pointer[statusctl.Controller]
 
 	model.NoopAmbientIndexes
@@ -186,7 +182,8 @@ func newController(store model.ConfigStore, xdsUpdater model.XDSUpdater, options
 		services: serviceStore{
 			servicesBySE: map[types.NamespacedName][]*model.Service{},
 		},
-		edsQueue: queue.NewQueue(time.Second),
+		edsQueue:    queue.NewQueue(time.Second),
+		ipAllocator: newIPAllocator(),
 	}
 
 	for _, o := range options {
@@ -199,12 +196,12 @@ func (c *Controller) SetStatusWrite(enabled bool, statusManager *statusctl.Manag
 	if enabled && statusManager != nil {
 		c.statusController.Store(
 			statusManager.CreateIstioStatusController(func(st *v1alpha1.IstioStatus, context any) *v1alpha1.IstioStatus {
-				var ipAllocs []ipAllocation
+				var ipAllocs []ipAllocationStatusEntry
 				if context == nil || st == nil {
 					return nil
 				}
 
-				ipAllocs = context.([]ipAllocation)
+				ipAllocs = context.([]ipAllocationStatusEntry)
 
 				b, err := json.Marshal(ipAllocs)
 				if err != nil {
@@ -405,11 +402,96 @@ func getUpdatedConfigs(services []*model.Service) sets.Set[model.ConfigKey] {
 	return configsUpdated
 }
 
+func containsAllHosts(allocated map[string]ipSet, hosts []string) bool {
+	for _, host := range hosts {
+		if strings.HasPrefix(host, "*") {
+			continue
+		}
+		if _, ok := allocated[host]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func extractIPAllocations(conf config.Config) map[string]ipSet {
+	cond := status.GetConditionFromSpec(conf, ipAllocationStatusCondName)
+	autoAllocatedIPs := map[string]ipSet{}
+	if cond != nil {
+		var ipAllocs []ipAllocationStatusEntry
+		if err := json.Unmarshal([]byte(cond.Status), &ipAllocs); err == nil {
+			for _, i := range ipAllocs {
+				autoAllocatedIPs[i.Host] = i.ipSet
+			}
+		}
+	}
+	return autoAllocatedIPs
+}
+
+func diffIPAllocations(old, curr config.Config) (added map[string]ipSet, deleted map[string]ipSet, curAlloc map[string]ipSet) {
+	curAlloc = extractIPAllocations(curr)
+	if old.Spec == nil || old.Status == nil {
+		return curAlloc, nil, curAlloc
+	}
+	oldAlloc := extractIPAllocations(old)
+	added = map[string]ipSet{}
+	deleted = map[string]ipSet{}
+	for host, ips := range curAlloc {
+		if _, ok := oldAlloc[host]; !ok {
+			added[host] = ips
+		}
+	}
+	for host, ips := range oldAlloc {
+		if _, ok := curAlloc[host]; !ok {
+			deleted[host] = ips
+		}
+	}
+	return
+}
+
 // serviceEntryHandler defines the handler for service entries
 func (s *Controller) serviceEntryHandler(old, curr config.Config, event model.Event) {
-	log.Debugf("Handle event %s for service entry %s/%s", event, curr.Namespace, curr.Name)
 	currentServiceEntry := curr.Spec.(*networking.ServiceEntry)
+	var ipAlloc map[string]ipSet
+	if len(currentServiceEntry.Addresses) == 0 && currentServiceEntry.Resolution != networking.ServiceEntry_NONE {
+		addedIPAlloc, deletedIPAlloc, curIPAlloc := diffIPAllocations(old, curr)
+		err := s.ipAllocator.update(curr.Namespace, addedIPAlloc, deletedIPAlloc)
+		if err != nil || !containsAllHosts(curIPAlloc, currentServiceEntry.Hosts) {
+			if sc := s.statusController.Load(); sc != nil {
+				// This instance is the leader. Let's allocate IP address.
+				// TODO(igsong): allocate IP.
+			} else {
+				// Wait until that the leader allocate the IP address. At this point, just skip to read it.
+				// When the leader writes IP allocation status, this handler will be called again.
+				return
+			}
+		}
+	}
+
+	log.Debugf("Handle event %s for service entry %s/%s", event, curr.Namespace, curr.Name)
 	cs := convertServices(curr)
+	if len(ipAlloc) > 0 {
+		for _, svc := range cs {
+			// we can allocate IPs only if
+			// 1. the service has resolution set to static/dns. We cannot allocate
+			//   for NONE because we will not know the original DST IP that the application requested.
+			// 2. the address is not set (0.0.0.0)
+			// 3. the hostname is not a wildcard
+			//
+			// Since we already allocate IPs in case of 1. and 2. above,
+			// just checks 3. here.
+			if !svc.Hostname.IsWildCarded() {
+				ips, ok := ipAlloc[svc.Hostname.String()]
+				if !ok {
+					// This should not happen because we already checked the existence.
+					log.Errorf("failed to get IP allocation for the hostname %s", svc.Hostname.String())
+				}
+				svc.AutoAllocatedIPv4Address = ips.IPv4
+				svc.AutoAllocatedIPv6Address = ips.IPv6
+			}
+		}
+	}
+
 	configsUpdated := sets.New[model.ConfigKey]()
 	key := curr.NamespacedName()
 
@@ -709,49 +791,116 @@ func resourceFromModelService(svc *model.Service) statusctl.Resource {
 	}
 }
 
-type ipAllocation struct {
-	Host string `json:"host"`
+type ipAllocationStatusEntry struct {
+	Host  string `json:"host"`
+	ipSet `json:",inline"`
+}
+
+type ipSet struct {
 	IPv4 string `json:"ipv4"`
 	IPv6 string `json:"ipv6"`
 }
 
-func (s *Controller) UpdateStatus() {
-	s.updateStatus(s.services.getAllServices())
+func (ips *ipSet) allocKey() (uint16, error) {
+	if !strings.HasPrefix(ips.IPv4, "240.240.") {
+		return 0, fmt.Errorf("invalid auto allocated ipv4")
+	}
+	addr, err := netip.ParseAddr(ips.IPv4)
+	if err != nil {
+		return 0, err
+	}
+	baddr := addr.As4()
+	return uint16(baddr[2])*255 + uint16(baddr[3]), nil
 }
 
-func (s *Controller) updateStatus(allServices []*model.Service) {
-	ipAllocsByResource := make(map[statusctl.Resource]map[string]ipAllocation)
-	for _, svc := range allServices {
-		rsrc := resourceFromModelService(svc)
-		if svc.AutoAllocatedIPv4Address != "" {
-			if ipAllocsByResource[rsrc] == nil {
-				ipAllocsByResource[rsrc] = make(map[string]ipAllocation)
-			}
-			if _, ok := ipAllocsByResource[rsrc][svc.Hostname.String()]; !ok {
-				ipAllocsByResource[rsrc][svc.Hostname.String()] = ipAllocation{svc.Hostname.String(), svc.AutoAllocatedIPv4Address, svc.AutoAllocatedIPv6Address}
-			}
-		}
-	}
-	if statusController := s.statusController.Load(); statusController != nil {
-		for rsrc, ipAllocs := range ipAllocsByResource {
-			sorted := slices.SortBy(maps.Values(ipAllocs), func(i ipAllocation) string {
-				return i.Host
-			})
-			statusController.EnqueueStatusUpdateResource(sorted, rsrc)
-		}
+type namespacedHostname struct {
+	ns   string
+	host string
+}
+
+type ipAllocator struct {
+	mu        sync.Mutex
+	index     map[namespacedHostname]uint16
+	allocPool map[uint16]int
+}
+
+func newIPAllocator() *ipAllocator {
+	return &ipAllocator{
+		index:     map[namespacedHostname]uint16{},
+		allocPool: map[uint16]int{},
 	}
 }
+
+func (gis *ipAllocator) update(namespace string, added map[string]ipSet, deleted map[string]ipSet) error {
+	gis.mu.Lock()
+	defer gis.mu.Unlock()
+
+	for host, ips := range added {
+		svcKey := namespacedHostname{namespace, host}
+		allocKey, err := ips.allocKey()
+		if err != nil {
+			return err
+		}
+		if oldAllocKey, ok := gis.index[svcKey]; ok {
+			if oldAllocKey != allocKey {
+				return fmt.Errorf("inconsistent IP allocation in service index")
+			}
+			// Already the allocation is in the allocator.
+			continue
+		}
+		gis.index[svcKey] = allocKey
+		// Increase reference count
+		gis.allocPool[allocKey]++
+	}
+
+	for host, ips := range deleted {
+		allocKey, err := ips.allocKey()
+		if err != nil {
+			continue
+		}
+		if refCount, ok := gis.allocPool[allocKey]; ok {
+			gis.allocPool[allocKey] = refCount - 1
+		}
+		if gis.allocPool[allocKey] == 0 {
+			delete(gis.index, namespacedHostname{namespace, host})
+		}
+	}
+
+	return nil
+}
+
+// func (s *Controller) UpdateStatus() {
+// 	s.updateStatus(s.services.getAllServices())
+// }
+
+// func (s *Controller) updateStatus(allServices []*model.Service) {
+// 	ipAllocsByResource := make(map[statusctl.Resource]map[string]ipAllocation)
+// 	for _, svc := range allServices {
+// 		rsrc := resourceFromModelService(svc)
+// 		if svc.AutoAllocatedIPv4Address != "" {
+// 			if ipAllocsByResource[rsrc] == nil {
+// 				ipAllocsByResource[rsrc] = make(map[string]ipAllocation)
+// 			}
+// 			if _, ok := ipAllocsByResource[rsrc][svc.Hostname.String()]; !ok {
+// 				ipAllocsByResource[rsrc][svc.Hostname.String()] = ipAllocation{svc.Hostname.String(), svc.AutoAllocatedIPv4Address, svc.AutoAllocatedIPv6Address}
+// 			}
+// 		}
+// 	}
+// 	if statusController := s.statusController.Load(); statusController != nil {
+// 		for rsrc, ipAllocs := range ipAllocsByResource {
+// 			sorted := slices.SortBy(maps.Values(ipAllocs), func(i ipAllocation) string {
+// 				return i.Host
+// 			})
+// 			statusController.EnqueueStatusUpdateResource(sorted, rsrc)
+// 		}
+// 	}
+// }
 
 // Services list declarations of all services in the system
 func (s *Controller) Services() []*model.Service {
 	s.mutex.Lock()
 	allServices := s.services.getAllServices()
 	out := make([]*model.Service, 0, len(allServices))
-	if s.services.allocateNeeded {
-		autoAllocateIPs(allServices)
-		s.services.allocateNeeded = false
-		s.updateStatus(allServices)
-	}
 	s.mutex.Unlock()
 	for _, svc := range allServices {
 		// shallow copy, copy `AutoAllocatedIPv4Address` and `AutoAllocatedIPv6Address`
@@ -965,115 +1114,16 @@ func servicesDiff(os []*model.Service, ns []*model.Service) ([]*model.Service, [
 	return added, deleted, updated, unchanged
 }
 
-// Automatically allocates IPs for service entry services WITHOUT an
-// address field if the hostname is not a wildcard, or when resolution
-// is not NONE. The IPs are allocated from the reserved Class E subnet
-// (240.240.0.0/16) that is not reachable outside the pod or reserved
-// Benchmarking IP range (2001:2::/48) in RFC5180. When DNS
-// capture is enabled, Envoy will resolve the DNS to these IPs. The
-// listeners for TCP services will also be set up on these IPs. The
-// IPs allocated to a service entry may differ from istiod to istiod
-// but it does not matter because these IPs only affect the listener
-// IPs on a given proxy managed by a given istiod.
-//
-// NOTE: If DNS capture is not enabled by the proxy, the automatically
-// allocated IP addresses do not take effect.
-//
-// The current algorithm to allocate IPs is deterministic across all istiods.
-func autoAllocateIPs(services []*model.Service) []*model.Service {
-	hashedServices := make([]*model.Service, maxIPs)
-	hash := fnv.New32a()
-	// First iterate through the range of services and determine its position by hash
-	// so that we can deterministically allocate an IP.
-	// We use "Double Hashning" for collision detection.
-	// The hash algorithm is
-	// - h1(k) = Sum32 hash of the service key (namespace + "/" + hostname)
-	// - Check if we have an empty slot for h1(x) % MAXIPS. Use it if available.
-	// - If there is a collision, apply second hash i.e. h2(x) = PRIME - (Key % PRIME)
-	//   where PRIME is the max prime number below MAXIPS.
-	// - Calculate new hash iteratively till we find an empty slot with (h1(k) + i*h2(k)) % MAXIPS
-	j := 0
-	for _, svc := range services {
-		// we can allocate IPs only if
-		// 1. the service has resolution set to static/dns. We cannot allocate
-		//   for NONE because we will not know the original DST IP that the application requested.
-		// 2. the address is not set (0.0.0.0)
-		// 3. the hostname is not a wildcard
-		if svc.DefaultAddress == constants.UnspecifiedIP && !svc.Hostname.IsWildCarded() &&
-			svc.Resolution != model.Passthrough {
-			if j >= maxIPs {
-				log.Errorf("out of IPs to allocate for service entries. maxips:= %d", maxIPs)
-				break
-			}
-			// First hash is calculated by hashing the service key i.e. (namespace + "/" + hostname).
-			hash.Write([]byte(makeServiceKey(svc)))
-			s := hash.Sum32()
-			firstHash := s % uint32(maxIPs)
-			// Check if there is a service with this hash first. If there is no service
-			// at this location - then we can safely assign this position for this service.
-			if hashedServices[firstHash] == nil {
-				hashedServices[firstHash] = svc
-			} else {
-				// This means we have a collision. Resolve collision by "DoubleHashing".
-				i := uint32(1)
-				secondHash := uint32(prime) - (s % uint32(prime))
-				for {
-					nh := (s + i*secondHash) % uint32(maxIPs-1)
-					if hashedServices[nh] == nil {
-						hashedServices[nh] = svc
-						break
-					}
-					i++
-				}
-			}
-			hash.Reset()
-			j++
-		}
-	}
-
-	x := 0
-	hnMap := make(map[string]octetPair)
-	for _, svc := range hashedServices {
-		x++
-		if svc == nil {
-			// There is no service in the slot. Just increment x and move forward.
-			continue
-		}
-		n := makeServiceKey(svc)
-		// To avoid allocating 240.240.(i).255, if X % 255 is 0, increment X.
-		// For example, when X=510, the resulting IP would be 240.240.2.0 (invalid)
-		// So we bump X to 511, so that the resulting IP is 240.240.2.1
-		if x%255 == 0 {
-			x++
-		}
-		if v, ok := hnMap[n]; ok {
-			log.Debugf("Reuse IP for domain %s", n)
-			setAutoAllocatedIPs(svc, v)
-		} else {
-			var thirdOctect, fourthOctect int
-			thirdOctect = x / 255
-			fourthOctect = x % 255
-			pair := octetPair{thirdOctect, fourthOctect}
-			setAutoAllocatedIPs(svc, pair)
-			hnMap[n] = pair
-		}
-	}
-	return services
-}
-
-func makeServiceKey(svc *model.Service) string {
-	return svc.Attributes.Namespace + "/" + svc.Hostname.String()
-}
-
-func setAutoAllocatedIPs(svc *model.Service, octets octetPair) {
-	a := octets.thirdOctet
-	b := octets.fourthOctet
-	svc.AutoAllocatedIPv4Address = fmt.Sprintf("240.240.%d.%d", a, b)
+func getAutoAllocatedIPs(key uint16) (ipv4, ipv6 string) {
+	a := key / 255
+	b := key % 255
+	ipv4 = fmt.Sprintf("240.240.%d.%d", a, b)
 	if a == 0 {
-		svc.AutoAllocatedIPv6Address = fmt.Sprintf("2001:2::f0f0:%x", b)
+		ipv6 = fmt.Sprintf("2001:2::f0f0:%x", b)
 	} else {
-		svc.AutoAllocatedIPv6Address = fmt.Sprintf("2001:2::f0f0:%x%x", a, b)
+		ipv6 = fmt.Sprintf("2001:2::f0f0:%x%x", a, b)
 	}
+	return
 }
 
 func makeConfigKey(svc *model.Service) model.ConfigKey {
