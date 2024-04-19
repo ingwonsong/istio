@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	k8ssets "k8s.io/apimachinery/pkg/util/sets" //nolint: depguard
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +29,6 @@ import (
 	"sigs.k8s.io/gateway-api/conformance"
 	confv1 "sigs.k8s.io/gateway-api/conformance/apis/v1"
 	"sigs.k8s.io/gateway-api/conformance/tests"
-	"sigs.k8s.io/gateway-api/conformance/utils/config"
 	"sigs.k8s.io/gateway-api/conformance/utils/suite"
 	"sigs.k8s.io/yaml"
 
@@ -69,8 +67,6 @@ var skippedTests = map[string]string{
 	"MeshFrontendHostname": "https://github.com/istio/istio/issues/44702",
 }
 
-const gatewayConformanceTimeoutScaler = 5
-
 func TestGatewayConformance(t *testing.T) {
 	framework.
 		NewTest(t).
@@ -96,17 +92,6 @@ func TestGatewayConformance(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// Set timeouts to some scalar multiple of the test defaults.
-			timeoutConfig := config.TimeoutConfig{
-				GatewayMustHaveAddress:         180 * time.Second * gatewayConformanceTimeoutScaler,
-				GWCMustBeAccepted:              180 * time.Second * gatewayConformanceTimeoutScaler,
-				MaxTimeToConsistency:           180 * time.Second * gatewayConformanceTimeoutScaler,
-				GatewayStatusMustHaveListeners: 60 * time.Second * gatewayConformanceTimeoutScaler,
-				HTTPRouteMustNotHaveParents:    60 * time.Second * gatewayConformanceTimeoutScaler,
-				HTTPRouteMustHaveCondition:     60 * time.Second * gatewayConformanceTimeoutScaler,
-				RouteMustHaveParents:           60 * time.Second * gatewayConformanceTimeoutScaler,
-			}
-			config.SetupTimeoutConfig(&timeoutConfig)
 			features := gateway.SupportedFeatures
 			if ctx.Settings().GatewayConformanceStandardOnly {
 				features = k8ssets.New[suite.SupportedFeature]().
@@ -144,7 +129,7 @@ func TestGatewayConformance(t *testing.T) {
 					Version:      istioVersion,
 					Contact:      []string{"@istio/maintainers"},
 				},
-				TimeoutConfig: timeoutConfig,
+				TimeoutConfig: ctx.Settings().GatewayConformanceTimeoutConfig,
 			}
 			if rev := ctx.Settings().Revisions.Default(); rev != "" {
 				opts.NamespaceLabels = map[string]string{
