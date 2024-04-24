@@ -316,6 +316,9 @@ func generateASMInstallFlags(settings *resource.Settings, rev *revision.Config, 
 	if settings.UseStackDriver {
 		installFlags = append(installFlags, "--option", "stackdriver")
 	}
+	if settings.UseDistroless {
+		installFlags = append(installFlags, "--option", "distroless-proxy")
+	}
 
 	installFlags = append(installFlags, commonASMCLIInstallFlags(settings, rev, pkgPath)...)
 

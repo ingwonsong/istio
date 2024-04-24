@@ -94,6 +94,7 @@ func main() {
 		fmt.Sprintf("Container API endpoint to use (optional). Can be one of %v", types.SupportedEnvironments))
 	flag.BoolVar(&cfg.SyncUpgrade, "sync-upgrade", cfg.SyncUpgrade, "whether the cluster upgrade process should be done synchronously")
 	flag.BoolVar(&cfg.AttachedV2, "use-attached-v2", cfg.AttachedV2, "whether to use V2 for attached clusters")
+	flag.BoolVar(&cfg.UseDistroless, "distroless", cfg.UseDistroless, "whether to use distroless image for the sidecar")
 	flag.Parse()
 	cfg.Features = sets.NewString(features...)
 	cfg.UpgradeClusterVersion = upgradeVersions

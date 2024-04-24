@@ -140,6 +140,9 @@ type Settings struct {
 	//Server OS for baremetal platform
 	BMServerOS string `flag:"bm-server-os" desc:"Server OS for baremetal platform."`
 
+	// Use distroless image for the sidecar.
+	UseDistroless bool `flag:"distroless" desc:"Whether to use distroless image for the sidecar."`
+
 	VMSettings
 
 	MCPSettings

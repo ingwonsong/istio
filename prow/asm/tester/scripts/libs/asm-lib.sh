@@ -55,7 +55,7 @@ function prepare_images() {
   # Configure Docker to authenticate with Container Registry.
   gcloud auth configure-docker
   # Build images from the current branch and push the images to gcr.
-  make dockerx.pushx HUB="${HUB}" TAG="${TAG}" DOCKER_TARGETS="docker.pilot docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp docker.ext-authz"
+  make dockerx.pushx HUB="${HUB}" TAG="${TAG}" DOCKER_BUILD_VARIANTS="${DOCKER_BUILD_VARIANTS:-default}" DOCKER_TARGETS="docker.pilot docker.proxyv2 docker.cloudesf docker.app docker.install-cni docker.mdp docker.ext-authz"
 
   docker pull gcr.io/asm-staging-images/asm/stackdriver-prometheus-sidecar:e2e-test
   docker tag gcr.io/asm-staging-images/asm/stackdriver-prometheus-sidecar:e2e-test "${HUB}/stackdriver-prometheus-sidecar:${TAG}"

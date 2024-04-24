@@ -267,7 +267,12 @@ func injectEnvVars(settings *resource.Settings) error {
 	if settings.RevisionConfig != "" {
 		envVars["MULTI_VERSION"] = "1"
 	}
-	if settings.UseKubevirtVM == true {
+
+	if settings.UseDistroless {
+		envVars["DOCKER_BUILD_VARIANTS"] = "distroless default"
+	}
+
+	if settings.UseKubevirtVM {
 		envVars["USE_KUBEVIRT_VM"] = "true"
 		envVars["KUBEVIRT_VM_ECHO_ARTIFACTS_GCS_FOLDER"] = KubevirtVMGcsBucket + "/" + "kubevirtecho_" + os.Getenv("BUILD_ID")
 	}
