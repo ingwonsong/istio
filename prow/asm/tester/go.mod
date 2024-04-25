@@ -15,9 +15,9 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	istio.io/istio v0.0.0-00010101000000-000000000000
-	k8s.io/api v0.30.0-rc.2
-	k8s.io/apimachinery v0.30.0-rc.2
-	k8s.io/client-go v0.30.0-rc.2
+	k8s.io/api v0.30.0
+	k8s.io/apimachinery v0.30.0
+	k8s.io/client-go v0.30.0
 )
 
 require (

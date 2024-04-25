@@ -9,7 +9,7 @@ metadata:
     app: istio-ingressgateway
     istio: ingressgateway
     release: istio
-    istio.io/rev: asm-managed-rapid
+    istio.io/rev: "asm-managed-rapid"
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
 spec:
@@ -39,7 +39,7 @@ metadata:
     app: istio-ingressgateway
     istio: ingressgateway
     release: istio
-    istio.io/rev: asm-managed-rapid
+    istio.io/rev: "asm-managed-rapid"
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
 spec:
@@ -136,7 +136,7 @@ metadata:
     app: istio-ingressgateway
     istio: ingressgateway
     release: istio
-    istio.io/rev: asm-managed-rapid
+    istio.io/rev: "asm-managed-rapid"
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
 spec:
@@ -154,7 +154,7 @@ metadata:
   namespace: istio-system
   labels:
     release: istio
-    istio.io/rev: asm-managed-rapid
+    istio.io/rev: "asm-managed-rapid"
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
 rules:
@@ -169,7 +169,7 @@ metadata:
   namespace: istio-system
   labels:
     release: istio
-    istio.io/rev: asm-managed-rapid
+    istio.io/rev: "asm-managed-rapid"
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
 roleRef:
@@ -190,7 +190,7 @@ metadata:
     app: istio-ingressgateway
     istio: ingressgateway
     release: istio
-    istio.io/rev: asm-managed-rapid
+    istio.io/rev: "asm-managed-rapid"
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
 spec:
@@ -226,7 +226,7 @@ metadata:
     app: istio-ingressgateway
     istio: ingressgateway
     release: istio
-    istio.io/rev: asm-managed-rapid
+    istio.io/rev: "asm-managed-rapid"
     install.operator.istio.io/owning-resource: unknown
     operator.istio.io/component: "IngressGateways"
 

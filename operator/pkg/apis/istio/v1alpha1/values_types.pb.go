@@ -5260,6 +5260,8 @@ type Values struct {
 	// Specifies the compatibility version to use. When this is set, the control plane will
 	// be configured with the same defaults as the specified version.
 	CompatibilityVersion string `protobuf:"bytes,43,opt,name=compatibilityVersion,proto3" json:"compatibilityVersion,omitempty"`
+	// Specifies experimental helm fields that could be removed or changed in the future
+	Experimental *ExperimentalConfig `protobuf:"bytes,44,opt,name=experimental,proto3" json:"experimental,omitempty"`
 	// Managed Data Plane (MDP) config is ASM-specific.
 	Mdp *MDPConfig `protobuf:"bytes,101,opt,name=mdp,proto3" json:"mdp,omitempty"`
 }
@@ -5416,6 +5418,13 @@ func (x *Values) GetCompatibilityVersion() string {
 	return ""
 }
 
+func (x *Values) GetExperimental() *ExperimentalConfig {
+	if x != nil {
+		return x.Experimental
+	}
+	return nil
+}
+
 func (x *Values) GetMdp() *MDPConfig {
 	if x != nil {
 		return x.Mdp
@@ -5480,6 +5489,55 @@ func (x *ZeroVPNConfig) GetSuffix() string {
 	return ""
 }
 
+// ExperimentalConfig is a placeholder for experimental installation features.
+type ExperimentalConfig struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Controls whether the experimental feature is enabled.
+	StableValidationPolicy *wrapperspb.BoolValue `protobuf:"bytes,1,opt,name=stableValidationPolicy,proto3" json:"stableValidationPolicy,omitempty"`
+}
+
+func (x *ExperimentalConfig) Reset() {
+	*x = ExperimentalConfig{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[48]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ExperimentalConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExperimentalConfig) ProtoMessage() {}
+
+func (x *ExperimentalConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[48]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExperimentalConfig.ProtoReflect.Descriptor instead.
+func (*ExperimentalConfig) Descriptor() ([]byte, []int) {
+	return file_pkg_apis_istio_v1alpha1_values_types_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ExperimentalConfig) GetStableValidationPolicy() *wrapperspb.BoolValue {
+	if x != nil {
+		return x.StableValidationPolicy
+	}
+	return nil
+}
+
 // IntOrString is a type that can hold an int32 or a string.  When used in
 // JSON or YAML marshalling and unmarshalling, it produces or consumes the
 // inner type.  This allows you to have, for example, a JSON field that can
@@ -5502,7 +5560,7 @@ type IntOrString struct {
 func (x *IntOrString) Reset() {
 	*x = IntOrString{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[48]
+		mi := &file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[49]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5515,7 +5573,7 @@ func (x *IntOrString) String() string {
 func (*IntOrString) ProtoMessage() {}
 
 func (x *IntOrString) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[48]
+	mi := &file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[49]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5528,7 +5586,7 @@ func (x *IntOrString) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IntOrString.ProtoReflect.Descriptor instead.
 func (*IntOrString) Descriptor() ([]byte, []int) {
-	return file_pkg_apis_istio_v1alpha1_values_types_proto_rawDescGZIP(), []int{48}
+	return file_pkg_apis_istio_v1alpha1_values_types_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *IntOrString) GetType() int64 {
@@ -6656,7 +6714,7 @@ var file_pkg_apis_istio_v1alpha1_values_types_proto_rawDesc = []byte{
 	0x74, 0x68, 0x12, 0x2c, 0x0a, 0x11, 0x69, 0x6e, 0x6a, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43,
 	0x41, 0x42, 0x75, 0x6e, 0x64, 0x6c, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x11, 0x69,
 	0x6e, 0x6a, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x41, 0x42, 0x75, 0x6e, 0x64, 0x6c, 0x65,
-	0x22, 0xe2, 0x06, 0x0a, 0x06, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x12, 0x25, 0x0a, 0x03, 0x63,
+	0x22, 0xa4, 0x07, 0x0a, 0x06, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x12, 0x25, 0x0a, 0x03, 0x63,
 	0x6e, 0x69, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e, 0x76, 0x31, 0x61, 0x6c, 0x70,
 	0x68, 0x61, 0x31, 0x2e, 0x43, 0x4e, 0x49, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x03, 0x63,
 	0x6e, 0x69, 0x12, 0x34, 0x0a, 0x08, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x73, 0x18, 0x05,
@@ -6707,39 +6765,50 @@ var file_pkg_apis_istio_v1alpha1_values_types_proto_rawDesc = []byte{
 	0x09, 0x52, 0x07, 0x70, 0x72, 0x6f, 0x66, 0x69, 0x6c, 0x65, 0x12, 0x32, 0x0a, 0x14, 0x63, 0x6f,
 	0x6d, 0x70, 0x61, 0x74, 0x69, 0x62, 0x69, 0x6c, 0x69, 0x74, 0x79, 0x56, 0x65, 0x72, 0x73, 0x69,
 	0x6f, 0x6e, 0x18, 0x2b, 0x20, 0x01, 0x28, 0x09, 0x52, 0x14, 0x63, 0x6f, 0x6d, 0x70, 0x61, 0x74,
-	0x69, 0x62, 0x69, 0x6c, 0x69, 0x74, 0x79, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x25,
-	0x0a, 0x03, 0x6d, 0x64, 0x70, 0x18, 0x65, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e, 0x76, 0x31,
-	0x61, 0x6c, 0x70, 0x68, 0x61, 0x31, 0x2e, 0x4d, 0x44, 0x50, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
-	0x52, 0x03, 0x6d, 0x64, 0x70, 0x22, 0x5d, 0x0a, 0x0d, 0x5a, 0x65, 0x72, 0x6f, 0x56, 0x50, 0x4e,
-	0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x34, 0x0a, 0x07, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65,
-	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x42, 0x6f, 0x6f, 0x6c, 0x56, 0x61,
-	0x6c, 0x75, 0x65, 0x52, 0x07, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x64, 0x12, 0x16, 0x0a, 0x06,
-	0x73, 0x75, 0x66, 0x66, 0x69, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x73, 0x75,
-	0x66, 0x66, 0x69, 0x78, 0x22, 0x8c, 0x01, 0x0a, 0x0b, 0x49, 0x6e, 0x74, 0x4f, 0x72, 0x53, 0x74,
-	0x72, 0x69, 0x6e, 0x67, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x03, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x33, 0x0a, 0x06, 0x69, 0x6e, 0x74, 0x56,
-	0x61, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c,
-	0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x49, 0x6e, 0x74, 0x33, 0x32,
-	0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x06, 0x69, 0x6e, 0x74, 0x56, 0x61, 0x6c, 0x12, 0x34, 0x0a,
-	0x06, 0x73, 0x74, 0x72, 0x56, 0x61, 0x6c, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e,
-	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e,
-	0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x06, 0x73, 0x74, 0x72,
-	0x56, 0x61, 0x6c, 0x2a, 0x4a, 0x0a, 0x15, 0x69, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x43, 0x6f,
-	0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x4d, 0x6f, 0x64, 0x65, 0x12, 0x0f, 0x0a, 0x0b,
-	0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a,
-	0x07, 0x44, 0x45, 0x46, 0x41, 0x55, 0x4c, 0x54, 0x10, 0x01, 0x12, 0x0a, 0x0a, 0x06, 0x53, 0x54,
-	0x52, 0x49, 0x43, 0x54, 0x10, 0x02, 0x12, 0x07, 0x0a, 0x03, 0x4f, 0x46, 0x46, 0x10, 0x03, 0x2a,
-	0x60, 0x0a, 0x06, 0x74, 0x72, 0x61, 0x63, 0x65, 0x72, 0x12, 0x0a, 0x0a, 0x06, 0x7a, 0x69, 0x70,
-	0x6b, 0x69, 0x6e, 0x10, 0x00, 0x12, 0x0d, 0x0a, 0x09, 0x6c, 0x69, 0x67, 0x68, 0x74, 0x73, 0x74,
-	0x65, 0x70, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x64, 0x61, 0x74, 0x61, 0x64, 0x6f, 0x67, 0x10,
-	0x02, 0x12, 0x0f, 0x0a, 0x0b, 0x73, 0x74, 0x61, 0x63, 0x6b, 0x64, 0x72, 0x69, 0x76, 0x65, 0x72,
-	0x10, 0x03, 0x12, 0x13, 0x0a, 0x0f, 0x6f, 0x70, 0x65, 0x6e, 0x43, 0x65, 0x6e, 0x73, 0x75, 0x73,
-	0x41, 0x67, 0x65, 0x6e, 0x74, 0x10, 0x04, 0x12, 0x08, 0x0a, 0x04, 0x6e, 0x6f, 0x6e, 0x65, 0x10,
-	0x05, 0x42, 0x31, 0x5a, 0x2f, 0x69, 0x73, 0x74, 0x69, 0x6f, 0x2e, 0x69, 0x6f, 0x2f, 0x69, 0x73,
-	0x74, 0x69, 0x6f, 0x2f, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x70, 0x6b, 0x67,
-	0x2f, 0x61, 0x70, 0x69, 0x73, 0x2f, 0x69, 0x73, 0x74, 0x69, 0x6f, 0x2f, 0x76, 0x31, 0x61, 0x6c,
-	0x70, 0x68, 0x61, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x69, 0x62, 0x69, 0x6c, 0x69, 0x74, 0x79, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x40,
+	0x0a, 0x0c, 0x65, 0x78, 0x70, 0x65, 0x72, 0x69, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x6c, 0x18, 0x2c,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61, 0x31, 0x2e,
+	0x45, 0x78, 0x70, 0x65, 0x72, 0x69, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x6c, 0x43, 0x6f, 0x6e, 0x66,
+	0x69, 0x67, 0x52, 0x0c, 0x65, 0x78, 0x70, 0x65, 0x72, 0x69, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x6c,
+	0x12, 0x25, 0x0a, 0x03, 0x6d, 0x64, 0x70, 0x18, 0x65, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e,
+	0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61, 0x31, 0x2e, 0x4d, 0x44, 0x50, 0x43, 0x6f, 0x6e, 0x66,
+	0x69, 0x67, 0x52, 0x03, 0x6d, 0x64, 0x70, 0x22, 0x5d, 0x0a, 0x0d, 0x5a, 0x65, 0x72, 0x6f, 0x56,
+	0x50, 0x4e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x34, 0x0a, 0x07, 0x65, 0x6e, 0x61, 0x62,
+	0x6c, 0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67,
+	0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x42, 0x6f, 0x6f, 0x6c,
+	0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x07, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x64, 0x12, 0x16,
+	0x0a, 0x06, 0x73, 0x75, 0x66, 0x66, 0x69, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06,
+	0x73, 0x75, 0x66, 0x66, 0x69, 0x78, 0x22, 0x68, 0x0a, 0x12, 0x45, 0x78, 0x70, 0x65, 0x72, 0x69,
+	0x6d, 0x65, 0x6e, 0x74, 0x61, 0x6c, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x52, 0x0a, 0x16,
+	0x73, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+	0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67,
+	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x42,
+	0x6f, 0x6f, 0x6c, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x16, 0x73, 0x74, 0x61, 0x62, 0x6c, 0x65,
+	0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79,
+	0x22, 0x8c, 0x01, 0x0a, 0x0b, 0x49, 0x6e, 0x74, 0x4f, 0x72, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67,
+	0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04,
+	0x74, 0x79, 0x70, 0x65, 0x12, 0x33, 0x0a, 0x06, 0x69, 0x6e, 0x74, 0x56, 0x61, 0x6c, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x49, 0x6e, 0x74, 0x33, 0x32, 0x56, 0x61, 0x6c, 0x75,
+	0x65, 0x52, 0x06, 0x69, 0x6e, 0x74, 0x56, 0x61, 0x6c, 0x12, 0x34, 0x0a, 0x06, 0x73, 0x74, 0x72,
+	0x56, 0x61, 0x6c, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x67, 0x6f, 0x6f, 0x67,
+	0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x53, 0x74, 0x72, 0x69,
+	0x6e, 0x67, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x06, 0x73, 0x74, 0x72, 0x56, 0x61, 0x6c, 0x2a,
+	0x4a, 0x0a, 0x15, 0x69, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x6f,
+	0x6c, 0x6c, 0x65, 0x72, 0x4d, 0x6f, 0x64, 0x65, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50,
+	0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x44, 0x45, 0x46,
+	0x41, 0x55, 0x4c, 0x54, 0x10, 0x01, 0x12, 0x0a, 0x0a, 0x06, 0x53, 0x54, 0x52, 0x49, 0x43, 0x54,
+	0x10, 0x02, 0x12, 0x07, 0x0a, 0x03, 0x4f, 0x46, 0x46, 0x10, 0x03, 0x2a, 0x60, 0x0a, 0x06, 0x74,
+	0x72, 0x61, 0x63, 0x65, 0x72, 0x12, 0x0a, 0x0a, 0x06, 0x7a, 0x69, 0x70, 0x6b, 0x69, 0x6e, 0x10,
+	0x00, 0x12, 0x0d, 0x0a, 0x09, 0x6c, 0x69, 0x67, 0x68, 0x74, 0x73, 0x74, 0x65, 0x70, 0x10, 0x01,
+	0x12, 0x0b, 0x0a, 0x07, 0x64, 0x61, 0x74, 0x61, 0x64, 0x6f, 0x67, 0x10, 0x02, 0x12, 0x0f, 0x0a,
+	0x0b, 0x73, 0x74, 0x61, 0x63, 0x6b, 0x64, 0x72, 0x69, 0x76, 0x65, 0x72, 0x10, 0x03, 0x12, 0x13,
+	0x0a, 0x0f, 0x6f, 0x70, 0x65, 0x6e, 0x43, 0x65, 0x6e, 0x73, 0x75, 0x73, 0x41, 0x67, 0x65, 0x6e,
+	0x74, 0x10, 0x04, 0x12, 0x08, 0x0a, 0x04, 0x6e, 0x6f, 0x6e, 0x65, 0x10, 0x05, 0x42, 0x31, 0x5a,
+	0x2f, 0x69, 0x73, 0x74, 0x69, 0x6f, 0x2e, 0x69, 0x6f, 0x2f, 0x69, 0x73, 0x74, 0x69, 0x6f, 0x2f,
+	0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x61, 0x70, 0x69,
+	0x73, 0x2f, 0x69, 0x73, 0x74, 0x69, 0x6f, 0x2f, 0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61, 0x31,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -6755,7 +6824,7 @@ func file_pkg_apis_istio_v1alpha1_values_types_proto_rawDescGZIP() []byte {
 }
 
 var file_pkg_apis_istio_v1alpha1_values_types_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_pkg_apis_istio_v1alpha1_values_types_proto_goTypes = []interface{}{
 	(IngressControllerMode)(0),               // 0: v1alpha1.ingressControllerMode
 	(Tracer)(0),                              // 1: v1alpha1.tracer
@@ -6808,218 +6877,221 @@ var file_pkg_apis_istio_v1alpha1_values_types_proto_goTypes = []interface{}{
 	(*IstiodRemoteConfig)(nil),               // 48: v1alpha1.IstiodRemoteConfig
 	(*Values)(nil),                           // 49: v1alpha1.Values
 	(*ZeroVPNConfig)(nil),                    // 50: v1alpha1.ZeroVPNConfig
-	(*IntOrString)(nil),                      // 51: v1alpha1.IntOrString
-	nil,                                      // 52: v1alpha1.Resources.LimitsEntry
-	nil,                                      // 53: v1alpha1.Resources.RequestsEntry
-	nil,                                      // 54: v1alpha1.EgressGatewayConfig.LabelsEntry
-	nil,                                      // 55: v1alpha1.IngressGatewayConfig.LabelsEntry
-	(*wrapperspb.BoolValue)(nil),             // 56: google.protobuf.BoolValue
-	(*structpb.Value)(nil),                   // 57: google.protobuf.Value
-	(*v1.Affinity)(nil),                      // 58: k8s.io.api.core.v1.Affinity
-	(*structpb.Struct)(nil),                  // 59: google.protobuf.Struct
-	(*v1.SeccompProfile)(nil),                // 60: k8s.io.api.core.v1.SeccompProfile
-	(*v11.LabelSelector)(nil),                // 61: k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	(*v1.Toleration)(nil),                    // 62: k8s.io.api.core.v1.Toleration
-	(*durationpb.Duration)(nil),              // 63: google.protobuf.Duration
-	(*v1.TopologySpreadConstraint)(nil),      // 64: k8s.io.api.core.v1.TopologySpreadConstraint
-	(*v1.VolumeMount)(nil),                   // 65: k8s.io.api.core.v1.VolumeMount
-	(*v1.Volume)(nil),                        // 66: k8s.io.api.core.v1.Volume
-	(*v1.Lifecycle)(nil),                     // 67: k8s.io.api.core.v1.Lifecycle
-	(*wrapperspb.Int32Value)(nil),            // 68: google.protobuf.Int32Value
-	(*wrapperspb.StringValue)(nil),           // 69: google.protobuf.StringValue
+	(*ExperimentalConfig)(nil),               // 51: v1alpha1.ExperimentalConfig
+	(*IntOrString)(nil),                      // 52: v1alpha1.IntOrString
+	nil,                                      // 53: v1alpha1.Resources.LimitsEntry
+	nil,                                      // 54: v1alpha1.Resources.RequestsEntry
+	nil,                                      // 55: v1alpha1.EgressGatewayConfig.LabelsEntry
+	nil,                                      // 56: v1alpha1.IngressGatewayConfig.LabelsEntry
+	(*wrapperspb.BoolValue)(nil),             // 57: google.protobuf.BoolValue
+	(*structpb.Value)(nil),                   // 58: google.protobuf.Value
+	(*v1.Affinity)(nil),                      // 59: k8s.io.api.core.v1.Affinity
+	(*structpb.Struct)(nil),                  // 60: google.protobuf.Struct
+	(*v1.SeccompProfile)(nil),                // 61: k8s.io.api.core.v1.SeccompProfile
+	(*v11.LabelSelector)(nil),                // 62: k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	(*v1.Toleration)(nil),                    // 63: k8s.io.api.core.v1.Toleration
+	(*durationpb.Duration)(nil),              // 64: google.protobuf.Duration
+	(*v1.TopologySpreadConstraint)(nil),      // 65: k8s.io.api.core.v1.TopologySpreadConstraint
+	(*v1.VolumeMount)(nil),                   // 66: k8s.io.api.core.v1.VolumeMount
+	(*v1.Volume)(nil),                        // 67: k8s.io.api.core.v1.Volume
+	(*v1.Lifecycle)(nil),                     // 68: k8s.io.api.core.v1.Lifecycle
+	(*wrapperspb.Int32Value)(nil),            // 69: google.protobuf.Int32Value
+	(*wrapperspb.StringValue)(nil),           // 70: google.protobuf.StringValue
 }
 var file_pkg_apis_istio_v1alpha1_values_types_proto_depIdxs = []int32{
-	56,  // 0: v1alpha1.CNIConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 1: v1alpha1.CNIConfig.tag:type_name -> google.protobuf.Value
-	58,  // 2: v1alpha1.CNIConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
-	59,  // 3: v1alpha1.CNIConfig.podAnnotations:type_name -> google.protobuf.Struct
+	57,  // 0: v1alpha1.CNIConfig.enabled:type_name -> google.protobuf.BoolValue
+	58,  // 1: v1alpha1.CNIConfig.tag:type_name -> google.protobuf.Value
+	59,  // 2: v1alpha1.CNIConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
+	60,  // 3: v1alpha1.CNIConfig.podAnnotations:type_name -> google.protobuf.Struct
 	7,   // 4: v1alpha1.CNIConfig.repair:type_name -> v1alpha1.CNIRepairConfig
-	56,  // 5: v1alpha1.CNIConfig.chained:type_name -> google.protobuf.BoolValue
+	57,  // 5: v1alpha1.CNIConfig.chained:type_name -> google.protobuf.BoolValue
 	8,   // 6: v1alpha1.CNIConfig.resource_quotas:type_name -> v1alpha1.ResourceQuotas
 	10,  // 7: v1alpha1.CNIConfig.resources:type_name -> v1alpha1.Resources
-	56,  // 8: v1alpha1.CNIConfig.privileged:type_name -> google.protobuf.BoolValue
-	60,  // 9: v1alpha1.CNIConfig.seccompProfile:type_name -> k8s.io.api.core.v1.SeccompProfile
+	57,  // 8: v1alpha1.CNIConfig.privileged:type_name -> google.protobuf.BoolValue
+	61,  // 9: v1alpha1.CNIConfig.seccompProfile:type_name -> k8s.io.api.core.v1.SeccompProfile
 	6,   // 10: v1alpha1.CNIConfig.ambient:type_name -> v1alpha1.CNIAmbientConfig
-	51,  // 11: v1alpha1.CNIConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
-	56,  // 12: v1alpha1.CNIUsageConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 13: v1alpha1.CNIUsageConfig.chained:type_name -> google.protobuf.BoolValue
-	56,  // 14: v1alpha1.CNIAmbientConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 15: v1alpha1.CNIAmbientConfig.dnsCapture:type_name -> google.protobuf.BoolValue
-	56,  // 16: v1alpha1.CNIRepairConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 17: v1alpha1.CNIRepairConfig.tag:type_name -> google.protobuf.Value
-	56,  // 18: v1alpha1.ResourceQuotas.enabled:type_name -> google.protobuf.BoolValue
-	52,  // 19: v1alpha1.Resources.limits:type_name -> v1alpha1.Resources.LimitsEntry
-	53,  // 20: v1alpha1.Resources.requests:type_name -> v1alpha1.Resources.RequestsEntry
-	59,  // 21: v1alpha1.ServiceAccount.annotations:type_name -> google.protobuf.Struct
-	56,  // 22: v1alpha1.DefaultPodDisruptionBudgetConfig.enabled:type_name -> google.protobuf.BoolValue
+	52,  // 11: v1alpha1.CNIConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
+	57,  // 12: v1alpha1.CNIUsageConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 13: v1alpha1.CNIUsageConfig.chained:type_name -> google.protobuf.BoolValue
+	57,  // 14: v1alpha1.CNIAmbientConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 15: v1alpha1.CNIAmbientConfig.dnsCapture:type_name -> google.protobuf.BoolValue
+	57,  // 16: v1alpha1.CNIRepairConfig.enabled:type_name -> google.protobuf.BoolValue
+	58,  // 17: v1alpha1.CNIRepairConfig.tag:type_name -> google.protobuf.Value
+	57,  // 18: v1alpha1.ResourceQuotas.enabled:type_name -> google.protobuf.BoolValue
+	53,  // 19: v1alpha1.Resources.limits:type_name -> v1alpha1.Resources.LimitsEntry
+	54,  // 20: v1alpha1.Resources.requests:type_name -> v1alpha1.Resources.RequestsEntry
+	60,  // 21: v1alpha1.ServiceAccount.annotations:type_name -> google.protobuf.Struct
+	57,  // 22: v1alpha1.DefaultPodDisruptionBudgetConfig.enabled:type_name -> google.protobuf.BoolValue
 	38,  // 23: v1alpha1.DefaultResourcesConfig.requests:type_name -> v1alpha1.ResourcesRequestsConfig
-	56,  // 24: v1alpha1.EgressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
+	57,  // 24: v1alpha1.EgressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
 	9,   // 25: v1alpha1.EgressGatewayConfig.memory:type_name -> v1alpha1.TargetUtilizationConfig
 	9,   // 26: v1alpha1.EgressGatewayConfig.cpu:type_name -> v1alpha1.TargetUtilizationConfig
-	56,  // 27: v1alpha1.EgressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
-	56,  // 28: v1alpha1.EgressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
-	59,  // 29: v1alpha1.EgressGatewayConfig.env:type_name -> google.protobuf.Struct
-	54,  // 30: v1alpha1.EgressGatewayConfig.labels:type_name -> v1alpha1.EgressGatewayConfig.LabelsEntry
-	59,  // 31: v1alpha1.EgressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
-	59,  // 32: v1alpha1.EgressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
-	61,  // 33: v1alpha1.EgressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	61,  // 34: v1alpha1.EgressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	57,  // 27: v1alpha1.EgressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
+	57,  // 28: v1alpha1.EgressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
+	60,  // 29: v1alpha1.EgressGatewayConfig.env:type_name -> google.protobuf.Struct
+	55,  // 30: v1alpha1.EgressGatewayConfig.labels:type_name -> v1alpha1.EgressGatewayConfig.LabelsEntry
+	60,  // 31: v1alpha1.EgressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
+	60,  // 32: v1alpha1.EgressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
+	62,  // 33: v1alpha1.EgressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	62,  // 34: v1alpha1.EgressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
 	34,  // 35: v1alpha1.EgressGatewayConfig.ports:type_name -> v1alpha1.PortsConfig
 	10,  // 36: v1alpha1.EgressGatewayConfig.resources:type_name -> v1alpha1.Resources
 	40,  // 37: v1alpha1.EgressGatewayConfig.secretVolumes:type_name -> v1alpha1.SecretVolume
-	59,  // 38: v1alpha1.EgressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
+	60,  // 38: v1alpha1.EgressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
 	50,  // 39: v1alpha1.EgressGatewayConfig.zvpn:type_name -> v1alpha1.ZeroVPNConfig
-	62,  // 40: v1alpha1.EgressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
-	51,  // 41: v1alpha1.EgressGatewayConfig.rollingMaxSurge:type_name -> v1alpha1.IntOrString
-	51,  // 42: v1alpha1.EgressGatewayConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
-	59,  // 43: v1alpha1.EgressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
-	59,  // 44: v1alpha1.EgressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
-	56,  // 45: v1alpha1.EgressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
+	63,  // 40: v1alpha1.EgressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
+	52,  // 41: v1alpha1.EgressGatewayConfig.rollingMaxSurge:type_name -> v1alpha1.IntOrString
+	52,  // 42: v1alpha1.EgressGatewayConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
+	60,  // 43: v1alpha1.EgressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
+	60,  // 44: v1alpha1.EgressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
+	57,  // 45: v1alpha1.EgressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
 	11,  // 46: v1alpha1.EgressGatewayConfig.serviceAccount:type_name -> v1alpha1.ServiceAccount
 	14,  // 47: v1alpha1.GatewaysConfig.istio_egressgateway:type_name -> v1alpha1.EgressGatewayConfig
-	56,  // 48: v1alpha1.GatewaysConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 48: v1alpha1.GatewaysConfig.enabled:type_name -> google.protobuf.BoolValue
 	20,  // 49: v1alpha1.GatewaysConfig.istio_ingressgateway:type_name -> v1alpha1.IngressGatewayConfig
 	3,   // 50: v1alpha1.GlobalConfig.arch:type_name -> v1alpha1.ArchConfig
-	56,  // 51: v1alpha1.GlobalConfig.configValidation:type_name -> google.protobuf.BoolValue
-	59,  // 52: v1alpha1.GlobalConfig.defaultNodeSelector:type_name -> google.protobuf.Struct
+	57,  // 51: v1alpha1.GlobalConfig.configValidation:type_name -> google.protobuf.BoolValue
+	60,  // 52: v1alpha1.GlobalConfig.defaultNodeSelector:type_name -> google.protobuf.Struct
 	12,  // 53: v1alpha1.GlobalConfig.defaultPodDisruptionBudget:type_name -> v1alpha1.DefaultPodDisruptionBudgetConfig
 	13,  // 54: v1alpha1.GlobalConfig.defaultResources:type_name -> v1alpha1.DefaultResourcesConfig
-	62,  // 55: v1alpha1.GlobalConfig.defaultTolerations:type_name -> k8s.io.api.core.v1.Toleration
-	56,  // 56: v1alpha1.GlobalConfig.logAsJson:type_name -> google.protobuf.BoolValue
+	63,  // 55: v1alpha1.GlobalConfig.defaultTolerations:type_name -> k8s.io.api.core.v1.Toleration
+	57,  // 56: v1alpha1.GlobalConfig.logAsJson:type_name -> google.protobuf.BoolValue
 	19,  // 57: v1alpha1.GlobalConfig.logging:type_name -> v1alpha1.GlobalLoggingConfig
-	59,  // 58: v1alpha1.GlobalConfig.meshNetworks:type_name -> google.protobuf.Struct
+	60,  // 58: v1alpha1.GlobalConfig.meshNetworks:type_name -> google.protobuf.Struct
 	23,  // 59: v1alpha1.GlobalConfig.multiCluster:type_name -> v1alpha1.MultiClusterConfig
-	56,  // 60: v1alpha1.GlobalConfig.omitSidecarInjectorConfigMap:type_name -> google.protobuf.BoolValue
-	56,  // 61: v1alpha1.GlobalConfig.operatorManageWebhooks:type_name -> google.protobuf.BoolValue
+	57,  // 60: v1alpha1.GlobalConfig.omitSidecarInjectorConfigMap:type_name -> google.protobuf.BoolValue
+	57,  // 61: v1alpha1.GlobalConfig.operatorManageWebhooks:type_name -> google.protobuf.BoolValue
 	35,  // 62: v1alpha1.GlobalConfig.proxy:type_name -> v1alpha1.ProxyConfig
 	37,  // 63: v1alpha1.GlobalConfig.proxy_init:type_name -> v1alpha1.ProxyInitConfig
 	39,  // 64: v1alpha1.GlobalConfig.sds:type_name -> v1alpha1.SDSConfig
-	57,  // 65: v1alpha1.GlobalConfig.tag:type_name -> google.protobuf.Value
+	58,  // 65: v1alpha1.GlobalConfig.tag:type_name -> google.protobuf.Value
 	42,  // 66: v1alpha1.GlobalConfig.tracer:type_name -> v1alpha1.TracerConfig
-	56,  // 67: v1alpha1.GlobalConfig.useMCP:type_name -> google.protobuf.BoolValue
+	57,  // 67: v1alpha1.GlobalConfig.useMCP:type_name -> google.protobuf.BoolValue
 	18,  // 68: v1alpha1.GlobalConfig.istiod:type_name -> v1alpha1.IstiodConfig
 	17,  // 69: v1alpha1.GlobalConfig.sts:type_name -> v1alpha1.STSConfig
-	56,  // 70: v1alpha1.GlobalConfig.mountMtlsCerts:type_name -> google.protobuf.BoolValue
-	56,  // 71: v1alpha1.GlobalConfig.externalIstiod:type_name -> google.protobuf.BoolValue
-	56,  // 72: v1alpha1.GlobalConfig.configCluster:type_name -> google.protobuf.BoolValue
-	56,  // 73: v1alpha1.GlobalConfig.autoscalingv2API:type_name -> google.protobuf.BoolValue
-	56,  // 74: v1alpha1.IstiodConfig.enableAnalysis:type_name -> google.protobuf.BoolValue
-	56,  // 75: v1alpha1.IngressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
+	57,  // 70: v1alpha1.GlobalConfig.mountMtlsCerts:type_name -> google.protobuf.BoolValue
+	57,  // 71: v1alpha1.GlobalConfig.externalIstiod:type_name -> google.protobuf.BoolValue
+	57,  // 72: v1alpha1.GlobalConfig.configCluster:type_name -> google.protobuf.BoolValue
+	57,  // 73: v1alpha1.GlobalConfig.autoscalingv2API:type_name -> google.protobuf.BoolValue
+	57,  // 74: v1alpha1.IstiodConfig.enableAnalysis:type_name -> google.protobuf.BoolValue
+	57,  // 75: v1alpha1.IngressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
 	9,   // 76: v1alpha1.IngressGatewayConfig.memory:type_name -> v1alpha1.TargetUtilizationConfig
 	9,   // 77: v1alpha1.IngressGatewayConfig.cpu:type_name -> v1alpha1.TargetUtilizationConfig
-	56,  // 78: v1alpha1.IngressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
-	56,  // 79: v1alpha1.IngressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
-	59,  // 80: v1alpha1.IngressGatewayConfig.env:type_name -> google.protobuf.Struct
-	55,  // 81: v1alpha1.IngressGatewayConfig.labels:type_name -> v1alpha1.IngressGatewayConfig.LabelsEntry
-	59,  // 82: v1alpha1.IngressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
-	59,  // 83: v1alpha1.IngressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
-	61,  // 84: v1alpha1.IngressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	61,  // 85: v1alpha1.IngressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	57,  // 78: v1alpha1.IngressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
+	57,  // 79: v1alpha1.IngressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
+	60,  // 80: v1alpha1.IngressGatewayConfig.env:type_name -> google.protobuf.Struct
+	56,  // 81: v1alpha1.IngressGatewayConfig.labels:type_name -> v1alpha1.IngressGatewayConfig.LabelsEntry
+	60,  // 82: v1alpha1.IngressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
+	60,  // 83: v1alpha1.IngressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
+	62,  // 84: v1alpha1.IngressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	62,  // 85: v1alpha1.IngressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
 	34,  // 86: v1alpha1.IngressGatewayConfig.ports:type_name -> v1alpha1.PortsConfig
-	59,  // 87: v1alpha1.IngressGatewayConfig.resources:type_name -> google.protobuf.Struct
+	60,  // 87: v1alpha1.IngressGatewayConfig.resources:type_name -> google.protobuf.Struct
 	40,  // 88: v1alpha1.IngressGatewayConfig.secretVolumes:type_name -> v1alpha1.SecretVolume
-	59,  // 89: v1alpha1.IngressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
+	60,  // 89: v1alpha1.IngressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
 	21,  // 90: v1alpha1.IngressGatewayConfig.zvpn:type_name -> v1alpha1.IngressGatewayZvpnConfig
-	51,  // 91: v1alpha1.IngressGatewayConfig.rollingMaxSurge:type_name -> v1alpha1.IntOrString
-	51,  // 92: v1alpha1.IngressGatewayConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
-	62,  // 93: v1alpha1.IngressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
-	59,  // 94: v1alpha1.IngressGatewayConfig.ingressPorts:type_name -> google.protobuf.Struct
-	59,  // 95: v1alpha1.IngressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
-	59,  // 96: v1alpha1.IngressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
-	56,  // 97: v1alpha1.IngressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
+	52,  // 91: v1alpha1.IngressGatewayConfig.rollingMaxSurge:type_name -> v1alpha1.IntOrString
+	52,  // 92: v1alpha1.IngressGatewayConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
+	63,  // 93: v1alpha1.IngressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
+	60,  // 94: v1alpha1.IngressGatewayConfig.ingressPorts:type_name -> google.protobuf.Struct
+	60,  // 95: v1alpha1.IngressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
+	60,  // 96: v1alpha1.IngressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
+	57,  // 97: v1alpha1.IngressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
 	11,  // 98: v1alpha1.IngressGatewayConfig.serviceAccount:type_name -> v1alpha1.ServiceAccount
-	56,  // 99: v1alpha1.IngressGatewayZvpnConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 99: v1alpha1.IngressGatewayZvpnConfig.enabled:type_name -> google.protobuf.BoolValue
 	10,  // 100: v1alpha1.MDPConfig.resources:type_name -> v1alpha1.Resources
-	56,  // 101: v1alpha1.MDPConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 102: v1alpha1.MultiClusterConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 103: v1alpha1.MultiClusterConfig.includeEnvoyFilter:type_name -> google.protobuf.BoolValue
+	57,  // 101: v1alpha1.MDPConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 102: v1alpha1.MultiClusterConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 103: v1alpha1.MultiClusterConfig.includeEnvoyFilter:type_name -> google.protobuf.BoolValue
 	2,   // 104: v1alpha1.OutboundTrafficPolicyConfig.mode:type_name -> v1alpha1.OutboundTrafficPolicyConfig.Mode
-	56,  // 105: v1alpha1.PilotConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 106: v1alpha1.PilotConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
-	59,  // 107: v1alpha1.PilotConfig.autoscaleBehavior:type_name -> google.protobuf.Struct
+	57,  // 105: v1alpha1.PilotConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 106: v1alpha1.PilotConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
+	60,  // 107: v1alpha1.PilotConfig.autoscaleBehavior:type_name -> google.protobuf.Struct
 	10,  // 108: v1alpha1.PilotConfig.resources:type_name -> v1alpha1.Resources
 	9,   // 109: v1alpha1.PilotConfig.cpu:type_name -> v1alpha1.TargetUtilizationConfig
-	59,  // 110: v1alpha1.PilotConfig.nodeSelector:type_name -> google.protobuf.Struct
-	63,  // 111: v1alpha1.PilotConfig.keepaliveMaxServerConnectionAge:type_name -> google.protobuf.Duration
-	59,  // 112: v1alpha1.PilotConfig.deploymentLabels:type_name -> google.protobuf.Struct
-	59,  // 113: v1alpha1.PilotConfig.podLabels:type_name -> google.protobuf.Struct
-	56,  // 114: v1alpha1.PilotConfig.configMap:type_name -> google.protobuf.BoolValue
-	56,  // 115: v1alpha1.PilotConfig.useMCP:type_name -> google.protobuf.BoolValue
-	59,  // 116: v1alpha1.PilotConfig.env:type_name -> google.protobuf.Struct
-	58,  // 117: v1alpha1.PilotConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
-	51,  // 118: v1alpha1.PilotConfig.rollingMaxSurge:type_name -> v1alpha1.IntOrString
-	51,  // 119: v1alpha1.PilotConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
-	62,  // 120: v1alpha1.PilotConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
-	56,  // 121: v1alpha1.PilotConfig.enableProtocolSniffingForOutbound:type_name -> google.protobuf.BoolValue
-	56,  // 122: v1alpha1.PilotConfig.enableProtocolSniffingForInbound:type_name -> google.protobuf.BoolValue
-	59,  // 123: v1alpha1.PilotConfig.podAnnotations:type_name -> google.protobuf.Struct
-	59,  // 124: v1alpha1.PilotConfig.serviceAnnotations:type_name -> google.protobuf.Struct
-	59,  // 125: v1alpha1.PilotConfig.serviceAccountAnnotations:type_name -> google.protobuf.Struct
+	60,  // 110: v1alpha1.PilotConfig.nodeSelector:type_name -> google.protobuf.Struct
+	64,  // 111: v1alpha1.PilotConfig.keepaliveMaxServerConnectionAge:type_name -> google.protobuf.Duration
+	60,  // 112: v1alpha1.PilotConfig.deploymentLabels:type_name -> google.protobuf.Struct
+	60,  // 113: v1alpha1.PilotConfig.podLabels:type_name -> google.protobuf.Struct
+	57,  // 114: v1alpha1.PilotConfig.configMap:type_name -> google.protobuf.BoolValue
+	57,  // 115: v1alpha1.PilotConfig.useMCP:type_name -> google.protobuf.BoolValue
+	60,  // 116: v1alpha1.PilotConfig.env:type_name -> google.protobuf.Struct
+	59,  // 117: v1alpha1.PilotConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
+	52,  // 118: v1alpha1.PilotConfig.rollingMaxSurge:type_name -> v1alpha1.IntOrString
+	52,  // 119: v1alpha1.PilotConfig.rollingMaxUnavailable:type_name -> v1alpha1.IntOrString
+	63,  // 120: v1alpha1.PilotConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
+	57,  // 121: v1alpha1.PilotConfig.enableProtocolSniffingForOutbound:type_name -> google.protobuf.BoolValue
+	57,  // 122: v1alpha1.PilotConfig.enableProtocolSniffingForInbound:type_name -> google.protobuf.BoolValue
+	60,  // 123: v1alpha1.PilotConfig.podAnnotations:type_name -> google.protobuf.Struct
+	60,  // 124: v1alpha1.PilotConfig.serviceAnnotations:type_name -> google.protobuf.Struct
+	60,  // 125: v1alpha1.PilotConfig.serviceAccountAnnotations:type_name -> google.protobuf.Struct
 	33,  // 126: v1alpha1.PilotConfig.configSource:type_name -> v1alpha1.PilotConfigSource
-	57,  // 127: v1alpha1.PilotConfig.tag:type_name -> google.protobuf.Value
-	60,  // 128: v1alpha1.PilotConfig.seccompProfile:type_name -> k8s.io.api.core.v1.SeccompProfile
-	64,  // 129: v1alpha1.PilotConfig.topologySpreadConstraints:type_name -> k8s.io.api.core.v1.TopologySpreadConstraint
-	59,  // 130: v1alpha1.PilotConfig.extraContainerArgs:type_name -> google.protobuf.Struct
-	65,  // 131: v1alpha1.PilotConfig.volumeMounts:type_name -> k8s.io.api.core.v1.VolumeMount
-	66,  // 132: v1alpha1.PilotConfig.volumes:type_name -> k8s.io.api.core.v1.Volume
+	58,  // 127: v1alpha1.PilotConfig.tag:type_name -> google.protobuf.Value
+	61,  // 128: v1alpha1.PilotConfig.seccompProfile:type_name -> k8s.io.api.core.v1.SeccompProfile
+	65,  // 129: v1alpha1.PilotConfig.topologySpreadConstraints:type_name -> k8s.io.api.core.v1.TopologySpreadConstraint
+	60,  // 130: v1alpha1.PilotConfig.extraContainerArgs:type_name -> google.protobuf.Struct
+	66,  // 131: v1alpha1.PilotConfig.volumeMounts:type_name -> k8s.io.api.core.v1.VolumeMount
+	67,  // 132: v1alpha1.PilotConfig.volumes:type_name -> k8s.io.api.core.v1.Volume
 	9,   // 133: v1alpha1.PilotConfig.memory:type_name -> v1alpha1.TargetUtilizationConfig
 	5,   // 134: v1alpha1.PilotConfig.cni:type_name -> v1alpha1.CNIUsageConfig
 	26,  // 135: v1alpha1.PilotConfig.taint:type_name -> v1alpha1.PilotTaintControllerConfig
 	0,   // 136: v1alpha1.PilotIngressConfig.ingressControllerMode:type_name -> v1alpha1.ingressControllerMode
-	56,  // 137: v1alpha1.PilotPolicyConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 138: v1alpha1.TelemetryConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 137: v1alpha1.PilotPolicyConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 138: v1alpha1.TelemetryConfig.enabled:type_name -> google.protobuf.BoolValue
 	30,  // 139: v1alpha1.TelemetryConfig.v2:type_name -> v1alpha1.TelemetryV2Config
-	56,  // 140: v1alpha1.TelemetryV2Config.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 140: v1alpha1.TelemetryV2Config.enabled:type_name -> google.protobuf.BoolValue
 	31,  // 141: v1alpha1.TelemetryV2Config.prometheus:type_name -> v1alpha1.TelemetryV2PrometheusConfig
 	32,  // 142: v1alpha1.TelemetryV2Config.stackdriver:type_name -> v1alpha1.TelemetryV2StackDriverConfig
-	56,  // 143: v1alpha1.TelemetryV2PrometheusConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 144: v1alpha1.TelemetryV2StackDriverConfig.enabled:type_name -> google.protobuf.BoolValue
-	56,  // 145: v1alpha1.ProxyConfig.enableCoreDump:type_name -> google.protobuf.BoolValue
-	56,  // 146: v1alpha1.ProxyConfig.privileged:type_name -> google.protobuf.BoolValue
+	57,  // 143: v1alpha1.TelemetryV2PrometheusConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 144: v1alpha1.TelemetryV2StackDriverConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 145: v1alpha1.ProxyConfig.enableCoreDump:type_name -> google.protobuf.BoolValue
+	57,  // 146: v1alpha1.ProxyConfig.privileged:type_name -> google.protobuf.BoolValue
 	36,  // 147: v1alpha1.ProxyConfig.startupProbe:type_name -> v1alpha1.StartupProbe
 	10,  // 148: v1alpha1.ProxyConfig.resources:type_name -> v1alpha1.Resources
 	1,   // 149: v1alpha1.ProxyConfig.tracer:type_name -> v1alpha1.tracer
-	67,  // 150: v1alpha1.ProxyConfig.lifecycle:type_name -> k8s.io.api.core.v1.Lifecycle
-	56,  // 151: v1alpha1.ProxyConfig.holdApplicationUntilProxyStarts:type_name -> google.protobuf.BoolValue
-	56,  // 152: v1alpha1.StartupProbe.enabled:type_name -> google.protobuf.BoolValue
+	68,  // 150: v1alpha1.ProxyConfig.lifecycle:type_name -> k8s.io.api.core.v1.Lifecycle
+	57,  // 151: v1alpha1.ProxyConfig.holdApplicationUntilProxyStarts:type_name -> google.protobuf.BoolValue
+	57,  // 152: v1alpha1.StartupProbe.enabled:type_name -> google.protobuf.BoolValue
 	10,  // 153: v1alpha1.ProxyInitConfig.resources:type_name -> v1alpha1.Resources
-	59,  // 154: v1alpha1.SDSConfig.token:type_name -> google.protobuf.Struct
-	56,  // 155: v1alpha1.SidecarInjectorConfig.enableNamespacesByDefault:type_name -> google.protobuf.BoolValue
-	61,  // 156: v1alpha1.SidecarInjectorConfig.neverInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	61,  // 157: v1alpha1.SidecarInjectorConfig.alwaysInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	56,  // 158: v1alpha1.SidecarInjectorConfig.rewriteAppHTTPProbe:type_name -> google.protobuf.BoolValue
-	59,  // 159: v1alpha1.SidecarInjectorConfig.injectedAnnotations:type_name -> google.protobuf.Struct
-	59,  // 160: v1alpha1.SidecarInjectorConfig.objectSelector:type_name -> google.protobuf.Struct
-	59,  // 161: v1alpha1.SidecarInjectorConfig.templates:type_name -> google.protobuf.Struct
-	56,  // 162: v1alpha1.SidecarInjectorConfig.useLegacySelectors:type_name -> google.protobuf.BoolValue
+	60,  // 154: v1alpha1.SDSConfig.token:type_name -> google.protobuf.Struct
+	57,  // 155: v1alpha1.SidecarInjectorConfig.enableNamespacesByDefault:type_name -> google.protobuf.BoolValue
+	62,  // 156: v1alpha1.SidecarInjectorConfig.neverInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	62,  // 157: v1alpha1.SidecarInjectorConfig.alwaysInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	57,  // 158: v1alpha1.SidecarInjectorConfig.rewriteAppHTTPProbe:type_name -> google.protobuf.BoolValue
+	60,  // 159: v1alpha1.SidecarInjectorConfig.injectedAnnotations:type_name -> google.protobuf.Struct
+	60,  // 160: v1alpha1.SidecarInjectorConfig.objectSelector:type_name -> google.protobuf.Struct
+	60,  // 161: v1alpha1.SidecarInjectorConfig.templates:type_name -> google.protobuf.Struct
+	57,  // 162: v1alpha1.SidecarInjectorConfig.useLegacySelectors:type_name -> google.protobuf.BoolValue
 	43,  // 163: v1alpha1.TracerConfig.datadog:type_name -> v1alpha1.TracerDatadogConfig
 	44,  // 164: v1alpha1.TracerConfig.lightstep:type_name -> v1alpha1.TracerLightStepConfig
 	45,  // 165: v1alpha1.TracerConfig.zipkin:type_name -> v1alpha1.TracerZipkinConfig
 	46,  // 166: v1alpha1.TracerConfig.stackdriver:type_name -> v1alpha1.TracerStackdriverConfig
-	56,  // 167: v1alpha1.TracerStackdriverConfig.debug:type_name -> google.protobuf.BoolValue
-	56,  // 168: v1alpha1.BaseConfig.enableCRDTemplates:type_name -> google.protobuf.BoolValue
-	56,  // 169: v1alpha1.BaseConfig.enableIstioConfigCRDs:type_name -> google.protobuf.BoolValue
-	56,  // 170: v1alpha1.BaseConfig.validateGateway:type_name -> google.protobuf.BoolValue
+	57,  // 167: v1alpha1.TracerStackdriverConfig.debug:type_name -> google.protobuf.BoolValue
+	57,  // 168: v1alpha1.BaseConfig.enableCRDTemplates:type_name -> google.protobuf.BoolValue
+	57,  // 169: v1alpha1.BaseConfig.enableIstioConfigCRDs:type_name -> google.protobuf.BoolValue
+	57,  // 170: v1alpha1.BaseConfig.validateGateway:type_name -> google.protobuf.BoolValue
 	4,   // 171: v1alpha1.Values.cni:type_name -> v1alpha1.CNIConfig
 	15,  // 172: v1alpha1.Values.gateways:type_name -> v1alpha1.GatewaysConfig
 	16,  // 173: v1alpha1.Values.global:type_name -> v1alpha1.GlobalConfig
 	25,  // 174: v1alpha1.Values.pilot:type_name -> v1alpha1.PilotConfig
-	57,  // 175: v1alpha1.Values.ztunnel:type_name -> google.protobuf.Value
+	58,  // 175: v1alpha1.Values.ztunnel:type_name -> google.protobuf.Value
 	29,  // 176: v1alpha1.Values.telemetry:type_name -> v1alpha1.TelemetryConfig
 	41,  // 177: v1alpha1.Values.sidecarInjectorWebhook:type_name -> v1alpha1.SidecarInjectorConfig
 	5,   // 178: v1alpha1.Values.istio_cni:type_name -> v1alpha1.CNIUsageConfig
-	57,  // 179: v1alpha1.Values.meshConfig:type_name -> google.protobuf.Value
+	58,  // 179: v1alpha1.Values.meshConfig:type_name -> google.protobuf.Value
 	47,  // 180: v1alpha1.Values.base:type_name -> v1alpha1.BaseConfig
 	48,  // 181: v1alpha1.Values.istiodRemote:type_name -> v1alpha1.IstiodRemoteConfig
-	22,  // 182: v1alpha1.Values.mdp:type_name -> v1alpha1.MDPConfig
-	56,  // 183: v1alpha1.ZeroVPNConfig.enabled:type_name -> google.protobuf.BoolValue
-	68,  // 184: v1alpha1.IntOrString.intVal:type_name -> google.protobuf.Int32Value
-	69,  // 185: v1alpha1.IntOrString.strVal:type_name -> google.protobuf.StringValue
-	186, // [186:186] is the sub-list for method output_type
-	186, // [186:186] is the sub-list for method input_type
-	186, // [186:186] is the sub-list for extension type_name
-	186, // [186:186] is the sub-list for extension extendee
-	0,   // [0:186] is the sub-list for field type_name
+	51,  // 182: v1alpha1.Values.experimental:type_name -> v1alpha1.ExperimentalConfig
+	22,  // 183: v1alpha1.Values.mdp:type_name -> v1alpha1.MDPConfig
+	57,  // 184: v1alpha1.ZeroVPNConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 185: v1alpha1.ExperimentalConfig.stableValidationPolicy:type_name -> google.protobuf.BoolValue
+	69,  // 186: v1alpha1.IntOrString.intVal:type_name -> google.protobuf.Int32Value
+	70,  // 187: v1alpha1.IntOrString.strVal:type_name -> google.protobuf.StringValue
+	188, // [188:188] is the sub-list for method output_type
+	188, // [188:188] is the sub-list for method input_type
+	188, // [188:188] is the sub-list for extension type_name
+	188, // [188:188] is the sub-list for extension extendee
+	0,   // [0:188] is the sub-list for field type_name
 }
 
 func init() { file_pkg_apis_istio_v1alpha1_values_types_proto_init() }
@@ -7605,6 +7677,18 @@ func file_pkg_apis_istio_v1alpha1_values_types_proto_init() {
 			}
 		}
 		file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[48].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ExperimentalConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_apis_istio_v1alpha1_values_types_proto_msgTypes[49].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*IntOrString); i {
 			case 0:
 				return &v.state
@@ -7623,7 +7707,7 @@ func file_pkg_apis_istio_v1alpha1_values_types_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pkg_apis_istio_v1alpha1_values_types_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   53,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
