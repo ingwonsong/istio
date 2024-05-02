@@ -413,6 +413,10 @@ spec:
         operator: Exists
       - effect: NoExecute
         operator: Exists
+      - key: "sandbox.gke.io/runtime"
+        operator: "Equal"
+        value: gvisor
+        effect: "NoSchedule"
       priorityClassName: system-node-critical
       serviceAccountName: mdp-controller
       # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
