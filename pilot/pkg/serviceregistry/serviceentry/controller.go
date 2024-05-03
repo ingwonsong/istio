@@ -30,6 +30,7 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pilot/pkg/serviceregistry/provider"
 	"istio.io/istio/pilot/pkg/serviceregistry/util/workloadinstances"
+	"istio.io/istio/pkg/asm/mcpserviceentrystatus"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
@@ -119,6 +120,8 @@ type Controller struct {
 
 	model.NoopAmbientIndexes
 	model.NetworkGatewaysHandler
+
+	statusController *mcpserviceentrystatus.Controller // MCP code
 }
 
 type Option func(*Controller)
@@ -363,6 +366,7 @@ func (s *Controller) serviceEntryHandler(old, curr config.Config, event model.Ev
 	log.Debugf("Handle event %s for service entry %s/%s", event, curr.Namespace, curr.Name)
 	currentServiceEntry := curr.Spec.(*networking.ServiceEntry)
 	cs := convertServices(curr)
+	s.statusController.HandleConfig(curr, cs) // MCP code
 	configsUpdated := sets.New[model.ConfigKey]()
 	key := curr.NamespacedName()
 
@@ -653,6 +657,22 @@ func (s *Controller) Services() []*model.Service {
 	out := make([]*model.Service, 0, len(allServices))
 	if s.services.allocateNeeded {
 		autoAllocateIPs(allServices)
+
+		// For some of the existing customers as a grandfathered case,
+		// we decided to support DNS Proxy/Auto Allocation feature in CSM as well,
+		// even though this auto allocation is a broken/unstable feature.
+		//
+		// The problem in the current IP allocation is as follows:
+		// 1. Each Istiod instance can generate different IP allocation in some time period.
+		// 2. Service or ServiceEntry resources are changed (added or deleted), the allocation
+		// can be changed.
+		// 3. There is a bug which is not settled in ASM branch yet.
+		// https://github.com/istio/istio/pull/47081
+		//
+		// Note that the feature will be provided to the limited customers.
+
+		// To display the allocated IP addresses, inform them to statusController.
+		s.statusController.HandleIPAllocation(allServices) // MCP code
 		s.services.allocateNeeded = false
 	}
 	s.mutex.Unlock()

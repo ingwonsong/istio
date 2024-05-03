@@ -692,6 +692,8 @@ type ServiceAttributes struct {
 	PassthroughTargetPorts map[uint32]uint32
 
 	K8sAttributes
+
+	MCPOriginResourceRef MCPServiceEntryRef // MCP code
 }
 
 type NamespacedHostname struct {
