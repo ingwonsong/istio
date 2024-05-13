@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"istio.io/api/networking/v1alpha3"
+	v1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/cmd/pilot-agent/status"
 	"istio.io/istio/pilot/cmd/pilot-agent/status/ready"
 	"istio.io/istio/pkg/log"

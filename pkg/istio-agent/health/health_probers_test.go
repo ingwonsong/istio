@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/api/networking/v1alpha3"
+	v1alpha3 "istio.io/api/networking/v1alpha3"
 )
 
 func TestHttpProber(t *testing.T) {

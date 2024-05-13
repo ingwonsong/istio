@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
-	"istio.io/api/networking/v1alpha3"
+	v1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pkg/model"
 	"istio.io/istio/pkg/test/util/assert"
 )

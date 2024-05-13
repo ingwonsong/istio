@@ -15,6 +15,10 @@
 package util
 
 import (
+	// nolint:all
+	// GOOGLE3_HIDDEN:_ "google3/go/tools/nogo/allowlist/crypto/elliptic"
+	// GOOGLE3_HIDDEN:_ "google3/go/tools/nogo/allowlist/crypto/rsa"
+
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"

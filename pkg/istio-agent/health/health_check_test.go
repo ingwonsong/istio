@@ -27,7 +27,7 @@ import (
 
 	"go.uber.org/atomic"
 
-	"istio.io/api/networking/v1alpha3"
+	v1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/util/assert"
 	"istio.io/istio/pkg/test/util/retry"

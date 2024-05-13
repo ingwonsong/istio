@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// nolint:all
 package istioagent
 
 import (
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	discoverysvc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"go.uber.org/atomic"
 	google_rpc "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
@@ -74,7 +76,7 @@ func (p *XdsProxy) DeltaAggregatedResources(downstream DeltaDiscoveryStream) err
 	}
 	defer upstreamConn.Close()
 
-	xds := discovery.NewAggregatedDiscoveryServiceClient(upstreamConn)
+	xds := discoverysvc.NewAggregatedDiscoveryServiceClient(upstreamConn)
 	ctx = metadata.AppendToOutgoingContext(context.Background(), "ClusterID", p.clusterID)
 	for k, v := range p.xdsHeaders {
 		ctx = metadata.AppendToOutgoingContext(ctx, k, v)
@@ -83,7 +85,7 @@ func (p *XdsProxy) DeltaAggregatedResources(downstream DeltaDiscoveryStream) err
 	return p.handleDeltaUpstream(ctx, con, xds)
 }
 
-func (p *XdsProxy) handleDeltaUpstream(ctx context.Context, con *ProxyConnection, xds discovery.AggregatedDiscoveryServiceClient) error {
+func (p *XdsProxy) handleDeltaUpstream(ctx context.Context, con *ProxyConnection, xds discoverysvc.AggregatedDiscoveryServiceClient) error {
 	log := proxyLog.WithLabels("id", con.conID)
 	deltaUpstream, err := xds.DeltaAggregatedResources(ctx,
 		grpc.MaxCallRecvMsgSize(defaultClientMaxReceiveMessageSize))

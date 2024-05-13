@@ -19,7 +19,9 @@ import (
 	"strings"
 	"time"
 
-	"istio.io/api/networking/v1alpha3"
+	"google.golang.org/protobuf/proto"
+
+	v1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/cmd/pilot-agent/status"
 	"istio.io/istio/pilot/cmd/pilot-agent/status/ready"
 	"istio.io/istio/pkg/kube/apimirror"
@@ -52,7 +54,7 @@ const (
 )
 
 func fillInDefaults(cfg *v1alpha3.ReadinessProbe, ipAddresses []string) *v1alpha3.ReadinessProbe {
-	cfg = cfg.DeepCopy()
+	cfg = proto.Clone(cfg).(*v1alpha3.ReadinessProbe)
 	// Thresholds have a minimum of 1
 	cfg.FailureThreshold = orDefault(cfg.FailureThreshold, 1)
 	cfg.SuccessThreshold = orDefault(cfg.SuccessThreshold, 1)

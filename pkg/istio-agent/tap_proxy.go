@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	discoverysvc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -37,7 +37,7 @@ func NewTapGrpcHandler(xdsProxy *XdsProxy) (*grpc.Server, error) {
 		xdsProxy: xdsProxy,
 	}
 	grpcs := grpc.NewServer(istiogrpc.ServerOptions(istiokeepalive.DefaultOption())...)
-	discovery.RegisterAggregatedDiscoveryServiceServer(grpcs, proxy)
+	discoverysvc.RegisterAggregatedDiscoveryServiceServer(grpcs, proxy)
 	reflection.Register(grpcs)
 	return grpcs, nil
 }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// nolint:all
 package istioagent
 
 import (
@@ -27,6 +28,7 @@ import (
 	"time"
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	discoverysvc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"go.uber.org/atomic"
 	"golang.org/x/net/http2"
 	google_rpc "google.golang.org/genproto/googleapis/rpc/status"
@@ -62,10 +64,10 @@ const (
 )
 
 type (
-	DiscoveryStream      = discovery.AggregatedDiscoveryService_StreamAggregatedResourcesServer
-	DeltaDiscoveryStream = discovery.AggregatedDiscoveryService_DeltaAggregatedResourcesServer
-	DiscoveryClient      = discovery.AggregatedDiscoveryService_StreamAggregatedResourcesClient
-	DeltaDiscoveryClient = discovery.AggregatedDiscoveryService_DeltaAggregatedResourcesClient
+	DiscoveryStream      = discoverysvc.AggregatedDiscoveryService_StreamAggregatedResourcesServer
+	DeltaDiscoveryStream = discoverysvc.AggregatedDiscoveryService_DeltaAggregatedResourcesServer
+	DiscoveryClient      = discoverysvc.AggregatedDiscoveryService_StreamAggregatedResourcesClient
+	DeltaDiscoveryClient = discoverysvc.AggregatedDiscoveryService_DeltaAggregatedResourcesClient
 )
 
 var connectionNumber = atomic.NewUint32(0)
@@ -348,7 +350,7 @@ func (p *XdsProxy) handleStream(downstream adsStream) error {
 	}
 	defer upstreamConn.Close()
 
-	xds := discovery.NewAggregatedDiscoveryServiceClient(upstreamConn)
+	xds := discoverysvc.NewAggregatedDiscoveryServiceClient(upstreamConn)
 	ctx = metadata.AppendToOutgoingContext(context.Background(), "ClusterID", p.clusterID)
 	for k, v := range p.xdsHeaders {
 		ctx = metadata.AppendToOutgoingContext(ctx, k, v)
@@ -364,7 +366,7 @@ func (p *XdsProxy) buildUpstreamConn(ctx context.Context) (*grpc.ClientConn, err
 	return grpc.DialContext(ctx, p.istiodAddress, opts...)
 }
 
-func (p *XdsProxy) handleUpstream(ctx context.Context, con *ProxyConnection, xds discovery.AggregatedDiscoveryServiceClient) error {
+func (p *XdsProxy) handleUpstream(ctx context.Context, con *ProxyConnection, xds discoverysvc.AggregatedDiscoveryServiceClient) error {
 	log := proxyLog.WithLabels("id", con.conID)
 	upstream, err := xds.StreamAggregatedResources(ctx,
 		grpc.MaxCallRecvMsgSize(defaultClientMaxReceiveMessageSize))
@@ -625,7 +627,7 @@ func (p *XdsProxy) initDownstreamServer() error {
 	opts := p.downstreamGrpcOptions
 	opts = append(opts, istiogrpc.ServerOptions(istiokeepalive.DefaultOption())...)
 	grpcs := grpc.NewServer(opts...)
-	discovery.RegisterAggregatedDiscoveryServiceServer(grpcs, p)
+	discoverysvc.RegisterAggregatedDiscoveryServiceServer(grpcs, p)
 	reflection.Register(grpcs)
 	p.downstreamGrpcServer = grpcs
 	p.downstreamListener = l

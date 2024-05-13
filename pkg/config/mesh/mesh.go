@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
-	"istio.io/api/networking/v1alpha3"
+	v1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/validation/agent"
