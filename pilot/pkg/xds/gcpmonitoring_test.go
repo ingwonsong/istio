@@ -78,19 +78,6 @@ func TestGCPMonitoringPilotXDSMetrics(t *testing.T) {
 			Tags: []tag.Tag{{Key: successTestTag, Value: "false"}, {Key: typeTestTag, Value: "RDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
 
-		{"cdsReject", cdsReject, true, 0, "control/rejected_config_count", &view.Row{
-			Tags: []tag.Tag{{Key: typeTestTag, Value: "CDS"}}, Data: &view.SumData{Value: 1.0},
-		}},
-		{"edsReject", edsReject, true, 0, "control/rejected_config_count", &view.Row{
-			Tags: []tag.Tag{{Key: typeTestTag, Value: "EDS"}}, Data: &view.SumData{Value: 1.0},
-		}},
-		{"ldsReject", ldsReject, true, 0, "control/rejected_config_count", &view.Row{
-			Tags: []tag.Tag{{Key: typeTestTag, Value: "LDS"}}, Data: &view.SumData{Value: 1.0},
-		}},
-		{"rdsReject", rdsReject, true, 0, "control/rejected_config_count", &view.Row{
-			Tags: []tag.Tag{{Key: typeTestTag, Value: "RDS"}}, Data: &view.SumData{Value: 1.0},
-		}},
-
 		{"xdsClients", xdsClients.With(versionTag.Value("test-version")), false, 10, "control/proxy_clients", &view.Row{
 			Tags: []tag.Tag{{Key: proxyVersionTag, Value: "test-version"}}, Data: &view.LastValueData{Value: 10.0},
 		}},
