@@ -23,6 +23,7 @@ import (
 	"github.com/mitchellh/copystructure"
 	"gopkg.in/yaml.v3"
 
+	"istio.io/api/annotation"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/test/echo/common"
@@ -71,9 +72,9 @@ type VMDistro = string
 
 const (
 	UbuntuBionic VMDistro = "UbuntuBionic"
-	UbuntuJammy  VMDistro = "UbuntuJammy"
-	Debian11     VMDistro = "Debian11"
-	Rockylinux8  VMDistro = "Centos8"
+	UbuntuNoble  VMDistro = "UbuntuNoble"
+	Debian12     VMDistro = "Debian12"
+	Rockylinux9  VMDistro = "Rockylinux9"
 
 	// DefaultVMDistro is intentionally different in ASM; making it "" means we prefer the env vars
 	DefaultVMDistro = ""
@@ -123,7 +124,7 @@ type Config struct {
 	Ports Ports
 
 	// ServiceAnnotations is annotations on service object.
-	ServiceAnnotations Annotations
+	ServiceAnnotations map[string]string
 
 	// ServiceLabels is the labels on service object.
 	ServiceLabels map[string]string
@@ -230,7 +231,7 @@ type SubsetConfig struct {
 	// The version of the deployment.
 	Version string
 	// Annotations provides metadata hints for deployment of the instance.
-	Annotations Annotations
+	Annotations map[string]string
 	// Labels provides metadata hints for deployment of the instance.
 	Labels map[string]string
 	// Replicas of this deployment
@@ -306,7 +307,8 @@ func (c Config) IsStatefulSet() bool {
 // Note: instances that mix subsets with and without sidecars are considered 'naked'.
 func (c Config) IsNaked() bool {
 	for _, s := range c.Subsets {
-		if s.Annotations != nil && !s.Annotations.GetBool(SidecarInject) {
+		if s.Annotations != nil && s.Annotations[annotation.SidecarInject.Name] == "false" {
+			// Sidecar injection is disabled - it's naked.
 			return true
 		}
 	}
@@ -319,26 +321,25 @@ func (c Config) IsAllNaked() bool {
 		// No subsets - default to not-naked.
 		return false
 	}
-
+	// if ANY subset has a sidecar, not naked.
 	for _, s := range c.Subsets {
-		if s.Annotations == nil || s.Annotations.GetBool(SidecarInject) {
+		if s.Annotations == nil || s.Annotations[annotation.SidecarInject.Name] != "false" {
 			// Sidecar injection is enabled - it's not naked.
 			return false
 		}
 	}
-
 	// All subsets were annotated indicating no sidecar injection.
 	return true
 }
 
 func (c Config) IsProxylessGRPC() bool {
 	// TODO make these check if any subset has a matching annotation
-	return len(c.Subsets) > 0 && c.Subsets[0].Annotations != nil && strings.HasPrefix(c.Subsets[0].Annotations.Get(SidecarInjectTemplates), "grpc-")
+	return len(c.Subsets) > 0 && c.Subsets[0].Annotations != nil && strings.HasPrefix(c.Subsets[0].Annotations[annotation.InjectTemplates.Name], "grpc-")
 }
 
 func (c Config) IsTProxy() bool {
 	// TODO this could be HasCustomInjectionMode
-	return len(c.Subsets) > 0 && c.Subsets[0].Annotations != nil && c.Subsets[0].Annotations.Get(SidecarInterceptionMode) == "TPROXY"
+	return len(c.Subsets) > 0 && c.Subsets[0].Annotations != nil && c.Subsets[0].Annotations[annotation.SidecarInterceptionMode.Name] == "TPROXY"
 }
 
 func (c Config) HasAnyWaypointProxy() bool {
@@ -365,7 +366,7 @@ func (c Config) HasSidecar() bool {
 
 func (c Config) IsUncaptured() bool {
 	// TODO this can be more robust to not require labeling initial echo config (check namespace + isWaypoint + not sidecar)
-	return len(c.Subsets) > 0 && c.Subsets[0].Annotations != nil && c.Subsets[0].Annotations.Get(AmbientType) == constants.AmbientRedirectionDisabled
+	return len(c.Subsets) > 0 && c.Subsets[0].Labels != nil && c.Subsets[0].Labels[constants.DataplaneModeLabel] == constants.DataplaneModeNone
 }
 
 func (c Config) HasProxyCapabilities() bool {
@@ -378,7 +379,7 @@ func (c Config) IsVM() bool {
 
 func (c Config) IsSotw() bool {
 	// TODO this doesn't hold if delta is off by default
-	return len(c.Subsets) > 0 && c.Subsets[0].Annotations != nil && strings.Contains(c.Subsets[0].Annotations.Get(SidecarProxyConfig), "ISTIO_DELTA_XDS")
+	return len(c.Subsets) > 0 && c.Subsets[0].Annotations != nil && strings.Contains(c.Subsets[0].Annotations[annotation.ProxyConfig.Name], "ISTIO_DELTA_XDS")
 }
 
 // IsRegularPod returns true if the echo pod is not any of the following:
@@ -413,11 +414,11 @@ func (c Config) WaypointClient() bool {
 func (c Config) ZTunnelCaptured() bool {
 	haveSubsets := len(c.Subsets) > 0
 	if c.Namespace.IsAmbient() && haveSubsets &&
-		c.Subsets[0].Annotations.GetByName(constants.AmbientRedirection) != constants.AmbientRedirectionDisabled &&
+		c.Subsets[0].Labels[constants.DataplaneModeLabel] != constants.DataplaneModeNone &&
 		!c.HasSidecar() {
 		return true
 	}
-	return haveSubsets && c.Subsets[0].Annotations.GetByName(constants.AmbientRedirection) == constants.AmbientRedirectionEnabled
+	return haveSubsets && c.Subsets[0].Annotations[constants.AmbientRedirection] == constants.AmbientRedirectionEnabled
 }
 
 // DeepCopy creates a clone of IstioEndpoint.

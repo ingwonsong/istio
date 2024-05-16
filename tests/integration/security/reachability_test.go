@@ -20,6 +20,7 @@ package security
 import (
 	"testing"
 
+	"istio.io/api/annotation"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/framework"
@@ -71,12 +72,12 @@ func TestReachability(t *testing.T) {
 						{
 							// Istio deployment, with sidecar.
 							Version:     migrationVersionIstio,
-							Annotations: echo.NewAnnotations().SetBool(echo.SidecarInject, true),
+							Annotations: map[string]string{annotation.SidecarInject.Name: "true"},
 						},
 						{
 							// Legacy (non-Istio) deployment subset, does not have sidecar injected.
 							Version:     migrationVersionNonIstio,
-							Annotations: echo.NewAnnotations().SetBool(echo.SidecarInject, false),
+							Annotations: map[string]string{annotation.SidecarInject.Name: "false"},
 						},
 					},
 				}).BuildOrFail(t)
@@ -95,12 +96,12 @@ func TestReachability(t *testing.T) {
 						{
 							// Istio deployment, with sidecar.
 							Version:     migrationVersionIstio,
-							Annotations: echo.NewAnnotations().SetBool(echo.SidecarInject, true),
+							Annotations: map[string]string{annotation.SidecarInject.Name: "true"},
 						},
 						{
 							// Legacy (non-Istio) deployment subset, does not have sidecar injected.
 							Version:     migrationVersionNonIstio,
-							Annotations: echo.NewAnnotations().SetBool(echo.SidecarInject, false),
+							Annotations: map[string]string{annotation.SidecarInject.Name: "false"},
 						},
 					},
 					IPFamilies:     "IPv4, IPv6",

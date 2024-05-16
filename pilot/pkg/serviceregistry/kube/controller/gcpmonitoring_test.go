@@ -68,3 +68,7 @@ func findTagWithValue(key, value string, tags []tag.Tag) bool {
 	}
 	return false
 }
+
+func incrementEvent(kind, event string) {
+	k8sEvents.With(typeTag.Value(kind), eventTag.Value(event)).Increment()
+}

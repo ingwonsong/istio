@@ -188,6 +188,9 @@ type Settings struct {
 	GatewayConformanceStandardOnly bool
 
 	GatewayConformanceTimeoutConfig gwConformanceConfig.TimeoutConfig
+
+	// OpenShift indicates the tests run in an OpenShift platform rather than in plain Kubernetes.
+	OpenShift bool
 }
 
 // SkipVMs changes the skip settings at runtime

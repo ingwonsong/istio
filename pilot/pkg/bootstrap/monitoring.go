@@ -24,8 +24,10 @@ import (
 
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pkg/asm"
+	commonFeatures "istio.io/istio/pkg/features"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/monitoring"
+	istioNetUtil "istio.io/istio/pkg/util/net"
 	"istio.io/istio/pkg/version"
 )
 
@@ -74,7 +76,7 @@ func addMonitor(mux *http.ServeMux) error {
 	if err != nil {
 		return fmt.Errorf("could not set up prometheus exporter: %v", err)
 	}
-	mux.Handle(metricsPath, exporter)
+	mux.Handle(metricsPath, metricsMiddleware(exporter))
 
 	mux.HandleFunc(versionPath, func(out http.ResponseWriter, req *http.Request) {
 		if _, err := out.Write([]byte(version.Info.String())); err != nil {
@@ -83,6 +85,17 @@ func addMonitor(mux *http.ServeMux) error {
 	})
 
 	return nil
+}
+
+func metricsMiddleware(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if commonFeatures.MetricsLocalhostAccessOnly && !istioNetUtil.IsRequestFromLocalhost(r) {
+			http.Error(w, "Only requests from localhost are allowed", http.StatusForbidden)
+			return
+		}
+		// Pass control back to the handler
+		handler.ServeHTTP(w, r)
+	})
 }
 
 // Deprecated: we shouldn't have 2 http ports. Will be removed after code using
