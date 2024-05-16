@@ -23,11 +23,11 @@ spec:
           provisionerArgs:
             auth: SAToken
             {{- if eq .Version "latest" }}
-            kubernetesVersion: "1.28"
+            kubernetesVersion: "1.29"
             {{- else if .Version }}
             kubernetesVersion: "{{ .Version }}"
             {{- else }}
-            kubernetesVersion: "1.28"
+            kubernetesVersion: "1.29"
             {{- end }}
             compressArtifacts: "true"
             nodeCount: "4"
@@ -45,11 +45,11 @@ spec:
           provisionerArgs:
             auth: SAToken
             {{- if eq .Version "latest" }}
-            kubernetesVersion: "1.28"
+            kubernetesVersion: "1.29"
             {{- else if .Version }}
             kubernetesVersion: "{{ .Version }}"
             {{- else }}
-            kubernetesVersion: "1.28"
+            kubernetesVersion: "1.29"
             {{- end }}
             compressArtifacts: "true"
             nodeCount: "4"

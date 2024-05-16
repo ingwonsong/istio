@@ -21,7 +21,7 @@ spec:
           distribution: eks
           provisionerArgs:
             auth: "SAToken"
-            kubernetesVersion: "1.28"
+            kubernetesVersion: "1.29"
             username: asm-svc-acct
             compressArtifacts: "true"
             nodeType: "t3.xlarge"
