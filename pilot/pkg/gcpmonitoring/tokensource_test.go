@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/istio/pkg/security"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager/google"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager/google/mock"
+	"istio.io/istio/csm/stsservice"
+	"istio.io/istio/csm/stsservice/tokenmanager"
+	"istio.io/istio/csm/stsservice/tokenmanager/google"
+	"istio.io/istio/csm/stsservice/tokenmanager/google/mock"
 )
 
 func TestStsTokenSource(t *testing.T) {
@@ -80,7 +80,7 @@ type testSetUp struct {
 
 // setUpTest sets up components for the STS flow, including a STS server, a
 // token manager, and an authorization server.
-func setUpTestComponents(t *testing.T, setup testSetUp) (security.TokenManager, *mock.AuthorizationServer) {
+func setUpTestComponents(t *testing.T, setup testSetUp) (stsservice.TokenManager, *mock.AuthorizationServer) {
 	// Create mock authorization server
 	mockServer, err := mock.StartNewServer(t, mock.Config{Port: 0})
 	t.Cleanup(func() {

@@ -22,15 +22,14 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"istio.io/istio/pkg/security"
-	"istio.io/istio/security/pkg/stsservice"
-	"istio.io/istio/security/pkg/stsservice/server"
+	"istio.io/istio/csm/stsservice"
+	"istio.io/istio/csm/stsservice/server"
 )
 
 // TokenSource specifies an oauth token source based on STS token exchange.
 // https://godoc.org/golang.org/x/oauth2#TokenSource
 type TokenSource struct {
-	tm                security.TokenManager
+	tm                stsservice.TokenManager
 	subjectToken      string
 	subjectTokenMutex sync.Mutex
 	authScope         string
@@ -39,7 +38,7 @@ type TokenSource struct {
 var _ oauth2.TokenSource = &TokenSource{}
 
 // NewTokenSource creates a token source based on STS token exchange.
-func NewTokenSource(tm security.TokenManager, subjectToken, authScope string) *TokenSource {
+func NewTokenSource(tm stsservice.TokenManager, subjectToken, authScope string) *TokenSource {
 	return &TokenSource{
 		tm:           tm,
 		subjectToken: subjectToken,
@@ -57,7 +56,7 @@ func (ts *TokenSource) RefreshSubjectToken(subjectToken string) {
 // Token returns Oauth token received from sts token exchange.
 func (ts *TokenSource) Token() (*oauth2.Token, error) {
 	ts.subjectTokenMutex.Lock()
-	params := security.StsRequestParameters{
+	params := stsservice.StsRequestParameters{
 		GrantType:        server.TokenExchangeGrantType,
 		Scope:            ts.authScope,
 		SubjectToken:     ts.subjectToken,

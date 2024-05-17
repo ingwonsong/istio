@@ -27,11 +27,11 @@ import (
 	"sync"
 	"time"
 
+	"istio.io/istio/csm/stsservice"
 	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/log"
 	sec_model "istio.io/istio/pkg/model"
 	"istio.io/istio/pkg/security"
-	"istio.io/istio/security/pkg/stsservice"
 	"istio.io/istio/security/pkg/util"
 )
 
@@ -113,7 +113,7 @@ type federatedTokenResponse struct {
 }
 
 // GenerateToken takes STS request parameters and fetches token, returns StsResponseParameters in JSON.
-func (p *Plugin) ExchangeToken(parameters security.StsRequestParameters) ([]byte, error) {
+func (p *Plugin) ExchangeToken(parameters stsservice.StsRequestParameters) ([]byte, error) {
 	if tokenSTS, ok := p.useCachedToken(); ok {
 		return tokenSTS, nil
 	}
@@ -209,7 +209,7 @@ func (p *Plugin) constructAudience(subjectToken string) string {
 //	   subjectToken: <jwt token>
 //	   Scope: https://www.googleapis.com/auth/cloud-platform
 //	}
-func (p *Plugin) constructFederatedTokenRequest(parameters security.StsRequestParameters) (*http.Request, error) {
+func (p *Plugin) constructFederatedTokenRequest(parameters stsservice.StsRequestParameters) (*http.Request, error) {
 	reqScope := scope
 	if len(parameters.Scope) != 0 {
 		reqScope = parameters.Scope
@@ -255,7 +255,7 @@ func (p *Plugin) constructFederatedTokenRequest(parameters security.StsRequestPa
 
 // fetchFederatedToken exchanges a third-party issued Json Web Token for an OAuth2.0 access token
 // which asserts a third-party identity within an identity namespace.
-func (p *Plugin) fetchFederatedToken(parameters security.StsRequestParameters) (*federatedTokenResponse, error) {
+func (p *Plugin) fetchFederatedToken(parameters stsservice.StsRequestParameters) (*federatedTokenResponse, error) {
 	respData := &federatedTokenResponse{}
 
 	req, err := p.constructFederatedTokenRequest(parameters)

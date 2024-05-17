@@ -29,9 +29,9 @@ import (
 	"testing"
 	"time"
 
+	"istio.io/istio/csm/stsservice"
+	"istio.io/istio/csm/stsservice/mock"
 	"istio.io/istio/pkg/log"
-	"istio.io/istio/security/pkg/stsservice"
-	"istio.io/istio/security/pkg/stsservice/mock"
 )
 
 type stsReqType int

@@ -28,13 +28,13 @@ import (
 	"go.opencensus.io/stats/view" // nolint: depguard
 	"google.golang.org/api/option"
 
+	"istio.io/istio/csm/stsservice/tokenmanager"
 	"istio.io/istio/pilot/pkg/security/model"
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/version"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager"
 	"istio.io/istio/security/pkg/util"
 )
 

@@ -25,10 +25,9 @@ import (
 	"strconv"
 	"time"
 
+	"istio.io/istio/csm/stsservice"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/network"
-	"istio.io/istio/pkg/security"
-	"istio.io/istio/security/pkg/stsservice"
 )
 
 const (
@@ -63,7 +62,7 @@ const (
 type Server struct {
 	// tokenManager takes STS request parameters and generates tokens, and returns
 	// generated token to the STS server.
-	tokenManager security.TokenManager
+	tokenManager stsservice.TokenManager
 	stsServer    *http.Server
 	// Port number that server listens on.
 	Port int
@@ -76,7 +75,7 @@ type Config struct {
 }
 
 // NewServer creates a new STS server.
-func NewServer(config Config, tokenManager security.TokenManager) (*Server, error) {
+func NewServer(config Config, tokenManager stsservice.TokenManager) (*Server, error) {
 	s := &Server{
 		tokenManager: tokenManager,
 	}
@@ -130,8 +129,8 @@ func (s *Server) ServeStsRequests(w http.ResponseWriter, req *http.Request) {
 }
 
 // validateStsRequest validates a STS request, and extracts STS parameters from the request.
-func (s *Server) validateStsRequest(req *http.Request) (security.StsRequestParameters, error) {
-	reqParam := security.StsRequestParameters{}
+func (s *Server) validateStsRequest(req *http.Request) (stsservice.StsRequestParameters, error) {
+	reqParam := stsservice.StsRequestParameters{}
 	if req == nil {
 		return reqParam, errors.New("request is nil")
 	}

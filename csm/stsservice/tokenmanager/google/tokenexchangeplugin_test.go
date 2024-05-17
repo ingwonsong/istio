@@ -20,9 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"istio.io/istio/pkg/security"
-	"istio.io/istio/security/pkg/stsservice"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager/google/mock"
+	"istio.io/istio/csm/stsservice"
+	"istio.io/istio/csm/stsservice/tokenmanager/google/mock"
 )
 
 // TestAccessToken verifies that token manager could successfully call server and get access token.
@@ -127,8 +126,8 @@ func verifyToken(t *testing.T, tCase string, stsRespJSON []byte, actualErr error
 	}
 }
 
-func defaultSTSRequest() security.StsRequestParameters {
-	return security.StsRequestParameters{
+func defaultSTSRequest() stsservice.StsRequestParameters {
+	return stsservice.StsRequestParameters{
 		GrantType:        "urn:ietf:params:oauth:grant-type:token-exchange",
 		Audience:         mock.FakeTrustDomain,
 		Scope:            scope,

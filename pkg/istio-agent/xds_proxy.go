@@ -39,6 +39,7 @@ import (
 	anypb "google.golang.org/protobuf/types/known/anypb"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
+	csmcredentials "istio.io/istio/csm/credentials"
 	"istio.io/istio/pilot/cmd/pilot-agent/status/ready"
 	"istio.io/istio/pilot/pkg/features"
 	istiogrpc "istio.io/istio/pilot/pkg/grpc"
@@ -55,7 +56,6 @@ import (
 	"istio.io/istio/pkg/uds"
 	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/pkg/wasm"
-	"istio.io/istio/security/pkg/nodeagent/caclient"
 	"istio.io/istio/security/pkg/pki/util"
 )
 
@@ -656,7 +656,7 @@ func (p *XdsProxy) buildUpstreamClientDialOpts(sa *Agent) ([]grpc.DialOption, er
 		return nil, err
 	}
 	if sa.secOpts.CredFetcher != nil {
-		options = append(options, grpc.WithPerRPCCredentials(caclient.NewXDSTokenProvider(sa.secOpts)))
+		options = append(options, grpc.WithPerRPCCredentials(csmcredentials.NewXDSTokenProvider(sa.secOpts)))
 	}
 	return options, nil
 }

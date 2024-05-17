@@ -37,7 +37,6 @@ import (
 	"istio.io/istio/pkg/log"
 	sec_model "istio.io/istio/pkg/model"
 	"istio.io/istio/pkg/security"
-	"istio.io/istio/security/pkg/nodeagent/caclient"
 )
 
 const hubIDPPrefix = "https://gkehub.googleapis.com/"
@@ -55,7 +54,7 @@ type googleCAClient struct {
 }
 
 // NewGoogleCAClient create a CA client for Google CA.
-func NewGoogleCAClient(endpoint string, proxyAddr string, tls bool, provider *caclient.TokenProvider) (security.Client, error) {
+func NewGoogleCAClient(endpoint string, proxyAddr string, tls bool, provider credentials.PerRPCCredentials) (security.Client, error) {
 	c := &googleCAClient{
 		caEndpoint: endpoint,
 		enableTLS:  tls,
@@ -73,10 +72,10 @@ func NewGoogleCAClient(endpoint string, proxyAddr string, tls bool, provider *ca
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	opts = append(opts,
-		grpc.WithPerRPCCredentials(provider),
-		security.CARetryInterceptor(),
-	)
+	if provider != nil {
+		opts = append(opts, grpc.WithPerRPCCredentials(provider))
+	}
+	opts = append(opts, security.CARetryInterceptor())
 	if proxyAddr != "" {
 		opts = append(opts, grpcproxy.GetGrpcProxyDialerOption(proxyAddr))
 	}

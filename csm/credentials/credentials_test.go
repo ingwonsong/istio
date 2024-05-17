@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package caclient_test
+package credentials_test
 
 import (
 	"fmt"
@@ -20,6 +20,11 @@ import (
 	"testing"
 	"time"
 
+	caclient "istio.io/istio/csm/credentials"
+	"istio.io/istio/csm/stsservice"
+	stsmock "istio.io/istio/csm/stsservice/mock"
+	"istio.io/istio/csm/stsservice/tokenmanager/google"
+	"istio.io/istio/csm/stsservice/tokenmanager/google/mock"
 	"istio.io/istio/pilot/cmd/pilot-agent/config"
 	"istio.io/istio/pilot/cmd/pilot-agent/options"
 	"istio.io/istio/pilot/pkg/model"
@@ -28,11 +33,6 @@ import (
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/security/pkg/credentialfetcher"
 	"istio.io/istio/security/pkg/credentialfetcher/plugin"
-	"istio.io/istio/security/pkg/nodeagent/caclient"
-	"istio.io/istio/security/pkg/stsservice"
-	stsmock "istio.io/istio/security/pkg/stsservice/mock"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager/google"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager/google/mock"
 )
 
 // TestGetTokenForXDS tests getting token for XDS.

@@ -27,10 +27,10 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/istio/security/pkg/stsservice"
-	stsServer "istio.io/istio/security/pkg/stsservice/server"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager/google"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager/google/mock"
+	"istio.io/istio/csm/stsservice"
+	stsServer "istio.io/istio/csm/stsservice/server"
+	"istio.io/istio/csm/stsservice/tokenmanager/google"
+	"istio.io/istio/csm/stsservice/tokenmanager/google/mock"
 )
 
 // Number of test client to create for testing.

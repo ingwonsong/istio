@@ -25,6 +25,10 @@ import (
 
 	"istio.io/api/annotation"
 	meshconfig "istio.io/api/mesh/v1alpha1"
+	"istio.io/istio/csm/stsclient"
+	"istio.io/istio/csm/stsservice"
+	stsserver "istio.io/istio/csm/stsservice/server"
+	"istio.io/istio/csm/stsservice/tokenmanager"
 	"istio.io/istio/pilot/cmd/pilot-agent/config"
 	"istio.io/istio/pilot/cmd/pilot-agent/options"
 	"istio.io/istio/pilot/cmd/pilot-agent/status"
@@ -42,8 +46,6 @@ import (
 	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/pkg/util/sets"
 	"istio.io/istio/pkg/version"
-	stsserver "istio.io/istio/security/pkg/stsservice/server"
-	"istio.io/istio/security/pkg/stsservice/tokenmanager"
 	cleaniptables "istio.io/istio/tools/istio-clean-iptables/pkg/cmd"
 	iptables "istio.io/istio/tools/istio-iptables/pkg/cmd"
 	iptableslog "istio.io/istio/tools/istio-iptables/pkg/log"
@@ -127,16 +129,11 @@ func newProxyCommand(sds istioagent.SDSServiceFactory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			// If security token service (STS) port is not zero, start STS server and
-			// listen on STS port for STS requests. For STS, see
-			// https://tools.ietf.org/html/draft-ietf-oauth-token-exchange-16.
-			// STS is used for stackdriver or other Envoy services using google gRPC.
-			if proxyArgs.StsPort > 0 {
-				stsServer, err := initStsServer(secOpts.TokenManager)
-				if err != nil {
-					return err
-				}
+			stsServer, err := setupSTS(secOpts, proxyArgs.StsPort, proxyArgs.TokenManagerPlugin)
+			if err != nil {
+				return err
+			}
+			if stsServer != nil {
 				defer stsServer.Stop()
 			}
 
@@ -232,28 +229,6 @@ func initStatusServer(
 	}
 	go statusServer.Run(ctx)
 	return nil
-}
-
-func initStsServer(tokenManager security.TokenManager) (*stsserver.Server, error) {
-	localHostAddr := localHostIPv4
-	if proxyArgs.IsIPv6() {
-		localHostAddr = localHostIPv6
-	} else {
-		// if not ipv6-only, it can be ipv4-only or dual-stack
-		// let InstanceIP decide the localhost
-		netIP, _ := netip.ParseAddr(options.InstanceIPVar.Get())
-		if netIP.Is6() && !netIP.IsLinkLocalUnicast() {
-			localHostAddr = localHostIPv6
-		}
-	}
-	stsServer, err := stsserver.NewServer(stsserver.Config{
-		LocalHostAddr: localHostAddr,
-		LocalPort:     proxyArgs.StsPort,
-	}, tokenManager)
-	if err != nil {
-		return nil, err
-	}
-	return stsServer, nil
 }
 
 func getDNSDomain(podNamespace, domain string) string {
@@ -388,4 +363,52 @@ func raiseLimits() {
 	} else {
 		log.Infof("Set max file descriptors (ulimit -n) to: %d", limit)
 	}
+}
+
+func setupSTS(secOpts *security.Options, stsPort int, tokenManagerPlugin string) (*stsserver.Server, error) {
+	if secOpts.CAProviderName == security.GoogleCAProvider || secOpts.CAProviderName == security.GoogleCASProvider {
+		var err error
+		secOpts.TokenExchanger, err = stsclient.NewSecureTokenServiceExchanger(secOpts.CredFetcher, secOpts.CAProxyURL, secOpts.TrustDomain)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var tokenManager stsservice.TokenManager
+	if stsPort > 0 || secOpts.XdsAuthProvider != "" {
+		// tokenManager is gcp token manager when using the default token manager plugin.
+		var err error
+		tokenManager, err = tokenmanager.CreateTokenManager(tokenManagerPlugin,
+			tokenmanager.Config{CredFetcher: secOpts.CredFetcher, TrustDomain: secOpts.TrustDomain})
+		if err != nil {
+			return nil, err
+		}
+	}
+	secOpts.TokenManager = tokenManager
+
+	// If security token service (STS) port is not zero, start STS server and
+	// listen on STS port for STS requests. For STS, see
+	// https://tools.ietf.org/html/draft-ietf-oauth-token-exchange-16.
+	// STS is used for stackdriver or other Envoy services using google gRPC.
+	if stsPort > 0 {
+		localHostAddr := localHostIPv4
+		if proxyArgs.IsIPv6() {
+			localHostAddr = localHostIPv6
+		} else {
+			// if not ipv6-only, it can be ipv4-only or dual-stack
+			// let InstanceIP decide the localhost
+			netIP, _ := netip.ParseAddr(options.InstanceIPVar.Get())
+			if netIP.Is6() && !netIP.IsLinkLocalUnicast() {
+				localHostAddr = localHostIPv6
+			}
+		}
+		stsServer, err := stsserver.NewServer(stsserver.Config{
+			LocalHostAddr: localHostAddr,
+			LocalPort:     proxyArgs.StsPort,
+		}, secOpts.TokenManager)
+		if err != nil {
+			return nil, err
+		}
+		return stsServer, nil
+	}
+	return nil, nil
 }

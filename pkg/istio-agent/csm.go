@@ -23,10 +23,10 @@ import (
 
 	gca "istio.io/istio/csm/caproviders/google"
 	cas "istio.io/istio/csm/caproviders/google-cas"
+	caclient "istio.io/istio/csm/credentials"
 	"istio.io/istio/pkg/grpcproxy"
 	"istio.io/istio/pkg/model"
 	"istio.io/istio/pkg/security"
-	"istio.io/istio/security/pkg/nodeagent/caclient"
 )
 
 func createMeshCA(opts *security.Options, _ RootCertProvider) (security.Client, error) {
