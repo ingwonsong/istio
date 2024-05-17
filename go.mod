@@ -7,6 +7,9 @@ replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0
+	cloud.google.com/go/logging v1.9.0
+	cloud.google.com/go/monitoring v1.18.2
+	cloud.google.com/go/trace v1.10.6
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 	github.com/GoogleCloudPlatform/cloud-foundation-toolkit/infra/blueprint-test v0.4.1
 	github.com/Masterminds/semver/v3 v3.2.1
@@ -121,11 +124,9 @@ require (
 
 require (
 	cel.dev/expr v0.15.0 // indirect
-	cloud.google.com/go v0.112.1 // indirect
+	cloud.google.com/go v0.112.2 // indirect
 	cloud.google.com/go/iam v1.1.6 // indirect
-	cloud.google.com/go/longrunning v0.5.5 // indirect
-	cloud.google.com/go/monitoring v1.18.0 // indirect
-	cloud.google.com/go/trace v1.10.5 // indirect
+	cloud.google.com/go/longrunning v0.5.6 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
@@ -251,7 +252,6 @@ require (
 	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.20.0 // indirect
-	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	k8s.io/component-base v0.30.0 // indirect
@@ -265,7 +265,6 @@ require (
 require (
 	cloud.google.com/go/container v1.35.0
 	cloud.google.com/go/gkehub v0.14.6
-	cloud.google.com/go/logging v1.9.0
 	cloud.google.com/go/profiler v0.3.1
 	cloud.google.com/go/security v1.15.5
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
@@ -275,5 +274,6 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/tebeka/selenium v0.9.9
 	go.opencensus.io v0.24.0
-	google.golang.org/api v0.170.0
+	google.golang.org/api v0.172.0
+	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de
 )
