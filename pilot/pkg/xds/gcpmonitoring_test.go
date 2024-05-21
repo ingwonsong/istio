@@ -29,6 +29,7 @@ import (
 	v3 "istio.io/istio/pilot/pkg/xds/v3"
 	"istio.io/istio/pkg/monitoring"
 	"istio.io/istio/pkg/test/util/retry"
+	"istio.io/istio/pkg/xds"
 )
 
 var (
@@ -63,6 +64,18 @@ func TestGCPMonitoringPilotXDSMetrics(t *testing.T) {
 		}},
 		{"rdsPushes", pushes.With(typeTag.Value(v3.GetMetricType(resource.RouteType))), true, 0, "control/config_push_count", &view.Row{
 			Tags: []tag.Tag{{Key: successTestTag, Value: "true"}, {Key: typeTestTag, Value: "RDS"}}, Data: &view.SumData{Value: 1.0},
+		}},
+		{"cdsReject", xds.CDSReject, true, 0, "control/rejected_config_count", &view.Row{
+			Tags: []tag.Tag{{Key: typeTestTag, Value: "CDS"}}, Data: &view.SumData{Value: 1.0},
+		}},
+		{"edsReject", xds.EDSReject, true, 0, "control/rejected_config_count", &view.Row{
+			Tags: []tag.Tag{{Key: typeTestTag, Value: "EDS"}}, Data: &view.SumData{Value: 1.0},
+		}},
+		{"ldsReject", xds.LDSReject, true, 0, "control/rejected_config_count", &view.Row{
+			Tags: []tag.Tag{{Key: typeTestTag, Value: "LDS"}}, Data: &view.SumData{Value: 1.0},
+		}},
+		{"rdsReject", xds.RDSReject, true, 0, "control/rejected_config_count", &view.Row{
+			Tags: []tag.Tag{{Key: typeTestTag, Value: "RDS"}}, Data: &view.SumData{Value: 1.0},
 		}},
 
 		{"cdsSendErrPushes", cdsSendErrPushes, true, 0, "control/config_push_count", &view.Row{

@@ -64,6 +64,12 @@ var (
 		"Pilot rejected RDS.",
 	)
 
+	// Used by gcpmonitoring_test
+	CDSReject = cdsReject
+	LDSReject = ldsReject
+	EDSReject = edsReject
+	RDSReject = rdsReject
+
 	totalXDSRejects = monitoring.NewSum(
 		"pilot_total_xds_rejects",
 		"Total number of XDS responses from pilot rejected by proxy.",
