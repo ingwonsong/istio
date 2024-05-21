@@ -14,9 +14,18 @@
 
 package serviceentry
 
-import "istio.io/istio/pkg/asm/mcpserviceentrystatus"
+import (
+	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pkg/config"
+)
 
-func WithMCPServiceEntryStatusController(sc *mcpserviceentrystatus.Controller) Option {
+type MCPServiceStatusController interface {
+	SetServiceGetter(func() []*model.Service)
+	HandleConfig(config.Config, []*model.Service)
+	HandleIPAllocation([]*model.Service) bool
+}
+
+func WithMCPServiceEntryStatusController(sc MCPServiceStatusController) Option {
 	return func(o *Controller) {
 		o.statusController = sc
 		if sc != nil {

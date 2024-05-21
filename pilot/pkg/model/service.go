@@ -697,7 +697,7 @@ type ServiceAttributes struct {
 
 	K8sAttributes
 
-	MCPOriginResourceRef MCPServiceEntryRef // MCP code
+	MCPServiceEntryRef MCPServiceEntryRef // MCP code
 }
 
 type NamespacedHostname struct {

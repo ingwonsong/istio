@@ -30,7 +30,6 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pilot/pkg/serviceregistry/provider"
 	"istio.io/istio/pilot/pkg/serviceregistry/util/workloadinstances"
-	"istio.io/istio/pkg/asm/mcpserviceentrystatus"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
@@ -121,7 +120,7 @@ type Controller struct {
 	model.NoopAmbientIndexes
 	model.NetworkGatewaysHandler
 
-	statusController *mcpserviceentrystatus.Controller // MCP code
+	statusController MCPServiceStatusController // MCP code
 }
 
 type Option func(*Controller)
@@ -366,7 +365,9 @@ func (s *Controller) serviceEntryHandler(old, curr config.Config, event model.Ev
 	log.Debugf("Handle event %s for service entry %s/%s", event, curr.Namespace, curr.Name)
 	currentServiceEntry := curr.Spec.(*networking.ServiceEntry)
 	cs := convertServices(curr)
-	s.statusController.HandleConfig(curr, cs) // MCP code
+	if s.statusController != nil {
+		s.statusController.HandleConfig(curr, cs) // MCP code
+	}
 	configsUpdated := sets.New[model.ConfigKey]()
 	key := curr.NamespacedName()
 
@@ -672,7 +673,9 @@ func (s *Controller) Services() []*model.Service {
 		// Note that the feature will be provided to the limited customers.
 
 		// To display the allocated IP addresses, inform them to statusController.
-		s.statusController.HandleIPAllocation(allServices) // MCP code
+		if s.statusController != nil {
+			s.statusController.HandleIPAllocation(allServices) // MCP code
+		}
 		s.services.allocateNeeded = false
 	}
 	s.mutex.Unlock()

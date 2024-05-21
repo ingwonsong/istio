@@ -34,8 +34,11 @@ import (
 const ipAllocationStatusCondName = "AutoAllocatedIPs"
 
 var (
+	enableServiceEntryStatusController = env.RegisterBoolVar("ENABLE_SERVICE_ENTRY_STATUS_CONTROLLER", false,
+		"If this is true, the status controller for ServiceEntry will be started.").Get()
 	enableServiceEntryIPAutoAllocationStatus = env.RegisterBoolVar("ENABLE_SERVICE_ENTRY_IP_AUTO_ALLOCATION_STATUS", false,
-		"If this is set to true, the auto allocated IP address will be written in status field of ServiceEntry.").Get()
+		"If this is true, the auto allocated IP address will be written in status field of ServiceEntry. "+
+			"If ENABLE_SERVICE_ENTRY_STATUS_CONTROLLER is not true, this flag will be ignored.").Get()
 	log = istiolog.RegisterScope("mcpserviceentry", "ServiceEntry registry in MCP")
 )
 
@@ -44,7 +47,7 @@ type Controller struct {
 	curStatuses map[statusctl.Resource]string
 
 	statusController atomic.Pointer[statusctl.Controller]
-	curServices      ServicesGetter
+	curServices      func() []*model.Service
 }
 
 type serviceEntryIP struct {
@@ -61,10 +64,8 @@ type ipAllocation struct {
 	ServiceEntryIPs []serviceEntryIP `json:"serviceEntryIPs"`
 }
 
-type ServicesGetter func() []*model.Service
-
 func MaybeNewController() *Controller {
-	if !enableServiceEntryIPAutoAllocationStatus {
+	if !enableServiceEntryStatusController {
 		return nil
 	}
 	return &Controller{
@@ -72,39 +73,47 @@ func MaybeNewController() *Controller {
 	}
 }
 
-func (c *Controller) SetServiceGetter(cs ServicesGetter) {
+func (c *Controller) SetServiceGetter(cs func() []*model.Service) {
 	c.curServices = cs
 }
 
+func setIstioStatus(st *v1alpha1.IstioStatus, context any) *v1alpha1.IstioStatus {
+	if st == nil {
+		return nil
+	}
+
+	if context == nil {
+		// If empty status, let's remove the condition itself.
+		st.Conditions = removeCondition(st.GetConditions(), ipAllocationStatusCondName)
+		return st
+	}
+
+	newStatus := context.(string)
+	cond := status.GetCondition(st.GetConditions(), ipAllocationStatusCondName)
+	if cond == nil {
+		cond = &v1alpha1.IstioCondition{
+			Type: ipAllocationStatusCondName,
+		}
+		st.Conditions = append(st.Conditions, cond)
+		log.Debugf("Creates a new IstioStatusCondition")
+	}
+	cond.Status = newStatus
+	return st
+}
+
 func (c *Controller) SetStatusWrite(enabled bool, statusManager *statusctl.Manager) {
+	c.setStatusWrite(enabled, statusManager, true)
+}
+
+func (c *Controller) setStatusWrite(enabled bool, statusManager *statusctl.Manager, updateStatus bool) {
 	if enabled && statusManager != nil {
 		log.Debugf("Starting service entry status writer")
 		c.statusController.Store(
-			statusManager.CreateIstioStatusController(func(st *v1alpha1.IstioStatus, context any) *v1alpha1.IstioStatus {
-				if st == nil {
-					return nil
-				}
-
-				if context == nil {
-					// If empty status, let's remove the condition itself.
-					st.Conditions = removeCondition(st.GetConditions(), ipAllocationStatusCondName)
-					return st
-				}
-
-				newStatus := context.(string)
-				cond := status.GetCondition(st.GetConditions(), ipAllocationStatusCondName)
-				if cond == nil {
-					cond = &v1alpha1.IstioCondition{
-						Type: ipAllocationStatusCondName,
-					}
-					st.Conditions = append(st.Conditions, cond)
-					log.Debugf("Creates a new IstioStatusCondition")
-				}
-				cond.Status = newStatus
-				return st
-			}),
+			statusManager.CreateIstioStatusController(setIstioStatus),
 		)
-		c.HandleIPAllocation(c.curServices())
+		if updateStatus {
+			c.HandleIPAllocation(c.curServices())
+		}
 	} else {
 		log.Debugf("Stopping service entry status writer")
 		c.statusController.Store(nil)
@@ -119,39 +128,41 @@ func (c *Controller) HandleConfig(config config.Config, cs []*model.Service) {
 	cond := status.GetConditionFromSpec(config, ipAllocationStatusCondName)
 	rsrc := statusctl.ResourceFromModelConfig(config)
 	for _, svc := range cs {
-		svc.Attributes.MCPOriginResourceRef = toResourceRef(rsrc)
+		svc.Attributes.MCPServiceEntryRef = toResourceRef(rsrc)
 	}
-	var status string
-	if cond != nil {
-		status = cond.Status
+
+	if cond == nil {
+		return
 	}
 
 	c.mu.Lock()
-	c.curStatuses[rsrc] = status
+	c.curStatuses[rsrc] = cond.Status
 	c.mu.Unlock()
 }
 
-func (c *Controller) HandleIPAllocation(allServices []*model.Service) {
+func (c *Controller) HandleIPAllocation(allServices []*model.Service) bool {
 	if c == nil {
-		return
+		return false
 	}
 	ipAllocsByResource := make(map[statusctl.Resource]map[string]ipAllocation)
-	for _, svc := range allServices {
-		rsrc := resourceFromModelService(svc)
-		if svc.AutoAllocatedIPv4Address == "" && svc.AutoAllocatedIPv6Address == "" {
-			continue
-		}
+	if enableServiceEntryIPAutoAllocationStatus {
+		for _, svc := range allServices {
+			rsrc := resourceFromModelService(svc)
+			if svc.AutoAllocatedIPv4Address == "" && svc.AutoAllocatedIPv6Address == "" {
+				continue
+			}
 
-		if ipAllocsByResource[rsrc] == nil {
-			ipAllocsByResource[rsrc] = make(map[string]ipAllocation)
-		}
-		if _, ok := ipAllocsByResource[rsrc][svc.Hostname.String()]; !ok {
-			ipAllocsByResource[rsrc][svc.Hostname.String()] = ipAllocation{
-				Hostname: svc.Hostname.String(),
-				ServiceEntryIPs: []serviceEntryIP{
-					{svc.AutoAllocatedIPv4Address},
-					{svc.AutoAllocatedIPv6Address},
-				},
+			if ipAllocsByResource[rsrc] == nil {
+				ipAllocsByResource[rsrc] = make(map[string]ipAllocation)
+			}
+			if _, ok := ipAllocsByResource[rsrc][svc.Hostname.String()]; !ok {
+				ipAllocsByResource[rsrc][svc.Hostname.String()] = ipAllocation{
+					Hostname: svc.Hostname.String(),
+					ServiceEntryIPs: []serviceEntryIP{
+						{svc.AutoAllocatedIPv4Address},
+						{svc.AutoAllocatedIPv6Address},
+					},
+				}
 			}
 		}
 	}
@@ -168,6 +179,7 @@ func (c *Controller) HandleIPAllocation(allServices []*model.Service) {
 		}
 	}
 
+	var enqueued bool
 	if statusController := c.statusController.Load(); statusController != nil {
 		// Write the status only in the leader.
 		for rsrc, ipAllocs := range ipAllocsByResource {
@@ -179,16 +191,21 @@ func (c *Controller) HandleIPAllocation(allServices []*model.Service) {
 				continue
 			}
 			newStatus := string(b)
-			if curStatus, ok := c.curStatuses[rsrc]; ok && curStatus == newStatus {
+			curStatus, ok := c.curStatuses[rsrc]
+			if ok && curStatus == newStatus {
 				continue
 			}
+			c.curStatuses[rsrc] = newStatus
 			statusController.EnqueueStatusUpdateResource(newStatus, rsrc)
+			enqueued = true
 		}
 
 		for _, rsrc := range deleted {
 			statusController.EnqueueStatusUpdateResource(nil, rsrc)
+			enqueued = true
 		}
 	}
+	return enqueued
 }
 
 func removeCondition(conds []*v1alpha1.IstioCondition, condition string) []*v1alpha1.IstioCondition {
@@ -202,7 +219,7 @@ func removeCondition(conds []*v1alpha1.IstioCondition, condition string) []*v1al
 }
 
 func resourceFromModelService(svc *model.Service) statusctl.Resource {
-	r := svc.Attributes.MCPOriginResourceRef
+	r := svc.Attributes.MCPServiceEntryRef
 	return statusctl.Resource{
 		GroupVersionResource: r.GroupVersionResource,
 		Namespace:            svc.Attributes.Namespace,
