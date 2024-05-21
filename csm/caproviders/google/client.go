@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// nolint:all
 package google
 
 import (
@@ -31,6 +32,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	gcapb "istio.io/istio/csm/proto/providers/google"
+	gcapbsvc "istio.io/istio/csm/proto/providers/google"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/env"
 	grpcproxy "istio.io/istio/pkg/grpcproxy"
@@ -49,7 +51,7 @@ var (
 type googleCAClient struct {
 	caEndpoint string
 	enableTLS  bool
-	client     gcapb.MeshCertificateServiceClient
+	client     gcapbsvc.MeshCertificateServiceClient
 	conn       *grpc.ClientConn
 }
 
@@ -85,7 +87,7 @@ func NewGoogleCAClient(endpoint string, proxyAddr string, tls bool, provider cre
 		return nil, fmt.Errorf("failed to connect to endpoint %s", endpoint)
 	}
 	c.conn = conn
-	c.client = gcapb.NewMeshCertificateServiceClient(conn)
+	c.client = gcapbsvc.NewMeshCertificateServiceClient(conn)
 	return c, nil
 }
 

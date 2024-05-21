@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// nolint:all
 package xds
 
 import (
@@ -20,6 +21,7 @@ import (
 
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	discoverysvc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -120,7 +122,7 @@ func IsWildcardTypeURL(typeURL string) bool {
 }
 
 // DiscoveryStream is a server interface for XDS.
-type DiscoveryStream = discovery.AggregatedDiscoveryService_StreamAggregatedResourcesServer
+type DiscoveryStream = discoverysvc.AggregatedDiscoveryService_StreamAggregatedResourcesServer
 
 // Connection holds information about an xDS client connection. There may be more than one connection to the same client.
 type Connection struct {

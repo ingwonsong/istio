@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// nolint:all
 package mock
 
 import (
@@ -22,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 
 	gcapb "istio.io/istio/csm/proto/providers/google"
+	gcapbsvc "istio.io/istio/csm/proto/providers/google"
 )
 
 // CAService is a simple mocked Google CA Service.
@@ -62,7 +64,7 @@ func CreateServer(addr string, service *CAService) (*CAServer, error) {
 	s.Address = lis.Addr().String()
 
 	var serveErr error
-	gcapb.RegisterMeshCertificateServiceServer(s.Server, service)
+	gcapbsvc.RegisterMeshCertificateServiceServer(s.Server, service)
 	go func() {
 		if err := s.Server.Serve(lis); err != nil {
 			serveErr = err

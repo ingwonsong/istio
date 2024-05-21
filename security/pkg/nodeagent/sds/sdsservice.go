@@ -23,8 +23,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	cryptomb "github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/private_key_providers/cryptomb/v3alpha"
-	qat "github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/private_key_providers/qat/v3alpha"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	tls "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -34,7 +32,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/durationpb"
 
 	mesh "istio.io/api/mesh/v1alpha1"
 	"istio.io/istio/pilot/pkg/util/protoconv"
@@ -313,58 +310,6 @@ func toEnvoySecret(s *security.SecretItem, caRootPath string, pkpConf *mesh.Priv
 		}
 	} else {
 		switch pkpConf.GetProvider().(type) {
-		case *mesh.PrivateKeyProvider_Cryptomb:
-			crypto := pkpConf.GetCryptomb()
-			msg := protoconv.MessageToAny(&cryptomb.CryptoMbPrivateKeyMethodConfig{
-				PollDelay: durationpb.New(time.Duration(crypto.GetPollDelay().Nanos)),
-				PrivateKey: &core.DataSource{
-					Specifier: &core.DataSource_InlineBytes{
-						InlineBytes: s.PrivateKey,
-					},
-				},
-			})
-			secret.Type = &tls.Secret_TlsCertificate{
-				TlsCertificate: &tls.TlsCertificate{
-					CertificateChain: &core.DataSource{
-						Specifier: &core.DataSource_InlineBytes{
-							InlineBytes: s.CertificateChain,
-						},
-					},
-					PrivateKeyProvider: &tls.PrivateKeyProvider{
-						ProviderName: "cryptomb",
-						ConfigType: &tls.PrivateKeyProvider_TypedConfig{
-							TypedConfig: msg,
-						},
-						Fallback: crypto.GetFallback().GetValue(),
-					},
-				},
-			}
-		case *mesh.PrivateKeyProvider_Qat:
-			qatConf := pkpConf.GetQat()
-			msg := protoconv.MessageToAny(&qat.QatPrivateKeyMethodConfig{
-				PollDelay: durationpb.New(time.Duration(qatConf.GetPollDelay().Nanos)),
-				PrivateKey: &core.DataSource{
-					Specifier: &core.DataSource_InlineBytes{
-						InlineBytes: s.PrivateKey,
-					},
-				},
-			})
-			secret.Type = &tls.Secret_TlsCertificate{
-				TlsCertificate: &tls.TlsCertificate{
-					CertificateChain: &core.DataSource{
-						Specifier: &core.DataSource_InlineBytes{
-							InlineBytes: s.CertificateChain,
-						},
-					},
-					PrivateKeyProvider: &tls.PrivateKeyProvider{
-						ProviderName: "qat",
-						ConfigType: &tls.PrivateKeyProvider_TypedConfig{
-							TypedConfig: msg,
-						},
-						Fallback: qatConf.GetFallback().GetValue(),
-					},
-				},
-			}
 		default:
 			secret.Type = &tls.Secret_TlsCertificate{
 				TlsCertificate: &tls.TlsCertificate{

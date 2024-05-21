@@ -43,6 +43,7 @@ func init() {
 	otel.SetLogger(log.NewLogrAdapter(monitoringLogger))
 }
 
+// GOOGLE3_HIDDEN_BEGIN: Disable prometheus on CSM sidecar
 // RegisterPrometheusExporter sets the global metrics handler to the provided Prometheus registerer and gatherer.
 // Returned is an HTTP handler that can be used to read metrics from.
 func RegisterPrometheusExporter(reg prometheus.Registerer, gatherer prometheus.Gatherer) (http.Handler, error) {
@@ -72,6 +73,8 @@ func RegisterPrometheusExporter(reg prometheus.Registerer, gatherer prometheus.G
 	handler := promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{})
 	return handler, nil
 }
+
+// GOOGLE3_HIDDEN_END
 
 // A Metric collects numerical observations.
 type Metric interface {

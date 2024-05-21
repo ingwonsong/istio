@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// nolint:all
 package googlecas
 
 import (
@@ -22,6 +23,7 @@ import (
 
 	privateca "cloud.google.com/go/security/privateca/apiv1"
 	privatecapb "cloud.google.com/go/security/privateca/apiv1/privatecapb"
+	privatecapbsvc "cloud.google.com/go/security/privateca/apiv1/privatecapb"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -69,12 +71,12 @@ func NewGoogleCASClient(capool string, options ...option.ClientOption) (security
 	return caClient, nil
 }
 
-func (r *GoogleCASClient) createCertReq(name string, csrPEM []byte, lifetime time.Duration) *privatecapb.CreateCertificateRequest {
+func (r *GoogleCASClient) createCertReq(name string, csrPEM []byte, lifetime time.Duration) *privatecapbsvc.CreateCertificateRequest {
 	isCA := false
 
 	// We use Certificate_Config option to ensure that we only request a certificate with CAS supported extensions/usages.
 	// CAS uses the PEM encoded CSR only for its public key and infers the certificate SAN (identity) of the workload through SPIFFE identity reflection
-	creq := &privatecapb.CreateCertificateRequest{
+	creq := &privatecapbsvc.CreateCertificateRequest{
 		Parent:        r.caSigner,
 		CertificateId: name,
 		Certificate: &privatecapb.Certificate{
@@ -137,7 +139,7 @@ func (r *GoogleCASClient) GetRootCertBundle() ([]string, error) {
 
 	ctx := context.Background()
 
-	req := &privatecapb.FetchCaCertsRequest{
+	req := &privatecapbsvc.FetchCaCertsRequest{
 		CaPool: r.caSigner,
 	}
 	resp, err := r.caClient.FetchCaCerts(ctx, req)

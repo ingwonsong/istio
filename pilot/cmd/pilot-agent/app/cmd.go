@@ -87,11 +87,13 @@ func NewRootCommand(sds istioagent.SDSServiceFactory) *cobra.Command {
 	rootCmd.AddCommand(iptables.GetCommand(loggingOptions))
 	rootCmd.AddCommand(cleaniptables.GetCommand(loggingOptions))
 
+	// GOOGLE3_HIDDEN_BEGIN: Disable collaterals for CSM builds
 	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, collateral.Metadata{
 		Title:   "Istio Pilot Agent",
 		Section: "pilot-agent CLI",
 		Manual:  "Istio Pilot Agent",
 	}))
+	// GOOGLE3_HIDDEN_END
 
 	return rootCmd
 }
@@ -164,7 +166,9 @@ func newProxyCommand(sds istioagent.SDSServiceFactory) *cobra.Command {
 				}
 			}
 
+			// GOOGLE3_HIDDEN_BEGIN: Disable IP tables nflog
 			go iptableslog.ReadNFLOGSocket(ctx)
+			// GOOGLE3_HIDDEN_END
 
 			// On SIGINT or SIGTERM, cancel the context, triggering a graceful shutdown
 			go cmd.WaitSignalFunc(cancel)
