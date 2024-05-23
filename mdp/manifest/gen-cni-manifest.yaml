@@ -17,23 +17,21 @@ metadata:
   labels:
     app: istio-cni
 data:
-  # The CNI network configuration to add to the plugin chain on each node.  The special
-  # values in this config will be automatically populated.
-  cni_network_config: |-
-        {
-          "cniVersion": "0.3.1",
-          "name": "istio-cni",
-          "type": "istio-cni",
-          "log_level": "{{ .LOG_LEVEL }}",
-          "log_uds_address": "__LOG_UDS_ADDRESS__",
-          
-          "cni_event_address": "__CNI_EVENT_ADDRESS__",
-          "kubernetes": {
-              "kubeconfig": "__KUBECONFIG_FILEPATH__",
-              "cni_bin_dir": "/home/kubernetes/bin",
-              "exclude_namespaces": [ "kube-system" ]
-          }
-        }
+  CURRENT_AGENT_VERSION: "{{ .MDP_TAG }}"
+  LOG_LEVEL: "{{ .LOG_LEVEL }}"
+  AMBIENT_ENABLED: "false"
+  AMBIENT_DNS_CAPTURE: "false"
+  AMBIENT_IPV6: "false"
+  CNI_NET_DIR: /etc/cni/net.d
+  CHAINED_CNI_PLUGIN: "true"
+  EXCLUDED_NAMESPACES: "kube-system"
+  REPAIR_ENABLED: "true"
+  REPAIR_LABEL_PODS: "false"
+  REPAIR_DELETE_PODS: "false"
+  REPAIR_REPAIR_PODS: "true"
+  REPAIR_INIT_CONTAINER_NAME: "istio-validation"
+  REPAIR_BROKEN_POD_LABEL_KEY: "cni.istio.io/uninitialized"
+  REPAIR_BROKEN_POD_LABEL_VALUE: "true"
 ---
 # Source: cni/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -180,48 +178,23 @@ spec:
           command: ["install-cni"]
           args:
             - --log_output_level=default:"{{ .LOG_LEVEL }}",cni:"{{ .LOG_LEVEL }}"
+          envFrom:
+            - configMapRef:
+                name: istio-cni-config
           env:
-            # The CNI network config to install on each node.
-            - name: CNI_NETWORK_CONFIG
-              valueFrom:
-                configMapKeyRef:
-                  name: istio-cni-config
-                  key: cni_network_config
-            - name: CNI_NET_DIR
-              value: /etc/cni/net.d
-            # Deploy as a standalone CNI plugin or as chained?
-            - name: CHAINED_CNI_PLUGIN
-              value: "true"
-            - name: REPAIR_ENABLED
-              value: "true"
             - name: REPAIR_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: REPAIR_LABEL_PODS
-              value: "false"
-            # Set to true to enable pod deletion
-            - name: REPAIR_DELETE_PODS
-              value: "false"
-            - name: REPAIR_REPAIR_PODS
-              value: "true"
             - name: REPAIR_RUN_AS_DAEMON
               value: "true"
             - name: REPAIR_SIDECAR_ANNOTATION
               value: "sidecar.istio.io/status"
-            - name: REPAIR_INIT_CONTAINER_NAME
-              value: "istio-validation"
-            - name: REPAIR_BROKEN_POD_LABEL_KEY
-              value: "cni.istio.io/uninitialized"
-            - name: REPAIR_BROKEN_POD_LABEL_VALUE
-              value: "true"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-            - name: LOG_LEVEL
-              value: "{{ .LOG_LEVEL }}"
             - name: GOMEMLIMIT
               valueFrom:
                 resourceFieldRef:
@@ -230,6 +203,14 @@ spec:
               valueFrom:
                 resourceFieldRef:
                   resource: limits.cpu
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir
