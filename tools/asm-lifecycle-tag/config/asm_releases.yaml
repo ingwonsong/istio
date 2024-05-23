@@ -5,5 +5,5 @@ repos:
   - asm/install-cni
   - asm/mdp
 versions:
-  - name: 1.20.4-asm.0
+  - name: 1.20.6-asm.0
     status: live
