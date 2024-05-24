@@ -18,7 +18,6 @@ metadata:
     app: istio-cni
 data:
   CURRENT_AGENT_VERSION: "{{ .MDP_TAG }}"
-  LOG_LEVEL: "{{ .LOG_LEVEL }}"
   AMBIENT_ENABLED: "false"
   AMBIENT_DNS_CAPTURE: "false"
   AMBIENT_IPV6: "false"
