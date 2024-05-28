@@ -217,7 +217,6 @@ STANDARD_BINARIES:=./istioctl/cmd/istioctl \
   ./samples/extauthz/cmd/extauthz \
   ./operator/cmd/operator \
   ./mdp/controller/cmd/mdp \
-  ./tools/packaging/knative/addonmigration
 
 # These are binaries that require Linux to build, and should
 # be skipped on other platforms. Notably this includes the current Linux-only Istio CNI plugin
@@ -343,8 +342,7 @@ gen: \
 	copy-templates \
 	gen-addons \
 	update-golden \
-	gen-mdp-manifests \
-	copy-addonmigration-manifest ## Update all generated code.
+	gen-mdp-manifests ## Update all generated code.
 
 gen-check: gen check-clean-repo
 
@@ -392,8 +390,6 @@ copy-templates:
 		cp manifests/zzz_profile.yaml manifests/charts/$$chart/templates ; \
 	done
 
-copy-addonmigration-manifest:
-	./tools/packaging/knative/addonmigration/copy-manifest.sh
 #-----------------------------------------------------------------------------
 # Target: go build
 #-----------------------------------------------------------------------------
