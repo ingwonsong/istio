@@ -36,7 +36,6 @@ import (
 	"istio.io/istio/pkg/env"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/security"
-	"istio.io/istio/pkg/spiffe"
 	"istio.io/istio/security/pkg/cmd"
 	"istio.io/istio/security/pkg/pki/ca"
 	"istio.io/istio/security/pkg/pki/ra"
@@ -189,7 +188,7 @@ func (s *Server) RunCA(grpc *grpc.Server) {
 		// Add a custom authenticator using standard JWT validation, if not running in K8S
 		// When running inside K8S - we can use the built-in validator, which also check pod removal (invalidation).
 		jwtRule := v1beta1.JWTRule{Issuer: iss, Audiences: []string{aud}}
-		oidcAuth, err := authenticate.NewJwtAuthenticator(&jwtRule)
+		oidcAuth, err := authenticate.NewJwtAuthenticator(&jwtRule, nil)
 		if err == nil {
 			s.caServer.Authenticators = append(s.caServer.Authenticators, oidcAuth)
 			log.Info("Using out-of-cluster JWT authentication")
@@ -447,7 +446,7 @@ func (s *Server) createIstioCA(opts *caOptions) (*ca.IstioCA, error) {
 	if len(keyManagementEndpoint.Get()) != 0 {
 		// The KMS endpoint is set. Run the KMS backed CA.
 		log.Info("Use KMS backed CA")
-		spiffe.SetTrustDomain(opts.TrustDomain)
+		// spiffe.SetTrustDomain(opts.TrustDomain)
 		// Abort after 100 days. This does not really matter.
 		ctx, cancel := context.WithTimeout(context.Background(), time.Hour*2400)
 		defer cancel()
