@@ -236,6 +236,9 @@ func commonASMCLIInstallFlags(settings *resource.Settings, rev *revision.Config,
 		}
 	}
 
+	// TODO(akshayjnambiar): this is a temporary change to start running the tests for incluster. We need to enable deltaXDS by default and then disable it for MCP in thetis.
+	flags = append(flags, "--custom_overlay", filepath.Join(pkgPath, "overlay/deltaXDS-incluster.yaml"))
+
 	outputDir, err := ASMOutputDir(rev)
 	if err == nil {
 		flags = append(flags, "--output_dir", outputDir)
