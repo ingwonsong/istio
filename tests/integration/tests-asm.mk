@@ -18,6 +18,13 @@ test.integration.asm: | $(JUNIT_REPORT)
 .PHONY: test.integration.asm.networking
 test.integration.asm.networking: | $(JUNIT_REPORT)
 	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/pilot/... | grep -v "${DISABLED_PACKAGES}") -timeout 60m \
+	--istio.test.gatewayConformance.gatewayMustHaveAddressTimeout=900s \
+	--istio.test.gatewayConformance.gatewayClassMustBeAcceptedTimeout=900s \
+	--istio.test.gatewayConformance.maxTimeToConsistency=900s \
+	--istio.test.gatewayConformance.gatewayStatusMustHaveListenersTimeout=300s \
+	--istio.test.gatewayConformance.httpRouteMustNotHaveParentsTimeout=300s \
+	--istio.test.gatewayConformance.httpRouteMustHaveConditionTimeout=300s \
+	--istio.test.gatewayConformance.routeMustHaveParentsTimeout=300s \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 
