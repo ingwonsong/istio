@@ -19,6 +19,7 @@ import (
 	// GOOGLE3_HIDDEN:_ "google3/go/tools/nogo/allowlist/crypto/elliptic"
 	// GOOGLE3_HIDDEN:_ "google3/go/tools/nogo/allowlist/crypto/rsa"
 
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -60,6 +61,7 @@ func ParsePemEncodedCertificateChain(certBytes []byte) ([]*x509.Certificate, []b
 		cb            *pem.Block
 		rootCertBytes []byte
 	)
+	certBytes = bytes.TrimSpace(certBytes)
 	for {
 		rootCertBytes = certBytes
 		cb, certBytes = pem.Decode(certBytes)

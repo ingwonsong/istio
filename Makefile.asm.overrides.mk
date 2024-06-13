@@ -1,4 +1,5 @@
-export IMG ?= gcr.io/asm-staging-images/asm/build-tools:master-latest
+export IMG ?= gcr.io/asm-staging-images/asm/build-tools:master-f195765b99d9a1e72d5b2055993113dfebad37df
+
 
 # Set up authentication if using custom Envoy URL
 # This is needed to fetch Envoy binary for ASM, especially in prow
