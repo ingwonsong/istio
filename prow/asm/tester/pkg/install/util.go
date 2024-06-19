@@ -217,8 +217,11 @@ type testOverrides struct {
 	DisableIstiodJWKS bool `json:"disable_istiod_jwks"`
 }
 
-// buildTestOverrides creates addition test overrides. JwtMode is one of the examples.
-func buildTestOverrides(settings *resource.Settings) error {
+// applyTestOverridesAndReprovision creates addition test overrides and then force reprovisions MCP. JwtMode is one of the examples.
+func applyTestOverridesAndReprovision(settings *resource.Settings) error {
+	if !settings.MCPSettings.UseHybridModeForJWT {
+		return nil
+	}
 	testOverrides := testOverrides{DisableIstiodJWKS: !settings.MCPSettings.UseHybridModeForJWT}
 	testOverridesJSON, err := json.Marshal(testOverrides)
 	if err != nil {
@@ -233,6 +236,23 @@ func buildTestOverrides(settings *resource.Settings) error {
 			context,
 			string(escapedJSON))); err != nil {
 			return fmt.Errorf("failed to update the asm-options config map with testOverrides for context %q: %w", context, err)
+		}
+	}
+	if err := forceReprovisionMCP(settings); err != nil {
+		return fmt.Errorf("failed to reprovision the mcp: %w", err)
+	}
+	return nil
+}
+
+func forceReprovisionMCP(settings *resource.Settings) error {
+	for _, context := range settings.KubeContexts {
+		cprVersion, err := exec.RunWithOutput(fmt.Sprintf("kubectl get ControlPlaneRevision -n istio-system --context=%s -o=jsonpath='{.items[0].metadata.name}'", context))
+		if err != nil {
+			return fmt.Errorf("failed to list ControlPlaneRevision: %w", err)
+		}
+		if err := exec.Run(fmt.Sprintf(`kubectl --context=%s patch ControlPlaneRevision %s -n istio-system --type 'json' -p='[{"op": "add", "path": "/metadata/annotations", "value": {"mesh.cloud.google.com/force-reprovision":"true"}}]'`,
+			context, cprVersion)); err != nil {
+			return fmt.Errorf("failed to patch the the ControlPlaneRevision: %w", err)
 		}
 	}
 	return nil

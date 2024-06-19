@@ -287,7 +287,7 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 		return fmt.Errorf("failed to enable managed multicluster: %w", err)
 	}
 
-	if err := buildTestOverrides(c.settings); err != nil {
+	if err := applyTestOverridesAndReprovision(c.settings); err != nil {
 		return fmt.Errorf("failed to add the testOverrides: %w", err)
 	}
 
@@ -477,7 +477,7 @@ EOF'`, map[string]any{
 		return fmt.Errorf("failed to enable managed multicluster: %w", err)
 	}
 
-	if err := buildTestOverrides(c.settings); err != nil {
+	if err := applyTestOverridesAndReprovision(c.settings); err != nil {
 		return fmt.Errorf("failed to add the testOverrides: %w", err)
 	}
 
