@@ -9,7 +9,7 @@
   "spec": {
     "endpoints": [
       {
-        "address": "unix:///tmp/google.discovery.uds"
+        "address": "localhost"
       }
     ],
     "hosts": [
@@ -20,10 +20,11 @@
       {
         "name": "unused-discovery-server-port",
         "number": 80,
-        "protocol": "HTTP2"
+        "protocol": "HTTP2",
+        "targetPort": 50051
       }
     ],
-    "resolution": "STATIC"
+    "resolution": "DNS"
   },
   "status": {}
 }
