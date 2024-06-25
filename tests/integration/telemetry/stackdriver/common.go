@@ -290,7 +290,7 @@ func unmarshalFromTemplateFile(t framework.TestContext, file string, out proto.M
 }
 
 func OnGKE(ctx resource.Context) bool {
-	ver, _ := ctx.Clusters().Kube()[0].GetKubernetesVersion()
+	ver, _ := ctx.Clusters()[0].GetKubernetesVersion()
 	return strings.Contains(ver.String(), "-gke")
 }
 

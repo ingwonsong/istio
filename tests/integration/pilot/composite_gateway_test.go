@@ -99,7 +99,7 @@ spec:
 `).Apply()
 				return err
 			}, retry.Delay(time.Second*10), retry.Timeout(time.Second*90))
-			gwClient := t.Clusters().Kube().Default().GatewayAPI().GatewayV1beta1().Gateways("istio-system")
+			gwClient := t.Clusters().Default().GatewayAPI().GatewayV1beta1().Gateways("istio-system")
 			t.NewSubTest("Istio").Run(func(t framework.TestContext) {
 				t.NewSubTest("READY").Run(func(t framework.TestContext) {
 					retry.UntilSuccessOrFail(t, func() error {

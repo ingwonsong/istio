@@ -1,4 +1,4 @@
-export IMG ?= gcr.io/asm-staging-images/asm/build-tools:master-f195765b99d9a1e72d5b2055993113dfebad37df
+export IMG ?= gcr.io/asm-staging-images/asm/build-tools:master-latest
 
 
 # Set up authentication if using custom Envoy URL

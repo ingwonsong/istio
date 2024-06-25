@@ -23,15 +23,12 @@ import (
 	"os"
 	"time"
 
-	goversion "github.com/hashicorp/go-version"
 	cert "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/version"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/ptr"
 	"istio.io/istio/security/pkg/pki/util"
@@ -48,7 +45,7 @@ const (
 
 	LegacyKubernetesSigner = "kubernetes.io/legacy-unknown"
 
-	gkeAsmKubernetesSigner = "pki.gke.io/istiod"
+	GkeAsmKubernetesSigner = "pki.gke.io/istiod"
 )
 
 var certWatchTimeout = 60 * time.Second
@@ -306,31 +303,4 @@ func cleanupCSR(client clientset.Interface, csr *cert.CertificateSigningRequest)
 		log.Debugf("deleted CSR: %v", csr.Name)
 	}
 	return err
-}
-
-// GetAsmK8sSigner: Get the signerName and approval logic for (only) ASM based on GKE version
-func GetAsmK8sSigner(k8sClient kube.Client) (string, bool, error) {
-	var err error
-	var serverVersion *version.Info
-	// retry since this is critical code
-	for retries := 0; retries < versionRetryCount; retries++ {
-		serverVersion, err = k8sClient.GetKubernetesVersion()
-		if err == nil {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if err != nil {
-		return "", false, fmt.Errorf("timeout when retrieving kubernetes server version: %v", err)
-	}
-	ver, err := goversion.NewVersion(serverVersion.String())
-	if err != nil {
-		return "", false, fmt.Errorf("could not parse kubernetes server version: %v", err)
-	}
-	major := ver.Segments()[0]
-	minor := ver.Segments()[1]
-	if major == 1 && minor < apiv1Beta1RemovedMinorVersion {
-		return LegacyKubernetesSigner, true, nil
-	}
-	return gkeAsmKubernetesSigner, false, nil
 }

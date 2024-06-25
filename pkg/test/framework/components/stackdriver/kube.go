@@ -68,7 +68,7 @@ func newKube(ctx resource.Context, cfg Config) (Instance, error) {
 	c := &kubeComponent{
 		cluster: ctx.Clusters().GetOrDefault(cfg.Cluster),
 	}
-	ver, _ := ctx.Clusters().Kube()[0].GetKubernetesVersion()
+	ver, _ := ctx.Clusters()[0].GetKubernetesVersion()
 	c.onGKE = strings.Contains(ver.String(), "-gke")
 	c.id = ctx.TrackResource(c)
 	var err error

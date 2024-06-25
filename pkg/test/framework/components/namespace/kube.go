@@ -90,7 +90,7 @@ func (n *kubeNamespace) Prefix() string {
 }
 
 func (n *kubeNamespace) Labels() (map[string]string, error) {
-	perCluster := make([]map[string]string, len(n.ctx.AllClusters().Kube()))
+	perCluster := make([]map[string]string, len(n.ctx.AllClusters()))
 	if err := n.forEachCluster(func(i int, c cluster.Cluster) error {
 		ns, err := c.Kube().CoreV1().Namespaces().Get(context.TODO(), n.Name(), metav1.GetOptions{})
 		if err != nil {
@@ -208,7 +208,7 @@ func (n *kubeNamespace) removeNamespaceLabel(key string) error {
 // setNamespaceAnnotation annotates a namespace with the given key, value pair
 func (n *kubeNamespace) setNamespaceAnnotation(key, value string) error {
 	// patch is not well-suited to annotating a ns with no existing annotations, use update instead.
-	for _, cluster := range n.ctx.Clusters().Kube() {
+	for _, cluster := range n.ctx.Clusters() {
 		originalNS, err := cluster.Kube().CoreV1().Namespaces().Get(context.TODO(), n.name, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -229,7 +229,7 @@ func (n *kubeNamespace) setNamespaceAnnotation(key, value string) error {
 func (n *kubeNamespace) removeNamespaceAnnotation(key string) error {
 	// need to convert '/' to '~1' as per the JSON patch spec http://jsonpatch.com/#operations
 	jsonPatchEscapedKey := strings.ReplaceAll(key, "/", "~1")
-	for _, cluster := range n.ctx.Clusters().Kube() {
+	for _, cluster := range n.ctx.Clusters() {
 		anLabelPatch := fmt.Sprintf(`[{"op":"remove","path":"/metadata/annotations/%s"}]`, jsonPatchEscapedKey)
 		if _, err := cluster.Kube().CoreV1().Namespaces().Patch(
 			context.TODO(), n.name, types.JSONPatchType, []byte(anLabelPatch), metav1.PatchOptions{}); err != nil {
@@ -306,7 +306,7 @@ func (n *kubeNamespace) createInCluster(c cluster.Cluster, cfg Config) error {
 
 func (n *kubeNamespace) forEachCluster(fn func(i int, c cluster.Cluster) error) error {
 	errG := multierror.Group{}
-	for i, c := range n.ctx.AllClusters().Kube() {
+	for i, c := range n.ctx.AllClusters() {
 		i, c := i, c
 		errG.Go(func() error {
 			return fn(i, c)

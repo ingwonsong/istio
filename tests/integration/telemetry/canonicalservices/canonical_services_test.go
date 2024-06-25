@@ -76,7 +76,7 @@ func setupEchoes(echoNames []string) resource.SetupFn {
 // service resources for each echo instance.
 func verifyCanonicalServices(ctx framework.TestContext, echoNames []string) error {
 	const canonicalServicePath = "/apis/anthos.cloud.google.com/v1beta1/canonicalservices"
-	for _, c := range ctx.Clusters().Kube() {
+	for _, c := range ctx.Clusters() {
 		data, err := c.Kube().CoreV1().RESTClient().
 			Get().AbsPath(canonicalServicePath).DoRaw(context.TODO())
 		if err != nil {
