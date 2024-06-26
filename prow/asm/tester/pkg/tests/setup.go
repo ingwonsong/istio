@@ -151,6 +151,10 @@ func genTopologyFile(settings *resource.Settings) error {
 			for _, env := range istiodPods.Items[0].Spec.Containers[0].Env {
 				if env.Name == "CLUSTER_ID" {
 					clusterName = env.Value
+					// Sanitize cluster name to a DNS 1123 conformant label.
+					for _, s := range []string{"/", "_", "@", ":"} {
+						clusterName = strings.ReplaceAll(clusterName, s, "-")
+					}
 					break
 				}
 			}
