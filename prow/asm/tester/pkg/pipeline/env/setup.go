@@ -363,7 +363,7 @@ func fixGKE(settings *resource.Settings) error {
 
 		// Setup the firewall for VPC-SC
 		for _, c := range kube.GKEClusterSpecsFromContexts(gkeContexts) {
-			getFirewallRuleCmd := fmt.Sprintf("bash -c \"gcloud compute firewall-rules list --filter=\"name~gke-\"%s\"-[0-9a-z]*-master\" --format=json | jq -r '.[0].name'\"", c.Name)
+			getFirewallRuleCmd := fmt.Sprintf("bash -c \"gcloud compute firewall-rules list --filter=\"name~gke-\"%s\"-[0-9a-z]*-all\" --format=json | jq -r '.[0].name'\"", c.Name)
 			firewallRuleName, err := exec.RunWithOutput(getFirewallRuleCmd)
 			if err != nil {
 				return fmt.Errorf("failed to get firewall rule name: %w", err)
