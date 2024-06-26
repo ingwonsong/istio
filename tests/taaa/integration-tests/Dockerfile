@@ -1,6 +1,6 @@
 # Defined by http://go/gh/istio/tools/blob/master/docker/build-tools/Dockerfile.
 # Needed to have expected versions of tools used by tests.
-FROM gcr.io/istio-testing/build-tools:master-latest AS tools
+FROM gcr.io/asm-staging-images/asm/build-tools:master-latest AS tools
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 WORKDIR /
 

@@ -1,4 +1,5 @@
-FROM us-docker.pkg.dev/artifact-foundry-prod/docker-3p/ubuntu:noble
+# hadolint ignore=DL3007,DL3026
+FROM marketplace.gcr.io/google/ubuntu2404:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
