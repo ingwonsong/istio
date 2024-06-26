@@ -1,9 +1,0 @@
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: delta-xds-enable
-spec:
-  values:
-    pilot:
-      env:
-        ISTIO_DELTA_XDS: true
