@@ -30,8 +30,8 @@ spec:
             kubernetesVersion: "1.29"
             {{- end }}
             compressArtifacts: "true"
-            nodeCount: "4"
-            nodeType: "t3.large"
+            nodeCount: "3"
+            nodeType: "t3.xlarge"
             username: asm-svc-acct
             region: us-east-2
       - apiVersion: sut.tailorbird.io/v1alpha1
@@ -52,7 +52,7 @@ spec:
             kubernetesVersion: "1.29"
             {{- end }}
             compressArtifacts: "true"
-            nodeCount: "4"
-            nodeType: "t3.large"
+            nodeCount: "3"
+            nodeType: "t3.xlarge"
             username: asm-svc-acct
             region: us-east-2

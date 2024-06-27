@@ -30,5 +30,5 @@ spec:
             {{- end }}
             username: asm-svc-acct
             compressArtifacts: "true"
-            nodeType: "t3.large"
-            nodeCount: "4"
+            nodeType: "t3.xlarge"
+            nodeCount: "3"
