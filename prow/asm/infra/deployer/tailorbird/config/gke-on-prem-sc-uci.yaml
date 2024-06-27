@@ -24,7 +24,7 @@ spec:
            ipAllocationStrategy: static
            controlPlaneV2Enabled: "true"
            userAcnMode: "true"
-           additionalNodes: "4"
+           additionalNodes: "8"
            username: prowuser
            {{- if .Version }}
            gkectlVersion: "{{ .Version }}"

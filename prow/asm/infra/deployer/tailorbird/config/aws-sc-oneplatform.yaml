@@ -33,6 +33,6 @@ spec:
                 nodepoolPatch: |
                   {
                     "config": {
-                      "instanceType": "t3.large"
+                      "instanceType": "t3.xlarge"
                     }
                   }

@@ -52,7 +52,7 @@ spec:
                 # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
                 vsphereVersion: "7.0"
                 esxiVersion: "7.0"
-                additionalNodes: "4"
+                additionalNodes: "8"
           - apiVersion: sut.tailorbird.io/v1alpha1
             kind: Cluster
             metadata:
@@ -82,4 +82,4 @@ spec:
                 # gkeConnectSA: "{{ .OnPremGkeConnectSA }}"
                 vsphereVersion: "7.0"
                 esxiVersion: "7.0"
-                additionalNodes: "4"
+                additionalNodes: "8"

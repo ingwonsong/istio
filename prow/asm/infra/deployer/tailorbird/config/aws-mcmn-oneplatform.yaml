@@ -34,7 +34,7 @@ spec:
             nodepoolPatch: |
               {
                 "config": {
-                  "instanceType": "t3.large"
+                  "instanceType": "t3.xlarge"
                 }
               }
       - apiVersion: sut.tailorbird.io/v1alpha1
@@ -59,6 +59,6 @@ spec:
             nodepoolPatch: |
               {
                 "config": {
-                  "instanceType": "t3.large"
+                  "instanceType": "t3.xlarge"
                 }
               }

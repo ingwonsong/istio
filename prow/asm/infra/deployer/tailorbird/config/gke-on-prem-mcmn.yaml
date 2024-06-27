@@ -49,7 +49,7 @@ spec:
             vsphereVersion: "7.0"
             esxiVersion: "7.0"
             controlPlaneV2Enabled: "true"
-            additionalNodes: "4"
+            additionalNodes: "8"
             ipAllocationStrategy: static
       - apiVersion: sut.tailorbird.io/v1alpha1
         kind: Cluster
@@ -79,5 +79,5 @@ spec:
             esxiVersion: "7.0"
             controlPlaneV2Enabled: "true"
             userAcnMode: "true"
-            additionalNodes: "4"
+            additionalNodes: "8"
             ipAllocationStrategy: static
