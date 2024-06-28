@@ -276,13 +276,14 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 
 	if features.EnableAmbient {
 		c.ambientIndex = ambient.New(ambient.Options{
-			Client:          kubeClient,
-			SystemNamespace: options.SystemNamespace,
-			DomainSuffix:    options.DomainSuffix,
-			ClusterID:       options.ClusterID,
-			Revision:        options.Revision,
-			XDSUpdater:      options.XDSUpdater,
-			LookupNetwork:   c.Network,
+			Client:                kubeClient,
+			SystemNamespace:       options.SystemNamespace,
+			DomainSuffix:          options.DomainSuffix,
+			ClusterID:             options.ClusterID,
+			Revision:              options.Revision,
+			XDSUpdater:            options.XDSUpdater,
+			LookupNetwork:         c.Network,
+			LookupNetworkGateways: c.NetworkGateways,
 		})
 	}
 	c.exports = newServiceExportCache(c)
@@ -1069,7 +1070,7 @@ func (c *Controller) GetProxyServiceTargetsByPod(pod *v1.Pod, service *v1.Servic
 			// find target port
 			portNum, err := FindPort(pod, &port)
 			if err != nil {
-				log.Warnf("Failed to find port for service %s/%s: %v", service.Namespace, service.Name, err)
+				log.Debugf("Failed to find port for service %s/%s: %v", service.Namespace, service.Name, err)
 				continue
 			}
 			// Dedupe the target ports here - Service might have configured multiple ports to the same target port,

@@ -36,7 +36,17 @@ func (a *index) ServicesCollection(
 	Waypoints krt.Collection[Waypoint],
 	Namespaces krt.Collection[*v1.Namespace],
 ) krt.Collection[model.ServiceInfo] {
-	ServicesInfo := krt.NewCollection(Services, func(ctx krt.HandlerContext, s *v1.Service) *model.ServiceInfo {
+	ServicesInfo := krt.NewCollection(Services, a.serviceServiceBuilder(Waypoints, Namespaces), krt.WithName("ServicesInfo"))
+	ServiceEntriesInfo := krt.NewManyCollection(ServiceEntries, a.serviceEntryServiceBuilder(Waypoints, Namespaces), krt.WithName("ServiceEntriesInfo"))
+	WorkloadServices := krt.JoinCollection([]krt.Collection[model.ServiceInfo]{ServicesInfo, ServiceEntriesInfo}, krt.WithName("WorkloadServices"))
+	return WorkloadServices
+}
+
+func (a *index) serviceServiceBuilder(
+	Waypoints krt.Collection[Waypoint],
+	Namespaces krt.Collection[*v1.Namespace],
+) krt.TransformationSingle[*v1.Service, model.ServiceInfo] {
+	return func(ctx krt.HandlerContext, s *v1.Service) *model.ServiceInfo {
 		portNames := map[int32]model.ServicePortName{}
 		for _, p := range s.Spec.Ports {
 			portNames[p.Port] = model.ServicePortName{
@@ -57,11 +67,7 @@ func (a *index) ServicesCollection(
 			Source:        kind.Service,
 			Waypoint:      waypointKey,
 		}
-	}, krt.WithName("ServicesInfo"))
-	ServiceEntriesInfo := krt.NewManyCollection(ServiceEntries, a.serviceEntryServiceBuilder(Waypoints, Namespaces), krt.WithName("ServiceEntriesInfo"))
-	WorkloadServices := krt.JoinCollection([]krt.Collection[model.ServiceInfo]{ServicesInfo, ServiceEntriesInfo}, krt.WithName("WorkloadServices"))
-	// workloadapi services NOT workloads x services somehow
-	return WorkloadServices
+	}
 }
 
 func (a *index) serviceEntryServiceBuilder(
@@ -193,6 +199,17 @@ func (a *index) constructService(svc *v1.Service, w *Waypoint) *workloadapi.Serv
 			Mode: workloadapi.LoadBalancing_STRICT,
 		}
 	}
+	ipFamily := workloadapi.IPFamilies_AUTOMATIC
+	if len(svc.Spec.IPFamilies) == 2 {
+		ipFamily = workloadapi.IPFamilies_DUAL
+	} else if len(svc.Spec.IPFamilies) == 1 {
+		family := svc.Spec.IPFamilies[0]
+		if family == v1.IPv4Protocol {
+			ipFamily = workloadapi.IPFamilies_IPV4_ONLY
+		} else {
+			ipFamily = workloadapi.IPFamilies_IPV6_ONLY
+		}
+	}
 	// TODO this is only checking one controller - we may be missing service vips for instances in another cluster
 	return &workloadapi.Service{
 		Name:          svc.Name,
@@ -202,18 +219,19 @@ func (a *index) constructService(svc *v1.Service, w *Waypoint) *workloadapi.Serv
 		Ports:         ports,
 		Waypoint:      waypointAddress,
 		LoadBalancing: lb,
+		IpFamilies:    ipFamily,
 	}
 }
 
 func getVIPs(svc *v1.Service) []string {
 	res := []string{}
-	if svc.Spec.ClusterIP != "" && svc.Spec.ClusterIP != v1.ClusterIPNone {
-		res = append(res, svc.Spec.ClusterIP)
+	cips := svc.Spec.ClusterIPs
+	if len(cips) == 0 {
+		cips = []string{svc.Spec.ClusterIP}
 	}
-	for _, ing := range svc.Status.LoadBalancer.Ingress {
-		// IPs are strictly optional for loadbalancers - they may just have a hostname.
-		if ing.IP != "" {
-			res = append(res, ing.IP)
+	for _, cip := range cips {
+		if cip != "" && cip != v1.ClusterIPNone {
+			res = append(res, cip)
 		}
 	}
 	return res

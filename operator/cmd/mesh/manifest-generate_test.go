@@ -1051,7 +1051,7 @@ webhooks:
     apiVersions: ["v1"]
     resources: ["pods"]
   failurePolicy: Fail
-  admissionReviewVersions: ["v1beta1", "v1"]
+  admissionReviewVersions: ["v1"]
   namespaceSelector:
     matchLabels:
       istio-injection: enabled
@@ -1083,7 +1083,7 @@ webhooks:
     apiVersions: ["v1"]
     resources: ["pods"]
   failurePolicy: Fail
-  admissionReviewVersions: ["v1beta1", "v1"]
+  admissionReviewVersions: ["v1"]
   namespaceSelector:
     matchExpressions:
     - key: istio-injection
