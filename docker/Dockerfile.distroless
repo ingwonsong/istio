@@ -1,9 +1,9 @@
 # prepare a distroless source context to copy files from
-FROM cgr.dev/chainguard/static@sha256:873e9709e2a83acc995ff24e71c100480f9c0368e0d86eaee9c3c7cb8fb5f0e0 as distroless_source
+FROM cgr.dev/chainguard/static@sha256:873e9709e2a83acc995ff24e71c100480f9c0368e0d86eaee9c3c7cb8fb5f0e0 AS distroless_source
 
 # prepare a base dev to modify file contents
 # hadolint ignore=DL3007,DL3026
-FROM marketplace.gcr.io/google/ubuntu2404:latest as ubuntu_source
+FROM marketplace.gcr.io/google/ubuntu2404:latest AS ubuntu_source
 
 # Modify contents of container
 COPY --from=distroless_source /etc/ /home/etc
