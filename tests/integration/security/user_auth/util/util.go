@@ -131,6 +131,8 @@ func ValidatePortForward(ctx framework.TestContext, port string) {
 	if conn != nil {
 		defer conn.Close()
 		ctx.Logf("port-forward is available: %v", net.JoinHostPort("localhost", "8443"))
+	} else {
+		ctx.Fatalf("connection for port-forward is nil for : %v", net.JoinHostPort("localhost", "8443"))
 	}
 }
 

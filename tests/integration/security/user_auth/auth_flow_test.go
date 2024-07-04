@@ -50,6 +50,7 @@ func TestBasicAuthFlow(t *testing.T) {
 			service, wd := selenium.StartChromeOrFail(ctx)
 			defer service.Stop()
 			defer wd.Quit()
+			defer forwarder.Close()
 
 			// Navigate
 			if err := wd.Get("https://localhost:8443/headers"); err != nil {
@@ -69,6 +70,12 @@ func TestBasicAuthFlow(t *testing.T) {
 			}
 			selenium.InputByCSSOrFail(ctx, wd, "#password input", "bB2iAGl7VfDE7n7")
 			selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"passwordNext\"]/div/button")
+
+			// continue page
+			if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("//*[text()='Continue']"), 20*time.Second); err != nil {
+				ctx.Fatalf("unable to load continue login page %v", err)
+			}
+			selenium.ClickByXPathOrFail(ctx, wd, "//*[text()='Continue']")
 
 			// Headers page
 			if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("/html/body/pre"), 20*time.Second); err != nil {
@@ -104,7 +111,5 @@ func TestBasicAuthFlow(t *testing.T) {
 				ctx.Fatalf("X-Asm-Rctoken is not in the header")
 			}
 			ctx.Log("Refresh finished.")
-
-			forwarder.Close()
 		})
 }

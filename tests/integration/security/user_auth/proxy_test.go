@@ -106,6 +106,11 @@ func TestProxy(t *testing.T) {
 				}
 				selenium.InputByCSSOrFail(ctx, wd, "#password input", "bB2iAGl7VfDE7n7")
 				selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"passwordNext\"]/div/button")
+				// continue page
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("//*[text()='Continue']"), 20*time.Second); err != nil {
+					ctx.Fatalf("unable to load continue login page %v", err)
+				}
+				selenium.ClickByXPathOrFail(ctx, wd, "//*[text()='Continue']")
 				// Headers page
 				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("/html/body/pre"), 20*time.Second); err != nil {
 					ctx.Fatalf("unable to load headers page %v", err)
@@ -204,6 +209,11 @@ func TestProxy(t *testing.T) {
 				}
 				selenium.InputByCSSOrFail(ctx, wd, "#password input", "bB2iAGl7VfDE7n7")
 				selenium.ClickByXPathOrFail(ctx, wd, "//*[@id=\"passwordNext\"]/div/button")
+				// continue page
+				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("//*[text()='Continue']"), 20*time.Second); err != nil {
+					ctx.Fatalf("unable to load continue login page %v", err)
+				}
+				selenium.ClickByXPathOrFail(ctx, wd, "//*[text()='Continue']")
 				// Headers page
 				if err := wd.WaitWithTimeout(selenium.WaitForElementByXPathCondition("/html/body/pre"), 20*time.Second); err != nil {
 					ctx.Fatalf("unable to load headers page %v", err)

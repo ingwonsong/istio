@@ -78,7 +78,7 @@ func StartChromeOrFail(ctx framework.TestContext) (*selenium.Service, selenium.W
 // GoogleSignInPageIdleCondition condition to wait accounts.google.com root view element to be idle
 func GoogleSignInPageIdleCondition() selenium.Condition {
 	return func(wd selenium.WebDriver) (bool, error) {
-		element, err := wd.FindElement(selenium.ByXPATH, "//*[@id=\"initialView\"]")
+		element, err := wd.FindElement(selenium.ByXPATH, "//*[@id=\"password\"]")
 		if err != nil {
 			return false, nil
 		}
