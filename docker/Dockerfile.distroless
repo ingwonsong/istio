@@ -1,5 +1,6 @@
 # prepare a distroless source context to copy files from
-FROM cgr.dev/chainguard/static@sha256:873e9709e2a83acc995ff24e71c100480f9c0368e0d86eaee9c3c7cb8fb5f0e0 AS distroless_source
+# hadolint ignore=DL3026
+FROM gke.gcr.io/gke-distroless/static:gke_distroless_20240607.00_p0 as distroless_source
 
 # prepare a base dev to modify file contents
 # hadolint ignore=DL3007,DL3026

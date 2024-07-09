@@ -1,0 +1,35 @@
+# hadolint ignore=DL3026
+FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20240607.00_p0 AS distroless_libc
+
+# hadolint ignore=DL3026
+FROM us.gcr.io/gke-release/debian-base:bookworm-v1.0.3-gke.0 AS pkgs
+
+ARG PKGS="ca-certificates-bundle iptables ip6tables libnetfilter_conntrack libnfnetlink libmnl"
+
+WORKDIR /tmp
+
+# hadolint ignore=DL4006,SC2086
+RUN apt-get update \
+    && apt-get download $(apt-cache depends --recurse -i ${PKGS} | grep '^\w') \
+    && mkdir -p /dpkg/var/lib/dpkg/status.d/ \
+    && for deb in *.deb; do \
+        package_name=$(dpkg-deb -I ${deb} | awk '/^ Package: .*$/ {print $2}'); \
+        dpkg --ctrl-tarfile $deb | tar -Oxf - ./control > /dpkg/var/lib/dpkg/status.d/${package_name}; \
+        dpkg --extract $deb /dpkg || exit 10; \
+    done \
+    && find /dpkg/ -type d -empty -delete \
+    && rm -r /dpkg/usr/share/doc/ \
+    && find /dpkg/
+
+WORKDIR /dpkg/usr/sbin/
+
+RUN ln -s iptables-legacy iptables \
+    && ln -s iptables-legacy-restore iptables-restore \
+    && ln -s iptables-legacy-save iptables-save \
+    && ln -s ip6tables-legacy ip6tables \
+    && ln -s ip6tables-legacy-restore ip6tables-restore \
+    && ln -s ip6tables-legacy-save ip6tables-save
+
+FROM distroless_libc
+COPY --from=pkgs ["/dpkg/", "/"]
+

@@ -25,6 +25,10 @@ images:
   dockerfile: docker/Dockerfile.distroless
   base: true
 
+- name: iptables_csm
+  dockerfile: docker/Dockerfile.iptables
+  base: true
+
 # Production images
 - name: proxyv2
   dockerfile: pilot/docker/Dockerfile.proxyv2
