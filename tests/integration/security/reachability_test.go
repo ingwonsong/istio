@@ -20,6 +20,8 @@ package security
 import (
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"istio.io/api/annotation"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/test/echo/common/scheme"
@@ -105,7 +107,7 @@ func TestReachability(t *testing.T) {
 						},
 					},
 					IPFamilies:     "IPv4, IPv6",
-					IPFamilyPolicy: "RequireDualStack",
+					IPFamilyPolicy: string(corev1.IPFamilyPolicyRequireDualStack),
 				}).BuildOrFail(t)
 			}
 

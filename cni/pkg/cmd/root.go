@@ -71,7 +71,7 @@ var rootCmd = &cobra.Command{
 		if cfg, err = constructConfig(); err != nil {
 			return
 		}
-		log.Infof("CNI logging level: \n%+v", istiolog.LevelToString(log.GetOutputLevel()))
+		log.Infof("CNI logging level: %+v", istiolog.LevelToString(log.GetOutputLevel()))
 		log.Infof("CNI install configuration: \n%+v", cfg.InstallConfig)
 		log.Infof("CNI race repair configuration: \n%+v", cfg.RepairConfig)
 
@@ -127,7 +127,12 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Failed to register CNI metrics exporter: %v", err)
 		}
 
-		log.Info("Installer created, watching node CNI dir")
+		log.Info("Creating CNI metrics exporter")
+		if err := registerExporter(); err != nil {
+			log.Fatalf("Failed to register CNI metrics exporter: %v", err)
+		}
+
+		log.Info("initialization complete, watching node CNI dir")
 		// installer.Run() will block indefinitely, and attempt to permanently "keep"
 		// the CNI binary installed.
 		if err = installer.Run(ctx); err != nil {
