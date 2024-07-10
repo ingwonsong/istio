@@ -15,11 +15,15 @@
 package system
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"istio.io/istio/pkg/test/util/retry"
+	"istio.io/istio/prow/asm/tester/pkg/exec"
 
 	"istio.io/istio/prow/asm/tester/pkg/install"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -61,5 +65,21 @@ func Setup(settings *resource.Settings) error {
 			log.Printf("ERROR: system installation failed, logs can be found at %q", systemLogDir)
 		}
 	}
+
+	// Check to see if there is an ingress gateway resource present, if not then don't kick in the polling logic
+	if ingress, err1 := exec.RunWithOutput("kubectl get service istio-ingressgateway -n istio-system -o jsonpath='{.metadata.name}'"); ingress == "" || err1 != nil {
+		return multierror.Flatten(err)
+	}
+
+	retry.UntilSuccess(func() error {
+		ip, err1 := exec.RunWithOutput("kubectl get service istio-ingressgateway -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}'")
+		host, err2 := exec.RunWithOutput("kubectl get service istio-ingressgateway -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'")
+		if (err1 != nil || ip == "") && (err2 != nil || host == "") {
+			log.Printf("ingress gateway not ready yet...")
+			return fmt.Errorf("ingress gateway not ready yet...")
+		}
+		return nil
+	}, retry.Timeout(20*time.Minute), retry.Delay(5*time.Second))
+
 	return multierror.Flatten(err)
 }
