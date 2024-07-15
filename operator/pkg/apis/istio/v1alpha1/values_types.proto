@@ -91,9 +91,12 @@ message CNIConfig {
   // PodSecurityPolicy cluster role. No longer used anywhere.
   string psp_cluster_role = 11;
 
-  // Configuration log level of istio-cni binary. By default, istio-cni sends all logs to the UDS server.
+  // DEPRECATED. Configuration log level of istio-cni binary. By default, istio-cni sends all logs to the UDS server.
   // To see the logs, change global.logging.level to cni:debug.
-  string logLevel = 12;
+  string logLevel = 12  [deprecated = true];
+
+  // Same as `global.logging.level`, but will override it if set
+  GlobalLoggingConfig logging = 25;
 
   // Configuration for the CNI Repair controller.
   CNIRepairConfig repair = 13;
@@ -393,6 +396,8 @@ message GatewaysConfig {
   IngressGatewayConfig istio_ingressgateway = 4 [json_name = "istio-ingressgateway"];
 
   google.protobuf.Value securityContext = 10;
+
+  google.protobuf.Value seccompProfile = 12;
 }
 
 // Global Configuration for Istio components.
@@ -854,9 +859,6 @@ message PilotConfig {
   //
   // See https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container
   Resources resources = 9 [deprecated = true];
-
-  // Namespace that the configuration management feature is installed into, if different from Pilot namespace.
-  string configNamespace = 10;
 
   // Target CPU utilization used in HorizontalPodAutoscaler.
   //

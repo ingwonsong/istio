@@ -186,12 +186,17 @@ if [[ -z "${SKIP_BUILD:-}" ]]; then
     patched_coredns_config=$(kubectl get -oyaml -n=kube-system configmap/coredns | sed -e '/^ *ready/i\
         hosts {\
             '"$kind_registry_ip"' kind-registry.lan\
+            '"$kind_registry_ip"' kind-registry.\
             fallthrough\
         }')
     echo "Patched CoreDNS config:"
     echo "${patched_coredns_config}"
     printf '%s' "${patched_coredns_config}" | kubectl apply -f -
   fi
+  # CoreDNS by default caches Kubernetes objects for 30s. This leads to problematic timing issues when we tear down + re-install
+  # in our tests. We will negative-cache the object, adding up to 30s on each test suite.
+  # See https://github.com/coredns/coredns/pull/2348
+  kubectl get -oyaml -n=kube-system configmap/coredns | sed 's/ttl 30/ttl 0/g' | kubectl apply -f -
 fi
 
 # Run the test target if provided.

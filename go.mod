@@ -68,7 +68,6 @@ require (
 	github.com/prometheus/prometheus v0.52.1
 	github.com/quic-go/quic-go v0.44.0
 	github.com/ryanuber/go-glob v1.0.0
-	github.com/spaolacci/murmur3 v1.1.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
@@ -105,8 +104,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.15.1
-	istio.io/api v1.22.0-alpha.1.0.20240702004049-b04c2565ff27
-	istio.io/client-go v1.22.0-alpha.1.0.20240702004349-a12fd776730e
+	istio.io/api v1.22.0-alpha.1.0.20240709220124-cda1ad0ed5e8
+	istio.io/client-go v1.22.0-alpha.1.0.20240709220522-6a1c4585544d
 	k8s.io/api v0.30.1
 	k8s.io/apiextensions-apiserver v0.30.1
 	k8s.io/apimachinery v0.30.1

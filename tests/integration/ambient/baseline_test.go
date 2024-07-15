@@ -28,8 +28,10 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pkg/config/constants"
@@ -50,6 +52,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/echo/config/param"
 	"istio.io/istio/pkg/test/framework/components/echo/echotest"
 	"istio.io/istio/pkg/test/framework/components/echo/match"
+	"istio.io/istio/pkg/test/framework/components/echo/util/traffic"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/istio/ingress"
 	"istio.io/istio/pkg/test/framework/components/istioctl"
@@ -1370,6 +1373,148 @@ func TestL7JWT(t *testing.T) {
 		})
 }
 
+func TestDestinationRule(t *testing.T) {
+	dst := apps.ServiceAddressedWaypoint
+	cases := []struct {
+		name   string
+		config string
+		call   echo.CallOptions
+	}{
+		{
+			name: "TLS",
+			config: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: "{{.Host}}"
+spec:
+  host: "{{.Host}}"
+  trafficPolicy:
+    tls:
+      mode: SIMPLE
+      insecureSkipVerify: true
+`,
+			call: echo.CallOptions{
+				// Send to HTTPS port but over HTTP
+				Port:   dst.PortForName("https"),
+				Scheme: scheme.HTTP,
+			},
+		},
+		{
+			name: "Subset policy",
+			config: `
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: route
+spec:
+  hosts:
+  - "{{.Host}}"
+  http:
+  - route:
+    - destination:
+        host: "{{.Host}}"
+        subset: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: route
+  namespace:
+spec:
+  host: "{{.Destination}}"
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+  - labels:
+      version: v2
+    name: v2
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: "{{.Host}}"
+spec:
+  host: "{{.Host}}"
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+    trafficPolicy:
+      connectionPool:
+        http:
+          h2UpgradePolicy: UPGRADE
+`,
+			call: echo.CallOptions{
+				Port:   ports.HTTP,
+				Scheme: scheme.HTTP,
+				Check:  check.And(check.OK(), check.Protocol("HTTP/2.0")),
+			},
+		},
+		{
+			name: "PROXY",
+			config: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: "{{.Host}}"
+spec:
+  host: "{{.Host}}"
+  trafficPolicy:
+    proxyProtocol:
+      version: V1
+`,
+			call: echo.CallOptions{
+				Port:   ports.HTTPWithProxy,
+				Scheme: scheme.HTTP,
+			},
+		},
+		{
+			name: "H2",
+			config: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: "{{.Host}}"
+spec:
+  host: "{{.Host}}"
+  trafficPolicy:
+    connectionPool:
+      http:
+        h2UpgradePolicy: UPGRADE
+`,
+			call: echo.CallOptions{
+				Port:   ports.HTTP,
+				Scheme: scheme.HTTP,
+				Check:  check.And(check.OK(), check.Protocol("HTTP/2.0")),
+			},
+		},
+	}
+	framework.NewTest(t).Run(func(t framework.TestContext) {
+		for _, tt := range cases {
+			t.NewSubTest(tt.name).Run(func(t framework.TestContext) {
+				for _, src := range apps.All {
+					if !src.Config().HasProxyCapabilities() {
+						continue
+					}
+					t.NewSubTestf("from %v", src.Config().Service).Run(func(t framework.TestContext) {
+						if src.Config().HasSidecar() && dst.Config().HasAnyWaypointProxy() {
+							// TODO: sidecar -> workload waypoint support
+							t.Skip("https://github.com/istio/istio/issues/51445")
+						}
+						t.ConfigIstio().Eval(apps.Namespace.Name(), map[string]string{
+							"Host": dst.Config().Service,
+						}, tt.config).ApplyOrFail(t)
+						call := tt.call
+						call.To = dst
+						t.Log(src.CallOrFail(t, call))
+					})
+				}
+			})
+		}
+	})
+}
+
 func applyDrainingWorkaround(t framework.TestContext) {
 	// Workaround https://github.com/istio/istio/issues/43239
 	t.ConfigIstio().YAML(apps.Namespace.Name(), `apiVersion: networking.istio.io/v1alpha3
@@ -1869,6 +2014,7 @@ spec:
         host: "{{.Destination}}"
 `).ApplyOrFail(t)
 
+			// TODO(https://github.com/istio/istio/issues/51747) use a single SE instead of one for v4 and one for v6
 			cfg := config.YAML(`
 {{ $to := .To }}
 apiVersion: networking.istio.io/v1beta1
@@ -1885,12 +2031,12 @@ spec:
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: test-se
+  name: test-se-v4
 spec:
   hosts:
-  - serviceentry.istio.io # not used
+  - dummy-v4.example.com
   addresses:
-  - 111.111.222.222
+  - 240.240.240.255
   ports:
   - number: 80
     name: http
@@ -1899,14 +2045,36 @@ spec:
   location: {{.Location}}
   workloadSelector:
     labels:
-      app: selected`).
+      app: selected
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: test-se-v6
+spec:
+  hosts:
+  - dummy-v6.example.com
+  addresses:
+  - 2001:2::f0f0:255
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+  resolution: {{.Resolution}}
+  location: {{.Location}}
+  workloadSelector:
+    labels:
+      app: selected
+---
+`).
 				WithParams(param.Params{}.SetWellKnown(param.Namespace, apps.Namespace))
 
+			v4, v6 := getSupportedIPFamilies(t)
 			ips, ports := istio.DefaultIngressOrFail(t, t).HTTPAddresses()
 			for _, tc := range testCases {
 				tc := tc
 				for i, ip := range ips {
-					t.NewSubTestf("%s %s %s", tc.location, tc.resolution, ip).Run(func(t framework.TestContext) {
+					t.NewSubTestf("%s %s %d", tc.location, tc.resolution, i).Run(func(t framework.TestContext) {
 						echotest.
 							New(t, apps.All).
 							// TODO eventually we can do this for uncaptured -> l7
@@ -1922,10 +2090,20 @@ spec:
 							})).
 							Run(func(t framework.TestContext, from echo.Instance, to echo.Target) {
 								// TODO validate L7 processing/some headers indicating we reach the svc we wanted
-								from.CallOrFail(t, echo.CallOptions{
-									Address: "111.111.222.222",
-									Port:    to.PortForName("http"),
-								})
+								if v4 {
+									from.CallOrFail(t, echo.CallOptions{
+										Address: "240.240.240.255",
+										Port:    to.PortForName("http"),
+										Timeout: time.Millisecond * 500,
+									})
+								}
+								if v6 {
+									from.CallOrFail(t, echo.CallOptions{
+										Address: "2001:2::f0f0:255",
+										Port:    to.PortForName("http"),
+										Timeout: time.Millisecond * 500,
+									})
+								}
 							})
 					})
 				}
@@ -1963,9 +2141,10 @@ metadata:
   name: test-se
 spec:
   hosts:
-  - serviceentry.istio.io
+  - test.example.com
   addresses:
-  - 111.111.222.222
+  - 240.240.240.251
+  - 2001:2::f0f0:251
   ports:
   - number: 80
     name: http
@@ -1984,10 +2163,16 @@ spec:
 					echotest.
 						New(t, apps.All).
 						// TODO eventually we can do this for uncaptured -> l7
-						FromMatch(match.Not(match.ServiceName(echo.NamespacedName{
-							Name:      "uncaptured",
-							Namespace: apps.Namespace,
-						}))).
+						FromMatch(match.And(
+							match.Not(match.ServiceName(echo.NamespacedName{
+								Name:      "uncaptured",
+								Namespace: apps.Namespace,
+							})),
+							match.Not(match.ServiceName(echo.NamespacedName{
+								Name:      "sidecar",
+								Namespace: apps.Namespace,
+							})),
+						)).
 						ToMatch(match.ServiceName(echo.NamespacedName{
 							Name:      "uncaptured",
 							Namespace: apps.Namespace,
@@ -1998,7 +2183,7 @@ spec:
 						})).
 						Run(func(t framework.TestContext, from echo.Instance, to echo.Target) {
 							from.CallOrFail(t, echo.CallOptions{
-								Address: "serviceentry.istio.io", // host here is important to test ztunnel DNS resolution
+								Address: "test.example.com", // host here is important to test ztunnel DNS resolution
 								Port:    to.PortForName("http"),
 								// sample response:
 								//
@@ -2710,4 +2895,123 @@ func TestDirect(t *testing.T) {
 			})
 		})
 	})
+}
+
+func TestServiceRestart(t *testing.T) {
+	const callInterval = 100 * time.Millisecond
+	const successThreshold = 1
+
+	framework.NewTest(t).Run(func(t framework.TestContext) {
+		dst := apps.Captured
+		generators := []traffic.Generator{}
+		mkGen := func(src echo.Caller) {
+			g := traffic.NewGenerator(t, traffic.Config{
+				Source: src,
+				Options: echo.CallOptions{
+					To:    dst,
+					Count: 1,
+					Check: check.OK(),
+					HTTP:  echo.HTTP{Path: "/?delay=10ms"},
+					Port: echo.Port{
+						Name: "http",
+					},
+					Retry: echo.Retry{NoRetry: true},
+				},
+				Interval: callInterval,
+			}).Start()
+			generators = append(generators, g)
+		}
+		mkGen(apps.Uncaptured[0])
+		mkGen(apps.Sidecar[0])
+		// This is effectively "captured" since its the client; we cannot use captured since captured is the dest, though
+		mkGen(apps.WorkloadAddressedWaypoint[0])
+		if err := dst.Restart(); err != nil {
+			t.Fatal(err)
+		}
+		for _, gen := range generators {
+			// Stop the traffic generator and get the result.
+			gen.Stop().CheckSuccessRate(t, successThreshold)
+		}
+	})
+}
+
+func TestZtunnelRestart(t *testing.T) {
+	const callInterval = 50 * time.Millisecond
+	// TODO(https://github.com/istio/istio/issues/51952) make this 1.0
+	const successThreshold = .9
+	const sidecarSuccessThreshold = .9
+
+	framework.NewTest(t).Run(func(t framework.TestContext) {
+		dst := apps.Captured
+		mkGen := func(src echo.Caller) traffic.Generator {
+			g := traffic.NewGenerator(t, traffic.Config{
+				Source: src,
+				Options: echo.CallOptions{
+					To:    dst,
+					Count: 1,
+					Check: check.OK(),
+					HTTP:  echo.HTTP{Path: "/?delay=10ms"},
+					Port: echo.Port{
+						Name: "http",
+					},
+					Retry: echo.Retry{NoRetry: true},
+				},
+				Interval: callInterval,
+			}).Start()
+			return g
+		}
+		uncap := mkGen(apps.Uncaptured[0])
+		sidecar := mkGen(apps.Sidecar[0])
+		// This is effectively "captured" since its the client; we cannot use captured since captured is the dest, though
+		captured := mkGen(apps.WorkloadAddressedWaypoint[0])
+		restartZtunnel(t)
+		// Stop the traffic generator and get the result.
+		uncap.Stop().CheckSuccessRate(t, successThreshold)
+		captured.Stop().CheckSuccessRate(t, successThreshold)
+		// We have a lighter check for sidecars. Sidecars will pool HTTP, so these are long lived connections.
+		// These we have no way to signal to Envoy (https://github.com/envoyproxy/envoy/issues/34897).
+		sidecar.Stop().CheckSuccessRate(t, sidecarSuccessThreshold)
+	})
+}
+
+func restartZtunnel(t framework.TestContext) {
+	patchOpts := metav1.PatchOptions{}
+	patchData := fmt.Sprintf(`{
+			"spec": {
+				"template": {
+					"metadata": {
+						"annotations": {
+							"kubectl.kubernetes.io/restartedAt": %q
+						}
+					}
+				}
+			}
+		}`, time.Now().Format(time.RFC3339)) // e.g., “2006-01-02T15:04:05Z07:00”
+	ds := t.Clusters().Default().Kube().AppsV1().DaemonSets(i.Settings().SystemNamespace)
+	_, err := ds.Patch(context.Background(), "ztunnel", types.StrategicMergePatchType, []byte(patchData), patchOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := retry.UntilSuccess(func() error {
+		d, err := ds.Get(context.Background(), "ztunnel", metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if !daemonsetsetComplete(d) {
+			return fmt.Errorf("rollout is not yet done")
+		}
+		return nil
+	}, retry.Timeout(60*time.Second), retry.Delay(2*time.Second)); err != nil {
+		t.Fatalf("failed to wait for ztunnel rollout status for: %v", err)
+	}
+	if _, err := kubetest.CheckPodsAreReady(kubetest.NewPodFetch(t.AllClusters()[0], i.Settings().SystemNamespace, "app=ztunnel")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func daemonsetsetComplete(ds *appsv1.DaemonSet) bool {
+	return ds.Status.UpdatedNumberScheduled == ds.Status.DesiredNumberScheduled &&
+		ds.Status.NumberReady == ds.Status.DesiredNumberScheduled &&
+		ds.Status.ObservedGeneration >= ds.Generation
 }
