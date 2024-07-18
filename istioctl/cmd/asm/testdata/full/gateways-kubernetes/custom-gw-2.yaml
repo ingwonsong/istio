@@ -231,7 +231,7 @@ metadata:
     operator.istio.io/component: "IngressGateways"
 
 ---
-
+#  Flatten globals, if defined on a per-chart basis
 
 ---
 

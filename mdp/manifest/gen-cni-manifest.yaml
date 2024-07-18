@@ -255,3 +255,6 @@ spec:
 ---
 # Source: cni/templates/clusterrolebinding.yaml
 ---
+---
+# Source: cni/templates/zzz_profile.yaml
+#  Flatten globals, if defined on a per-chart basis
