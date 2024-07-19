@@ -1,6 +1,9 @@
 IN_CONTAINER := $(shell bash -c "test -f /.dockerenv && echo '1' || echo '0'")
 RELEASE_LDFLAGS_NOLINKMODE='-extldflags -static -s -w'
 
+FINDFILES_IGNORE= -path ./tests/taaa/integration-tests/vendor -o -path ./tools/asm-lifecycle-tag/vendor -o -path ./prow/asm/tester/vendor -o -path ./prow/asm/infra/vendor
+export FINDFILES_IGNORE
+
 ifeq ($(TARGET_ARCH), amd64)
   LDFLAGS:=-linkmode=external -extldflags -static -s -w
   CGO_ENABLED:=1

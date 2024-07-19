@@ -48,7 +48,7 @@ security/cmd/node_agent/na/cert_file
 security/cmd/node_agent/na/pkey
 # istioctl bash completion file
 tools/istioctl.bash
-vendor
+manifests/addons/dashboards/vendor/
 # Contains the built artifacts
 out/
 etc/

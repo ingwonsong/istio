@@ -89,10 +89,12 @@ function fix_gomod() {
   # do first run in repo root since asm tests use local code
   # i.e. `replace istio.io/istio => ../../..`
   go mod tidy
+  go mod vendor
   cd "${ISTIO_DIR}" || return
   find . -iname go.mod | grep -v 'vendor' | while read -r x; do
     pushd "$(dirname "$x")" || return
     go mod tidy
+    go mod vendor
     popd || return
   done
 }
