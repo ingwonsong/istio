@@ -1,0 +1,1123 @@
+// Copyright Istio Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package env
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"math/rand"
+	"net"
+	"os"
+	oexec "os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/hashicorp/go-multierror"
+	shell "github.com/kballard/go-shellquote"
+	"istio.io/istio/prow/asm/tester/pkg/exec"
+	"istio.io/istio/prow/asm/tester/pkg/gcp"
+	"istio.io/istio/prow/asm/tester/pkg/kube"
+	"istio.io/istio/prow/asm/tester/pkg/resource"
+)
+
+var (
+	contextRegexp = regexp.MustCompile(`current-context: (\S*)`)
+)
+
+const (
+	SharedGCPProject    = "asm-prow-build"
+	CustomFleetProject  = "asm-ci-mc"
+	configDir           = "prow/asm/tester/configs"
+	newtaroCommitConfig = "newtaro/commit"
+	KubevirtVMGcsBucket = "asm_testing_on_kubevirtvm_artifacts"
+
+	// Envvar consts
+	cloudAPIEndpointOverrides = "CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER"
+	testEndpoint              = "https://test-container.sandbox.googleapis.com/"
+	stagingEndpoint           = "https://staging-container.sandbox.googleapis.com/"
+	staging2Endpoint          = "https://staging2-container.sandbox.googleapis.com/"
+	prodEndpoint              = "https://container.googleapis.com/"
+
+	cloudAPIMulticloudOverride = "CLOUDSDK_API_ENDPOINT_OVERRIDES_GKEMULTICLOUD"
+	preProdMulticloudAPI       = "https://us-west1-preprod-gkemulticloud.sandbox.googleapis.com/"
+
+	// Hacks
+	staticIptablesDaemonset = "hacks/static-iptables-daemonset.yaml"
+)
+
+func Setup(settings *resource.Settings) error {
+	log.Println("🎬 start setting up the environment...")
+
+	// Validate the settings before proceeding.
+	if err := resource.ReconcileAndValidateSettings(settings); err != nil {
+		return err
+	}
+
+	// Populate the settings that will be used during runtime.
+	if err := populateRuntimeSettings(settings); err != nil {
+		return err
+	}
+
+	// Set the CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER to be able to access
+	// the cluster for test/staging/staging2 envs
+	if err := setCloudAPIEndpointEnvVariable(settings); err != nil {
+		return err
+	}
+
+	// Fix the cluster configs before proceeding.
+	if err := fixClusterConfigs(settings); err != nil {
+		return err
+	}
+
+	if settings.ClusterType == resource.GKEOnGCP && !settings.FeaturesToTest.Has(string(resource.Autopilot)) {
+		// Enable core dumps for Istio proxy
+		if err := enableCoreDumps(settings); err != nil {
+			return err
+		}
+	}
+
+	if settings.ClusterType == resource.BareMetal && settings.UseKubevirtVM {
+		log.Printf("Start running the env setup for Kubevirt VM")
+		if err := EnableKubevirtRuntime(settings); err != nil {
+			return err
+		}
+	}
+
+	// Inject system env vars that are required for the test flow.
+	if err := injectEnvVars(settings); err != nil {
+		return err
+	}
+
+	// Use v2 api to attach clusters
+	if settings.UseAttachedV2 && (settings.ClusterType == resource.AKS || settings.ClusterType == resource.EKS) {
+		// Set the CLOUDSDK_API_ENDPOINT_OVERRIDES_GKEMULTICLOUD to be able to access
+		// the pre-prod gke candidates
+		if err := setMultiCloudAPIEndpointEnvVariable(); err != nil {
+			return err
+		}
+		log.Printf("Registering attached cluster with v2")
+		if err := registerAttachedV2(settings); err != nil {
+			return err
+		}
+	}
+
+	log.Println("ASM Test Framework Settings:")
+	log.Print(settings)
+	return nil
+}
+
+// enableCoreDumps configures the core_pattern kernel property to write core dumps to a writeable directory.
+// This allows CI to grab cores from crashing proxies. In OSS this is done by docker exec, since its always a single node.
+// Note: OSS also allows an init container on each pod. This option was favored to avoid making tests not representing real world
+// deployments.
+func enableCoreDumps(settings *resource.Settings) error {
+	yaml := filepath.Join(settings.ConfigDir, "core-dump-daemonset.yaml")
+	for _, kc := range settings.KubeContexts {
+		cmd := fmt.Sprintf("kubectl apply -f %s --context=%s", yaml, kc)
+		if err := exec.Run(cmd); err != nil {
+			return fmt.Errorf("error deploying core dump daemonset: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// populate extra settings that will be used during runtime
+func populateRuntimeSettings(settings *resource.Settings) error {
+	settings.ConfigDir = filepath.Join(settings.RepoRootDir, configDir)
+
+	var gcrProjectID string
+	if settings.ClusterType == resource.GKEOnGCP {
+		gkeContexts, err := kube.Contexts(settings.Kubeconfig)
+		if err != nil {
+			return err
+		}
+		cs := kube.GKEClusterSpecsFromContexts(gkeContexts)
+		projectIDs := make([]string, len(cs))
+		for i, c := range cs {
+			projectIDs[i] = c.ProjectID
+		}
+		settings.ClusterGCPProjects = projectIDs
+		// If it's using the gke clusters, use the first available project to hold the images.
+		gcrProjectID = settings.ClusterGCPProjects[0]
+		// If GCP projects have not been set, get the projects listed in the
+		// status.json file located in the same folder as the kubeconfig file.
+		if len(settings.GCPProjects[0]) == 0 {
+			kubeconfigs := filepath.SplitList(settings.Kubeconfig)
+			artifactsPath := filepath.Dir(kubeconfigs[0])
+			settings.GCPProjects, err = getProjectsFromStatusFile(artifactsPath)
+			if err != nil {
+				return fmt.Errorf("error getting projects from status file: %w", err)
+			}
+		}
+	} else {
+		// Otherwise use the shared GCP project to hold these images.
+		gcrProjectID = SharedGCPProject
+	}
+	settings.GCRProject = gcrProjectID
+
+	f := filepath.Join(settings.ConfigDir, newtaroCommitConfig)
+	bytes, err := os.ReadFile(f)
+	if err != nil {
+		return fmt.Errorf("error reading the Newtaro commit config file: %w", err)
+	}
+	settings.NewtaroCommit = strings.Split(string(bytes), "\n")[0]
+
+	return nil
+}
+
+func setCloudAPIEndpointEnvVariable(settings *resource.Settings) error {
+	switch settings.Environment {
+	case "test":
+		return os.Setenv(cloudAPIEndpointOverrides, testEndpoint)
+	case "staging":
+		return os.Setenv(cloudAPIEndpointOverrides, stagingEndpoint)
+	case "staging2":
+		return os.Setenv(cloudAPIEndpointOverrides, staging2Endpoint)
+	case "prod":
+		return os.Setenv(cloudAPIEndpointOverrides, prodEndpoint)
+	}
+
+	return nil
+}
+
+func injectEnvVars(settings *resource.Settings) error {
+	var meshID string
+	if settings.ClusterType == resource.GKEOnGCP {
+		projectNum, err := gcp.GetProjectNumber(settings.ClusterGCPProjects[0])
+		if err != nil {
+			return err
+		}
+		meshID = "proj-" + strings.TrimSpace(projectNum)
+	}
+	// For onprem with Hub CI jobs, clusters are registered into the environ project
+	if settings.WIP == resource.HUBWorkloadIdentityPool && settings.ClusterType == resource.OnPrem {
+		environProjectID, err := kube.GetEnvironProjectID(settings.Kubeconfig)
+		if err != nil {
+			return err
+		}
+		projectNum, err := gcp.GetProjectNumber(environProjectID)
+		if err != nil {
+			return err
+		}
+		meshID = "proj-" + strings.TrimSpace(projectNum)
+	}
+
+	// TODO(chizhg): delete most, if not all, the env var injections after we convert all the
+	// bash to Go and remove the env var dependencies.
+	envVars := map[string]string{
+		// Run the Go tests with verbose logging.
+		"T": "-v",
+		// Do not start a container to run the build.
+		"BUILD_WITH_CONTAINER": "0",
+		// The GCP project we use when testing with multicloud clusters, or when we need to
+		// hold some GCP resources that are shared across multiple jobs that are run in parallel.
+		"SHARED_GCP_PROJECT": SharedGCPProject,
+
+		"GCR_PROJECT_ID":   settings.GCRProject,
+		"CONFIG_DIR":       settings.ConfigDir,
+		"CLUSTER_TYPE":     settings.ClusterType.String(),
+		"CLUSTER_TOPOLOGY": settings.ClusterTopology.String(),
+
+		"MESH_ID": meshID,
+
+		"CONTROL_PLANE": settings.ControlPlane.String(),
+		"CA":            settings.CA.String(),
+		"WIP":           settings.WIP.String(),
+
+		"VM_DISTRO":     settings.VMImageFamily,
+		"IMAGE_PROJECT": settings.VMImageProject,
+	}
+	// exported TAG and HUB are used for ASM installation, and as the --istio.test.tag and
+	// --istio-test.hub flags of the testing framework
+	if settings.InstallOverride.IsSet() {
+		envVars["HUB"] = settings.InstallOverride.Hub
+		envVars["TAG"] = settings.InstallOverride.Tag
+	} else {
+		envVars["TAG"] = "BUILD_ID_" + getBuildID()
+		var hub string
+		if settings.ControlPlane != resource.Managed {
+			hub = fmt.Sprintf("gcr.io/%s/asm/%s", settings.GCRProject, getBuildID())
+		} else {
+			// Don't change this to a publicly-accessible repo, otherwise we could
+			// be exposing builds with CVE fixes.
+			hub = "gcr.io/asm-staging-images/asm-mcp-e2e-test"
+		}
+		envVars["HUB"] = hub
+
+	}
+	if settings.RevisionConfig != "" {
+		envVars["MULTI_VERSION"] = "1"
+	}
+
+	if settings.UseDistroless {
+		envVars["DOCKER_BUILD_VARIANTS"] = "distroless default"
+	}
+
+	if settings.UseKubevirtVM {
+		envVars["USE_KUBEVIRT_VM"] = "true"
+		envVars["KUBEVIRT_VM_ECHO_ARTIFACTS_GCS_FOLDER"] = KubevirtVMGcsBucket + "/" + "kubevirtecho_" + os.Getenv("BUILD_ID")
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.Autopilot)) {
+		envVars["MCP_TEST_TIMEOUT"] = "90m"
+	}
+
+	for name, val := range envVars {
+		log.Printf("Set env var: %s=%s", name, val)
+		if err := os.Setenv(name, val); err != nil {
+			return fmt.Errorf("error setting env var %q to %q", name, val)
+		}
+	}
+
+	return nil
+}
+
+func getBuildID() string {
+	return os.Getenv("BUILD_ID")
+}
+
+// Fix the cluster configs to meet the test requirements for ASM.
+// These fixes are considered as hacky and temporary, ideally in the future they
+// should all be handled by the corresponding deployer.
+func fixClusterConfigs(settings *resource.Settings) error {
+	var err error
+
+	switch resource.ClusterType(settings.ClusterType) {
+	case resource.GKEOnGCP:
+		err = fixGKE(settings)
+	case resource.OnPrem:
+		err = fixOnPrem(settings)
+	case resource.BareMetal:
+		err = fixBareMetal(settings)
+	case resource.GKEOnAWS:
+		err = fixAWS(settings)
+	case resource.GKEOnAzure:
+		err = fixAzure(settings)
+	case resource.APM:
+		err = fixAPM(settings)
+	case resource.HybridGKEAndBareMetal:
+		err = fixHybridGKEAndBareMetal(settings)
+	case resource.Openshift:
+		err = fixOpenshift(settings)
+	}
+
+	kubeContexts, kubeContextErr := kube.Contexts(settings.Kubeconfig)
+	if kubeContextErr != nil {
+		err = multierror.Append(err, kubeContextErr)
+	}
+	// Set KubeContexts after the cluster configs are fixed.
+	settings.KubeContexts = kubeContexts
+
+	return multierror.Flatten(err)
+}
+
+func fixGKE(settings *resource.Settings) error {
+	gkeContexts, err := kube.Contexts(settings.Kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	// Set cloud project and billing/project required by tests that update CloudSDK
+	if err = setCloudSDKProject(settings.GCPProjects[0]); err != nil {
+		return err
+	}
+
+	// Add firewall rules to enable multi-cluster communication
+	if err := addFirewallRules(settings); err != nil {
+		return err
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.VPCSC)) {
+		networkName := settings.GKENetworkName
+
+		// Create router and NAT
+		if err := exec.Run(fmt.Sprintf(
+			"gcloud compute routers create test-router --network %s --region us-central1",
+			networkName)); err != nil {
+			log.Println("test-router already exists")
+		}
+		if err := exec.Run("gcloud compute routers nats create test-nat" +
+			" --router=test-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges" +
+			" --router-region=us-central1 --enable-logging"); err != nil {
+			log.Println("test-nat already exists")
+		}
+
+		// Setup the firewall for VPC-SC
+		for _, c := range kube.GKEClusterSpecsFromContexts(gkeContexts) {
+			getFirewallRuleCmd := fmt.Sprintf("bash -c \"gcloud compute firewall-rules list --filter=\"name~gke-\"%s\"-[0-9a-z]*-all\" --format=json | jq -r '.[0].name'\"", c.Name)
+			firewallRuleName, err := exec.RunWithOutput(getFirewallRuleCmd)
+			if err != nil {
+				return fmt.Errorf("failed to get firewall rule name: %w", err)
+			}
+			updateFirewallRuleCmd := fmt.Sprintf("gcloud compute firewall-rules update %s --allow tcp --source-ranges 0.0.0.0/0", firewallRuleName)
+			if err := exec.Run(updateFirewallRuleCmd); err != nil {
+				return fmt.Errorf("error updating firewall rule %q: %w", firewallRuleName, err)
+			}
+		}
+
+		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
+			return fmt.Errorf("error adding ips to authorized networks: %w", err)
+		}
+	}
+
+	if settings.FeaturesToTest.Has(string(resource.PrivateClusterLimitedAccess)) ||
+		settings.FeaturesToTest.Has(string(resource.PrivateClusterNoAccess)) {
+		if err := addIpsToAuthorizedNetworks(settings, gkeContexts); err != nil {
+			return fmt.Errorf("error adding ips to authorized networks: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func addFirewallRules(settings *resource.Settings) error {
+	networkProject := settings.GCPProjects[0]
+	clusterProjects := settings.ClusterGCPProjects
+	if settings.ClusterTopology != resource.MultiProject {
+		clusterProjects = []string{settings.ClusterGCPProjects[0]}
+	}
+
+	var sourceRanges, targetTags []string
+	for _, p := range clusterProjects {
+		// Create the firewall rules to allow multi-cluster communication as per
+		// https://github.com/istio/istio.io/blob/master/content/en/docs/setup/platform-setup/gke/index.md#multi-cluster-communication
+		allClusterCIDRs, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c 'gcloud --project %s container clusters list --format=\"value(clusterIpv4Cidr)\" | sort | uniq'", p))
+		if err != nil {
+			return fmt.Errorf("error getting all cluster CIDRs for project %q: %w", p, err)
+		}
+		sourceRanges = append(sourceRanges, strings.Split(strings.TrimSpace(allClusterCIDRs), "\n")...)
+
+		allClusterTags, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c 'gcloud --project %s compute instances list --format=\"value(tags.items.[0])\" | sort | uniq'", p))
+		if err != nil {
+			return fmt.Errorf("error getting all cluster tags for project %q: %w", p, err)
+		}
+		if strings.TrimSpace(allClusterTags) != "" {
+			targetTags = append(targetTags, strings.Split(strings.TrimSpace(allClusterTags), "\n")...)
+		}
+	}
+
+	// Get test runner CIDR
+	testRunnerCidr, err := getTestRunnerCidr()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve test runner IP: %w", err)
+	}
+
+	settings.TrustableSourceRanges = strings.Join(append(sourceRanges, testRunnerCidr), ",")
+
+	// Check and delete if already exists
+	foundFirewall, err := exec.RunWithOutput(fmt.Sprintf(`gcloud compute firewall-rules list \
+	--project=%s \
+	--filter name=%s \
+	--format='get(name)'`, networkProject, resource.MCFireWallName))
+	if err != nil {
+		return fmt.Errorf("error checking for firwall rule")
+	}
+	if strings.TrimSpace(foundFirewall) != "" {
+		if err := exec.Run(fmt.Sprintf(`gcloud compute firewall-rules delete %s\
+		--project %s \
+		--quiet`, resource.MCFireWallName, networkProject)); err != nil {
+			return fmt.Errorf("error deleting existing multicluster firewall rule")
+		}
+	}
+	// Now actually make the firewall rule.
+	firewallRuleCmd := fmt.Sprintf(`gcloud compute firewall-rules create %s \
+	--network=%s \
+	--project=%s \
+	--allow=tcp,udp,icmp,esp,ah,sctp \
+	--direction=INGRESS \
+	--priority=900 \
+	--source-ranges=%s \
+	--quiet`, resource.MCFireWallName, settings.GKENetworkName, networkProject, settings.TrustableSourceRanges)
+	// By default GKE Autopilot clusters do not have instance groups, the
+	// command to get the instance tags will return empty, and the `gcloud
+	// compute firewall-rules create` command does not allow setting
+	// `--target-tags` as empty. So do not set `--target-tags` if targetTags is
+	// empty.
+	if len(targetTags) != 0 {
+		firewallRuleCmd = fmt.Sprintf("%s --target-tags=%s", firewallRuleCmd, strings.Join(targetTags, ","))
+	}
+	if err := exec.Run(firewallRuleCmd); err != nil {
+		return fmt.Errorf("error creating the firewall rule to allow multi-cluster communication")
+	}
+
+	return nil
+}
+
+func addIpsToAuthorizedNetworks(settings *resource.Settings, gkeContexts []string) error {
+	// Get test runner IP
+	testRunnerCidr, err := getTestRunnerCidr()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve test runner IP: %w", err)
+	}
+
+	// Get clusters' details
+	gkeClusterSpecs := kube.GKEClusterSpecsFromContexts(gkeContexts)
+
+	switch len(gkeClusterSpecs) {
+	case 1:
+		// Enable authorized networks for each cluster
+		if err := enableAuthorizedNetworks(gkeClusterSpecs[0].Name, gkeClusterSpecs[0].ProjectID, gkeClusterSpecs[0].Location, testRunnerCidr, "", ""); err != nil {
+			return fmt.Errorf("error enabling authorized networks on cluster %v: %w", gkeClusterSpecs[0], err)
+		}
+	case 2:
+		// Get the Pod IP CIDR block for each cluster
+		clusterCount := 2
+		clusterPodIpCidrs := make([]string, clusterCount)
+		subnetPrimaryIpCidrs := make([]string, clusterCount)
+		for clusterIndex := 0; clusterIndex < clusterCount; clusterIndex++ {
+			podIpCidr, err := getPodIpCidr(gkeClusterSpecs[clusterIndex].Name, gkeClusterSpecs[clusterIndex].ProjectID, gkeClusterSpecs[clusterIndex].Location)
+			clusterPodIpCidrs[clusterIndex] = strings.TrimSpace(podIpCidr)
+			if err != nil {
+				return fmt.Errorf("failed to get pod ip CIDR: %w", err)
+			}
+			networkProject := settings.GCPProjects[0]
+			subnetPrimaryIpCidr, err := getClusterSubnetPrimaryIpCidr(gkeClusterSpecs[clusterIndex].Name, gkeClusterSpecs[clusterIndex].ProjectID, networkProject, gkeClusterSpecs[clusterIndex].Location)
+			subnetPrimaryIpCidrs[clusterIndex] = strings.TrimSpace(subnetPrimaryIpCidr)
+			if err != nil {
+				return fmt.Errorf("failed to get cluster's subnet primary ip CIDR: %w", err)
+			}
+		}
+
+		// Enable authorized networks for each cluster
+		if err := enableAuthorizedNetworks(gkeClusterSpecs[0].Name, gkeClusterSpecs[0].ProjectID, gkeClusterSpecs[0].Location, testRunnerCidr, clusterPodIpCidrs[1], subnetPrimaryIpCidrs[1]); err != nil {
+			return fmt.Errorf("error enabling authorized networks on cluster %v: %w", gkeClusterSpecs[0].Name, err)
+		}
+		if err := enableAuthorizedNetworks(gkeClusterSpecs[1].Name, gkeClusterSpecs[1].ProjectID, gkeClusterSpecs[1].Location, testRunnerCidr, clusterPodIpCidrs[0], subnetPrimaryIpCidrs[0]); err != nil {
+			return fmt.Errorf("error enabling authorized networks on cluster %v: %w", gkeClusterSpecs[1].Name, err)
+		}
+		// Sleep 10 seconds to wait for the cluster update command to take into effect
+		time.Sleep(10 * time.Second)
+	default:
+		return fmt.Errorf("expected # of clusters <= 2, received %d", len(gkeClusterSpecs))
+	}
+
+	return nil
+}
+
+func getTestRunnerCidr() (string, error) {
+	getIPCmd := "curl ifconfig.me"
+	ip, err := exec.RunWithOutput(getIPCmd)
+	if err != nil {
+		return "", fmt.Errorf("error getting test runner IP: %w", err)
+	}
+	return ip + "/32", nil
+}
+
+func getPodIpCidr(clusterName, project, zone string) (string, error) {
+	getPodIpCidrCmd := fmt.Sprintf("gcloud container clusters describe %s"+
+		" --project %s --zone %s --format \"value(ipAllocationPolicy.clusterIpv4CidrBlock)\"",
+		clusterName, project, zone)
+	return exec.RunWithOutput(getPodIpCidrCmd)
+}
+
+func getClusterSubnetPrimaryIpCidr(clusterName, project, networkProject, zone string) (string, error) {
+	getSubnetCmd := fmt.Sprintf("gcloud container clusters describe %s"+
+		" --project %s --zone %s --format \"value(subnetwork)\"",
+		clusterName, project, zone)
+	subnetName, err := exec.RunWithOutput(getSubnetCmd)
+	if err != nil {
+		return "", err
+	}
+	getPrimaryIpCidrCmd := fmt.Sprintf("gcloud compute networks subnets describe %s"+
+		" --project %s --region %s --format \"value(ipCidrRange)\"",
+		strings.TrimSpace(subnetName), networkProject, zone)
+	return exec.RunWithOutput(getPrimaryIpCidrCmd)
+}
+
+func enableAuthorizedNetworks(clusterName, project, zone, pod_cidr_1, pod_cidr_2, subnet_cidr string) error {
+	enableAuthorizedNetCmd := fmt.Sprintf(`gcloud container clusters update %s --project %s --zone %s \
+	--enable-master-authorized-networks \
+	--master-authorized-networks %s,%s`, clusterName, project, zone, pod_cidr_1, pod_cidr_2)
+	// TODO (tairan): https://buganizer.corp.google.com/issues/187960475
+	if clusterName == "prow-test1" {
+		enableAuthorizedNetCmd = fmt.Sprintf(`gcloud container clusters update %s --project %s --zone %s \
+	--enable-master-authorized-networks \
+	--master-authorized-networks %s,%s,%s`, clusterName, project, zone, pod_cidr_1, pod_cidr_2, subnet_cidr)
+	}
+	return exec.Run(enableAuthorizedNetCmd)
+}
+
+// Keeps only the user-kubeconfig.yaml entries in the KUBECONFIG for onprem
+// by removing others including the admin-kubeconfig.yaml entries.
+// This function will modify the KUBECONFIG env variable.
+func fixOnPrem(settings *resource.Settings) error {
+	return filterKubeconfigFiles(settings, func(name string) bool {
+		return strings.HasSuffix(name, "user-kubeconfig.yaml")
+	})
+}
+
+// Fix bare-metal cluster configs that are created by Tailorbird:
+// 1. Keep only the artifacts/kubeconfig entries in the KUBECONFIG for baremetal
+//
+//	by removing any others entries.
+//
+// 2. Configure cluster proxy.
+func fixBareMetal(settings *resource.Settings) error {
+	err := filterKubeconfigFiles(settings, func(name string) bool {
+		return strings.HasSuffix(name, "artifacts/kubeconfig")
+	})
+	if err != nil {
+		return err
+	}
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		if err := configMulticloudSOCKS5ClusterProxy(settings, multicloudClusterConfig{
+			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
+			clusterArtifactsPath: filepath.Dir(config),
+			scriptRelPath:        "tunnel.sh",
+			regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
+			sshKeyRelPath:        "id_rsa",
+			kubeconfig:           config,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Fix openshift cluster configs that are created by Tailorbird:
+// 1. Keep only the auth/kubeconfig entries in the KUBECONFIG for openshift
+// by removing any others entries.
+func fixOpenshift(settings *resource.Settings) error {
+	err := filterKubeconfigFiles(settings, func(name string) bool {
+		return strings.HasSuffix(name, "auth/kubeconfig")
+	})
+	if err != nil {
+		return err
+	}
+	config := filepath.SplitList(settings.Kubeconfig)[0]
+	if config != "" {
+		os.Setenv("KUBECONFIG", config)
+		yaml := filepath.Join(settings.ConfigDir, "gcc_openshift.yaml")
+		cmd1 := "wget https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz"
+		cmd2 := "tar -xvf oc.tar.gz"
+		cmd3 := fmt.Sprintf("./oc create -f %s", yaml)
+		cmd4 := "./oc adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system"
+		os.Setenv("PRIVATE_ISSUER", "1")
+		if err := exec.RunMultiple([]string{cmd1, cmd2, cmd3, cmd4}); err != nil {
+			return fmt.Errorf("error running the commands to setup openshift cluster requirement: %w", err)
+		}
+
+		// Add current directory to PATH; this makes sure that the 'oc' binary
+		// can be located.
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		os.Setenv("PATH", os.Getenv("PATH")+":"+cwd)
+	}
+	return nil
+}
+
+// Fix APM cluster configs that are created by Tailorbird:
+// 1. Keep only the artifacts/kubeconfig entries in the KUBECONFIG for baremetal
+//
+//	by removing any others entries.
+//
+// 2. Configure cluster proxy.
+func fixAPM(settings *resource.Settings) error {
+	err := filterKubeconfigFiles(settings, func(name string) bool {
+		return strings.HasSuffix(name, "artifacts/kubeconfig")
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+		// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
+		clusterArtifactsPath: filepath.Dir(settings.Kubeconfig),
+		scriptRelPath:        "tunnel.sh",
+		regexMatcher:         `.*\-L([0-9]*):localhost.* (nonroot@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
+		sshKeyRelPath:        "id_rsa",
+		kubeconfig:           settings.Kubeconfig,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Fix aws cluster configs that are created by Tailorbird:
+// 1. Removes gke_aws_management.conf entry from the KUBECONFIG for aws
+// 2. Configure cluster proxy.
+func fixAWS(settings *resource.Settings) error {
+	if settings.UseOnePlatform {
+		configs := filepath.SplitList(settings.Kubeconfig)
+		for _, config := range configs {
+			if err := configMulticloudSOCKS5ClusterProxy(settings, multicloudClusterConfig{
+				// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
+				clusterArtifactsPath:     filepath.Dir(config),
+				scriptRelPath:            ".deployer/tunnel.sh",
+				regexMatcher:             `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
+				sshKeyRelPath:            ".deployer/id_rsa",
+				kubeconfig:               config,
+				connectivityMetadataPath: filepath.Dir(config) + "/connectivity-metadata/connectivity_metadata.json",
+			}); err != nil {
+				return err
+			}
+		}
+	} else {
+		err := filterKubeconfigFiles(settings, func(name string) bool {
+			return !strings.HasSuffix(name, "gke_aws_management.conf")
+		})
+		if err != nil {
+			return err
+		}
+
+		if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/.kube/gke_aws_default_t96ea7cc97f047f5.conf
+			clusterArtifactsPath: filepath.Dir(filepath.Dir(settings.Kubeconfig)),
+			scriptRelPath:        "tunnel-script.sh",
+			regexMatcher:         `.*\-L([0-9]*):localhost.* (ubuntu@.*compute\.amazonaws\.com)`,
+			sshKeyRelPath:        ".ssh/anthos-gke",
+			kubeconfig:           settings.Kubeconfig,
+		}); err != nil {
+			return err
+		}
+	}
+
+	if settings.UseAWSIptablesHack {
+		// HACK: b/238659994 -- Install a static iptables binary.
+		configs := filepath.SplitList(settings.Kubeconfig)
+		for i, kubeconfig := range configs {
+			if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {
+				os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
+				defer os.Unsetenv("HTTPS_PROXY")
+			}
+			cmds := []string{
+				fmt.Sprintf(`kubectl -n kube-system apply -f %s --kubeconfig=%s`, filepath.Join(configDir, staticIptablesDaemonset), kubeconfig),
+				fmt.Sprintf("kubectl -n kube-system rollout status daemonset/iptables-installer --kubeconfig=%s", kubeconfig),
+			}
+			if err := exec.RunMultiple(cmds); err != nil {
+				log.Print(err)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Fix azure cluster configs that are created by Tailorbird:
+func fixAzure(settings *resource.Settings) error {
+	// Azure should use one platform.
+	if !settings.UseOnePlatform {
+		return errors.New("GKEOnAzure should use OnePlatform!")
+	}
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		if err := configMulticloudSOCKS5ClusterProxy(settings, multicloudClusterConfig{
+			// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/t96ea7cc97f047f5/kubeconfig
+			clusterArtifactsPath:     filepath.Dir(config),
+			scriptRelPath:            ".deployer/tunnel.sh",
+			regexMatcher:             `.*\-L '([0-9]*):localhost.*' \\\n\t'(ubuntu@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)'`,
+			sshKeyRelPath:            ".deployer/id_rsa",
+			kubeconfig:               config,
+			connectivityMetadataPath: filepath.Dir(config) + "/connectivity-metadata/connectivity_metadata.json",
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func fixHybridGKEAndBareMetal(settings *resource.Settings) error {
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		if strings.Contains(config, "artifacts/kubeconfig") {
+			if err := configMulticloudClusterProxy(settings, multicloudClusterConfig{
+				// kubeconfig has the format of "${ARTIFACTS}"/.kubetest2-tailorbird/tf97d94df28f4277/artifacts/kubeconfig
+				clusterArtifactsPath: filepath.Dir(config),
+				scriptRelPath:        "tunnel.sh",
+				regexMatcher:         `.*\-L([0-9]*):localhost.* (root@[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)`,
+				sshKeyRelPath:        "id_rsa",
+				kubeconfig:           config,
+			}); err != nil {
+				return err
+			}
+		} else {
+			settings.ClusterProxy = append(settings.ClusterProxy, "")
+			settings.ClusterSSHUser = append(settings.ClusterSSHUser, "")
+			settings.ClusterSSHKey = append(settings.ClusterSSHKey, "")
+		}
+	}
+	return nil
+}
+
+func filterKubeconfigFiles(settings *resource.Settings, shouldKeep func(string) bool) error {
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		return errors.New("KUBECONFIG env var cannot be empty")
+	}
+
+	files := filepath.SplitList(kubeconfig)
+	filteredFiles := make([]string, 0)
+	for _, f := range files {
+		if shouldKeep(f) {
+			filteredFiles = append(filteredFiles, f)
+		} else {
+			log.Printf("Remove %q from KUBECONFIG", f)
+		}
+	}
+	filteredKubeconfig := strings.Join(filteredFiles, string(os.PathListSeparator))
+	os.Setenv("KUBECONFIG", filteredKubeconfig)
+	settings.Kubeconfig = filteredKubeconfig
+
+	return nil
+}
+
+type multicloudClusterConfig struct {
+	// the path for storing the cluster artifacts files.
+	clusterArtifactsPath string
+	// tunnel script relative path to the cluster artifacts path.
+	scriptRelPath string
+	// ssh key file relative path to the cluster artifacts path.
+	sshKeyRelPath string
+	// regex to find the PORT_NUMBER and BOOTSTRAP_HOST_SSH_USER from the tunnel
+	// script.
+	regexMatcher string
+	// path to kubeconfig
+	kubeconfig string
+	// connectivity metadata path
+	connectivityMetadataPath string
+}
+
+func newPort() (int, error) {
+	// if port is set to 0, net.ResolveTCPAddr automatically chooses an empty port
+	l, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	return port, l.Close()
+}
+
+func configMulticloudSOCKS5ClusterProxy(settings *resource.Settings, mcConf multicloudClusterConfig) error {
+
+	// get connectivity_metadata.json, kubeconfig and ssh key paths
+	connectivityMetadataPath := filepath.Join(mcConf.clusterArtifactsPath, "../connectivity-metadata/connectivity_metadata.json")
+	if mcConf.connectivityMetadataPath != "" {
+		connectivityMetadataPath = mcConf.connectivityMetadataPath
+	}
+	kubeconfigPath := mcConf.kubeconfig
+	bootstrapHostSSHKey := filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath)
+
+	// get user and hostname for the bootstrap node
+	cmd := fmt.Sprintf("jq -r '.default_transport.attributes | .bastion_hostname, .username' %s ", connectivityMetadataPath)
+	out, err := exec.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("error reading connectivity-metadata.json file %w", err)
+	}
+	splitOutput := strings.Split(out, "\n")
+	if len(splitOutput) < 2 {
+		return fmt.Errorf("error in command output")
+	}
+	bootstrapHost := strings.TrimSpace(splitOutput[0])
+	username := strings.TrimSpace(splitOutput[1])
+	bootstrapUser := username + "@" + bootstrapHost
+
+	port, err := newPort()
+	if err != nil {
+		return fmt.Errorf("Unable to get a free port %w", err)
+	}
+	// create a SOCKS5 proxy
+	socksCmdStr := fmt.Sprintf("ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "+
+		"-N -D %d -i %s %s", port, bootstrapHostSSHKey, bootstrapUser)
+	c, _ := shell.Split(socksCmdStr)
+	socksCmd := oexec.Command(c[0], c[1:]...)
+	socksCmd.Env = os.Environ()
+	socksCmd.Stdout = os.Stdout
+	socksCmd.Stderr = os.Stderr
+	fmt.Println(shell.Join(socksCmd.Args...))
+	if err = socksCmd.Start(); err != nil {
+		return err
+	}
+	time.Sleep(10 * time.Second)
+
+	// kill the socks5 proxy command
+	settings.RuntimeSettings.CleanupFuns = append(settings.RuntimeSettings.CleanupFuns,
+		func() error {
+			if socksCmd.Process == nil {
+				return nil
+			}
+			err1 := socksCmd.Process.Signal(syscall.SIGKILL) // TODO @akshayjnambiar do we need to sigterm first and then sigkill?
+			if err1 != nil {
+				return fmt.Errorf("terminating the socks5 proxy process had errors : %w", err)
+			}
+			return nil
+		})
+
+	// add proxy-url to the kubeconfig file. This helps to not worry about http_proxy env variables.
+	err = exec.Run(fmt.Sprintf("sed -i 's/- cluster:/- cluster:\\n    proxy-url: socks5:\\/\\/localhost:%d/' %s", port, kubeconfigPath))
+	if err != nil {
+		return fmt.Errorf("Unable to set proxy url in kubeconfig %w", err)
+	}
+
+	// add details to settings
+	settings.ClusterProxy = append(settings.ClusterProxy, "socks5://localhost:"+strconv.Itoa(port))
+	settings.ClusterSSHUser = append(settings.ClusterSSHUser, bootstrapUser)
+	settings.ClusterSSHKey = append(settings.ClusterSSHKey, filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath))
+	log.Printf("SSH_USER: %s, SSH_KEY: %s", settings.ClusterSSHUser, settings.ClusterSSHKey)
+
+	return nil
+}
+
+func configMulticloudClusterProxy(settings *resource.Settings, mcConf multicloudClusterConfig) error {
+	tunnelScriptPath := filepath.Join(mcConf.clusterArtifactsPath, mcConf.scriptRelPath)
+	tunnelScriptContent, err := os.ReadFile(tunnelScriptPath)
+	if err != nil {
+		return fmt.Errorf("error reading %q under the cluster artifacts path for aws: %w", mcConf.scriptRelPath, err)
+	}
+
+	patn := regexp.MustCompile(mcConf.regexMatcher)
+	matches := patn.FindStringSubmatch(string(tunnelScriptContent))
+	if len(matches) != 3 {
+		return fmt.Errorf("error finding PORT_NUMBER and BOOTSTRAP_HOST_SSH_USER from: %q", tunnelScriptContent)
+	}
+	portNum, bootstrapHostSSHUser := matches[1], matches[2]
+	httpProxy := "http://localhost:" + portNum
+	bootstrapHostSSHKey := filepath.Join(mcConf.clusterArtifactsPath, mcConf.sshKeyRelPath)
+	log.Printf("----------%s Cluster env----------", settings.ClusterType)
+	log.Print("HTTPS_PROXY: ", httpProxy)
+	settings.ClusterProxy = append(settings.ClusterProxy, httpProxy)
+	settings.ClusterSSHUser = append(settings.ClusterSSHUser, bootstrapHostSSHUser)
+	settings.ClusterSSHKey = append(settings.ClusterSSHKey, bootstrapHostSSHKey)
+	log.Printf("BOOTSTRAP_HOST_SSH_USER: %s, BOOTSTRAP_HOST_SSH_KEY: %s", bootstrapHostSSHUser, bootstrapHostSSHKey)
+
+	for name, val := range map[string]string{
+		// Used by ingress related tests
+		"BOOTSTRAP_HOST_SSH_USER": bootstrapHostSSHUser,
+		"BOOTSTRAP_HOST_SSH_KEY":  bootstrapHostSSHKey,
+	} {
+		log.Printf("Set env var: %s=%s", name, val)
+		if err := os.Setenv(name, val); err != nil {
+			return fmt.Errorf("error setting env var %q to %q: %w", name, val, err)
+		}
+	}
+
+	// add proxy-url to the kubeconfig file. This helps to not worry about http_proxy env variables.
+	err = exec.Run(fmt.Sprintf("sed -i 's/- cluster:/- cluster:\\n    proxy-url: http:\\/\\/localhost:%s/' %s", portNum, mcConf.kubeconfig))
+	if err != nil {
+		return fmt.Errorf("Unable to set proxy url in kubeconfig %w", err)
+	}
+
+	//  Increase proxy's max connection setup to avoid too many connections error
+	sshCmd1 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#max-client-connections.*/max-client-connections 512/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd2 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/keep-alive-timeout 5/keep-alive-timeout 3000/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd3 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/socket-timeout 300/socket-timeout 3000/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd4 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/#default-server-timeout.*/default-server-timeout 3000/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd5 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i 's/accept-intercepted-requests 0/accept-intercepted-requests 1/' '/etc/privoxy/config'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd6 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo sed -i -e '/change-x-forwarded-for{block}/ d' '/etc/privoxy/match-all.action'\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	sshCmd7 := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s %s \"sudo systemctl restart privoxy.service\"",
+		bootstrapHostSSHKey, bootstrapHostSSHUser)
+	if err := exec.RunMultiple([]string{sshCmd1, sshCmd2, sshCmd3, sshCmd4, sshCmd5, sshCmd6, sshCmd7}); err != nil {
+		return fmt.Errorf("error running the commands to increase proxy's max connection setup: %w", err)
+	}
+
+	return nil
+}
+
+func setCloudSDKProject(project string) error {
+	cmd := fmt.Sprintf("gcloud config set project %s", project)
+	log.Printf("Running: %s", cmd)
+	if err := exec.Run(cmd); err != nil {
+		return fmt.Errorf("failed to set project in gcloud config: %w", err)
+	}
+
+	cmd = fmt.Sprintf("gcloud config set billing/quota_project %s", project)
+	log.Printf("Running: %s", cmd)
+	if err := exec.Run(cmd); err != nil {
+		return fmt.Errorf("failed to set billing/quota_project in gcloud config: %w", err)
+	}
+
+	return nil
+}
+
+// getProjectsFromStatusFile returns the list of GCP projects from
+// status.json file. These projects were acquired from
+// Boskos by Tailorbird before cluster(s) creation.
+func getProjectsFromStatusFile(configPath string) ([]string, error) {
+	status, err := os.ReadFile(fmt.Sprintf("%s/status.json", configPath))
+	if err != nil {
+		return nil, fmt.Errorf("error reading the status file: %w", err)
+	}
+
+	var res map[string]interface{}
+	err = json.Unmarshal(status, &res)
+	if err != nil {
+		return nil, fmt.Errorf("error reading the status file: %w", err)
+	}
+
+	// the key used to store the project list is different for multi-clusters.
+	// First cluster created has key 'boskosProjects' and the second has 'projects'
+	key := "boskosProjects"
+	_, exists := res[key]
+	if !exists {
+		key = "projects"
+	}
+
+	projects := strings.Split(res[key].(string), ",")
+	return projects, nil
+}
+
+func EnableKubevirtRuntime(settings *resource.Settings) error {
+
+	// enable KubeVirt
+	enableKubevirtVMPatchFile := settings.ConfigDir + "/kubevirtvm/enable-kubevirt-vm-patch.yaml"
+	log.Printf("Enabling kubevirt with H/W virtualisation")
+	for i, kc := range settings.KubeContexts {
+		if len(settings.ClusterProxy) != 0 && settings.ClusterProxy[i] != "" {
+			os.Setenv("HTTPS_PROXY", settings.ClusterProxy[i])
+			defer os.Unsetenv("HTTPS_PROXY")
+		}
+		cmds := []string{
+			fmt.Sprintf("kubectl patch vmruntime vmruntime --type=merge --patch-file %s --context=%s",
+				enableKubevirtVMPatchFile, kc),
+			"echo \"Waiting for KubeVirt to be enabled, can take a few minutes.\"",
+			"sleep 30",
+			fmt.Sprintf("kubectl wait --for=jsonpath='{.status.ready}'=true --timeout=300s vmruntime vmruntime --context=%s", kc),
+		}
+
+		if err := exec.RunMultiple(cmds); err != nil {
+			log.Print(err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func registerAttachedV2(settings *resource.Settings) error {
+	configs := filepath.SplitList(settings.Kubeconfig)
+	for _, config := range configs {
+		dat, err := os.ReadFile(config)
+		if err != nil {
+			return fmt.Errorf("error reading file %s: %v", config, err)
+		}
+
+		log.Printf("Kubeconfig %s:\n%s", config, dat)
+
+		var name = ""
+		contextMatches := contextRegexp.FindSubmatch([]byte(dat))
+		log.Printf("Matches: %#v; len(cM): %d", contextMatches, len(contextMatches))
+		if len(contextMatches) > 1 {
+			name = string(contextMatches[1])
+		} else {
+			name = "default"
+		}
+
+		log.Printf("Using cluster context: %s", name)
+
+		var randHubBindingName string = "tb"
+		rand.Seed(time.Now().UnixNano())
+		for x := 0; x < 20; x++ {
+			randHubBindingName = randHubBindingName + strconv.Itoa(rand.Intn(10))
+		}
+
+		clusterVersion, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c '"+
+				"kubectl version --kubeconfig=%s -o json | jq .serverVersion.gitVersion"+
+				"'", config))
+		if err != nil {
+			return fmt.Errorf("failed to get clusterVersion: %w", err)
+		}
+
+		platformVersion, err := exec.RunWithOutput(
+			fmt.Sprintf("bash -c '"+
+				"gcloud container attached get-server-config --location=us-west1 2>&1 | grep -E -o -m 1 \"%s\\.[[:digit:]]-gke\\.[[:digit:]]+$\""+
+				"'", clusterVersion[2:6]))
+		if err != nil {
+			return fmt.Errorf("failed to get platformVersion from clusterVersion: %w", err)
+		}
+
+		if settings.ClusterType == resource.EKS {
+			r, _ := regexp.Compile("server: https://([A-Z0-9]+).[a-z0-9]+.us-east-2.eks.amazonaws.com")
+			res := r.FindStringSubmatch(string(dat))
+			if len(res) != 2 {
+				return fmt.Errorf("error matching EKS OIDC: %s", string(dat))
+			}
+			url := fmt.Sprintf("https://oidc.eks.us-east-2.amazonaws.com/id/%s", res[1])
+
+			if err := exec.Run(fmt.Sprintf(
+				"gcloud container attached clusters register %s"+
+					" --location=%s"+
+					" --fleet-project=%s"+
+					" --project=%s"+
+					" --platform-version=%s"+
+					" --distribution=eks"+
+					" --issuer-url=%s"+
+					" --context=%s"+
+					" --annotations googleinternal.ttl=3h"+
+					" --kubeconfig=%s",
+				randHubBindingName,
+				"us-west1",
+				CustomFleetProject,
+				CustomFleetProject,
+				platformVersion,
+				url,
+				name,
+				config)); err != nil {
+				return fmt.Errorf("error registering cluster: %w", err)
+			}
+		} else if settings.ClusterType == resource.AKS {
+			r, _ := regexp.Compile("current-context: ([a-z0-9]+-admin)")
+			res := r.FindStringSubmatch(string(dat))
+			if len(res) != 2 {
+				return fmt.Errorf("error matching AKS context: %s", string(dat))
+			}
+			if err := exec.Run(fmt.Sprintf("gcloud container attached clusters register %s"+
+				" --location=%s"+
+				" --fleet-project=%s"+
+				" --project=%s"+
+				" --platform-version=%s"+
+				" --distribution=aks"+
+				" --context=%s"+
+				" --annotations googleinternal.ttl=3h"+
+				" --has-private-issuer"+
+				" --kubeconfig=%s",
+				randHubBindingName,
+				"us-west1",
+				CustomFleetProject,
+				CustomFleetProject,
+				platformVersion,
+				name,
+				config)); err != nil {
+				return fmt.Errorf("error registering cluster: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func setMultiCloudAPIEndpointEnvVariable() error {
+	return os.Setenv(cloudAPIMulticloudOverride, preProdMulticloudAPI)
+}

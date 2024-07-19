@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+// Package cloud.taaa.k8sbase contains common definitions used by testing
+// artifact interfaces
+package cloud.taaa.k8sbase;
+
+// Prefer OPEN_V1 to keep consistency between usage in gob and google3
+
+option go_package = "gke-internal.git.corp.google.com/taaa/protobufs.git/k8sbase";
+
+message KubeConfig {
+  // The contents of a kubeconfig file (like ~/.kube/config)
+  string contents = 1;
+
+  // When given, use these context(s), otherwise the default
+  // Test should error if given more contexts than it knows what to do with
+  repeated string kubecontext = 2;
+}
+
+message CredentialRequirements {
+  string cluster = 1;
+  string project = 2;
+  oneof zone_or_region {
+    string zone = 3;
+    string region = 4;
+  }
+  string endpoint_override = 5;
+}

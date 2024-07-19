@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+// Package cloud.taaa.asm_integration runs tests from Anthos Service Mesh
+// https://gke-internal.googlesource.com/istio/istio/+log/refs/heads/master-asm
+package cloud.taaa.asm_integration;
+
+import "k8sbase/k8sbase.proto";
+
+// Prefer OPEN_V1 to keep consistency between usage in gob and google3
+
+option go_package = "gke-internal.git.corp.google.com/taaa/protobufs.git/asm_integration";
+
+message ASM {
+  repeated ASMCluster clusters = 1;
+  enum TestSuite {
+    ALL = 0;
+    NETWORKING = 1;
+  }
+  TestSuite test_suite = 2;
+  enum Execution {
+    BOTH = 0;
+    INSTALL = 1;
+    TEST = 2;
+  }
+  // Allows skipping of either install or testing for quicker local testing.
+  Execution execution = 3;
+}
+
+message ASMCluster {
+  // Required
+  k8sbase.CredentialRequirements cluster_information = 1;
+  // Allows specifying the GKE network name the tests should use.
+  string gke_network = 2;
+}
