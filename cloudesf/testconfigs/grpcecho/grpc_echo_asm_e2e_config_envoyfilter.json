@@ -27,6 +27,39 @@
         "patch": {
           "operation": "INSERT_BEFORE",
           "value": {
+            "name": "com.google.service_config_singleton_filter",
+            "typedConfig": {
+              "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
+              "typeUrl": "type.googleapis.com/net.envoy.proto.ServiceConfigSingletonFilterConfig",
+              "value": {
+                "serviceConfig": {
+                  "serviceConfigId": "1-010472e3_62b87bfe_5030527d_030e1ba1_0b143d96",
+                  "serviceConfigPath": "/etc/istio/proxy/_grpc_echo_asm_e2e_config_service.txtpb"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "applyTo": "HTTP_FILTER",
+        "match": {
+          "context": "GATEWAY",
+          "listener": {
+            "filterChain": {
+              "filter": {
+                "name": "envoy.filters.network.http_connection_manager",
+                "subFilter": {
+                  "name": "envoy.filters.http.router"
+                }
+              }
+            },
+            "portNumber": 8080
+          }
+        },
+        "patch": {
+          "operation": "INSERT_BEFORE",
+          "value": {
             "name": "com.google.error_details_patch_filter",
             "typedConfig": {
               "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
@@ -358,32 +391,6 @@
               "value": {
                 "processingPath": "RESPONSE_PATH",
                 "wrapperKey": "SCRUBBER"
-              }
-            }
-          }
-        }
-      },
-      {
-        "applyTo": "LISTENER",
-        "match": {
-          "context": "GATEWAY",
-          "listener": {
-            "portNumber": 8080
-          }
-        },
-        "patch": {
-          "operation": "MERGE",
-          "value": {
-            "metadata": {
-              "typedFilterMetadata": {
-                "com.google.cloudesf.service_config": {
-                  "@type": "type.googleapis.com/udpa.type.v1.TypedStruct",
-                  "typeUrl": "type.googleapis.com/net.envoy.proto.cloudesf.ServiceConfigDataSource",
-                  "value": {
-                    "serviceConfigId": "1-010472e3_62b87bfe_5030527d_030e1ba1_0b143d96",
-                    "serviceConfigPath": "/etc/istio/proxy/_grpc_echo_asm_e2e_config_service.txtpb"
-                  }
-                }
               }
             }
           }
