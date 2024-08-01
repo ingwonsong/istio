@@ -855,6 +855,10 @@ func (d *Instance) tracRookeryPath() (string, error) {
 	if d.cfg.TRACCPIndex != -1 {
 		rookeryFileNamePrefix = fmt.Sprintf("%s-cp-%d", rookeryFileNamePrefix, d.cfg.TRACCPIndex)
 	}
+	// Add uci for regionalised membership flagged prow jobs
+	if d.cfg.RegionalisedMembership {
+		rookeryFileNamePrefix = fmt.Sprintf("%s-%s", rookeryFileNamePrefix, "uci")
+	}
 	rookeryFileName := rookeryFileNamePrefix + ".yaml"
 	f := filepath.Join(d.cfg.RepoRootDir, tracConfigRelDir, genFolderName, rookeryFileName)
 	if _, err := os.Stat(f); err != nil {
