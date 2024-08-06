@@ -59,6 +59,7 @@ type Instance struct {
 	UseOnePlatform                 bool
 	UseKubevirtVM                  bool
 	UseGSM                         bool
+	ExtraTemplateParams            map[string]string
 	UpgradeClusterVersion          []string
 	UpgradeClusterVersionTracIndex []int
 	GCSBucket                      string

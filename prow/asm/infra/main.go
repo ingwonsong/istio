@@ -84,6 +84,7 @@ func main() {
 	flag.StringVar(&cfg.BMServerOS, "bm-server-os", cfg.BMServerOS, "Server OS for baremetal platform")
 	flag.StringVar((*string)(&cfg.WIP), "wip", string(cfg.WIP),
 		fmt.Sprintf("Workload Identity Pool, can be one of %v", types.SupportedWIPs))
+	flag.StringToStringVar(&cfg.ExtraTemplateParams, "extra-template-params", nil, "template params that can be added directly to the tailorbird configs")
 	flag.StringSliceVar(&features, "feature", []string{},
 		fmt.Sprintf("the feature to test for ASM (optional). Can be one or multiple of %v", types.SupportedFeatures))
 	flag.StringVar(&cfg.GCSBucket, "gcs-bucket", cfg.GCSBucket,

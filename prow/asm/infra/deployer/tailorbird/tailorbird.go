@@ -127,6 +127,7 @@ type TemplateParameters struct {
 	Environment                  types.Environment
 	OnPremHubDevProject          string
 	OnPremGkeConnectSA           string
+	AdditionalParams             map[string]string
 }
 
 // Exported types to support unmarshalling rookery Yaml
@@ -808,6 +809,7 @@ func (d *Instance) rookeryFile() (string, error) {
 		OnPremHubDevProject: onPremHubDevProject,
 		OnPremGkeConnectSA:  onPremGkeConnectSA,
 		UpgradeVersion:      upgradeVersion,
+		AdditionalParams:    d.cfg.ExtraTemplateParams,
 	}
 
 	if d.cfg.Cluster == types.GKEOnGCP {

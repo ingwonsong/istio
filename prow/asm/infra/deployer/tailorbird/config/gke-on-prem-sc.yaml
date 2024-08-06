@@ -23,8 +23,8 @@ spec:
            username: prowuser
            lbkind: "MetalLB"
            ipAllocationStrategy: static
-           controlPlaneV2Enabled: "true"
-           userAcnMode: "true"
+           controlPlaneV2Enabled: "{{ .AdditionalParams.controlPlaneV2Enabled | default true }}"
+           userAcnMode: "{{ .AdditionalParams.userAcnMode | default true }}"
            additionalNodes: "8"
            {{- if .Version }}
            gkectlVersion: "{{ .Version }}"
