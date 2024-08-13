@@ -22,7 +22,7 @@ spec:
           provisionerArgs:
             region: westus2
             nodeCount: "3"
-            kubernetesVersion: 1.29.3-gke.600
+            kubernetesVersion: 1.29.6-gke.600
             username: asm-svc-acct
             nodepoolPatch: |
               {
@@ -40,7 +40,7 @@ spec:
           provisionerArgs:
             region: westus2
             nodeCount: "3"
-            kubernetesVersion: 1.29.3-gke.600
+            kubernetesVersion: 1.29.6-gke.600
             username: asm-svc-acct
             nodepoolPatch: |
               {
