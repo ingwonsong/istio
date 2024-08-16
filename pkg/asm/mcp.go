@@ -130,8 +130,8 @@ func MCPParametersFromEnv() (MCPParameters, error) {
 		p.Revision = "asm-managed"
 	}
 	p.CloudrunAddr = os.Getenv("CLOUDRUN_ADDR")
-	if p.CloudrunAddr == "" {
-		return p, fmt.Errorf("CLOUDRUN_ADDR is a required environment variable")
+	if p.CloudrunAddr == "" && os.Getenv("PROXY_ENV_ISTIO_META_CONTROL_PLANE") == "" {
+		return p, fmt.Errorf("CLOUDRUN_ADDR or PROXY_ENV_ISTIO_META_CONTROL_PLANE is a required environment variable")
 	}
 	p.XDSAddr = os.Getenv("XDS_ADDR")
 	if p.XDSAddr == "" {

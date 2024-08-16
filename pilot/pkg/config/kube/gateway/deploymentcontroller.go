@@ -530,9 +530,6 @@ func (d *DeploymentController) render(templateName string, mi TemplateInput) ([]
 
 	// ASM MCP code
 	cloudrunAddr := env.RegisterStringVar("CLOUDRUN_ADDR", "", "cloud run service address").Get()
-	if cloudrunAddr == "" && asm.IsCloudRun() {
-		return nil, fmt.Errorf("CLOUDRUN_ADDR is a required environment variable for ASM managed control plane")
-	}
 	extraEnv := map[string]string{}
 	asm.InjectProxyEnvFromIstiodEnv(extraEnv)
 	// ASM MCP code

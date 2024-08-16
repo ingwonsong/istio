@@ -15,6 +15,7 @@
 package mcpserviceentrystatus
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -974,18 +975,23 @@ func TestHandleIPAllocation(t *testing.T) {
 			}
 
 			for nsname, wantStatus := range test.wantIstioStatus {
-				storedConfig, ok := configStore.GetCopy(gvk.ServiceEntry, nsname.Name, nsname.Namespace)
-				if !ok {
-					t.Fatalf("the given resource %v is not found in the config store", nsname)
-				}
-				gotStatus, ok := storedConfig.Status.(*v1alpha1.IstioStatus)
-				if !ok || gotStatus == nil {
-					t.Fatalf("failed to get the status from stored config(%v)", storedConfig.Status)
-				}
+				retryFunc := func() error {
+					storedConfig, ok := configStore.GetCopy(gvk.ServiceEntry, nsname.Name, nsname.Namespace)
+					if !ok {
+						t.Fatalf("the given resource %v is not found in the config store", nsname)
+					}
+					gotStatus, ok := storedConfig.Status.(*v1alpha1.IstioStatus)
+					if !ok || gotStatus == nil {
+						return fmt.Errorf("failed to get the status from stored config(%v)", storedConfig.Status)
+					}
 
-				if diff := cmp.Diff(wantStatus, gotStatus, protocmp.Transform()); diff != "" {
-					t.Errorf("unexpected status is in the stored config (-want, +got):\n%s", diff)
+					if diff := cmp.Diff(wantStatus, gotStatus, protocmp.Transform()); diff != "" {
+						return fmt.Errorf("unexpected status is in the stored config (-want, +got):\n%s", diff)
+					}
+
+					return nil
 				}
+				retry.UntilSuccessOrFail(t, retryFunc, retry.Timeout(time.Second*10), retry.Delay(time.Second))
 			}
 		})
 	}
