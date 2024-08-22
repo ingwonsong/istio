@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strings"
 
+	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	cloudtrace "cloud.google.com/go/trace/apiv1/tracepb"
@@ -65,6 +66,10 @@ const (
   defaultConfig:
     proxyMetadata:
       GCE_METADATA_HOST: `
+
+	GcrProjectIDENV     = "GCR_PROJECT_ID"
+	ControlPlaneENV     = "CONTROL_PLANE"
+	managedControlPlane = "MANAGED"
 )
 
 var (
@@ -102,6 +107,11 @@ func TestSetup(ctx resource.Context) (err error) {
 	builder := deployment.New(ctx)
 	for _, cls := range ctx.Clusters() {
 		clName := cls.Name()
+		// splitting the string by separator "/" to shorten the service name as
+		// metadata.name must be no more than 63 characters
+		if strings.Contains(cls.Name(), "/") {
+			clName = strings.Split(clName, "/")[1]
+		}
 		builder.
 			WithConfig(echo.Config{
 				Service:   fmt.Sprintf("clt-%s", clName),
@@ -276,14 +286,27 @@ func unmarshalFromTemplateFile(t framework.TestContext, file string, out proto.M
 	if err != nil {
 		return err
 	}
+	// TODO: replace with reading from meshConfig
+	projectID, controlPlane := os.Getenv(GcrProjectIDENV), os.Getenv(ControlPlaneENV)
+	if projectID == "" {
+		scopes.Framework.Warn("projectID is empty from env\n")
+	}
+	if controlPlane == managedControlPlane {
+		trustDomain = fmt.Sprintf("%s.svc.id.goog", projectID)
+	}
+
+	if strings.Contains(clName, "/") {
+		clName = strings.Split(clName, "/")[1]
+	}
 	resource, err := tmpl.Evaluate(string(templateFile), map[string]any{
 		"EchoNamespace": EchoNsInst.Name(),
 		"ClusterName":   clName,
 		"TrustDomain":   trustDomain,
-		"OnGCE":         OnGKE(t),
+		"OnGCE":         metadata.OnGCE(), // metadata.OnGCE() is required for off-gcp clusters for CSM only
 		"ProxyVersion":  proxyVersion,
 	})
 	if err != nil {
+		t.Logf("error evaluating template : %v", err)
 		return err
 	}
 	return protomarshal.Unmarshal([]byte(resource), out)

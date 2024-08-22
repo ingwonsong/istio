@@ -78,10 +78,7 @@ func TestStackdriverMonitoring(t *testing.T) {
 						}
 						t.Logf("logs validated")
 
-						if err := stackdrivertest.ValidateTraces(t); err != nil {
-							return err
-						}
-						t.Logf("Traces validated")
+						// skip validating traces as CSM does not support configuring traces through the Istio telemetry API
 
 						return nil
 					}, retry.Delay(framework.TelemetryRetryDelay), retry.Timeout(framework.TelemetryRetryTimeout))
