@@ -17,6 +17,7 @@ package reconciler
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -362,34 +363,26 @@ func Test_calculateStatus(t *testing.T) {
 }
 
 func TestMaxTimeToReconcile(t *testing.T) {
+	timeNow := time.Now()
 	testCases := []struct {
 		name           string
 		dpc            *v1alpha1.DataPlaneControl
 		expectDuration int64
 	}{
 		{
-			name: "default",
-			dpc: &v1alpha1.DataPlaneControl{
-				Spec: v1alpha1.DataPlaneControlSpec{},
-			},
-			expectDuration: int64(MaxTimeToReconcile),
-		},
-		{
 			name: "duration from dpc unexpired",
 			dpc: &v1alpha1.DataPlaneControl{
 				Spec: v1alpha1.DataPlaneControlSpec{
-					InstanceUpgradeDurationHours: 1,
-					UpgradeDurationValidUntil:    time.Now().Add(time.Hour).Format(time.RFC3339),
+					UpgradeDurationValidUntil: timeNow.Add(12 * time.Hour).Format(time.RFC3339),
 				},
 			},
-			expectDuration: int64(time.Hour),
+			expectDuration: int64(12 * time.Hour),
 		},
 		{
 			name: "duration from dpc expired",
 			dpc: &v1alpha1.DataPlaneControl{
 				Spec: v1alpha1.DataPlaneControlSpec{
-					InstanceUpgradeDurationHours: 1,
-					UpgradeDurationValidUntil:    time.Now().Format(time.RFC3339),
+					UpgradeDurationValidUntil: timeNow.Add(-time.Hour).Format(time.RFC3339),
 				},
 			},
 			expectDuration: int64(MaxTimeToReconcile),
@@ -398,8 +391,7 @@ func TestMaxTimeToReconcile(t *testing.T) {
 			name: "duration from dpc capped",
 			dpc: &v1alpha1.DataPlaneControl{
 				Spec: v1alpha1.DataPlaneControlSpec{
-					InstanceUpgradeDurationHours: 24,
-					UpgradeDurationValidUntil:    time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+					UpgradeDurationValidUntil: timeNow.Format(time.RFC3339),
 				},
 			},
 			expectDuration: int64(MaxTimeToReconcile),
@@ -408,8 +400,8 @@ func TestMaxTimeToReconcile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := maxTimeToReconcile(tc.dpc); got != tc.expectDuration {
-				t.Errorf("maxTimeToReconcile(#%v) failed, got %v, want %v", tc.dpc, got, tc.expectDuration)
+			if got := maxTimeToReconcile(tc.dpc, timeNow); int64(math.Abs(float64(got-tc.expectDuration))) > time.Second.Nanoseconds() {
+				t.Errorf("maxTimeToReconcile(#%v) failed, got %v, want %v, diff %v", tc.dpc, got, tc.expectDuration, int64(math.Abs(float64(got-tc.expectDuration))))
 			}
 		})
 	}

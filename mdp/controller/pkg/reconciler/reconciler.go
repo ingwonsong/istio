@@ -126,6 +126,7 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		return result, err
 	}
 
+	// The "total" is the number of all pods in the revision.
 	versions, total := n.ReadPodCache.GetProxyVersionCount(dpc.Spec.Revision)
 	metrics.ReportProxies(versions, dpc.Spec.Revision)
 	if total < 1 {
@@ -174,23 +175,28 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 		n.statusWorker.EnqueueStatus(dpc)
 		return result, err
 	}
-	targetPct := float32(proxyTargetBasisPointsForDPC(dpc)*100) / totalBasisPoints
-	newVersion := proxyVersionForDPC(dpc)
-	rateLogger.Infof("target version: %s, percent: %v", newVersion, targetPct)
 
+	rateLogger.Infof("Target Version: %q, Upgraded / Total Pods: %d / %d, Upgrade Progress Percent: %.2f",
+		proxyVersionForDPC(dpc), versions[proxyVersionForDPC(dpc)], total,
+		float32(proxyTargetBasisPointsForDPC(dpc)*100)/totalBasisPoints)
 	bptsFraction := float32(proxyTargetBasisPointsForDPC(dpc)) / totalBasisPoints
+	// The "desired" is the total targeting count for pod eviction in the revision by respecting the basis point.
 	desired := int(math.Ceil(float64(float32(total) * bptsFraction)))
-	if desired < 1 {
-		// we have already met our goal, as our goal is zero.  cease updating (if in progress), update status, and exit.
+	// The "totalToUpgrade" is the number of remaining pods needed to be evicted.
+	totalToUpgrade := total - versions[proxyVersionForDPC(dpc)]
+	// Stop reconciliation if 1) there is no pods to perform in the revision OR 2) no remaining pods to be evicted.
+	if desired < 1 || totalToUpgrade < 1 {
+		// Already achieved the target. No need to have evictions further.
+		// Stop any existing update (if there is in progress), update status, and exit.
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		dpc.Status = calculateStatus(dpc, total, versions[proxyVersionForDPC(dpc)],
 			0, n.metricsRecord)
 		n.statusWorker.EnqueueStatus(dpc)
-		log.Infof("revision %s meets goal of zero proxies", dpc.Spec.Revision)
+		log.Infof("The proxy rollout in revision %q is completed.", dpc.Spec.Revision)
 		resultMetricLabel = metrics.Success
 		return result, nil
 	}
-	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, proxyVersionForDPC(dpc), rateLimitForRollout(dpc, total))
+	u := n.getOrMakeUpdater(ctx, request.NamespacedName, dpc.Spec.Revision, proxyVersionForDPC(dpc), rateLimitForRollout(dpc, totalToUpgrade))
 	projectedActual := versions[proxyVersionForDPC(dpc)] + u.Len()
 	log.Debugf("update count projected: %v, desired: %v", projectedActual, desired)
 	if projectedActual < desired {
@@ -200,7 +206,8 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 			result.Requeue = true
 		}
 	} else if u.Len() > 0 &&
-		float32(projectedActual)/float32(desired) > 1.1 && proxyTargetBasisPointsForDPC(dpc) < totalBasisPoints {
+		float32(projectedActual)/float32(desired) > 1.1 &&
+		proxyTargetBasisPointsForDPC(dpc) < totalBasisPoints {
 		// we're projected to overshoot by more than 10%.  Purge the updater.
 		log.Infof("Dataplane Update Queue for revision %s is expected to overshoot the desired "+
 			"ProxyTargetBasisPoints, and the queue will be restarted.", dpc.Spec.Revision)
@@ -265,12 +272,12 @@ func getControlPlaneExpectedVersion(ctx context.Context, cl client.Client, chann
 
 // rateLimitForRollout rate limits based on the duration of the upgrade and the # of pods to be upgraded.
 func rateLimitForRollout(dpc *v1alpha1.DataPlaneControl, podCount int) rate.Limit {
-	return rate.Every(time.Duration(maxTimeToReconcile(dpc) / int64(podCount)))
+	return rate.Every(time.Duration(maxTimeToReconcile(dpc, time.Now()) / int64(podCount)))
 }
 
 // maxTimeToReconcile computes the upgrade duration. If InstanceUpgradeDurationHours is set in DPC and unexpired,
 // we will use that. Otherwise we will use the default global variable.
-func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl) (maxTimeToReconcile int64) {
+func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl, now time.Time) (maxTimeToReconcile int64) {
 	maxTimeToReconcile = int64(MaxTimeToReconcile)
 	defer func() {
 		if maxTimeToReconcile == int64(MaxTimeToReconcile) {
@@ -279,21 +286,21 @@ func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl) (maxTimeToReconcile int6
 		}
 		rateLogger.Infof("Use the configured maximum hours to reconcile proxies: %d", maxTimeToReconcile)
 	}()
-	if dpc.Spec.InstanceUpgradeDurationHours > 0 {
-		upgradeDurationValidUntil, err := time.Parse(time.RFC3339, dpc.Spec.UpgradeDurationValidUntil)
-		if err != nil {
-			log.Errorf("parsing upgrade duration valid timestamp failed: %v, falling back to the default.", err)
-			return int64(MaxTimeToReconcile)
-		}
-		if !time.Now().Before(upgradeDurationValidUntil) {
-			// Invalid upgrade start timestamp or the duration has expired, revert back to default.
-			log.Infof("upgrade duration expired, falling back to the default.")
-			return int64(MaxTimeToReconcile)
-		}
-		// Cap the maxTimeToReconcile to be the default global.
-		return min(int64(dpc.Spec.InstanceUpgradeDurationHours)*int64(time.Hour), int64(MaxTimeToReconcile))
+	upgradeDurationValidUntil, err := time.Parse(time.RFC3339, dpc.Spec.UpgradeDurationValidUntil)
+	if err != nil {
+		log.Errorf("parsing upgrade duration valid timestamp failed: %v, falling back to the default.", err)
+		return
 	}
-	return int64(MaxTimeToReconcile)
+	if !now.Before(upgradeDurationValidUntil) {
+		// Invalid upgrade start timestamp or the duration has expired, revert back to default.
+		// This causes proxy rollouts infinitely. Should figure out to address this problem for MW rollout specifically.
+		// Another consideration is evicting all remaining pods at once if the current time is over the upgradeDurationValidUntil.
+		log.Infof("upgrade duration expired, falling back to the default.")
+		return
+	}
+	// Return the gap between Now and upgradeDurationValidUntil.
+	maxTimeToReconcile = min(int64(upgradeDurationValidUntil.Sub(now)), int64(MaxTimeToReconcile))
+	return
 }
 
 func (n *NewReconciler) getOrMakeUpdater(ctx context.Context, dprNsName types.NamespacedName, rev, version string, limit rate.Limit) proxyupdater.UpdateWorker {
