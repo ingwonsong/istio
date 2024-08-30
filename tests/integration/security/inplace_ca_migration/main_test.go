@@ -216,12 +216,12 @@ func TestCAMigration(t *testing.T) {
 	// nolint: staticcheck
 	framework.NewTest(t).
 		Run(func(ctx framework.TestContext) {
-			nsA := namespace.NewOrFail(t, ctx, namespace.Config{
+			nsA := namespace.NewOrFail(ctx, namespace.Config{
 				Prefix: "nsa",
 				Inject: true,
 			})
 
-			nsB := namespace.NewOrFail(t, ctx, namespace.Config{
+			nsB := namespace.NewOrFail(ctx, namespace.Config{
 				Prefix: "nsb",
 				Inject: true,
 			})

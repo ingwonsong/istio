@@ -183,7 +183,7 @@ func runMcpCheck(w io.Writer, filenames []string, outDir, revision string) error
 			Translator:  translate.NewTranslator(),
 			Namespace:   gwSpec.Namespace,
 		}
-		var c component.IstioComponent
+		var c *component.IstioComponent
 		switch gwType {
 		case "istio-ingressgateway":
 			c = component.NewIngressComponent(gwSpec.Name, 0, gwSpec, opts)

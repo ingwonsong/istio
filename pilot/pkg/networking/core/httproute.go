@@ -116,7 +116,7 @@ func (configgen *ConfigGeneratorImpl) BuildHTTPRoutes(
 // TODO: trace decorators, inbound timeouts
 func buildSidecarInboundHTTPRouteConfig(lb *ListenerBuilder, cc inboundChainConfig) *route.RouteConfiguration {
 	traceOperation := telemetry.TraceOperation(string(cc.telemetryMetadata.InstanceHostname), cc.port.Port)
-	defaultRoute := istio_route.BuildDefaultHTTPInboundRoute(cc.clusterName, traceOperation)
+	defaultRoute := istio_route.BuildDefaultHTTPInboundRoute(lb.node, cc.clusterName, traceOperation)
 
 	inboundVHost := &route.VirtualHost{
 		Name:    inboundVirtualHostPrefix + strconv.Itoa(cc.port.Port), // Format: "inbound|http|%d"
@@ -400,6 +400,7 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 			servicesByName[svc.Hostname] = &model.Service{
 				Hostname:       svc.Hostname,
 				DefaultAddress: svc.GetAddressForProxy(node),
+				ClusterVIPs:    *svc.ClusterVIPs.DeepCopy(),
 				MeshExternal:   svc.MeshExternal,
 				Resolution:     svc.Resolution,
 				Ports:          []*model.Port{svcPort},
@@ -410,10 +411,6 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 					Aliases:         svc.Attributes.Aliases,
 					K8sAttributes:   svc.Attributes.K8sAttributes,
 				},
-			}
-			if features.EnableDualStack {
-				// cannot correctly build virtualHost domains for dual stack without ClusterVIPs
-				servicesByName[svc.Hostname].ClusterVIPs = *svc.ClusterVIPs.DeepCopy()
 			}
 		}
 	}

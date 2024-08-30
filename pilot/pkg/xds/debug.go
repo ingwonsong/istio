@@ -283,7 +283,6 @@ func (s *DiscoveryServer) Syncz(w http.ResponseWriter, req *http.Request) {
 	syncz := make([]SyncStatus, 0)
 	for _, con := range s.SortedClients() {
 		node := con.proxy
-		node.CloneWatchedResources()
 		if node != nil && (namespace == "" || node.GetNamespace() == namespace) {
 			wrs := node.CloneWatchedResources()
 			res := make(map[string]ResourceStatus, len(wrs))
@@ -1032,6 +1031,7 @@ func (s *DiscoveryServer) ambientz(w http.ResponseWriter, req *http.Request) {
 	res := struct {
 		Workloads []jsonMarshalProto `json:"workloads"`
 		Services  []jsonMarshalProto `json:"services"`
+		Policies  []jsonMarshalProto `json:"policies"`
 	}{}
 	// WDS stores IPs as raw byte form. We want to view them as strings, so convert.
 	// This doesn't quite work ideally, since json marshal will write as base64, but its better than nothing
@@ -1043,20 +1043,23 @@ func (s *DiscoveryServer) ambientz(w http.ResponseWriter, req *http.Request) {
 		return []byte(ip.String())
 	}
 	rewriteNetworkAddress := func(b *workloadapi.NetworkAddress) *workloadapi.NetworkAddress {
-		b.Address = rewriteAddress(b.Address)
-		return b
+		nb := proto.Clone(b).(*workloadapi.NetworkAddress)
+		nb.Address = rewriteAddress(nb.Address)
+		return nb
 	}
 	rewriteGatewayAddress := func(b *workloadapi.GatewayAddress) *workloadapi.GatewayAddress {
 		if b == nil {
 			return nil
 		}
-		switch t := b.Destination.(type) {
+		nb := proto.Clone(b).(*workloadapi.GatewayAddress)
+		switch t := nb.Destination.(type) {
 		case *workloadapi.GatewayAddress_Address:
 			t.Address = rewriteNetworkAddress(t.Address)
 		}
-		return b
+		return nb
 	}
-	for _, addr := range addresses {
+	for _, original := range addresses {
+		addr := proto.Clone(original.Address).(*workloadapi.Address)
 		switch addr := addr.Type.(type) {
 		case *workloadapi.Address_Workload:
 			w := addr.Workload
@@ -1071,7 +1074,9 @@ func (s *DiscoveryServer) ambientz(w http.ResponseWriter, req *http.Request) {
 			res.Services = append(res.Services, jsonMarshalProto{s})
 		}
 	}
-
+	for _, policy := range s.Env.ServiceDiscovery.Policies(nil) {
+		res.Policies = append(res.Policies, jsonMarshalProto{policy.Authorization})
+	}
 	writeJSON(w, res, req)
 }
 

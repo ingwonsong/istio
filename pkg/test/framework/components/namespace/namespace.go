@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/env"
 	"istio.io/istio/pkg/test/framework/resource"
 	"istio.io/istio/pkg/test/scopes"
@@ -77,13 +76,13 @@ func Claim(ctx resource.Context, cfg Config) (i Instance, err error) {
 }
 
 // ClaimOrFail calls Claim and fails test if it returns error
-func ClaimOrFail(t test.Failer, ctx resource.Context, name string) Instance {
+func ClaimOrFail(t resource.ContextFailer, name string) Instance {
 	t.Helper()
 	nsCfg := Config{
 		Prefix: name,
 		Inject: true,
 	}
-	i, err := Claim(ctx, nsCfg)
+	i, err := Claim(t, nsCfg)
 	if err != nil {
 		t.Fatalf("namespace.ClaimOrFail:: %v", err)
 	}
@@ -111,9 +110,9 @@ func New(ctx resource.Context, cfg Config) (i Instance, err error) {
 }
 
 // NewOrFail calls New and fails test if it returns error
-func NewOrFail(t test.Failer, ctx resource.Context, nsConfig Config) Instance {
+func NewOrFail(t resource.ContextFailer, nsConfig Config) Instance {
 	t.Helper()
-	i, err := New(ctx, nsConfig)
+	i, err := New(t, nsConfig)
 	if err != nil {
 		t.Fatalf("namespace.NewOrFail: %v", err)
 	}

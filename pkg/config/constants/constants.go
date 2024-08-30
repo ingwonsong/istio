@@ -163,8 +163,6 @@ const (
 	RemoteGatewayClassName   = "istio-remote"
 	WaypointGatewayClassName = "istio-waypoint"
 
-	// DeprecatedGatewayNameLabel indicates the gateway managing a particular proxy instances. Only populated for Gateway API gateways
-	DeprecatedGatewayNameLabel = "istio.io/gateway-name"
 	// GatewayNameLabel indicates the gateway managing a particular proxy instances. Only populated for Gateway API gateways
 	GatewayNameLabel = "gateway.networking.k8s.io/gateway-name"
 
@@ -178,8 +176,7 @@ const (
 	// Set by users to indicate that the (namespace|pod) should be captured for ambient
 	DataplaneModeAmbient = "ambient"
 	// Set by users to indicate that the (namespace|pod) should NOT be captured for ambient
-	DataplaneModeNone    = "none"
-	DataplaneModeInherit = "inherit" // TODO do we need this atm
+	DataplaneModeNone = "none"
 
 	// AmbientRedirection specifies whether a pod has ambient redirection (to ztunnel) configured.
 	AmbientRedirection = "ambient.istio.io/redirection"
@@ -190,7 +187,8 @@ const (
 	// Anything else indicates it is not.
 	AmbientRedirectionEnabled = "enabled"
 
-	// AmbientUseWaypointLabelLabel is the label used to specify which waypoint should be used for a given pod, service, etc...
+	// AmbientUseWaypointLabel is the label used to specify which waypoint should be used for a given pod, service, etc...
+	// `istio.io/use-waypoint: none` means skipping using any waypoint specified from higher scope, namespace/service, etc...
 	AmbientUseWaypointLabel = "istio.io/use-waypoint"
 	// AmbientUseWaypointNamespaceLabel is a label used to indicate the namespace of the waypoint (referred to by AmbientUseWaypointLabel).
 	// This allows cross-namespace waypoint references. If unset, the same namespace is assumed.

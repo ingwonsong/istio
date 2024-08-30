@@ -91,7 +91,7 @@ func TestProxiesRestarted(t *testing.T) {
 		Run(func(t framework.TestContext) {
 			defer dump(t)
 			cs := t.Clusters().Default()
-			ns = namespace.NewOrFail(t, t, namespace.Config{
+			ns = namespace.NewOrFail(t, namespace.Config{
 				Prefix: "mdp-workload",
 				Inject: true,
 				Labels: map[string]string{"istio.io/rev": oldRevision},
@@ -175,7 +175,7 @@ func applyGenMDPManifest(t framework.TestContext) {
 }
 
 func checkPDBWorkload(t framework.TestContext, cs cluster.Cluster, builder deployment.Builder, oldRevision, newRevision, newVersion string) {
-	pdbns := namespace.NewOrFail(t, t, namespace.Config{
+	pdbns := namespace.NewOrFail(t, namespace.Config{
 		Prefix: "mdp-workload-pdb",
 		Inject: true,
 		Labels: map[string]string{"istio.io/rev": oldRevision},

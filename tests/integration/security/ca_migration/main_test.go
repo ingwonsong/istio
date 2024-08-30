@@ -76,25 +76,25 @@ func TestIstiodToMeshCAMigration(t *testing.T) {
 	framework.NewTest(t).
 		RequiresSingleCluster().
 		Run(func(ctx framework.TestContext) {
-			nsA := namespace.NewOrFail(t, ctx, namespace.Config{
+			nsA := namespace.NewOrFail(ctx, namespace.Config{
 				Prefix:   "nsa",
 				Inject:   true,
 				Revision: IstioCARevision,
 			})
 
-			nsB := namespace.NewOrFail(t, ctx, namespace.Config{
+			nsB := namespace.NewOrFail(ctx, namespace.Config{
 				Prefix:   "nsb",
 				Inject:   true,
 				Revision: IstioCARevision,
 			})
 
-			nsC := namespace.NewOrFail(t, ctx, namespace.Config{
+			nsC := namespace.NewOrFail(ctx, namespace.Config{
 				Prefix:   "nsc",
 				Inject:   true,
 				Revision: MeshCARevision,
 			})
 
-			nsD := namespace.NewOrFail(t, ctx, namespace.Config{
+			nsD := namespace.NewOrFail(ctx, namespace.Config{
 				Prefix:   "nsd",
 				Inject:   true,
 				Revision: MeshCARevision,

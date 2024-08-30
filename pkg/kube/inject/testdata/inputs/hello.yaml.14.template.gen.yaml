@@ -441,10 +441,6 @@ templates:
         - mountPath: /var/run/secrets/istio
           name: istiod-ca-cert
         {{- end }}
-        {{- if eq .Values.global.pilotCertProvider "kubernetes" }}
-        - mountPath: /var/run/secrets/istio/kubernetes
-          name: kube-ca-cert
-        {{- end }}
         - mountPath: /var/lib/istio/data
           name: istio-data
         {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/bootstrapOverride`) }}
@@ -1195,7 +1191,6 @@ templates:
           .InfrastructureLabels
           (strdict
             "gateway.networking.k8s.io/gateway-name" .Name
-            "istio.io/gateway-name" .Name
           ) | nindent 4 }}
       {{- if ge .KubeVersion 128 }}
       # Safe since 1.28: https://github.com/kubernetes/kubernetes/pull/117412
@@ -1218,7 +1213,6 @@ templates:
           .InfrastructureLabels
           (strdict
             "gateway.networking.k8s.io/gateway-name" .Name
-            "istio.io/gateway-name" .Name
             "gateway.istio.io/managed" "istio.io-mesh-controller"
           ) | nindent 4 }}
       ownerReferences:
@@ -1252,7 +1246,6 @@ templates:
               .InfrastructureLabels
               (strdict
                 "gateway.networking.k8s.io/gateway-name" .Name
-                "istio.io/gateway-name" .Name
                 "gateway.istio.io/managed" "istio.io-mesh-controller"
               ) | nindent 8}}
         spec:
@@ -1470,7 +1463,6 @@ templates:
           .InfrastructureLabels
           (strdict
             "gateway.networking.k8s.io/gateway-name" .Name
-            "istio.io/gateway-name" .Name
           ) | nindent 4 }}
       name: {{.DeploymentName | quote}}
       namespace: {{.Namespace | quote}}
@@ -1508,7 +1500,6 @@ templates:
           .InfrastructureLabels
           (strdict
             "gateway.networking.k8s.io/gateway-name" .Name
-            "istio.io/gateway-name" .Name
           ) | nindent 4 }}
       {{- if ge .KubeVersion 128 }}
       # Safe since 1.28: https://github.com/kubernetes/kubernetes/pull/117412
@@ -1531,7 +1522,6 @@ templates:
           .InfrastructureLabels
           (strdict
             "gateway.networking.k8s.io/gateway-name" .Name
-            "istio.io/gateway-name" .Name
           ) | nindent 4 }}
       ownerReferences:
       - apiVersion: gateway.networking.k8s.io/v1beta1
@@ -1563,7 +1553,6 @@ templates:
               .InfrastructureLabels
               (strdict
                 "gateway.networking.k8s.io/gateway-name" .Name
-                "istio.io/gateway-name" .Name
               ) | nindent 8 }}
         spec:
           securityContext:
@@ -1823,7 +1812,6 @@ templates:
           .InfrastructureLabels
           (strdict
             "gateway.networking.k8s.io/gateway-name" .Name
-            "istio.io/gateway-name" .Name
           ) | nindent 4 }}
       name: {{.DeploymentName | quote}}
       namespace: {{.Namespace | quote}}

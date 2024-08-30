@@ -1252,9 +1252,6 @@ message SidecarInjectorConfig {
   // This is primarily to support PSP annotations.
   google.protobuf.Struct injectedAnnotations = 19;
 
-  // Enable objectSelector to filter out pods with no need for sidecar before calling istio-sidecar-injector.
-  google.protobuf.Struct objectSelector = 21;
-
   // Configure the injection url for sidecar injector webhook
   string injectionURL = 22;
 
@@ -1285,11 +1282,6 @@ message SidecarInjectorConfig {
 
   // defaultTemplates: ["sidecar", "hello"]
   repeated string defaultTemplates = 24;
-
-  // If enabled, the legacy webhook selection logic will be used. This relies on filtering of webhook
-  // requests in Istiod, rather than at the webhook selection level.
-  // This is option is intended for migration purposes only and will be removed in Istio 1.10.
-  google.protobuf.BoolValue useLegacySelectors = 4 [deprecated = true];
 }
 
 // Configuration for each of the supported tracers.

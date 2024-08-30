@@ -21,7 +21,6 @@ data:
   AMBIENT_ENABLED: "false"
   AMBIENT_DNS_CAPTURE: "false"
   AMBIENT_IPV6: "true"
-  CNI_NET_DIR: /etc/cni/net.d
   CHAINED_CNI_PLUGIN: "true"
   EXCLUDED_NAMESPACES: "kube-system"
   REPAIR_ENABLED: "true"

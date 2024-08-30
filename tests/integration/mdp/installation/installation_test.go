@@ -35,7 +35,7 @@ func TestInstallSuccess(t *testing.T) {
 		Run(func(tc framework.TestContext) {
 			cs := tc.Clusters().Default()
 
-			ns := namespace.NewOrFail(t, tc, namespace.Config{
+			ns := namespace.NewOrFail(tc, namespace.Config{
 				Prefix: "mdp-workload",
 				Inject: true,
 			})

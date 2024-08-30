@@ -63,7 +63,7 @@ func TestClusterLocal(t *testing.T) {
 				{
 					"MeshConfig.serviceSettings",
 					func(t framework.TestContext) {
-						i.PatchMeshConfigOrFail(t, t, fmt.Sprintf(`
+						i.PatchMeshConfigOrFail(t, fmt.Sprintf(`
 serviceSettings: 
 - settings:
     clusterLocal: true

@@ -49,26 +49,26 @@ func TestIstioOnGKEToMeshCA(t *testing.T) {
 				t.Fatalf("1.6 istiod not ready: %v", err)
 			}
 			ingress := inst.IngressFor(t.Clusters().Default())
-			stable14Namespace := namespace.NewOrFail(t, t, namespace.Config{
+			stable14Namespace := namespace.NewOrFail(t, namespace.Config{
 				Prefix:   "stable-14",
 				Inject:   true,
 				Revision: "default",
 			})
 			t.ConfigKube().YAML(stable14Namespace.Name(), fmt.Sprintf(mtlsDr, stable14Namespace.Name())).ApplyOrFail(t)
-			stable16Namespace := namespace.NewOrFail(t, t, namespace.Config{
+			stable16Namespace := namespace.NewOrFail(t, namespace.Config{
 				Prefix:   "stable-16",
 				Inject:   true,
 				Revision: "istio-1611",
 			})
 			t.ConfigKube().YAML(stable16Namespace.Name(), fmt.Sprintf(mtlsDr, stable16Namespace.Name())).ApplyOrFail(t)
 
-			migration14Namespace := namespace.NewOrFail(t, t, namespace.Config{
+			migration14Namespace := namespace.NewOrFail(t, namespace.Config{
 				Prefix:   "migration-14",
 				Inject:   true,
 				Revision: "default", // Start with default revision, then we swap it later
 			})
 
-			migration16Namespace := namespace.NewOrFail(t, t, namespace.Config{
+			migration16Namespace := namespace.NewOrFail(t, namespace.Config{
 				Prefix:   "migration-16",
 				Inject:   true,
 				Revision: "istio-1611", // Start with default revision, then we swap it later
