@@ -60,7 +60,7 @@ func TestNamespaceController(t *testing.T) {
 		constants.CACertNamespaceConfigMapDataName: string(caBundle),
 	}
 	createNamespace(t, client.Kube(), "foo", nil)
-	expectConfigMap(t, nc.configmaps, CACertNamespaceConfigMap, "foo", expectedData)
+	expectConfigMap(t, nc.configmaps, cACertNamespaceConfigMap, "foo", expectedData)
 
 	// Make sure random configmap does not get updated
 	cmData := createConfigMap(t, client.Kube(), "not-root", "foo", "k")
@@ -71,10 +71,10 @@ func TestNamespaceController(t *testing.T) {
 	newData := map[string]string{
 		constants.CACertNamespaceConfigMapDataName: string(newCaBundle),
 	}
-	expectConfigMap(t, nc.configmaps, CACertNamespaceConfigMap, "foo", newData)
+	expectConfigMap(t, nc.configmaps, cACertNamespaceConfigMap, "foo", newData)
 
 	deleteConfigMap(t, client.Kube(), "foo")
-	expectConfigMap(t, nc.configmaps, CACertNamespaceConfigMap, "foo", newData)
+	expectConfigMap(t, nc.configmaps, cACertNamespaceConfigMap, "foo", newData)
 
 	ignoredNamespaces := inject.IgnoredNamespaces.Copy().Delete(constants.KubeSystemNamespace)
 	for _, namespace := range ignoredNamespaces.UnsortedList() {
@@ -124,7 +124,7 @@ func TestNamespaceControllerWithDiscoverySelectors(t *testing.T) {
 	createNamespace(t, client.Kube(), nsA, map[string]string{"discovery-selectors": "enabled"})
 	// Create a namespace without discovery selector enabled
 	createNamespace(t, client.Kube(), nsB, map[string]string{})
-	expectConfigMap(t, nc.configmaps, CACertNamespaceConfigMap, nsA, expectedData)
+	expectConfigMap(t, nc.configmaps, cACertNamespaceConfigMap, nsA, expectedData)
 	// config map should not be created for discovery selector disabled namespace
 	expectConfigMapNotExist(t, nc.configmaps, nsB)
 }
@@ -158,7 +158,7 @@ func TestNamespaceControllerDiscovery(t *testing.T) {
 	createNamespace(t, client.Kube(), "not-selected", map[string]string{"kubernetes.io/metadata.name": "not-selected"})
 	createNamespace(t, client.Kube(), "selected", map[string]string{"kubernetes.io/metadata.name": "selected"})
 
-	expectConfigMap(t, nc.configmaps, CACertNamespaceConfigMap, "selected", expectedData)
+	expectConfigMap(t, nc.configmaps, cACertNamespaceConfigMap, "selected", expectedData)
 	expectConfigMapNotExist(t, nc.configmaps, "not-selected")
 
 	meshWatcher.Update(&meshconfig.MeshConfig{
@@ -166,17 +166,17 @@ func TestNamespaceControllerDiscovery(t *testing.T) {
 			MatchLabels: map[string]string{"kubernetes.io/metadata.name": "not-selected"},
 		}},
 	}, time.Second)
-	expectConfigMap(t, nc.configmaps, CACertNamespaceConfigMap, "not-selected", expectedData)
+	expectConfigMap(t, nc.configmaps, cACertNamespaceConfigMap, "not-selected", expectedData)
 	expectConfigMapNotExist(t, nc.configmaps, "selected")
 }
 
 func deleteConfigMap(t *testing.T, client kubernetes.Interface, ns string) {
 	t.Helper()
-	_, err := client.CoreV1().ConfigMaps(ns).Get(context.TODO(), CACertNamespaceConfigMap, metav1.GetOptions{})
+	_, err := client.CoreV1().ConfigMaps(ns).Get(context.TODO(), cACertNamespaceConfigMap, metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := client.CoreV1().ConfigMaps(ns).Delete(context.TODO(), CACertNamespaceConfigMap, metav1.DeleteOptions{}); err != nil {
+	if err := client.CoreV1().ConfigMaps(ns).Delete(context.TODO(), cACertNamespaceConfigMap, metav1.DeleteOptions{}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -233,7 +233,7 @@ func expectConfigMap(t *testing.T, configmaps kclient.Client[*v1.ConfigMap], nam
 func expectConfigMapNotExist(t *testing.T, configmaps kclient.Client[*v1.ConfigMap], ns string) {
 	t.Helper()
 	err := retry.Until(func() bool {
-		cm := configmaps.Get(CACertNamespaceConfigMap, ns)
+		cm := configmaps.Get(cACertNamespaceConfigMap, ns)
 		return cm != nil
 	}, retry.Timeout(time.Millisecond*25))
 

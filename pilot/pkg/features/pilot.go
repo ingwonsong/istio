@@ -256,6 +256,9 @@ var (
 
 	EnableInboundRetryPolicy = env.Register("ENABLE_INBOUND_RETRY_POLICY", true,
 		"If true, enables retry policy for inbound routes which automatically retries requests that were reset before it reaches the service.").Get()
+
+	BundledCertificateAuthority = env.Register("BUNDLED_CERTIFICATE_AUTHORITY", false,
+		"If set to true, it will create custom config-map name for istiod issued certificate").Get()
 )
 
 // UnsafeFeaturesEnabled returns true if any unsafe features are enabled.

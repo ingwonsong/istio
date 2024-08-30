@@ -33,7 +33,8 @@ import (
 
 const (
 	// CACertNamespaceConfigMap is the name of the ConfigMap in each namespace storing the root cert of non-Kube CA.
-	CACertNamespaceConfigMap = "istio-ca-root-cert"
+	cACertNamespaceConfigMap        = "istio-ca-root-cert"
+	cACertNamespaceBundledConfigMap = "istio-ca-root-cert-bundled"
 
 	// maxRetries is the number of times a namespace will be retried before it is dropped out of the queue.
 	// With the current rate-limiter in use (5ms*2^(maxRetries-1)) the following numbers represent the
@@ -57,6 +58,13 @@ type NamespaceController struct {
 	ignoredNamespaces sets.Set[string]
 }
 
+func IstiodCACertConfigMapName() string {
+	if features.BundledCertificateAuthority {
+		return cACertNamespaceBundledConfigMap
+	}
+	return cACertNamespaceConfigMap
+}
+
 // NewNamespaceController returns a pointer to a newly constructed NamespaceController instance.
 func NewNamespaceController(kubeClient kube.Client, caBundleWatcher *keycertbundle.Watcher) *NamespaceController {
 	c := &NamespaceController{
@@ -67,7 +75,7 @@ func NewNamespaceController(kubeClient kube.Client, caBundleWatcher *keycertbund
 		controllers.WithMaxAttempts(maxRetries))
 
 	c.configmaps = kclient.NewFiltered[*v1.ConfigMap](kubeClient, kclient.Filter{
-		FieldSelector: "metadata.name=" + CACertNamespaceConfigMap,
+		FieldSelector: "metadata.name=" + IstiodCACertConfigMapName(),
 		ObjectFilter:  kube.FilterIfEnhancedFilteringEnabled(kubeClient),
 	})
 	c.namespaces = kclient.NewFiltered[*v1.Namespace](kubeClient, kclient.Filter{
@@ -133,7 +141,7 @@ func (nc *NamespaceController) reconcileCACert(o types.NamespacedName) error {
 	}
 
 	meta := metav1.ObjectMeta{
-		Name:      CACertNamespaceConfigMap,
+		Name:      IstiodCACertConfigMapName(),
 		Namespace: ns,
 		Labels:    configMapLabel,
 	}

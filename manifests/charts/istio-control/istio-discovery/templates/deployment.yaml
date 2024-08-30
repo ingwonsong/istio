@@ -257,7 +257,7 @@ spec:
           optional: true
       - name: istio-csr-ca-configmap
         configMap:
-          name: istio-ca-root-cert
+          name: {{ if eq (toString .Values.pilot.env.BUNDLED_CERTIFICATE_AUTHORITY) "true" }}istio-ca-root-cert-bundled{{- else }}istio-ca-root-cert{{- end }}
           defaultMode: 420
           optional: true
   {{- if .Values.pilot.jwksResolverExtraRootCA }}
