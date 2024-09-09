@@ -22,6 +22,11 @@ tests:
       control_plane: unmanaged
     targets:
     - names:
+      - TestGatewaySelection
+      - TestImagePullPolicy
+      - TestImagePullPolicyWithHTTP
+      buganizerID: 362399273
+    - names:
         - TestProxyStatus
         - TestWait
         - TestVersion
