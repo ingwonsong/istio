@@ -1,8 +1,8 @@
 revisions:
-  - name: "asm-1-19"
-    version: "1.19"
   - name: "asm-1-20"
     version: "1.20"
   - name: "asm-1-21"
     version: "1.21"
+  - name: "asm-1-22"
+    version: "1.22"
   - name: "asm-master"
