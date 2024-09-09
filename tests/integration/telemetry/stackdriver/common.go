@@ -27,7 +27,6 @@ import (
 	"sort"
 	"strings"
 
-	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	cloudtrace "cloud.google.com/go/trace/apiv1/tracepb"
@@ -302,7 +301,7 @@ func unmarshalFromTemplateFile(t framework.TestContext, file string, out proto.M
 		"EchoNamespace": EchoNsInst.Name(),
 		"ClusterName":   clName,
 		"TrustDomain":   trustDomain,
-		"OnGCE":         metadata.OnGCE(), // metadata.OnGCE() is required for off-gcp clusters for CSM only
+		"OnGCE":         true,
 		"ProxyVersion":  proxyVersion,
 	})
 	if err != nil {
