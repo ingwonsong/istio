@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strings"
 
+	"istio.io/istio/pkg/log"
+
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
@@ -145,6 +147,11 @@ func coalesceVersions(remoteVersion *MeshInfo) *MeshInfo {
 }
 
 func identicalVersions(remoteVersion MeshInfo) bool {
+	if len(remoteVersion) == 0 {
+		// Will remove this later.
+		log.Info("Length of remoteVersion is zero")
+		return false
+	}
 	exemplar := remoteVersion[0].Info
 	for i := 1; i < len(remoteVersion); i++ {
 		candidate := (remoteVersion)[i].Info
