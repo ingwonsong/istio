@@ -32,8 +32,16 @@ versions:
   - name: 1.19.10-asm.17
     status: live
   - name: 1.20.8-asm.6
-    status: live
+    status: deprecated
   - name: 1.21.5-asm.5
-    status: live
+    status: deprecated
   - name: 1.22.4-asm.0
+    status: deprecated
+  - name: 1.20.8-asm.7
+    status: live
+  - name: 1.21.5-asm.7
+    status: live
+  - name: 1.22.5-asm.1
+    status: live
+  - name: 1.23.2-asm.2
     status: live
