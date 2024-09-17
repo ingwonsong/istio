@@ -312,15 +312,22 @@ func setGcpPermissions(settings *resource.Settings) error {
 			if err != nil {
 				return err
 			}
-			err = exec.Run(
-				fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
-					"--member=serviceAccount:%s-compute@developer.gserviceaccount.com "+
-					"--role=roles/storage.objectViewer",
-					settings.GCRProject,
-					projectNum),
-			)
+			computeServiceAccount := fmt.Sprintf("%s-compute@developer.gserviceaccount.com", projectNum)
+            commands := []string{
+                fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
+                    "--member=serviceAccount:%s "+
+                    "--role=roles/storage.objectViewer",
+                    settings.GCRProject,
+                    computeServiceAccount),
+                fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
+                    "--member=serviceAccount:%s "+
+                    "--role=roles/artifactregistry.reader",
+                    settings.GCRProject,
+                    computeServiceAccount),
+            }
+            err = exec.RunMultiple(commands)
 			if err != nil {
-				return fmt.Errorf("error adding the binding for the service account to access GCR: %w", err)
+				return fmt.Errorf("error adding the binding for the service account to access GCR project:%s : %w", settings.GCRProject, err)
 			}
 		}
 	}
