@@ -21,10 +21,10 @@ import (
 	"sort"
 	"strings"
 
-	"istio.io/istio/pkg/log"
-
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
+
+	"istio.io/istio/pkg/log"
 )
 
 // Version holds info for client and control plane versions
