@@ -133,6 +133,10 @@ func IsCniPod(pod string) bool {
 	return strings.HasPrefix(pod, "istio-cni-node")
 }
 
+func IsMdpcPod(pod string) bool {
+	return strings.HasPrefix(pod, "mdp-controller")
+}
+
 func getVersionKey(clusterVersion string) string {
 	if versionMap[clusterVersion] == nil {
 		return latestKey

@@ -214,6 +214,7 @@ func GetClusterResources(ctx context.Context, clientset *kubernetes.Clientset, c
 		Annotations: make(map[string]map[string]string),
 		Pod:         make(map[string]*corev1.Pod),
 		CniPod:      make(map[string]*corev1.Pod),
+		MdpcPod:     make(map[string]*corev1.Pod),
 	}
 
 	pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
@@ -234,6 +235,10 @@ func GetClusterResources(ctx context.Context, clientset *kubernetes.Clientset, c
 	for i, p := range pods.Items {
 		if p.Labels["k8s-app"] == "istio-cni-node" {
 			out.CniPod[PodKey(p.Namespace, p.Name)] = &pods.Items[i]
+		}
+
+		if p.Labels["app"] == "mdp-controller" {
+			out.MdpcPod[PodKey(p.Namespace, p.Name)] = &pods.Items[i]
 		}
 
 		if inject.IgnoredNamespaces.Contains(p.Namespace) {
@@ -294,6 +299,8 @@ type Resources struct {
 	Pod map[string]*corev1.Pod
 	// CniPod
 	CniPod map[string]*corev1.Pod
+	// MDPController pod
+	MdpcPod map[string]*corev1.Pod
 }
 
 func (r *Resources) insertContainer(namespace, deployment, pod, container string) {
@@ -316,10 +323,12 @@ func (r *Resources) insertContainer(namespace, deployment, pod, container string
 }
 
 // ContainerRestarts returns the number of container restarts for the given container.
-func (r *Resources) ContainerRestarts(namespace, pod, container string, isCniPod bool) int {
+func (r *Resources) ContainerRestarts(namespace, pod, container string, isCniPod, isMdpcPod bool) int {
 	var podItem *corev1.Pod
 	if isCniPod {
 		podItem = r.CniPod[PodKey(namespace, pod)]
+	} else if isMdpcPod {
+		podItem = r.MdpcPod[PodKey(namespace, pod)]
 	} else {
 		podItem = r.Pod[PodKey(namespace, pod)]
 	}

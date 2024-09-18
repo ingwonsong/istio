@@ -32,6 +32,7 @@ const (
 	analyzeSubdir          = "analyze"
 	operatorLogsPathSubdir = "operator"
 	cniLogsPathSubdir      = "cni"
+	mdpcLogsPathSubdir     = "mdpc"
 )
 
 var (
@@ -71,6 +72,10 @@ func ClusterInfoPath(rootDir string) string {
 
 func CniPath(rootDir, pod string) string {
 	return filepath.Join(getRootDir(rootDir), cniLogsPathSubdir, pod)
+}
+
+func MdpcPath(rootDir, pod string) string {
+	return filepath.Join(getRootDir(rootDir), mdpcLogsPathSubdir, pod)
 }
 
 // Create creates a gzipped tar file from srcDir and writes it to outPath.

@@ -324,6 +324,13 @@ func gatherInfo(runner *kubectlcmd.Runner, config *config.BugReportConfig, resou
 		getCniLogs(runner, config, resources, cniPod.Namespace, cniPod.Name, &mandatoryWg)
 	}
 
+	if len(resources.MdpcPod) > 0 {
+		common.LogAndPrintf("\nFetching MDP Controller logs from cluster.\n\n")
+		for _, mdpcPod := range resources.MdpcPod {
+			getMdpcLogs(runner, config, resources, mdpcPod.Namespace, mdpcPod.Name, &mandatoryWg)
+		}
+	}
+
 	// optionalWg is subject to timer.
 	var optionalWg sync.WaitGroup
 	for _, p := range paths {
@@ -496,6 +503,27 @@ func getCniLogs(runner *kubectlcmd.Runner, config *config.BugReportConfig, resou
 	}()
 }
 
+// getMdpcLogs fetches MDP Controller logs from mdp-controller pods inside namespace kube-system and writes the output
+// Runs if a goroutine, with errors reported through gErrors
+func getMdpcLogs(runner *kubectlcmd.Runner, config *config.BugReportConfig, resources *cluster2.Resources,
+	namespace, pod string, wg *sync.WaitGroup,
+) {
+	startTime := time.Now()
+	wg.Add(1)
+	log.Infof("Waiting on MDP Controller logs for %v", pod)
+	go func() {
+		defer func() {
+			wg.Done()
+			logRuntime(startTime, "Done getting MDP Controller logs for %v", pod)
+		}()
+
+		clog, _, _, err := getLog(runner, resources, config, namespace, pod, "")
+		appendGlobalErr(err)
+		writeFile(filepath.Join(archive.MdpcPath(tempDir, pod), "mdpc.log"), clog, config.DryRun)
+		log.Infof("Done with MDP Controller logs %v", pod)
+	}()
+}
+
 // getLog fetches the logs for the given namespace/pod/container and returns the log text and stats for it.
 func getLog(runner *kubectlcmd.Runner, resources *cluster2.Resources, config *config.BugReportConfig,
 	namespace, pod, container string,
@@ -507,7 +535,7 @@ func getLog(runner *kubectlcmd.Runner, resources *cluster2.Resources, config *co
 	if err != nil {
 		return "", nil, 0, err
 	}
-	if resources.ContainerRestarts(namespace, pod, container, common.IsCniPod(pod)) > 0 {
+	if resources.ContainerRestarts(namespace, pod, container, common.IsCniPod(pod), common.IsMdpcPod(pod)) > 0 {
 		pclog, err := runner.Logs(namespace, pod, container, true, config.DryRun)
 		if err != nil {
 			return "", nil, 0, err
