@@ -42,7 +42,7 @@ func installASMUserAuth(settings *resource.Settings) error {
 	if settings.RevisionConfig != "" && settings.ControlPlane == resource.Unmanaged {
 		label = "istio-injection- istio.io/rev=asm-master"
 	} else if settings.RevisionConfig != "" && settings.ControlPlane == resource.Managed {
-		label = "istio-injection- istio.io/rev=asm-managed-rapid"
+		label = "istio-injection- istio.io/rev=asm-managed"
 	}
 
 	// Config install pkg

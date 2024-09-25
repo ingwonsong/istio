@@ -396,7 +396,7 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 			if err != nil {
 				return fmt.Errorf("failed to find default credentials for MCP VPCSC installation verification: %w", err)
 			}
-			url := fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/locations/%s/clusters/%s/controlPlanes/asm-managed-rapid:fetchControlPlane", cluster.ProjectID, cluster.Location, cluster.Name)
+			url := fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/locations/%s/clusters/%s/controlPlanes/asm-managed:fetchControlPlane", cluster.ProjectID, cluster.Location, cluster.Name)
 			resp, err := oauth2.NewClient(ctx, creds.TokenSource).Get(url)
 			if err != nil {
 				return fmt.Errorf("failed to create HTTP client for MCP VPCSC installation verification: %w", err)
@@ -440,7 +440,7 @@ data:
 {{- end }}
 kind: ConfigMap
 metadata:
-  name: istio-asm-managed-rapid
+  name: istio-asm-managed
   namespace: istio-system
 EOF'`, map[string]any{
 			"testUserAuth": testUserAuth,
