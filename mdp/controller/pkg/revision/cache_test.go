@@ -551,7 +551,8 @@ func TestPodCacheAndHandlers(t *testing.T) {
 		podCache: pc,
 		mapper:   mapper,
 	}
-	n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+
+	n := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
 	cpr, otherCPR := *myRevCPR, *otherRevCPR
 	cpr.Annotations = enabledAnnotation(boolPtr(true))
 	otherCPR.Annotations = enabledAnnotation(boolPtr(true))
@@ -653,7 +654,7 @@ func TestHostNetworkDisabled(t *testing.T) {
 }
 
 func sendNsEvents(cl client.Client, nsHandler *NameSpaceHandler, enablementMap map[string]*bool) {
-	n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	n := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
 	for _, ns := range testNss() {
 		nsObj := &v1.Namespace{}
 		cl.Get(context.Background(), types.NamespacedName{Name: regularRevision}, nsObj)

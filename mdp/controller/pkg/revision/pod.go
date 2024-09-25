@@ -71,7 +71,7 @@ func NewPodHandler(mapper Mapper, podCache WritePodCache) handler.EventHandler {
 }
 
 // Create implements EventHandler Interface.
-func (p *podEventHandler) Create(ctx context.Context, event event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (p *podEventHandler) Create(ctx context.Context, event event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	rev := p.podCache.AddPod(ctx, event.Object)
 	if rev == "" {
 		return
@@ -82,7 +82,7 @@ func (p *podEventHandler) Create(ctx context.Context, event event.CreateEvent, q
 	p.enqueueForRev(ctx, rev, q)
 }
 
-func (p *podEventHandler) enqueueForRev(ctx context.Context, rev string, q workqueue.RateLimitingInterface) {
+func (p *podEventHandler) enqueueForRev(ctx context.Context, rev string, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	req, err := p.mapper.DataPlaneControlFromCPRevision(ctx, rev)
 	if err != nil {
 		p.podCache.MarkDirty()
@@ -99,7 +99,7 @@ func (p *podEventHandler) enqueueForRev(ctx context.Context, rev string, q workq
 }
 
 // Update Implements EventHandler Interface
-func (p *podEventHandler) Update(ctx context.Context, event event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (p *podEventHandler) Update(ctx context.Context, event event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	oldPod := event.ObjectOld.(*v1.Pod)
 	newPod := event.ObjectNew.(*v1.Pod)
 	oldver, _ := util.ProxyVersion(oldPod)
@@ -115,7 +115,7 @@ func (p *podEventHandler) Update(ctx context.Context, event event.UpdateEvent, q
 }
 
 // Delete Implements EventHandler Interface
-func (p *podEventHandler) Delete(ctx context.Context, event event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (p *podEventHandler) Delete(ctx context.Context, event event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	rev := p.podCache.RemovePod(ctx, event.Object)
 	if rev == "" {
 		return
@@ -124,7 +124,7 @@ func (p *podEventHandler) Delete(ctx context.Context, event event.DeleteEvent, q
 }
 
 // Generic Implements EventHandler Interface
-func (p *podEventHandler) Generic(ctx context.Context, event event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (p *podEventHandler) Generic(ctx context.Context, event event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
 
 // ReadPodCache is the (almost) read-only reference to a PodCache, allowing callers to rapidly access the pods

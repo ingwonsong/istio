@@ -117,7 +117,7 @@ func TestUpdateWorker(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	rl := FakeFailureRateLimiter{failures: map[set.T]set.Empty{}}
 	// nolint: govet
-	q := ratelimiter.NewMDPRateLimitingQueueWithSpeedLimit(rate.Inf, 1, &workqueue.BucketRateLimiter{rate.NewLimiter(rate.Inf, 1)}, rl)
+	q := ratelimiter.NewMDPRateLimitingQueueWithSpeedLimit(rate.Inf, 1, &workqueue.TypedBucketRateLimiter[any]{Limiter: rate.NewLimiter(rate.Inf, 1)}, rl)
 
 	client := fake.NewClientBuilder().Build()
 	pc := &FakePodCache{

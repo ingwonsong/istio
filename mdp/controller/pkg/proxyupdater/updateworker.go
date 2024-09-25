@@ -43,7 +43,7 @@ import (
 // (gke_max_pods_per_node * gke_max_nodes), or approximately 1/18 of a second
 var (
 	maxSpeed          = time.Hour * 24 / (15000 * 110)
-	clusterSpeedLimit = &workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Every(maxSpeed), 2)}
+	clusterSpeedLimit = &workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Every(maxSpeed), 2)} // nolint:staticcheck
 	scope             = log.RegisterScope("mdp", "Managed Data Plane")
 	minFail           = 30 * time.Second
 	maxFail           = 60 * time.Minute
@@ -81,7 +81,7 @@ type UpdateWorkerImpl struct {
 func NewWorker(revision, version string, limit rate.Limit, burst int, upgrader DataPlaneUpgrader,
 	podCache revision.ReadPodCache, client client.Client, eventRecorder record.EventRecorder,
 ) UpdateWorker {
-	failureLimiter := workqueue.NewItemExponentialFailureRateLimiter(minFail, maxFail)
+	failureLimiter := workqueue.NewTypedItemExponentialFailureRateLimiter[any](minFail, maxFail)
 	return &UpdateWorkerImpl{
 		revision:        revision,
 		ExpectedVersion: version,

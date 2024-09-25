@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"istio.io/api/annotation"
 	"istio.io/istio/mdp/controller/pkg/apis"
@@ -379,7 +380,7 @@ func TestPodOperations(t *testing.T) {
 	pc := NewPodCache(nc, enablementCache)
 
 	// Populate event driven caches
-	n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	n := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
 	cprHandler.Create(context.Background(), event.CreateEvent{Object: &cpr}, n)
 	sendNsEvents(cl, NewNamespaceHandler(pc, cl, nc), map[string]*bool{})
 
@@ -539,7 +540,7 @@ func TestEnablement(t *testing.T) {
 			pc := NewPodCache(mapper, enablementCache)
 
 			// Populate event driven caches
-			n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			n := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
 			cprHandler.Create(ctx, event.CreateEvent{Object: &cpr}, n)
 
 			sendNsEvents(cl, NewNamespaceHandler(pc, cl, mapper), tt.nsEnabled)
@@ -613,7 +614,7 @@ func TestCPRDefaults(t *testing.T) {
 			pc := NewPodCache(mapper, enablementCache)
 
 			// Populate event driven caches
-			n := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			n := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
 			cprHandler.Create(ctx, event.CreateEvent{Object: &cpr}, n)
 
 			mypods, _ := mapper.PodsFromRevision(context.TODO(), regularRevision)

@@ -26,9 +26,9 @@ import (
 )
 
 func TestAdjustRateLimit(t *testing.T) {
-	rl := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
+	rl := workqueue.NewTypedItemExponentialFailureRateLimiter[any](time.Second, time.Minute)
 	// nolint: govet
-	q := NewMDPRateLimitingQueueWithSpeedLimit(rate.Inf, 1, &workqueue.BucketRateLimiter{rate.NewLimiter(rate.Inf, 1)}, rl).(*rateLimitingType)
+	q := NewMDPRateLimitingQueueWithSpeedLimit(rate.Inf, 1, &workqueue.TypedBucketRateLimiter[any]{Limiter: rate.NewLimiter(rate.Inf, 1)}, rl).(*rateLimitingType)
 	g := gomega.NewGomegaWithT(t)
 	g.Expect(q.limiter.Burst()).To(gomega.Equal(1))
 	g.Expect(q.limiter.Limit()).To(gomega.Equal(rate.Inf))

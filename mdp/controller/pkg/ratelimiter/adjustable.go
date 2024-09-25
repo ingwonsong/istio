@@ -29,7 +29,7 @@ func init() {
 
 // AdjustableRateLimitingInterface allows modifying rate limiter during the lifespan of the queue.
 type AdjustableRateLimitingInterface interface {
-	workqueue.RateLimitingInterface
+	workqueue.TypedRateLimitingInterface[any]
 
 	// AdjustRateLimit changes the rate at which AddRateLimited adds elements to the queue.
 	AdjustRateLimit(limit rate.Limit, burst int)
@@ -39,9 +39,9 @@ type AdjustableRateLimitingInterface interface {
 type rateLimitingType struct {
 	workqueue.DelayingInterface
 
-	rateLimiter        workqueue.RateLimiter
+	rateLimiter        workqueue.TypedRateLimiter[any]
 	limiter            *rate.Limiter
-	failureRateLimiter workqueue.RateLimiter
+	failureRateLimiter workqueue.TypedRateLimiter[any]
 }
 
 // AdjustRateLimit dynamically changes the applied rate limit on the fly.
@@ -85,16 +85,16 @@ type MDPUpdateRateLimiter interface {
 // limit and burst, an overall speedLimit, and a special limit for handling failures.  Note that unlike other
 // RateLimiting Queues, AddRateLimited() is designed for use when no failure is present, and AddFailed is used after
 // a failure.
-func NewMDPRateLimitingQueueWithSpeedLimit(limit rate.Limit, burst int, speedLimit workqueue.RateLimiter,
-	failureLimiter workqueue.RateLimiter,
+func NewMDPRateLimitingQueueWithSpeedLimit(limit rate.Limit, burst int, speedLimit workqueue.TypedRateLimiter[any],
+	failureLimiter workqueue.TypedRateLimiter[any],
 ) MDPUpdateRateLimiter {
 	workqueue.SetProvider(metrics.NewMetricsProvider())
 	l := rate.NewLimiter(limit, burst)
-	bucketltr := &workqueue.BucketRateLimiter{Limiter: l}
-	maxSuccess := workqueue.NewMaxOfRateLimiter(bucketltr, speedLimit)
+	bucketltr := &workqueue.TypedBucketRateLimiter[any]{Limiter: l}
+	maxSuccess := workqueue.NewTypedMaxOfRateLimiter[any](bucketltr, speedLimit)
 	return &rateLimitingType{
 		rateLimiter: maxSuccess,
-		limiter:     l, DelayingInterface: workqueue.NewDelayingQueue(),
-		failureRateLimiter: workqueue.NewMaxOfRateLimiter(maxSuccess, failureLimiter),
+		limiter:     l, DelayingInterface: workqueue.TypedNewDelayingQueue[any](),
+		failureRateLimiter: workqueue.NewTypedMaxOfRateLimiter(maxSuccess, failureLimiter),
 	}
 }

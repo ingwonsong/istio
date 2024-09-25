@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"istio.io/istio/mdp/controller/pkg/apis/mdp/v1alpha1"
 )
@@ -52,22 +53,22 @@ func NewCPRHandler(mapper Mapper) (*CPRHandler, *EnablementCache) {
 }
 
 // Create implements EventHandler Interface.
-func (c *CPRHandler) Create(ctx context.Context, event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Create(ctx context.Context, event event.CreateEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	c.updateEnablement(event.Object)
 }
 
 // Update Implements EventHandler Interface
-func (c *CPRHandler) Update(ctx context.Context, event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Update(ctx context.Context, event event.UpdateEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	c.updateEnablement(event.ObjectNew)
 }
 
 // Delete Implements EventHandler Interface
-func (c *CPRHandler) Delete(ctx context.Context, event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Delete(ctx context.Context, event event.DeleteEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	c.cache.UpdateRevisionEnablement(event.Object.GetName(), nil)
 }
 
 // Generic Implements EventHandler Interface
-func (c *CPRHandler) Generic(ctx context.Context, event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (c *CPRHandler) Generic(ctx context.Context, event event.GenericEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
 
 func (c *CPRHandler) updateEnablement(object client.Object) {

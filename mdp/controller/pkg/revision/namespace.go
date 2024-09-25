@@ -45,11 +45,11 @@ func NewNamespaceHandler(cache WritePodCache, client client.Client, mapper Mappe
 }
 
 // Create implements EventHandler Interface.
-func (n *NameSpaceHandler) Create(ctx context.Context, event event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Create(ctx context.Context, event event.CreateEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
 
 // Update Implements EventHandler Interface
-func (n *NameSpaceHandler) Update(ctx context.Context, event event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Update(ctx context.Context, event event.UpdateEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	// if label controlling revision has changed, need to update cache.
 	// We can't use the namespace labels directly since the default tag might not be an explicit revision name.
 	// Even if the pods in the ns are not managed, we will still get the revision name and trigger a reconciliation to
@@ -88,9 +88,9 @@ func (n *NameSpaceHandler) Update(ctx context.Context, event event.UpdateEvent, 
 }
 
 // Delete Implements EventHandler Interface
-func (n *NameSpaceHandler) Delete(ctx context.Context, event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Delete(ctx context.Context, event event.DeleteEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
 
 // Generic Implements EventHandler Interface
-func (n *NameSpaceHandler) Generic(ctx context.Context, event event.GenericEvent, limitingInterface workqueue.RateLimitingInterface) {
+func (n *NameSpaceHandler) Generic(ctx context.Context, event event.GenericEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
