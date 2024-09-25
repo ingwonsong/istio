@@ -418,8 +418,8 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 			if err := json.NewDecoder(resp.Body).Decode(&cp); err != nil {
 				return fmt.Errorf("failed to decode HTTP response for MCP VPCSC installation verification: %w", err)
 			}
-			if cp.VPCSCMode != "COMPATIBLE" && cp.VPCSCMode != "SEAMLESS" {
-				return fmt.Errorf("MCP VPCSC installation via AFC failed, got: %v, want COMPATIBLE or SEAMLESS", cp.VPCSCMode)
+			if cp.VPCSCMode != "COMPATIBLE" && cp.VPCSCMode != "SEAMLESS" && cp.VPCSCMode != "EGRESS_BLOCKED" {
+				return fmt.Errorf("MCP VPCSC installation via AFC failed, got: %v, want COMPATIBLE, SEAMLESS, or EGRESS_BLOCKED", cp.VPCSCMode)
 			}
 			contextLogger.Printf("Done verification. MCP VPCSC is installed in %v mode\n", cp.VPCSCMode)
 		}
