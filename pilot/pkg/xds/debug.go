@@ -104,7 +104,7 @@ type AdsClient struct {
 	ConnectionID string              `json:"connectionId"`
 	ConnectedAt  time.Time           `json:"connectedAt"`
 	PeerAddress  string              `json:"address"`
-	Labels       map[string]string   `json:"labels"`
+	Labels       map[string]string   `json:"labels,omitempty"`
 	Metadata     *model.NodeMetadata `json:"metadata,omitempty"`
 	Locality     *core.Locality      `json:"locality,omitempty"`
 	Watches      map[string][]string `json:"watches,omitempty"`
@@ -284,7 +284,7 @@ func (s *DiscoveryServer) Syncz(w http.ResponseWriter, req *http.Request) {
 	for _, con := range s.SortedClients() {
 		node := con.proxy
 		if node != nil && (namespace == "" || node.GetNamespace() == namespace) {
-			wrs := node.CloneWatchedResources()
+			wrs := node.DeepCloneWatchedResources()
 			res := make(map[string]ResourceStatus, len(wrs))
 			for _, wr := range wrs {
 				res[wr.TypeUrl] = ResourceStatus{

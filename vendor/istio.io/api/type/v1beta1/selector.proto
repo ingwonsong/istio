@@ -35,8 +35,8 @@ message WorkloadSelector {
   // the configuration namespace in which the resource is present.
   // +kubebuilder:validation:XValidation:message="wildcard not allowed in label key match",rule="self.all(key, !key.contains('*'))"
   // +kubebuilder:validation:XValidation:message="key must not be empty",rule="self.all(key, key.size() != 0)"
-  // +kubebuilder:map-value-validation:XValidation:message="wildcard not allowed in label value match",rule="!self.contains('*')"
-  // +kubebuilder:map-value-validation:MaxLength=63
+  // +protoc-gen-crd:map-value-validation:XValidation:message="wildcard not allowed in label value match",rule="!self.contains('*')"
+  // +protoc-gen-crd:map-value-validation:MaxLength=63
   // +kubebuilder:validation:MaxProperties=4096
   map<string, string> match_labels = 1;
 }
@@ -106,7 +106,7 @@ enum WorkloadMode {
 //         methods: ["POST"]
 //         ports: ["8080"]
 // ```
-// +kubebuilder:validation:XValidation:message="Support kinds are core/Service and gateway.networking.k8s.io/Gateway",rule="[self.group, self.kind] in [['core','Service'], ['','Service'], ['gateway.networking.k8s.io','Gateway']]"
+// +kubebuilder:validation:XValidation:message="Support kinds are core/Service, networking.istio.io/ServiceEntry, gateway.networking.k8s.io/Gateway",rule="[self.group, self.kind] in [['core','Service'], ['','Service'], ['gateway.networking.k8s.io','Gateway'], ['networking.istio.io','ServiceEntry']]"
 message PolicyTargetReference {
   // group is the group of the target resource.
   // +kubebuilder:validation:MaxLength=253

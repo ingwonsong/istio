@@ -26,7 +26,7 @@ import (
 
 	"istio.io/api/security/v1beta1"
 	metav1beta1 "istio.io/api/type/v1beta1"
-	securityclient "istio.io/client-go/pkg/apis/security/v1beta1"
+	securityclient "istio.io/client-go/pkg/apis/security/v1"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	v3 "istio.io/istio/pilot/pkg/xds/v3"
@@ -111,6 +111,10 @@ func TestWorkloadReconnect(t *testing.T) {
 
 		// Create new pod in the meantime
 		createPod(s, "pod2", "sa", "127.0.0.2", "node")
+		// Wait for it to be ready
+		assert.EventuallyEqual(t, func() int {
+			return len(s.KubeRegistry.All())
+		}, 2)
 
 		// Reconnect
 		ads = s.ConnectDeltaADS().WithType(v3.AddressType).WithMetadata(model.NodeMetadata{NodeName: "node"})
@@ -141,6 +145,10 @@ func TestWorkloadReconnect(t *testing.T) {
 
 		// Create new pod in the meantime
 		createPod(s, "pod2", "sa", "127.0.0.2", "node")
+		// Wait for it to be ready
+		assert.EventuallyEqual(t, func() int {
+			return len(s.KubeRegistry.All())
+		}, 2)
 
 		// Reconnect
 		ads = s.ConnectDeltaADS().WithType(v3.AddressType).WithMetadata(model.NodeMetadata{NodeName: "node"})

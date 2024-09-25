@@ -112,6 +112,7 @@ func TestApplyDestinationRule(t *testing.T) {
 		proxyView              model.ProxyView
 		destRule               *networking.DestinationRule
 		meshConfig             *meshconfig.MeshConfig
+		disableDelimitedStats  bool
 		expectedSubsetClusters []*cluster.Cluster
 	}{
 		// TODO(ramaraochavali): Add more tests to cover additional conditions.
@@ -284,7 +285,7 @@ func TestApplyDestinationRule(t *testing.T) {
 				},
 			},
 			meshConfig: &meshconfig.MeshConfig{
-				OutboundClusterStatName: "%SERVICE%_%SUBSET_NAME%_%SERVICE_PORT_NAME%_%SERVICE_PORT%;",
+				OutboundClusterStatName: "%SERVICE%_%SUBSET_NAME%_%SERVICE_PORT_NAME%_%SERVICE_PORT%",
 				InboundTrafficPolicy:    &meshconfig.MeshConfig_InboundTrafficPolicy{},
 				EnableAutoMtls: &wrappers.BoolValue{
 					Value: false,
@@ -298,6 +299,41 @@ func TestApplyDestinationRule(t *testing.T) {
 						ServiceName: "outbound|8080|foobar|foo.default.svc.cluster.local",
 					},
 					AltStatName: "foo.default.svc.cluster.local_foobar_default_8080;",
+				},
+			},
+		},
+		{
+			name:        "cluster with OutboundClusterStatName and stats tag regex disabled",
+			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
+			clusterMode: DefaultClusterMode,
+			service:     service,
+			port:        servicePort[0],
+			proxyView:   model.ProxyViewAll,
+			destRule: &networking.DestinationRule{
+				Host: "foo.default.svc.cluster.local",
+				Subsets: []*networking.Subset{
+					{
+						Name:   "foobar",
+						Labels: map[string]string{"foo": "bar"},
+					},
+				},
+			},
+			disableDelimitedStats: true,
+			meshConfig: &meshconfig.MeshConfig{
+				OutboundClusterStatName: "%SERVICE%_%SUBSET_NAME%_%SERVICE_PORT_NAME%_%SERVICE_PORT%",
+				InboundTrafficPolicy:    &meshconfig.MeshConfig_InboundTrafficPolicy{},
+				EnableAutoMtls: &wrappers.BoolValue{
+					Value: false,
+				},
+			},
+			expectedSubsetClusters: []*cluster.Cluster{
+				{
+					Name:                 "outbound|8080|foobar|foo.default.svc.cluster.local",
+					ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS},
+					EdsClusterConfig: &cluster.Cluster_EdsClusterConfig{
+						ServiceName: "outbound|8080|foobar|foo.default.svc.cluster.local",
+					},
+					AltStatName: "foo.default.svc.cluster.local_foobar_default_8080",
 				},
 			},
 		},
@@ -788,6 +824,7 @@ func TestApplyDestinationRule(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			test.SetForTest(t, &features.EnableDelimitedStatsTagRegex, !tt.disableDelimitedStats)
 			instances := []*model.ServiceInstance{
 				{
 					Service:     tt.service,
@@ -1830,7 +1867,7 @@ func drWithLabels(lbls labels.Instance) *model.ConsolidatedDestRule {
 				Labels: lbls,
 			}},
 		},
-	})
+	}, nil)
 }
 
 func TestConcurrentBuildLocalityLbEndpoints(t *testing.T) {
@@ -2523,10 +2560,9 @@ func TestApplyDestinationRuleOSCACert(t *testing.T) {
 		proxyView                 model.ProxyView
 		destRule                  *networking.DestinationRule
 		expectedCaCertificateName string
-		enableVerifyCertAtClient  bool
 	}{
 		{
-			name:        "VerifyCertAtClient set and destination rule with empty string CaCertificates",
+			name:        "destination rule with empty string CaCertificates",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -2548,10 +2584,9 @@ func TestApplyDestinationRuleOSCACert(t *testing.T) {
 				},
 			},
 			expectedCaCertificateName: "system",
-			enableVerifyCertAtClient:  true,
 		},
 		{
-			name:        "VerifyCertAtClient set and destination rule with CaCertificates",
+			name:        "destination rule with CaCertificates",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -2573,10 +2608,9 @@ func TestApplyDestinationRuleOSCACert(t *testing.T) {
 				},
 			},
 			expectedCaCertificateName: "root-cert.pem",
-			enableVerifyCertAtClient:  true,
 		},
 		{
-			name:        "VerifyCertAtClient set and destination rule without CaCertificates",
+			name:        "destination rule without CaCertificates",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -2597,63 +2631,11 @@ func TestApplyDestinationRuleOSCACert(t *testing.T) {
 				},
 			},
 			expectedCaCertificateName: "system",
-			enableVerifyCertAtClient:  true,
-		},
-		{
-			name:        "VerifyCertAtClient false and destination rule without CaCertificates",
-			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
-			clusterMode: DefaultClusterMode,
-			service:     service,
-			port:        servicePort[0],
-			proxyView:   model.ProxyViewAll,
-			destRule: &networking.DestinationRule{
-				Host: "foo.default.svc.cluster.local",
-				TrafficPolicy: &networking.TrafficPolicy{
-					ConnectionPool: &networking.ConnectionPoolSettings{
-						Http: &networking.ConnectionPoolSettings_HTTPSettings{
-							MaxRetries:        10,
-							UseClientProtocol: true,
-						},
-					},
-					Tls: &networking.ClientTLSSettings{
-						Mode: networking.ClientTLSSettings_SIMPLE,
-					},
-				},
-			},
-			expectedCaCertificateName: "",
-			enableVerifyCertAtClient:  false,
-		},
-		{
-			name:        "VerifyCertAtClient false and destination rule with CaCertificates",
-			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
-			clusterMode: DefaultClusterMode,
-			service:     service,
-			port:        servicePort[0],
-			proxyView:   model.ProxyViewAll,
-			destRule: &networking.DestinationRule{
-				Host: "foo.default.svc.cluster.local",
-				TrafficPolicy: &networking.TrafficPolicy{
-					ConnectionPool: &networking.ConnectionPoolSettings{
-						Http: &networking.ConnectionPoolSettings_HTTPSettings{
-							MaxRetries:        10,
-							UseClientProtocol: true,
-						},
-					},
-					Tls: &networking.ClientTLSSettings{
-						CaCertificates: "root-cert.pem",
-						Mode:           networking.ClientTLSSettings_SIMPLE,
-					},
-				},
-			},
-			expectedCaCertificateName: "root-cert.pem",
-			enableVerifyCertAtClient:  false,
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			test.SetForTest(t, &features.VerifyCertAtClient, tt.enableVerifyCertAtClient)
-
 			var cfg *config.Config
 			if tt.destRule != nil {
 				cfg = &config.Config{
@@ -3040,8 +3022,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: false,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3097,8 +3078,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: false,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3136,7 +3116,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 			},
 		},
 		{
-			name:        "With tls mode simple, InsecureSkipVerify is set true and env VERIFY_CERTIFICATE_AT_CLIENT is true",
+			name:        "With tls mode simple, InsecureSkipVerify is set true",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -3153,8 +3133,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: true,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3168,7 +3147,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 			},
 		},
 		{
-			name:        "With tls mode simple, InsecureSkipVerify is set true and env VERIFY_CERTIFICATE_AT_CLIENT is true and AUTO_SNI is true",
+			name:        "With tls mode simple, InsecureSkipVerify is set true and AUTO_SNI is true",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -3184,8 +3163,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            true,
-			enableVerifyCertAtClient: true,
+			enableAutoSni: true,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3198,7 +3176,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 			},
 		},
 		{
-			name:        "With tls mode simple and CredentialName, InsecureSkipVerify is set true and env VERIFY_CERTIFICATE_AT_CLIENT is true",
+			name:        "With tls mode simple and CredentialName, InsecureSkipVerify is set true and env",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -3217,8 +3195,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 				},
 				WorkloadSelector: &v1beta1.WorkloadSelector{},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: true,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3250,8 +3227,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: false,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3331,8 +3307,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: false,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3392,7 +3367,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 			},
 		},
 		{
-			name:        "With tls mode mutual, InsecureSkipVerify is set true and env VERIFY_CERTIFICATE_AT_CLIENT is true",
+			name:        "With tls mode mutual, InsecureSkipVerify is set true",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -3411,8 +3386,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: true,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3448,7 +3422,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 			},
 		},
 		{
-			name:        "With tls mode mutual, InsecureSkipVerify is set true and env VERIFY_CERTIFICATE_AT_CLIENT is true and AUTO_SNI is true",
+			name:        "With tls mode mutual, InsecureSkipVerify is set true and AUTO_SNI is true",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -3466,8 +3440,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            true,
-			enableVerifyCertAtClient: true,
+			enableAutoSni: true,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3502,7 +3475,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 			},
 		},
 		{
-			name:        "With tls mode mutual and CredentialName, InsecureSkipVerify is set true and env VERIFY_CERTIFICATE_AT_CLIENT is true",
+			name:        "With tls mode mutual and CredentialName, InsecureSkipVerify is set true",
 			cluster:     &cluster.Cluster{Name: "foo", ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS}},
 			clusterMode: DefaultClusterMode,
 			service:     service,
@@ -3521,8 +3494,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 				},
 				WorkloadSelector: &v1beta1.WorkloadSelector{},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: true,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3563,8 +3535,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 					},
 				},
 			},
-			enableAutoSni:            false,
-			enableVerifyCertAtClient: true,
+			enableAutoSni: false,
 			expectTLSContext: &tls.UpstreamTlsContext{
 				CommonTlsContext: &tls.CommonTlsContext{
 					TlsParams: &tls.TlsParameters{
@@ -3631,7 +3602,6 @@ func TestInsecureSkipVerify(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			test.SetForTest(t, &features.EnableAutoSni, tc.enableAutoSni)
-			test.SetForTest(t, &features.VerifyCertAtClient, tc.enableVerifyCertAtClient)
 
 			targets := []model.ServiceTarget{
 				{

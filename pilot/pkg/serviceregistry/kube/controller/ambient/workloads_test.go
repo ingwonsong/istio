@@ -24,9 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	networking "istio.io/api/networking/v1alpha3"
-	networkingclient "istio.io/client-go/pkg/apis/networking/v1alpha3"
-	securityclient "istio.io/client-go/pkg/apis/security/v1beta1"
+	networkingclient "istio.io/client-go/pkg/apis/networking/v1"
+	securityclient "istio.io/client-go/pkg/apis/security/v1"
 	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/schema/kind"
@@ -376,7 +377,7 @@ func TestPodWorkloads(t *testing.T) {
 					},
 					// no selector!
 					LabelSelector: model.LabelSelector{},
-					Source:        kind.Service,
+					Source:        model.TypedObject{Kind: kind.Service},
 				},
 				// EndpointSlice manually associates the pod with a service
 				&discovery.EndpointSlice{
@@ -437,6 +438,192 @@ func TestPodWorkloads(t *testing.T) {
 				WorkloadType:      workloadapi.WorkloadType_POD,
 				WorkloadName:      "pod-123",
 				Status:            workloadapi.WorkloadStatus_HEALTHY,
+				ClusterId:         testC,
+				Services: map[string]*workloadapi.PortList{
+					"default/svc.default.svc.domain.suffix": {
+						Ports: []*workloadapi.Port{{
+							ServicePort: 80,
+							TargetPort:  80,
+						}},
+					},
+				},
+			},
+		},
+		{
+			name: "pod as part of selectorless service without targetRef",
+			inputs: []any{
+				model.ServiceInfo{
+					Service: &workloadapi.Service{
+						Name:      "svc",
+						Namespace: "default",
+						Hostname:  "svc.default.svc.domain.suffix",
+						Ports: []*workloadapi.Port{
+							{
+								ServicePort: 80,
+								TargetPort:  80,
+							},
+						},
+					},
+					PortNames: map[int32]model.ServicePortName{
+						80: {PortName: "80"},
+					},
+					// no selector!
+					LabelSelector: model.LabelSelector{},
+					Source:        model.TypedObject{Kind: kind.Service},
+				},
+				// EndpointSlice manually created with the IP of the pod, but does NOT have a targetRef
+				&discovery.EndpointSlice{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "svc-123",
+						Namespace: "default",
+						Labels: map[string]string{
+							discovery.LabelServiceName: "svc",
+						},
+					},
+					AddressType: discovery.AddressTypeIPv4,
+					Endpoints: []discovery.Endpoint{
+						{
+							Addresses: []string{"1.2.3.4"},
+							Conditions: discovery.EndpointConditions{
+								Ready: ptr.Of(true),
+							},
+						},
+					},
+					Ports: []discovery.EndpointPort{
+						{
+							Name:     ptr.Of("http"),
+							Protocol: ptr.Of(v1.ProtocolTCP),
+							Port:     ptr.Of(int32(80)),
+						},
+					},
+				},
+			},
+			pod: &v1.Pod{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod-123",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app": "foo",
+					},
+				},
+				Spec: v1.PodSpec{},
+				Status: v1.PodStatus{
+					Phase:      v1.PodRunning,
+					Conditions: podReady,
+					PodIP:      "1.2.3.4",
+				},
+			},
+			result: &workloadapi.Workload{
+				Uid:               "cluster0//Pod/default/pod-123",
+				Name:              "pod-123",
+				Namespace:         "default",
+				Addresses:         [][]byte{netip.AddrFrom4([4]byte{1, 2, 3, 4}).AsSlice()},
+				Network:           testNW,
+				CanonicalName:     "foo",
+				CanonicalRevision: "latest",
+				WorkloadType:      workloadapi.WorkloadType_POD,
+				WorkloadName:      "pod-123",
+				Status:            workloadapi.WorkloadStatus_HEALTHY,
+				ClusterId:         testC,
+				// We do NOT associate this with the service.
+				// However, there will be a corresponding Workload created from the raw EndpointSlice. See TestEndpointSliceWorkloads
+				// for corresponding test.
+				Services: nil,
+			},
+		},
+		{
+			name: "host network pod",
+			inputs: []any{
+				model.ServiceInfo{
+					Service: &workloadapi.Service{
+						Name:      "svc",
+						Namespace: "default",
+						Hostname:  "svc.default.svc.domain.suffix",
+						Ports:     []*workloadapi.Port{{ServicePort: 80, TargetPort: 80}},
+					},
+					PortNames: map[int32]model.ServicePortName{
+						80: {PortName: "80"},
+					},
+					LabelSelector: model.NewSelector(map[string]string{"app": "foo"}),
+					Source:        model.TypedObject{Kind: kind.Service},
+				},
+				// Another endpointslice exists with the same IP... This should have no impact
+				kubernetesAPIServerEndpoint("1.1.1.1"),
+				kubernetesAPIServerService("1.2.3.4"),
+				// Another Service with an endpointslice for the same IP and for *a* pod, but not this pod. Again, no impact
+				model.ServiceInfo{
+					Service: &workloadapi.Service{
+						Name:      "some-other-svc",
+						Namespace: "default",
+						Hostname:  "some-other-svc.default.svc.domain.suffix",
+						Ports:     []*workloadapi.Port{{ServicePort: 80, TargetPort: 80}},
+					},
+					PortNames: map[int32]model.ServicePortName{
+						80: {PortName: "80"},
+					},
+					Source: model.TypedObject{Kind: kind.Service},
+				},
+				&discovery.EndpointSlice{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-other-svc",
+						Namespace: "default",
+						Labels: map[string]string{
+							discovery.LabelServiceName: "some-other-svc",
+						},
+					},
+					AddressType: discovery.AddressTypeIPv4,
+					Endpoints: []discovery.Endpoint{
+						{
+							Addresses: []string{"1.1.1.1"},
+							Conditions: discovery.EndpointConditions{
+								Ready: ptr.Of(true),
+							},
+							TargetRef: &v1.ObjectReference{
+								Kind:      "Pod",
+								Name:      "not-the-same-pod",
+								Namespace: "default",
+							},
+						},
+					},
+					Ports: []discovery.EndpointPort{
+						{
+							Name:     ptr.Of("80"),
+							Protocol: ptr.Of(v1.ProtocolTCP),
+							Port:     ptr.Of(int32(80)),
+						},
+					},
+				},
+			},
+			pod: &v1.Pod{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod-123",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app": "foo",
+					},
+				},
+				Spec: v1.PodSpec{HostNetwork: true},
+				Status: v1.PodStatus{
+					Phase:      v1.PodRunning,
+					Conditions: podReady,
+					// Important: aligns with the kubernetesAPIServerEndpoint above
+					PodIP: "1.1.1.1",
+				},
+			},
+			result: &workloadapi.Workload{
+				Uid:               "cluster0//Pod/default/pod-123",
+				Name:              "pod-123",
+				Namespace:         "default",
+				Addresses:         [][]byte{netip.AddrFrom4([4]byte{1, 1, 1, 1}).AsSlice()},
+				Network:           testNW,
+				CanonicalName:     "foo",
+				CanonicalRevision: "latest",
+				WorkloadType:      workloadapi.WorkloadType_POD,
+				WorkloadName:      "pod-123",
+				Status:            workloadapi.WorkloadStatus_HEALTHY,
+				NetworkMode:       workloadapi.NetworkMode_HOST_NETWORK,
 				ClusterId:         testC,
 				Services: map[string]*workloadapi.PortList{
 					"default/svc.default.svc.domain.suffix": {
@@ -538,6 +725,98 @@ func TestWorkloadEntryWorkloads(t *testing.T) {
 			},
 		},
 		{
+			name: "we without labels",
+			inputs: []any{
+				model.ServiceInfo{
+					Service: &workloadapi.Service{
+						Name:      "svc",
+						Namespace: "ns",
+						Hostname:  "hostname",
+						Ports: []*workloadapi.Port{{
+							ServicePort: 80,
+							TargetPort:  8080,
+						}},
+					},
+					LabelSelector: model.NewSelector(map[string]string{"app": "foo"}),
+				},
+			},
+			we: &networkingclient.WorkloadEntry{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "ns",
+				},
+				Spec: networking.WorkloadEntry{
+					Address: "1.2.3.4",
+				},
+			},
+			result: &workloadapi.Workload{
+				Uid:               "cluster0/networking.istio.io/WorkloadEntry/ns/name",
+				Name:              "name",
+				Namespace:         "ns",
+				Addresses:         [][]byte{netip.AddrFrom4([4]byte{1, 2, 3, 4}).AsSlice()},
+				Network:           testNW,
+				CanonicalName:     "name",
+				CanonicalRevision: "latest",
+				WorkloadType:      workloadapi.WorkloadType_POD,
+				WorkloadName:      "name",
+				Status:            workloadapi.WorkloadStatus_HEALTHY,
+				ClusterId:         testC,
+			},
+		},
+		{
+			name: "we spec labels",
+			inputs: []any{
+				model.ServiceInfo{
+					Service: &workloadapi.Service{
+						Name:      "svc",
+						Namespace: "ns",
+						Hostname:  "hostname",
+						Ports: []*workloadapi.Port{{
+							ServicePort: 80,
+							TargetPort:  8080,
+						}},
+					},
+					LabelSelector: model.NewSelector(map[string]string{"app": "foo"}),
+				},
+			},
+			we: &networkingclient.WorkloadEntry{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "ns",
+				},
+				Spec: networking.WorkloadEntry{
+					Address: "1.2.3.4",
+					// Labels in spec instead of metadata
+					Labels: map[string]string{
+						"app": "foo",
+					},
+				},
+			},
+			result: &workloadapi.Workload{
+				Uid:               "cluster0/networking.istio.io/WorkloadEntry/ns/name",
+				Name:              "name",
+				Namespace:         "ns",
+				Addresses:         [][]byte{netip.AddrFrom4([4]byte{1, 2, 3, 4}).AsSlice()},
+				Network:           testNW,
+				CanonicalName:     "foo",
+				CanonicalRevision: "latest",
+				WorkloadType:      workloadapi.WorkloadType_POD,
+				WorkloadName:      "name",
+				Status:            workloadapi.WorkloadStatus_HEALTHY,
+				ClusterId:         testC,
+				Services: map[string]*workloadapi.PortList{
+					"ns/hostname": {
+						Ports: []*workloadapi.Port{{
+							ServicePort: 80,
+							TargetPort:  8080,
+						}},
+					},
+				},
+			},
+		},
+		{
 			name: "pod with service named ports",
 			inputs: []any{
 				model.ServiceInfo{
@@ -575,7 +854,7 @@ func TestWorkloadEntryWorkloads(t *testing.T) {
 						83: {PortName: "83", TargetPortName: "83-target"},
 					},
 					LabelSelector: model.NewSelector(map[string]string{"app": "foo"}),
-					Source:        kind.Service,
+					Source:        model.TypedObject{Kind: kind.Service},
 				},
 			},
 			we: &networkingclient.WorkloadEntry{
@@ -655,7 +934,7 @@ func TestWorkloadEntryWorkloads(t *testing.T) {
 						82: {PortName: "82"},
 					},
 					LabelSelector: model.NewSelector(map[string]string{"app": "foo"}),
-					Source:        kind.ServiceEntry,
+					Source:        model.TypedObject{Kind: kind.ServiceEntry},
 				},
 			},
 			we: &networkingclient.WorkloadEntry{
@@ -838,6 +1117,95 @@ func TestServiceEntryWorkloads(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "static",
+			inputs: []any{
+				Waypoint{
+					Named: krt.Named{Name: "waypoint", Namespace: "ns"},
+					Address: &workloadapi.GatewayAddress{
+						Destination: &workloadapi.GatewayAddress_Hostname{
+							Hostname: &workloadapi.NamespacedHostname{
+								Namespace: "ns",
+								Hostname:  "waypoint.example.com",
+							},
+						},
+					},
+					TrafficType: constants.AllTraffic,
+				},
+			},
+			se: &networkingclient.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "ns",
+				},
+				Spec: networking.ServiceEntry{
+					Addresses: []string{"1.2.3.4"},
+					Hosts:     []string{"a.example.com"},
+					Ports: []*networking.ServicePort{{
+						Number: 80,
+						Name:   "http",
+					}},
+					Resolution: networking.ServiceEntry_STATIC,
+					Endpoints: []*networking.WorkloadEntry{
+						// One is bound to waypoint, other is not
+						{Address: "2.3.4.5"},
+						{Address: "3.4.5.6", Labels: map[string]string{constants.AmbientUseWaypointLabel: "waypoint"}},
+					},
+				},
+			},
+			result: []*workloadapi.Workload{
+				{
+					Uid:               "cluster0/networking.istio.io/ServiceEntry/ns/name/2.3.4.5",
+					Name:              "name",
+					Namespace:         "ns",
+					Addresses:         [][]byte{netip.MustParseAddr("2.3.4.5").AsSlice()},
+					Network:           testNW,
+					CanonicalName:     "name",
+					CanonicalRevision: "latest",
+					WorkloadType:      workloadapi.WorkloadType_POD,
+					WorkloadName:      "name",
+					Status:            workloadapi.WorkloadStatus_HEALTHY,
+					ClusterId:         testC,
+					Services: map[string]*workloadapi.PortList{
+						"ns/a.example.com": {
+							Ports: []*workloadapi.Port{{
+								ServicePort: 80,
+								TargetPort:  80,
+							}},
+						},
+					},
+				},
+				{
+					Uid:               "cluster0/networking.istio.io/ServiceEntry/ns/name/3.4.5.6",
+					Name:              "name",
+					Namespace:         "ns",
+					Addresses:         [][]byte{netip.MustParseAddr("3.4.5.6").AsSlice()},
+					Network:           testNW,
+					CanonicalName:     "name",
+					CanonicalRevision: "latest",
+					WorkloadType:      workloadapi.WorkloadType_POD,
+					WorkloadName:      "name",
+					Status:            workloadapi.WorkloadStatus_HEALTHY,
+					ClusterId:         testC,
+					Waypoint: &workloadapi.GatewayAddress{
+						Destination: &workloadapi.GatewayAddress_Hostname{
+							Hostname: &workloadapi.NamespacedHostname{
+								Namespace: "ns",
+								Hostname:  "waypoint.example.com",
+							},
+						},
+					},
+					Services: map[string]*workloadapi.PortList{
+						"ns/a.example.com": {
+							Ports: []*workloadapi.Port{{
+								ServicePort: 80,
+								TargetPort:  80,
+							}},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -867,20 +1235,66 @@ func TestEndpointSliceWorkloads(t *testing.T) {
 		result []*workloadapi.Workload
 	}{
 		{
-			name:   "api server",
-			inputs: []any{},
+			name: "api server",
+			inputs: []any{
+				kubernetesAPIServerService("1.2.3.4"),
+			},
+			slice: kubernetesAPIServerEndpoint("172.18.0.5"),
+			result: []*workloadapi.Workload{{
+				Uid:         "cluster0/discovery.k8s.io/EndpointSlice/default/kubernetes/172.18.0.5",
+				Name:        "kubernetes",
+				Namespace:   "default",
+				Addresses:   [][]byte{netip.MustParseAddr("172.18.0.5").AsSlice()},
+				Network:     testNW,
+				Status:      workloadapi.WorkloadStatus_HEALTHY,
+				NetworkMode: workloadapi.NetworkMode_HOST_NETWORK,
+				ClusterId:   testC,
+				Services: map[string]*workloadapi.PortList{
+					"default/kubernetes.default.svc.domain.suffix": {
+						Ports: []*workloadapi.Port{{
+							ServicePort: 443,
+							TargetPort:  6443,
+						}},
+					},
+				},
+			}},
+		},
+		{
+			name: "pod as part of selectorless service without targetRef",
+			inputs: []any{
+				model.ServiceInfo{
+					Service: &workloadapi.Service{
+						Name:      "svc",
+						Namespace: "default",
+						Hostname:  "svc.default.svc.domain.suffix",
+						Ports: []*workloadapi.Port{
+							{
+								ServicePort: 80,
+								TargetPort:  80,
+							},
+						},
+					},
+					PortNames: map[int32]model.ServicePortName{
+						80: {PortName: "http"},
+					},
+					// no selector!
+					LabelSelector: model.LabelSelector{},
+					Source:        model.TypedObject{Kind: kind.Service},
+				},
+			},
+			// EndpointSlice manually created with the IP of the pod, but does NOT have a targetRef
 			slice: &discovery.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kubernetes",
+					Name:      "svc-123",
 					Namespace: "default",
 					Labels: map[string]string{
-						discovery.LabelServiceName: "kubernetes",
+						discovery.LabelServiceName: "svc",
 					},
 				},
 				AddressType: discovery.AddressTypeIPv4,
 				Endpoints: []discovery.Endpoint{
 					{
-						Addresses: []string{"172.18.0.5"},
+						Addresses: []string{"1.2.3.4"},
 						Conditions: discovery.EndpointConditions{
 							Ready: ptr.Of(true),
 						},
@@ -888,13 +1302,30 @@ func TestEndpointSliceWorkloads(t *testing.T) {
 				},
 				Ports: []discovery.EndpointPort{
 					{
-						Name:     ptr.Of("https"),
+						Name:     ptr.Of("http"),
 						Protocol: ptr.Of(v1.ProtocolTCP),
-						Port:     ptr.Of(int32(6443)),
+						Port:     ptr.Of(int32(80)),
 					},
 				},
 			},
-			result: nil,
+			result: []*workloadapi.Workload{{
+				Uid:         "cluster0/discovery.k8s.io/EndpointSlice/default/svc-123/1.2.3.4",
+				Name:        "svc-123",
+				Namespace:   "default",
+				Addresses:   [][]byte{netip.AddrFrom4([4]byte{1, 2, 3, 4}).AsSlice()},
+				Network:     testNW,
+				Status:      workloadapi.WorkloadStatus_HEALTHY,
+				NetworkMode: workloadapi.NetworkMode_HOST_NETWORK,
+				ClusterId:   testC,
+				Services: map[string]*workloadapi.PortList{
+					"default/svc.default.svc.domain.suffix": {
+						Ports: []*workloadapi.Port{{
+							ServicePort: 80,
+							TargetPort:  80,
+						}},
+					},
+				},
+			}},
 		},
 	}
 	for _, tt := range cases {
@@ -915,9 +1346,61 @@ func TestEndpointSliceWorkloads(t *testing.T) {
 	}
 }
 
+func kubernetesAPIServerService(ip string) model.ServiceInfo {
+	return model.ServiceInfo{
+		Service: &workloadapi.Service{
+			Name:      "kubernetes",
+			Namespace: "default",
+			Hostname:  "kubernetes.default.svc.domain.suffix",
+			Addresses: []*workloadapi.NetworkAddress{{
+				Network: testNW,
+				Address: netip.MustParseAddr(ip).AsSlice(),
+			}},
+			Ports: []*workloadapi.Port{
+				{
+					ServicePort: 443,
+					TargetPort:  6443,
+				},
+			},
+		},
+		PortNames: map[int32]model.ServicePortName{
+			443: {PortName: "https"},
+		},
+		Source: model.TypedObject{Kind: kind.Service},
+	}
+}
+
+func kubernetesAPIServerEndpoint(ip string) *discovery.EndpointSlice {
+	return &discovery.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kubernetes",
+			Namespace: "default",
+			Labels: map[string]string{
+				discovery.LabelServiceName: "kubernetes",
+			},
+		},
+		AddressType: discovery.AddressTypeIPv4,
+		Endpoints: []discovery.Endpoint{
+			{
+				Addresses: []string{ip},
+				Conditions: discovery.EndpointConditions{
+					Ready: ptr.Of(true),
+				},
+			},
+		},
+		Ports: []discovery.EndpointPort{
+			{
+				Name:     ptr.Of("https"),
+				Protocol: ptr.Of(v1.ProtocolTCP),
+				Port:     ptr.Of(int32(6443)),
+			},
+		},
+	}
+}
+
 func newAmbientUnitTest() *index {
 	return &index{
-		networkUpdateTrigger: krt.NewRecomputeTrigger(),
+		networkUpdateTrigger: krt.NewRecomputeTrigger(true),
 		ClusterID:            testC,
 		DomainSuffix:         "domain.suffix",
 		Network: func(endpointIP string, labels labels.Instance) network.ID {
@@ -953,7 +1436,7 @@ var podReady = []v1.PodCondition{
 func GetMeshConfig(mc *krttest.MockCollection) krt.StaticSingleton[MeshConfig] {
 	attempt := krttest.GetMockSingleton[MeshConfig](mc)
 	if attempt.Get() == nil {
-		return krt.NewStatic(&MeshConfig{mesh.DefaultMeshConfig()})
+		return krt.NewStatic(&MeshConfig{mesh.DefaultMeshConfig()}, true)
 	}
 	return attempt
 }

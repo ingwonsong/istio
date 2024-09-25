@@ -245,14 +245,12 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 		istiodCertBundleWatcher: keycertbundle.NewWatcher(),
 		webhookInfo:             &webhookInfo{},
 	}
-	s.workloadTrustBundle = tb.NewTrustBundle(nil, e.Watcher)
 
 	// Apply custom initialization functions.
 	for _, fn := range initFuncs {
 		fn(s)
 	}
 	// Initialize workload Trust Bundle before XDS Server
-	e.TrustBundle = s.workloadTrustBundle
 	s.XDSServer = xds.NewDiscoveryServer(e, args.RegistryOptions.KubeOptions.ClusterAliases)
 	configGen := core.NewConfigGenerator(s.XDSServer.Cache)
 
@@ -290,6 +288,10 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 	if err := s.environment.InitNetworksManager(s.XDSServer); err != nil {
 		return nil, err
 	}
+
+	// Initialize trust bundle after mesh config which it depends on
+	s.workloadTrustBundle = tb.NewTrustBundle(nil, e.Watcher)
+	e.TrustBundle = s.workloadTrustBundle
 
 	// Options based on the current 'defaults' in istio.
 	caOpts := &caOptions{
@@ -378,7 +380,7 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 	// so we build it later.
 	if s.kubeClient != nil {
 		authenticators = append(authenticators,
-			kubeauth.NewKubeJWTAuthenticator(s.environment.Watcher, s.kubeClient.Kube(), s.clusterID, s.multiclusterController.GetRemoteKubeClient))
+			kubeauth.NewKubeJWTAuthenticator(s.environment.Watcher, s.kubeClient.Kube(), s.clusterID, s.multiclusterController))
 	}
 	if len(features.TrustedGatewayCIDR) > 0 {
 		authenticators = append(authenticators, &authenticate.XfccAuthenticator{})
@@ -1239,11 +1241,6 @@ func (s *Server) shouldStartNsController() bool {
 		return false
 	}
 
-	// For Kubernetes CA, we don't distribute it; it is mounted in all pods by Kubernetes.
-	// This is never called - isK8SSigning is true.
-	if features.PilotCertProvider == constants.CertProviderKubernetes {
-		return false
-	}
 	// For no CA we don't distribute it either, as there is no cert
 	if features.PilotCertProvider == constants.CertProviderNone {
 		return false

@@ -33,6 +33,13 @@ Finally, we can set all of that under .Values so the chart behaves without aware
 {{ fail (cat "unknown compatibility version" $.Values.compatibilityVersion) }}
 {{- end }}
 {{- end }}
+{{- if  $globals.platform }}
+{{- with $.Files.Get (printf "files/profile-platform-%s.yaml" $globals.platform) }}
+{{- $ignore := mustMergeOverwrite $profile (. | fromYaml) }}
+{{- else }}
+{{ fail (cat "unknown platform" $globals.platform) }}
+{{- end }}
+{{- end }}
 {{- if $profile }}
 {{- $a := mustMergeOverwrite $defaults $profile }}
 {{- end }}
@@ -41,3 +48,22 @@ Finally, we can set all of that under .Values so the chart behaves without aware
 {{- $a := mustMergeOverwrite $defaults $globals  }}
 {{- end }}
 {{- $b := set $ "Values" (mustMergeOverwrite $defaults $.Values) }}
+
+{{/*
+Labels that should be applied to ALL resources.
+*/}}
+{{- define "istio.labels" -}}
+{{- if .Release.Service -}}
+app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+{{- end }}
+{{- if .Release.Name }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
+{{- end }}
+app.kubernetes.io/part-of: "istio"
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+{{- if and .Chart.Name .Chart.Version }}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end -}}

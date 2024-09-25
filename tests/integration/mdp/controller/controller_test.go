@@ -20,6 +20,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -311,7 +312,7 @@ func verifyProxyVersion(t framework.TestContext, cs cluster.Cluster,
 			msg := fmt.Sprintf("got unexpected upgraded percentage: %v,"+
 				" total pod count: %d, upgraded pod count: %d", perc, totalPods, newPods)
 			t.Log(msg)
-			return fmt.Errorf(msg)
+			return errors.New(msg)
 		}
 		t.Logf("got percentage of upgraded proxies: %v, expected: %v", perc, expectedPercentage)
 		return nil
@@ -395,7 +396,7 @@ func verifyMDPCRStatus(t framework.TestContext, cs cluster.Cluster, expectedStat
 		if status.State != expectedState {
 			msg := fmt.Sprintf("expected DataPlaneControl status: %v, got: %v\n", expectedState, status.State)
 			t.Logf(msg)
-			return fmt.Errorf(msg)
+			return errors.New(msg)
 		}
 		return nil
 	}

@@ -109,6 +109,16 @@ func (c *installer) preInstall(rev *revision.Config) error {
 	if c.settings.ClusterTopology == resource.MultiProject && c.settings.ClusterType == resource.GKEOnGCP {
 		if err := exec.Dispatch(
 			c.settings.RepoRootDir,
+			"clean_up_multiproject_permissions",
+			[]string{
+				c.settings.ClusterGCPProjects[0],
+				strings.Join(c.settings.ClusterGCPProjects[:], " "),
+			}); err != nil {
+			return err
+		}
+
+		if err := exec.Dispatch(
+			c.settings.RepoRootDir,
 			"register_clusters_in_hub",
 			[]string{
 				c.settings.GCRProject,

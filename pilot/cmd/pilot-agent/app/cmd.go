@@ -254,7 +254,7 @@ func initProxy(args []string) error {
 	if len(args) > 0 {
 		proxyArgs.Type = model.NodeType(args[0])
 		if !model.IsApplicationNodeType(proxyArgs.Type) {
-			return fmt.Errorf("Invalid proxy Type: " + string(proxyArgs.Type))
+			return fmt.Errorf("invalid proxy Type: %s", string(proxyArgs.Type))
 		}
 	}
 

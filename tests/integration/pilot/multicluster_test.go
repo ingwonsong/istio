@@ -76,7 +76,7 @@ serviceSettings:
 					"subsets",
 					func(t framework.TestContext) {
 						cfg := tmpl.EvaluateOrFail(t, `
-apiVersion: networking.istio.io/v1beta1
+apiVersion: networking.istio.io/v1
 kind: DestinationRule
 metadata:
   name: mysvc-dr
@@ -87,7 +87,7 @@ spec:
     labels:
       topology.istio.io/cluster: {{ .name }}
 ---
-apiVersion: networking.istio.io/v1beta1
+apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
   name: mysvc-vs

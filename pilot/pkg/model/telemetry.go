@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	udpa "github.com/cncf/xds/go/udpa/type/v1"
 	accesslog "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	httpwasm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/wasm/v3"
@@ -30,7 +29,6 @@ import (
 	wasm "github.com/envoyproxy/go-control-plane/envoy/extensions/wasm/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/structpb"
 	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -108,6 +106,7 @@ type metricsKey struct {
 	Class     networking.ListenerClass
 	Protocol  networking.ListenerProtocol
 	ProxyType NodeType
+	Service   types.NamespacedName
 }
 
 // getTelemetries returns the Telemetry configurations for the given environment.
@@ -449,8 +448,8 @@ func (t *Telemetries) applicableTelemetries(proxy *Proxy, svc *Service) computed
 	matcher := PolicyMatcherForProxy(proxy).WithService(svc)
 	for _, telemetry := range t.NamespaceToTelemetries[namespace] {
 		spec := telemetry.Spec
-		// TODO in many other places, empty selector matches all policy
-		if len(spec.GetSelector().GetMatchLabels()) == 0 {
+		// Namespace wide policy; already handled above
+		if len(spec.GetSelector().GetMatchLabels()) == 0 && len(GetTargetRefs(spec)) == 0 {
 			continue
 		}
 		if matcher.ShouldAttachPolicy(gvk.Telemetry, telemetry.NamespacedName(), spec) {
@@ -495,6 +494,9 @@ func (t *Telemetries) telemetryFilters(proxy *Proxy, class networking.ListenerCl
 		Class:        class,
 		Protocol:     protocol,
 		ProxyType:    proxy.Type,
+	}
+	if svc != nil {
+		key.Service = types.NamespacedName{Name: svc.Attributes.Name, Namespace: svc.Attributes.Namespace}
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -661,7 +663,7 @@ func matchWorkloadMode(selector *tpb.AccessLogging_LogSelector, mode tpb.Workloa
 
 func (t *Telemetries) namespaceWideTelemetryConfig(namespace string) Telemetry {
 	for _, tel := range t.NamespaceToTelemetries[namespace] {
-		if len(tel.Spec.GetSelector().GetMatchLabels()) == 0 {
+		if len(tel.Spec.GetSelector().GetMatchLabels()) == 0 && len(GetTargetRefs(tel.Spec)) == 0 {
 			return tel
 		}
 	}
@@ -909,19 +911,6 @@ func getMatches(match *tpb.MetricSelector) []string {
 	}
 }
 
-var waypointStatsConfig = protoconv.MessageToAny(&udpa.TypedStruct{
-	TypeUrl: "type.googleapis.com/stats.PluginConfig",
-	Value: &structpb.Struct{
-		Fields: map[string]*structpb.Value{
-			"reporter": {
-				Kind: &structpb.Value_StringValue{
-					StringValue: "SERVER_GATEWAY",
-				},
-			},
-		},
-	},
-})
-
 // telemetryFilterHandled contains the number of providers we handle below.
 // This is to ensure this stays in sync as new handlers are added
 // STOP. DO NOT UPDATE THIS WITHOUT UPDATING buildHTTPTelemetryFilter and buildTCPTelemetryFilter.
@@ -932,20 +921,12 @@ func buildHTTPTelemetryFilter(class networking.ListenerClass, metricsCfg []telem
 	for _, cfg := range metricsCfg {
 		switch cfg.Provider.GetProvider().(type) {
 		case *meshconfig.MeshConfig_ExtensionProvider_Prometheus:
-			if cfg.NodeType == Waypoint {
+			if statsCfg := generateStatsConfig(class, cfg, cfg.NodeType == Waypoint); statsCfg != nil {
 				f := &hcm.HttpFilter{
 					Name:       xds.StatsFilterName,
-					ConfigType: &hcm.HttpFilter_TypedConfig{TypedConfig: waypointStatsConfig},
+					ConfigType: &hcm.HttpFilter_TypedConfig{TypedConfig: statsCfg},
 				}
 				res = append(res, f)
-			} else {
-				if statsCfg := generateStatsConfig(class, cfg); statsCfg != nil {
-					f := &hcm.HttpFilter{
-						Name:       xds.StatsFilterName,
-						ConfigType: &hcm.HttpFilter_TypedConfig{TypedConfig: statsCfg},
-					}
-					res = append(res, f)
-				}
 			}
 		case *meshconfig.MeshConfig_ExtensionProvider_Stackdriver:
 			sdCfg := generateSDConfig(class, cfg)
@@ -978,20 +959,12 @@ func buildTCPTelemetryFilter(class networking.ListenerClass, telemetryConfigs []
 	for _, telemetryCfg := range telemetryConfigs {
 		switch telemetryCfg.Provider.GetProvider().(type) {
 		case *meshconfig.MeshConfig_ExtensionProvider_Prometheus:
-			if telemetryCfg.NodeType == Waypoint {
+			if cfg := generateStatsConfig(class, telemetryCfg, telemetryCfg.NodeType == Waypoint); cfg != nil {
 				f := &listener.Filter{
 					Name:       xds.StatsFilterName,
-					ConfigType: &listener.Filter_TypedConfig{TypedConfig: waypointStatsConfig},
+					ConfigType: &listener.Filter_TypedConfig{TypedConfig: cfg},
 				}
 				res = append(res, f)
-			} else {
-				if cfg := generateStatsConfig(class, telemetryCfg); cfg != nil {
-					f := &listener.Filter{
-						Name:       xds.StatsFilterName,
-						ConfigType: &listener.Filter_TypedConfig{TypedConfig: cfg},
-					}
-					res = append(res, f)
-				}
 			}
 		case *meshconfig.MeshConfig_ExtensionProvider_Stackdriver:
 			cfg := generateSDConfig(class, telemetryCfg)
@@ -1012,7 +985,7 @@ func buildTCPTelemetryFilter(class networking.ListenerClass, telemetryConfigs []
 			}
 			res = append(res, f)
 		default:
-			// Only prometheus and SD supported currently
+			// Only prometheus  supported currently
 			continue
 		}
 	}
@@ -1139,7 +1112,7 @@ var metricToPrometheusMetric = map[string]string{
 	"GRPC_RESPONSE_MESSAGES": "response_messages_total",
 }
 
-func generateStatsConfig(class networking.ListenerClass, filterConfig telemetryFilterConfig) *anypb.Any {
+func generateStatsConfig(class networking.ListenerClass, filterConfig telemetryFilterConfig, isWaypoint bool) *anypb.Any {
 	if !filterConfig.Metrics {
 		// No metric for prometheus
 		return nil
@@ -1156,6 +1129,9 @@ func generateStatsConfig(class networking.ListenerClass, filterConfig telemetryF
 		TcpReportingDuration:      filterConfig.ReportingInterval,
 		RotationInterval:          filterConfig.RotationInterval,
 		GracefulDeletionInterval:  filterConfig.GracefulDeletionInterval,
+	}
+	if isWaypoint {
+		cfg.Reporter = stats.Reporter_SERVER_GATEWAY
 	}
 
 	for _, override := range listenerCfg.Overrides {

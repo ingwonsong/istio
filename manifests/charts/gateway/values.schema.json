@@ -60,6 +60,15 @@
         "env": {
           "type": "object"
         },
+        "strategy": {
+          "type": "object"
+        },
+        "minReadySeconds": {
+          "type": [ "null", "integer" ]
+        },
+        "readinessProbe": {
+          "type": [ "null", "object" ]
+        },
         "labels": {
           "type": "object"
         },
@@ -99,10 +108,10 @@
               "type": "object",
               "properties": {
                 "cpu": {
-                  "type": "string"
+                  "type": ["string", "null"]
                 },
                 "memory": {
-                  "type": "string"
+                  "type": ["string", "null"]
                 }
               }
             },
@@ -110,10 +119,10 @@
               "type": "object",
               "properties": {
                 "cpu": {
-                  "type": "string"
+                  "type": ["string", "null"]
                 },
                 "memory": {
-                  "type": "string"
+                  "type": ["string", "null"]
                 }
               }
             }

@@ -43,6 +43,14 @@
         "regex": "^cluster(\\.(.+);)"
       },
       {
+        "tag_name": "http_conn_manager_prefix",
+        "regex": "^http\\.(((?:[_.[:digit:]\\w]*|[_\\[\\]aAbBcCdDeEfF[:digit:]\\w\\:]*));\\.)"
+      },
+      {
+        "tag_name": "thread_name",
+        "regex": "^server(\\.(.+))\\.watchdog"
+      },
+      {
         "tag_name": "tcp_prefix",
         "regex": "^tcp\\.((.*?)\\.)\\w+?$"
       },
@@ -57,10 +65,6 @@
       {
         "tag_name": "http_conn_manager_listener_prefix",
         "regex": "^listener(?=\\.).*?\\.http\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
-      },
-      {
-        "tag_name": "http_conn_manager_prefix",
-        "regex": "^http\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
       },
       {
         "tag_name": "listener_address",
@@ -345,6 +349,8 @@
     ],
     "listeners":[
       {
+        "name": "0.0.0.0_15090",
+        
         "address": {
           "socket_address": {
             "protocol": "TCP",
@@ -353,6 +359,9 @@
             "port_value": 15090
           }
         },
+        "ignore_global_conn_limit": true,
+        "bypass_overload_manager": true,
+        
         "filter_chains": [
           {
             "filters": [
@@ -396,6 +405,7 @@
         ]
       },
       {
+        "name": "0.0.0.0_15021",
         "address": {
            "socket_address": {
              "protocol": "TCP",
@@ -403,6 +413,9 @@
              "port_value": 15021
            }
         },
+        "ignore_global_conn_limit": true,
+        "bypass_overload_manager": true,
+        
         "filter_chains": [
           {
             "filters": [
@@ -467,6 +480,11 @@
     "outlier_detection": {
       "event_log_path": "/dev/stdout"
     }
+  }
+  
+  ,
+  "deferred_stat_options": {
+    "enable_deferred_creation_stats": true
   }
   
 }

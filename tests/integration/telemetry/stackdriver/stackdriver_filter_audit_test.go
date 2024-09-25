@@ -19,7 +19,7 @@ package stackdriver
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -109,7 +109,7 @@ func TestStackdriverHTTPAuditLogging(t *testing.T) {
 							return nil
 						}
 
-						return fmt.Errorf(strings.Join(errs, "\n"))
+						return errors.New(strings.Join(errs, "\n"))
 					}, retry.Delay(framework.TelemetryRetryDelay), retry.Timeout(framework.TelemetryRetryTimeout))
 					if err != nil {
 						return err

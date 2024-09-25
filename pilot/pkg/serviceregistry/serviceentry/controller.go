@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	networking "istio.io/api/networking/v1alpha3"
+	clientnetworking "istio.io/client-go/pkg/apis/networking/v1"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/model/status"
@@ -130,8 +131,6 @@ type Controller struct {
 
 	model.NoopAmbientIndexes
 	model.NetworkGatewaysHandler
-
-	statusController MCPServiceStatusController // MCP code
 }
 
 type Option func(*Controller)
@@ -199,6 +198,20 @@ func newController(store model.ConfigStore, xdsUpdater model.XDSUpdater, meshCon
 	return s
 }
 
+// ConvertClientWorkloadEntry merges the metadata.labels and spec.labels
+func ConvertClientWorkloadEntry(cfg *clientnetworking.WorkloadEntry) *clientnetworking.WorkloadEntry {
+	if cfg.Spec.Labels == nil {
+		// Short circuit, we don't have to do any conversion
+		return cfg
+	}
+	cfg = cfg.DeepCopy()
+	// Set both fields to be the merged result, so either can be used
+	cfg.Spec.Labels = maps.MergeCopy(cfg.Spec.Labels, cfg.Labels)
+	cfg.Labels = cfg.Spec.Labels
+
+	return cfg
+}
+
 // ConvertWorkloadEntry convert wle from Config.Spec and populate the metadata labels into it.
 func ConvertWorkloadEntry(cfg config.Config) *networking.WorkloadEntry {
 	wle := cfg.Spec.(*networking.WorkloadEntry)
@@ -242,9 +255,7 @@ func (s *Controller) workloadEntryHandler(old, curr config.Config, event model.E
 		s.NotifyWorkloadInstanceHandlers(wi, event)
 	}
 
-	// includes instances new updated or unchanged, in other word it is the current state.
-	instancesUpdated := []*model.ServiceInstance{}
-	instancesDeleted := []*model.ServiceInstance{}
+	allInstances := []*model.ServiceInstance{}
 	fullPush := false
 	configsUpdated := sets.New[model.ConfigKey]()
 
@@ -282,16 +293,16 @@ func (s *Controller) workloadEntryHandler(old, curr config.Config, event model.E
 			continue
 		}
 		instance := s.convertWorkloadEntryToServiceInstances(wle, services, se, &key, s.Cluster())
-		instancesUpdated = append(instancesUpdated, instance...)
+		allInstances = append(allInstances, instance...)
 		parentKey := configKeyWithParent{
 			configKey: key,
 			parent:    namespacedName,
 		}
 		if event == model.EventDelete {
 			s.serviceInstances.deleteServiceEntryInstances(namespacedName, key)
-			s.serviceInstances.deleteInstanceKeys(parentKey, instancesUpdated)
+			s.serviceInstances.deleteInstanceKeys(parentKey, instance)
 		} else {
-			s.serviceInstances.updateInstances(parentKey, instancesUpdated)
+			s.serviceInstances.updateInstances(parentKey, instance)
 			s.serviceInstances.updateServiceEntryInstancesPerConfig(namespacedName, key, instance)
 		}
 		addConfigs(se, services)
@@ -310,7 +321,7 @@ func (s *Controller) workloadEntryHandler(old, curr config.Config, event model.E
 			configKey: key,
 			parent:    namespacedName,
 		}
-		instancesDeleted = append(instancesDeleted, instance...)
+		allInstances = append(allInstances, instance...)
 		s.serviceInstances.deleteServiceEntryInstances(namespacedName, key)
 		s.serviceInstances.deleteInstanceKeys(parentKey, instance)
 		addConfigs(se, services)
@@ -323,18 +334,17 @@ func (s *Controller) workloadEntryHandler(old, curr config.Config, event model.E
 	}
 	s.mutex.Unlock()
 
-	allInstances := append(instancesUpdated, instancesDeleted...)
 	if !fullPush {
 		// trigger full xds push to the related sidecar proxy
 		if event == model.EventAdd {
 			s.XdsUpdater.ProxyUpdate(s.Cluster(), wle.Address)
 		}
-		s.edsUpdate(allInstances)
+		s.edsUpdate(allInstances, true)
 		return
 	}
 
 	// update eds cache only
-	s.edsCacheUpdate(allInstances)
+	s.edsUpdate(allInstances, false)
 
 	pushReq := &model.PushRequest{
 		Full:           true,
@@ -369,9 +379,6 @@ func (s *Controller) serviceEntryHandler(old, curr config.Config, event model.Ev
 	log.Debugf("Handle event %s for service entry %s/%s", event, curr.Namespace, curr.Name)
 	currentServiceEntry := curr.Spec.(*networking.ServiceEntry)
 	cs := convertServices(curr, s.clusterID)
-	if s.statusController != nil {
-		s.statusController.HandleConfig(curr, cs) // MCP code
-	}
 	configsUpdated := sets.New[model.ConfigKey]()
 	key := curr.NamespacedName()
 
@@ -459,7 +466,7 @@ func (s *Controller) serviceEntryHandler(old, curr config.Config, event model.Ev
 	fullPush := len(configsUpdated) > 0
 	// if not full push needed, at least one service unchanged
 	if !fullPush {
-		s.edsUpdate(serviceInstances)
+		s.edsUpdate(serviceInstances, true)
 		return
 	}
 
@@ -476,7 +483,7 @@ func (s *Controller) serviceEntryHandler(old, curr config.Config, event model.Ev
 		keys.Insert(instancesKey{hostname: svc.Hostname, namespace: curr.Namespace})
 	}
 
-	s.queueEdsEvent(keys, s.doEdsCacheUpdate)
+	s.queueEdsEvent(keys, false)
 
 	pushReq := &model.PushRequest{
 		Full:           true,
@@ -612,7 +619,7 @@ func (s *Controller) WorkloadInstanceHandler(wi *model.WorkloadInstance, event m
 
 	s.mutex.Unlock()
 
-	s.edsUpdate(append(instances, instancesDeleted...))
+	s.edsUpdate(append(instances, instancesDeleted...), true)
 
 	// ServiceEntry with WorkloadEntry results in STRICT_DNS cluster with hardcoded endpoints
 	// need to update CDS to refresh endpoints
@@ -662,24 +669,6 @@ func (s *Controller) Services() []*model.Service {
 	out := make([]*model.Service, 0, len(allServices))
 	if s.services.allocateNeeded {
 		autoAllocateIPs(allServices)
-
-		// For some of the existing customers as a grandfathered case,
-		// we decided to support DNS Proxy/Auto Allocation feature in CSM as well,
-		// even though this auto allocation is a broken/unstable feature.
-		//
-		// The problem in the current IP allocation is as follows:
-		// 1. Each Istiod instance can generate different IP allocation in some time period.
-		// 2. Service or ServiceEntry resources are changed (added or deleted), the allocation
-		// can be changed.
-		// 3. There is a bug which is not settled in ASM branch yet.
-		// https://github.com/istio/istio/pull/47081
-		//
-		// Note that the feature will be provided to the limited customers.
-
-		// To display the allocated IP addresses, inform them to statusController.
-		if s.statusController != nil {
-			s.statusController.HandleIPAllocation(allServices) // MCP code
-		}
 		s.services.allocateNeeded = false
 	}
 	s.mutex.Unlock()
@@ -717,7 +706,7 @@ func (s *Controller) ResyncEDS() {
 	s.mutex.RLock()
 	allInstances := s.serviceInstances.getAll()
 	s.mutex.RUnlock()
-	s.edsUpdate(allInstances)
+	s.edsUpdate(allInstances, true)
 	// HACK to workaround Service syncing after WorkloadEntry: https://github.com/istio/istio/issues/45114
 	s.workloadInstances.ForEach(func(wi *model.WorkloadInstance) {
 		if wi.Kind == model.WorkloadEntryKind {
@@ -729,35 +718,27 @@ func (s *Controller) ResyncEDS() {
 // edsUpdate triggers an EDS push serially such that we can prevent all instances
 // got at t1 can accidentally override that got at t2 if multiple threads are
 // running this function. Queueing ensures latest updated wins.
-func (s *Controller) edsUpdate(instances []*model.ServiceInstance) {
+func (s *Controller) edsUpdate(instances []*model.ServiceInstance, pushEds bool) {
 	// Find all keys we need to lookup
 	keys := sets.NewWithLength[instancesKey](len(instances))
 	for _, i := range instances {
 		keys.Insert(makeInstanceKey(i))
 	}
-	s.queueEdsEvent(keys, s.doEdsUpdate)
-}
-
-// edsCacheUpdate updates eds cache serially such that we can prevent allinstances
-// got at t1 can accidentally override that got at t2 if multiple threads are
-// running this function. Queueing ensures latest updated wins.
-func (s *Controller) edsCacheUpdate(instances []*model.ServiceInstance) {
-	// Find all keys we need to lookup
-	keys := map[instancesKey]struct{}{}
-	for _, i := range instances {
-		keys[makeInstanceKey(i)] = struct{}{}
-	}
-	s.queueEdsEvent(keys, s.doEdsCacheUpdate)
+	s.queueEdsEvent(keys, pushEds)
 }
 
 // queueEdsEvent processes eds events sequentially for the passed keys and invokes the passed function.
-func (s *Controller) queueEdsEvent(keys sets.Set[instancesKey], edsFn func(keys sets.Set[instancesKey])) {
+func (s *Controller) queueEdsEvent(keys sets.Set[instancesKey], pushEds bool) {
 	// wait for the cache update finished
 	waitCh := make(chan struct{})
 	// trigger update eds endpoint shards
 	s.edsQueue.Push(func() error {
 		defer close(waitCh)
-		edsFn(keys)
+		xdsUpdateFn := s.XdsUpdater.EDSCacheUpdate
+		if pushEds {
+			xdsUpdateFn = s.XdsUpdater.EDSUpdate
+		}
+		s.doEdsUpdate(keys, xdsUpdateFn)
 		return nil
 	})
 	select {
@@ -770,34 +751,17 @@ func (s *Controller) queueEdsEvent(keys sets.Set[instancesKey], edsFn func(keys 
 	}
 }
 
-// doEdsCacheUpdate invokes XdsUpdater's EDSCacheUpdate to update endpoint shards.
-func (s *Controller) doEdsCacheUpdate(keys sets.Set[instancesKey]) {
+func (s *Controller) doEdsUpdate(keys sets.Set[instancesKey], xdsUpdateFn model.EdsUpdateFn) {
 	endpoints := s.buildEndpoints(keys)
 	shard := model.ShardKeyFromRegistry(s)
-	// This is delete.
-	if len(endpoints) == 0 {
-		for k := range keys {
-			s.XdsUpdater.EDSCacheUpdate(shard, string(k.hostname), k.namespace, nil)
-		}
-	} else {
-		for k, eps := range endpoints {
-			s.XdsUpdater.EDSCacheUpdate(shard, string(k.hostname), k.namespace, eps)
-		}
-	}
-}
 
-// doEdsUpdate invokes XdsUpdater's eds update to trigger eds push.
-func (s *Controller) doEdsUpdate(keys sets.Set[instancesKey]) {
-	endpoints := s.buildEndpoints(keys)
-	shard := model.ShardKeyFromRegistry(s)
-	// This is delete.
-	if len(endpoints) == 0 {
-		for k := range keys {
-			s.XdsUpdater.EDSUpdate(shard, string(k.hostname), k.namespace, nil)
-		}
-	} else {
-		for k, eps := range endpoints {
-			s.XdsUpdater.EDSUpdate(shard, string(k.hostname), k.namespace, eps)
+	for k := range keys {
+		if eps, ok := endpoints[k]; ok {
+			// Update the cache with the generated endpoints.
+			xdsUpdateFn(shard, string(k.hostname), k.namespace, eps)
+		} else {
+			// Handle deletions by sending a nil endpoints update.
+			xdsUpdateFn(shard, string(k.hostname), k.namespace, nil)
 		}
 	}
 }
@@ -913,6 +877,10 @@ func servicesDiff(os []*model.Service, ns []*model.Service) ([]*model.Service, [
 //
 // The current algorithm to allocate IPs is deterministic across all istiods.
 func autoAllocateIPs(services []*model.Service) []*model.Service {
+	// if we are using the IP Autoallocate controller then we can short circuit this
+	if features.EnableIPAutoallocate {
+		return services
+	}
 	hashedServices := make([]*model.Service, maxIPs)
 	hash := fnv.New32a()
 	// First iterate through the range of services and determine its position by hash

@@ -77,21 +77,6 @@ func byteIPToAddr(b []byte) netip.Addr {
 	return ip
 }
 
-func (a *index) getWaypointAddress(w *Waypoint) *workloadapi.GatewayAddress {
-	// probably overly cautious... I don't think the ambient index impl counts something with zero addresses as waypoint
-	if w != nil && len(w.Addresses) >= 1 {
-		return &workloadapi.GatewayAddress{
-			Destination: &workloadapi.GatewayAddress_Address{
-				// probably use from Cidr instead?
-				Address: a.toNetworkAddressFromIP(w.Addresses[0]),
-			},
-			// TODO: look up the HBONE port instead of hardcoding it
-			HboneMtlsPort: 15008,
-		}
-	}
-	return nil
-}
-
 func (a *index) toNetworkAddress(vip string) (*workloadapi.NetworkAddress, error) {
 	ip, err := netip.ParseAddr(vip)
 	if err != nil {
@@ -142,14 +127,6 @@ func AppendNonNil[T any](data []T, i *T) []T {
 		data = append(data, *i)
 	}
 	return data
-}
-
-func IsPodRunning(pod *v1.Pod) bool {
-	return pod.Status.Phase == v1.PodRunning
-}
-
-func IsPodPending(pod *v1.Pod) bool {
-	return pod.Status.Phase == v1.PodPending
 }
 
 // IsPodReady is copied from kubernetes/pkg/api/v1/pod/utils.go

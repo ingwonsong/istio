@@ -129,12 +129,6 @@ var (
 		return val
 	}()
 
-	EnableStatus = env.Register(
-		"PILOT_ENABLE_STATUS",
-		false,
-		"If enabled, pilot will update the CRD Status field of all istio resources with reconciliation status.",
-	).Get()
-
 	EnableGatewayAPI = env.Register("PILOT_ENABLE_GATEWAY_API", true,
 		"If this is set to true, support for Kubernetes gateway-api (github.com/kubernetes-sigs/gateway-api) will "+
 			" be enabled. In addition to this being enabled, the gateway-api CRDs need to be installed.").Get()
@@ -190,14 +184,27 @@ var (
 	PassthroughTargetPort = env.Register("ENABLE_RESOLUTION_NONE_TARGET_PORT", true,
 		"If enabled, targetPort will be supported for resolution=NONE ServiceEntry").Get()
 
-	PersistOldestWinsHeuristicForVirtualServiceHostMatching = env.Register("PERSIST_OLDEST_FIRST_HEURISTIC_FOR_VIRTUAL_SERVICE_HOST_MATCHING", false,
-		"If enabled, istiod will persist the oldest first heuristic for subtly conflicting traffic policy selection"+
-			"(such as with overlapping wildcard hosts)").Get()
-
 	Enable100ContinueHeaders = env.Register("ENABLE_100_CONTINUE_HEADERS", true,
 		"If enabled, istiod will proxy 100-continue headers as is").Get()
 
 	EnableDeferredClusterCreation = env.Register("ENABLE_DEFERRED_CLUSTER_CREATION", true,
 		"If enabled, Istio will create clusters only when there are requests. This will save memory and CPU cycles"+
 			" in cases where there are lots of inactive clusters and > 1 worker thread").Get()
+
+	EnableDeferredStatsCreation = env.Register("ENABLE_DEFERRED_STATS_CREATION", true,
+		"If enabled, Istio will lazily initialize a subset of the stats").Get()
+
+	EnableLocalityWeightedLbConfig = env.Register("ENABLE_LOCALITY_WEIGHTED_LB_CONFIG", false,
+		"If enabled, always set LocalityWeightedLbConfig for a cluster, "+
+			" otherwise only apply it when locality lb is specified by DestinationRule for a service").Get()
+
+	BypassOverloadManagerForStaticListeners = env.Register("BYPASS_OVERLOAD_MANAGER_FOR_STATIC_LISTENERS", true,
+		"If enabled, overload manager will not be applied to static listeners").Get()
+
+	EnableEnhancedDestinationRuleMerge = env.Register("ENABLE_ENHANCED_DESTINATIONRULE_MERGE", true,
+		"If enabled, Istio merge destinationrules considering their exportTo fields,"+
+			" they will be kept as independent rules if the exportTos are not equal.").Get()
+
+	UnifiedSidecarScoping = env.Register("PILOT_UNIFIED_SIDECAR_SCOPE", true,
+		"If true, unified SidecarScope creation will be used. This is only intended as a temporary feature flag for backwards compatibility.").Get()
 )

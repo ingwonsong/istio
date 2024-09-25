@@ -60,15 +60,12 @@ func TestExistingPodAddedWhenNsLabeled(t *testing.T) {
 
 	fs.On("AddPodToMesh",
 		ctx,
-		pod,
+		mock.IsType(pod),
 		util.GetPodIPsIfPresent(pod),
 		"",
 	).Return(nil)
 
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -122,15 +119,12 @@ func TestExistingPodAddedWhenDualStack(t *testing.T) {
 
 	fs.On("AddPodToMesh",
 		ctx,
-		pod,
+		mock.IsType(pod),
 		util.GetPodIPsIfPresent(pod),
 		"",
 	).Return(nil)
 
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+	server := getFakeDP(fs, client.Kube())
 
 	fs.Start(ctx)
 	handlers := setupHandlers(ctx, client, server, "istio-system")
@@ -179,10 +173,7 @@ func TestExistingPodNotAddedIfNoIPInAnyStatusField(t *testing.T) {
 
 	fs := &fakeServer{}
 
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -239,15 +230,12 @@ func TestExistingPodRemovedWhenNsUnlabeled(t *testing.T) {
 
 	fs.On("AddPodToMesh",
 		ctx,
-		pod,
+		mock.IsType(pod),
 		util.GetPodIPsIfPresent(pod),
 		"",
 	).Return(nil)
 
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -332,15 +320,12 @@ func TestExistingPodRemovedWhenPodLabelRemoved(t *testing.T) {
 
 	fs.On("AddPodToMesh",
 		ctx,
-		pod,
+		mock.IsType(pod),
 		util.GetPodIPsIfPresent(pod),
 		"",
 	).Return(nil)
 
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -435,15 +420,12 @@ func TestJobPodRemovedWhenPodTerminates(t *testing.T) {
 
 	fs.On("AddPodToMesh",
 		ctx,
-		pod,
+		mock.IsType(pod),
 		util.GetPodIPsIfPresent(pod),
 		"",
 	).Return(nil)
 
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -556,10 +538,8 @@ func TestGetActiveAmbientPodSnapshotOnlyReturnsActivePods(t *testing.T) {
 	client := kube.NewFakeClient(ns, enrolledNotRedirected, redirectedNotEnrolled)
 	fs := &fakeServer{}
 	fs.Start(ctx)
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -618,10 +598,8 @@ func TestGetActiveAmbientPodSnapshotSkipsTerminatedJobPods(t *testing.T) {
 	client := kube.NewFakeClient(ns, enrolledNotRedirected, enrolledButTerminated)
 	fs := &fakeServer{}
 	fs.Start(ctx)
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -661,10 +639,8 @@ func TestAmbientEnabledReturnsPodIfEnabled(t *testing.T) {
 	client := kube.NewFakeClient(ns, pod)
 	fs := &fakeServer{}
 	fs.Start(ctx)
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -704,10 +680,8 @@ func TestAmbientEnabledReturnsNoPodIfNotEnabled(t *testing.T) {
 	client := kube.NewFakeClient(ns, pod)
 	fs := &fakeServer{}
 	fs.Start(ctx)
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -748,10 +722,8 @@ func TestAmbientEnabledReturnsErrorIfBogusNS(t *testing.T) {
 	client := kube.NewFakeClient(ns, pod)
 	fs := &fakeServer{}
 	fs.Start(ctx)
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())
@@ -797,15 +769,12 @@ func TestExistingPodAddedWhenItPreExists(t *testing.T) {
 
 	fs.On("AddPodToMesh",
 		ctx,
-		pod,
+		mock.IsType(pod),
 		util.GetPodIPsIfPresent(pod),
 		"",
 	).Return(nil)
 
-	server := &meshDataplane{
-		kubeClient: client.Kube(),
-		netServer:  fs,
-	}
+	server := getFakeDP(fs, client.Kube())
 
 	handlers := setupHandlers(ctx, client, server, "istio-system")
 	client.RunAndWait(ctx.Done())

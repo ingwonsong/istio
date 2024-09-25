@@ -16,17 +16,21 @@
 package ambient
 
 import (
+	"net/netip"
+
 	v1 "k8s.io/api/core/v1"
 
 	"istio.io/api/networking/v1alpha3"
-	networkingclient "istio.io/client-go/pkg/apis/networking/v1alpha3"
+	networkingclient "istio.io/client-go/pkg/apis/networking/v1"
 	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pilot/pkg/networking/serviceentry"
 	"istio.io/istio/pilot/pkg/serviceregistry/kube"
-	"istio.io/istio/pilot/pkg/serviceregistry/serviceentry"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/schema/kind"
+	"istio.io/istio/pkg/config/schema/kubetypes"
+	"istio.io/istio/pkg/kube/controllers"
 	"istio.io/istio/pkg/kube/krt"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/slices"
@@ -57,19 +61,29 @@ func (a *index) serviceServiceBuilder(
 				TargetPortName: p.TargetPort.StrVal,
 			}
 		}
-		waypointKey := ""
-		waypoint := fetchWaypointForService(ctx, waypoints, namespaces, s.ObjectMeta)
+		waypointStatus := model.WaypointBindingStatus{}
+		waypoint, wperr := fetchWaypointForService(ctx, waypoints, namespaces, s.ObjectMeta)
 		if waypoint != nil {
-			waypointKey = waypoint.ResourceName()
+			waypointStatus.ResourceName = waypoint.ResourceName()
 		}
+		waypointStatus.Error = wperr
+
 		a.networkUpdateTrigger.MarkDependant(ctx) // Mark we depend on out of band a.Network
 		return &model.ServiceInfo{
 			Service:       a.constructService(s, waypoint),
 			PortNames:     portNames,
 			LabelSelector: model.NewSelector(s.Spec.Selector),
-			Source:        kind.Service,
-			Waypoint:      waypointKey,
+			Source:        MakeSource(s),
+			Waypoint:      waypointStatus,
 		}
+	}
+}
+
+// MakeSource is a helper to turn an Object into a model.TypedObject.
+func MakeSource(o controllers.Object) model.TypedObject {
+	return model.TypedObject{
+		NamespacedName: config.NamespacedName(o),
+		Kind:           kind.MustFromGVK(kubetypes.GvkFromObject(o)),
 	}
 }
 
@@ -78,13 +92,13 @@ func (a *index) serviceEntryServiceBuilder(
 	namespaces krt.Collection[*v1.Namespace],
 ) krt.TransformationMulti[*networkingclient.ServiceEntry, model.ServiceInfo] {
 	return func(ctx krt.HandlerContext, s *networkingclient.ServiceEntry) []model.ServiceInfo {
-		waypoint := fetchWaypointForService(ctx, waypoints, namespaces, s.ObjectMeta)
+		waypoint, waypointError := fetchWaypointForService(ctx, waypoints, namespaces, s.ObjectMeta)
 		a.networkUpdateTrigger.MarkDependant(ctx) // Mark we depend on out of band a.Network
-		return a.serviceEntriesInfo(s, waypoint)
+		return a.serviceEntriesInfo(s, waypoint, waypointError)
 	}
 }
 
-func (a *index) serviceEntriesInfo(s *networkingclient.ServiceEntry, w *Waypoint) []model.ServiceInfo {
+func (a *index) serviceEntriesInfo(s *networkingclient.ServiceEntry, w *Waypoint, wperr *model.StatusMessage) []model.ServiceInfo {
 	sel := model.NewSelector(s.Spec.GetWorkloadSelector().GetLabels())
 	portNames := map[int32]model.ServicePortName{}
 	for _, p := range s.Spec.Ports {
@@ -92,23 +106,26 @@ func (a *index) serviceEntriesInfo(s *networkingclient.ServiceEntry, w *Waypoint
 			PortName: p.Name,
 		}
 	}
-	waypointKey := ""
+	waypoint := model.WaypointBindingStatus{}
 	if w != nil {
-		waypointKey = w.ResourceName()
+		waypoint.ResourceName = w.ResourceName()
+	}
+	if wperr != nil {
+		waypoint.Error = wperr
 	}
 	return slices.Map(a.constructServiceEntries(s, w), func(e *workloadapi.Service) model.ServiceInfo {
 		return model.ServiceInfo{
 			Service:       e,
 			PortNames:     portNames,
 			LabelSelector: sel,
-			Source:        kind.ServiceEntry,
-			Waypoint:      waypointKey,
+			Source:        MakeSource(s),
+			Waypoint:      waypoint,
 		}
 	})
 }
 
 func (a *index) constructServiceEntries(svc *networkingclient.ServiceEntry, w *Waypoint) []*workloadapi.Service {
-	var autoassignedAddresses []*workloadapi.NetworkAddress
+	var autoassignedHostAddresses map[string][]netip.Addr
 	addresses, err := slices.MapErr(svc.Spec.Addresses, a.toNetworkAddressFromCidr)
 	if err != nil {
 		// TODO: perhaps we should support CIDR in the future?
@@ -116,9 +133,7 @@ func (a *index) constructServiceEntries(svc *networkingclient.ServiceEntry, w *W
 	}
 	// if this se has autoallocation we can se autoallocated IP, otherwise it will remain an empty slice
 	if serviceentry.ShouldV2AutoAllocateIP(svc) {
-		for _, ipaddr := range serviceentry.GetV2AddressesFromServiceEntry(svc) {
-			autoassignedAddresses = append(autoassignedAddresses, a.toNetworkAddressFromIP(ipaddr))
-		}
+		autoassignedHostAddresses = serviceentry.GetHostAddressesFromServiceEntry(svc)
 	}
 	ports := make([]*workloadapi.Port, 0, len(svc.Spec.Ports))
 	for _, p := range svc.Spec.Ports {
@@ -132,28 +147,24 @@ func (a *index) constructServiceEntries(svc *networkingclient.ServiceEntry, w *W
 		})
 	}
 
-	// handle svc waypoint scenario
-	var waypointAddress *workloadapi.GatewayAddress
-	if w != nil {
-		waypointAddress = a.getWaypointAddress(w)
-	}
-
 	// TODO this is only checking one controller - we may be missing service vips for instances in another cluster
 	res := make([]*workloadapi.Service, 0, len(svc.Spec.Hosts))
 	for _, h := range svc.Spec.Hosts {
-		// if we have no user-provided addresses and h is not wildcarded and we have a supported resolution
-		// we can try to use autoassigned addresses
-		a := addresses
-		if len(a) == 0 && !host.Name(h).IsWildCarded() && svc.Spec.Resolution != v1alpha3.ServiceEntry_NONE {
-			a = autoassignedAddresses
+		// if we have no user-provided hostsAddresses and h is not wildcarded and we have hostsAddresses supported resolution
+		// we can try to use autoassigned hostsAddresses
+		hostsAddresses := addresses
+		if len(hostsAddresses) == 0 && !host.Name(h).IsWildCarded() && svc.Spec.Resolution != v1alpha3.ServiceEntry_NONE {
+			if hostsAddrs, ok := autoassignedHostAddresses[h]; ok {
+				hostsAddresses = slices.Map(hostsAddrs, a.toNetworkAddressFromIP)
+			}
 		}
 		res = append(res, &workloadapi.Service{
 			Name:            svc.Name,
 			Namespace:       svc.Namespace,
 			Hostname:        h,
-			Addresses:       a,
+			Addresses:       hostsAddresses,
 			Ports:           ports,
-			Waypoint:        waypointAddress,
+			Waypoint:        w.GetAddress(),
 			SubjectAltNames: svc.Spec.SubjectAltNames,
 		})
 	}
@@ -173,11 +184,6 @@ func (a *index) constructService(svc *v1.Service, w *Waypoint) *workloadapi.Serv
 	if err != nil {
 		log.Warnf("fail to parse service %v: %v", config.NamespacedName(svc), err)
 		return nil
-	}
-	// handle svc waypoint scenario
-	var waypointAddress *workloadapi.GatewayAddress
-	if w != nil {
-		waypointAddress = a.getWaypointAddress(w)
 	}
 
 	var lb *workloadapi.LoadBalancing
@@ -215,6 +221,13 @@ func (a *index) constructService(svc *v1.Service, w *Waypoint) *workloadapi.Serv
 			Mode: workloadapi.LoadBalancing_STRICT,
 		}
 	}
+	if svc.Spec.PublishNotReadyAddresses {
+		if lb == nil {
+			lb = &workloadapi.LoadBalancing{}
+		}
+		lb.HealthPolicy = workloadapi.LoadBalancing_ALLOW_ALL
+	}
+
 	ipFamily := workloadapi.IPFamilies_AUTOMATIC
 	if len(svc.Spec.IPFamilies) == 2 {
 		ipFamily = workloadapi.IPFamilies_DUAL
@@ -233,7 +246,7 @@ func (a *index) constructService(svc *v1.Service, w *Waypoint) *workloadapi.Serv
 		Hostname:      string(kube.ServiceHostname(svc.Name, svc.Namespace, a.DomainSuffix)),
 		Addresses:     addresses,
 		Ports:         ports,
-		Waypoint:      waypointAddress,
+		Waypoint:      w.GetAddress(),
 		LoadBalancing: lb,
 		IpFamilies:    ipFamily,
 	}

@@ -76,9 +76,28 @@
   "stats_config": {
     "use_all_default_tags": false,
     "stats_tags": [
+      {{- if .delimited_stats_tags_enabled }}
       {
         "tag_name": "cluster_name",
         "regex": "^cluster(\\.(.+);)"
+      },
+      {
+        "tag_name": "http_conn_manager_prefix",
+        "regex": "^http\\.(((?:[_.[:digit:]\\w]*|[_\\[\\]aAbBcCdDeEfF[:digit:]\\w\\:]*));\\.)"
+      },
+      {{- else }}
+      {
+        "tag_name": "cluster_name",
+        "regex": "^cluster\\.((.+?(\\..+?\\.svc\\.cluster\\.local)?)\\.)"
+      },
+      {
+        "tag_name": "http_conn_manager_prefix",
+        "regex": "^http\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
+      },
+      {{- end }}
+      {
+        "tag_name": "thread_name",
+        "regex": "^server(\\.(.+))\\.watchdog"
       },
       {
         "tag_name": "tcp_prefix",
@@ -95,10 +114,6 @@
       {
         "tag_name": "http_conn_manager_listener_prefix",
         "regex": "^listener(?=\\.).*?\\.http\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
-      },
-      {
-        "tag_name": "http_conn_manager_prefix",
-        "regex": "^http\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
       },
       {
         "tag_name": "listener_address",
@@ -545,6 +560,11 @@
     ],
     "listeners":[
       {
+        {{- if .metrics_localhost_access_only }}
+        "name": "{{ .localhost }}_{{ .envoy_prometheus_port }}",
+        {{ else }}
+        "name": "{{ .wildcard }}_{{ .envoy_prometheus_port }}",
+        {{ end }}
         "address": {
           "socket_address": {
             "protocol": "TCP",
@@ -556,6 +576,10 @@
             "port_value": {{ .envoy_prometheus_port }}
           }
         },
+        {{- if .bypass_overload_manager}}
+        "ignore_global_conn_limit": true,
+        "bypass_overload_manager": true,
+        {{ end}}
         {{- if .dual_stack }}
         "additionalAddresses": [
           {
@@ -646,6 +670,7 @@
         ]
       },
       {
+        "name": "{{ .wildcard }}_{{ .envoy_status_port }}",
         "address": {
            "socket_address": {
              "protocol": "TCP",
@@ -653,6 +678,10 @@
              "port_value": {{ .envoy_status_port }}
            }
         },
+        {{- if .bypass_overload_manager}}
+        "ignore_global_conn_limit": true,
+        "bypass_overload_manager": true,
+        {{ end}}
         {{- if .dual_stack }}
         "additionalAddresses": [
           {
@@ -873,5 +902,11 @@
     "load_stats_config": {{- .load_stats_config_json_str }}
     {{- end }}
   }
+  {{ if .deferred_stats_creation }}
+  ,
+  "deferred_stat_options": {
+    "enable_deferred_creation_stats": true
+  }
+  {{- end }}
   {{ end }}
 }

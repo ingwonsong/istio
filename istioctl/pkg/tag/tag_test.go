@@ -107,7 +107,7 @@ func TestTagList(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer
-			client := fake.NewSimpleClientset(tc.webhooks.DeepCopyObject(), tc.namespaces.DeepCopyObject())
+			client := fake.NewClientset(tc.webhooks.DeepCopyObject(), tc.namespaces.DeepCopyObject())
 			outputFormat = util.JSONFormat
 			err := listTags(context.Background(), client, &out)
 			if tc.error == "" && err != nil {
@@ -232,7 +232,7 @@ func TestRemoveTag(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer
-			client := fake.NewSimpleClientset(tc.webhooksBefore.DeepCopyObject(), tc.namespaces.DeepCopyObject())
+			client := fake.NewClientset(tc.webhooksBefore.DeepCopyObject(), tc.namespaces.DeepCopyObject())
 			err := removeTag(context.Background(), client, tc.tag, tc.skipConfirmation, &out)
 			if tc.error == "" && err != nil {
 				t.Fatalf("expected no error, got %v", err)
@@ -264,22 +264,18 @@ func TestRemoveTag(t *testing.T) {
 
 func TestSetTagErrors(t *testing.T) {
 	tcs := []struct {
-		name           string
-		tag            string
-		revision       string
-		webhooksBefore admitv1.MutatingWebhookConfigurationList
-		namespaces     corev1.NamespaceList
-		outputMatches  []string
-		error          string
+		name          string
+		tag           string
+		revision      string
+		webhookBefore *admitv1.MutatingWebhookConfiguration
+		outputMatches []string
+		error         string
 	}{
 		{
-			name:     "TestErrorWhenRevisionWithNameCollision",
-			tag:      "revision",
-			revision: "revision",
-			webhooksBefore: admitv1.MutatingWebhookConfigurationList{
-				Items: []admitv1.MutatingWebhookConfiguration{revisionCanonicalWebhook},
-			},
-			namespaces:    corev1.NamespaceList{},
+			name:          "TestErrorWhenRevisionWithNameCollision",
+			tag:           "revision",
+			revision:      "revision",
+			webhookBefore: &revisionCanonicalWebhook,
 			outputMatches: []string{},
 			error:         "cannot create revision tag \"revision\"",
 		},
@@ -289,7 +285,7 @@ func TestSetTagErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer
 
-			client := kube.NewFakeClient(tc.webhooksBefore.DeepCopyObject(), tc.namespaces.DeepCopyObject())
+			client := kube.NewFakeClient(tc.webhookBefore)
 			skipConfirmation = true
 			err := setTag(context.Background(), client, tc.tag, tc.revision, "istio-system", false, &out, nil)
 			if tc.error == "" && err != nil {

@@ -624,6 +624,12 @@ func (node *Proxy) GetIPMode() IPMode {
 	return node.ipMode
 }
 
+// SetIPMode set node's ip mode
+// Note: Donot use this function directly in most cases, use DiscoverIPMode instead.
+func (node *Proxy) SetIPMode(mode IPMode) {
+	node.ipMode = mode
+}
+
 // ParseMetadata parses the opaque Metadata from an Envoy Node into string key-value pairs.
 // Any non-string values are ignored.
 func ParseMetadata(metadata *structpb.Struct) (*NodeMetadata, error) {
@@ -725,23 +731,6 @@ func GetProxyConfigNamespace(proxy *Proxy) string {
 const (
 	serviceNodeSeparator = "~"
 )
-
-// ParsePort extracts port number from a valid proxy address
-func ParsePort(addr string) int {
-	_, sPort, err := net.SplitHostPort(addr)
-	if sPort == "" {
-		return 0
-	}
-	if err != nil {
-		log.Warn(err)
-	}
-	port, pErr := strconv.Atoi(sPort)
-	if pErr != nil {
-		log.Warn(pErr)
-	}
-
-	return port
-}
 
 // hasValidIPAddresses returns true if the input ips are all valid, otherwise returns false.
 func hasValidIPAddresses(ipAddresses []string) bool {
@@ -927,11 +916,22 @@ func (node *Proxy) WorkloadEntry() (string, bool) {
 	return node.workloadEntryName, node.workloadEntryAutoCreated
 }
 
-// CloneWatchedResources clones the watched resources, both the keys and values are shallow copy.
-func (node *Proxy) CloneWatchedResources() map[string]*WatchedResource {
+// ShallowCloneWatchedResources clones the watched resources, both the keys and values are shallow copy.
+func (node *Proxy) ShallowCloneWatchedResources() map[string]*WatchedResource {
 	node.RLock()
 	defer node.RUnlock()
 	return maps.Clone(node.WatchedResources)
+}
+
+// DeepCloneWatchedResources clones the watched resources
+func (node *Proxy) DeepCloneWatchedResources() map[string]WatchedResource {
+	node.RLock()
+	defer node.RUnlock()
+	m := make(map[string]WatchedResource, len(node.WatchedResources))
+	for k, v := range node.WatchedResources {
+		m[k] = *v
+	}
+	return m
 }
 
 func (node *Proxy) GetWatchedResourceTypes() sets.String {

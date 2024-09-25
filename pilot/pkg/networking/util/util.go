@@ -45,6 +45,7 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry/util/label"
 	"istio.io/istio/pilot/pkg/util/protoconv"
 	"istio.io/istio/pkg/config"
+	"istio.io/istio/pkg/config/constants"
 	kubelabels "istio.io/istio/pkg/kube/labels"
 	"istio.io/istio/pkg/log"
 	pm "istio.io/istio/pkg/model"
@@ -450,12 +451,6 @@ func MergeAnyWithAny(dst *anypb.Any, src *anypb.Any) (*anypb.Any, error) {
 	retVal := protoconv.MessageToAny(dstX)
 
 	return retVal, nil
-}
-
-// IsIstioVersionGE123 checks whether the given Istio version is greater than or equals 1.23.
-func IsIstioVersionGE123(version *model.IstioVersion) bool {
-	return version == nil ||
-		version.Compare(&model.IstioVersion{Major: 1, Minor: 23, Patch: -1}) >= 0
 }
 
 // AppendLbEndpointMetadata adds metadata values to a lb endpoint using the passed in metadata as base.
@@ -888,4 +883,11 @@ func ShallowCopyTrafficPolicy(original *networking.TrafficPolicy) *networking.Tr
 
 func VersionGreaterOrEqual124(proxy *model.Proxy) bool {
 	return proxy.VersionGreaterAndEqual(&model.IstioVersion{Major: 1, Minor: 24, Patch: -1})
+}
+
+func DelimitedStatsPrefix(statPrefix string) string {
+	if features.EnableDelimitedStatsTagRegex {
+		statPrefix += constants.StatPrefixDelimiter
+	}
+	return statPrefix
 }

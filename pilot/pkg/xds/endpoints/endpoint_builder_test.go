@@ -284,7 +284,7 @@ func TestPopulateFailoverPriorityLabels(t *testing.T) {
 				},
 			}
 			if tt.dr != nil {
-				b.destinationRule = model.ConvertConsolidatedDestRule(tt.dr)
+				b.destinationRule = model.ConvertConsolidatedDestRule(tt.dr, nil)
 			}
 			b.populateFailoverPriorityLabels()
 			if !reflect.DeepEqual(b.failoverPriorityLabels, tt.expectedLabels) {
@@ -414,7 +414,7 @@ func TestFilterIstioEndpoint(t *testing.T) {
 			}
 			env.SetPushContext(push)
 			if push.NetworkManager() == nil {
-				t.Fatalf("error: NetworkManager should not be nil!")
+				t.Fatal("error: NetworkManager should not be nil!")
 			}
 
 			builder := NewCDSEndpointBuilder(

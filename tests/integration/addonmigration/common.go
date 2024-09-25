@@ -19,6 +19,7 @@ package addonmigration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -172,7 +173,7 @@ func verifyMigrationStateCM(t framework.TestContext, a kubernetes.Interface, exp
 		}
 		msg := fmt.Sprintf("got unexpected migrationStatus: %v", data["migrationStatus"])
 		t.Log(msg)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}, retry.Timeout(time.Minute*12), retry.BackoffDelay(time.Second*1))
 	if err != nil {
 		cpr, cerr := cs.Dynamic().Resource(cprGVR).Get(context.TODO(), cprName, v1.GetOptions{})

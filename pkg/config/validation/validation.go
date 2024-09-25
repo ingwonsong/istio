@@ -39,6 +39,7 @@ import (
 	telemetry "istio.io/api/telemetry/v1alpha1"
 	type_beta "istio.io/api/type/v1beta1"
 	"istio.io/istio/pilot/pkg/features"
+	"istio.io/istio/pilot/pkg/networking/serviceentry"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/gateway"
@@ -69,7 +70,7 @@ const (
 	matchPrefix = "prefix:"
 )
 
-var validHeaderRegex = regexp.MustCompile("^([-_A-Za-z0-9]+|\\:method)$")
+var validHeaderRegex = regexp.MustCompile("^([-_A-Za-z0-9]+|\\:method)$") // nolint:gosimple
 
 const (
 	kb = 1024
@@ -230,6 +231,21 @@ func checkDryRunAnnotation(cfg config.Config, allowed bool) error {
 func ValidateHTTPHeaderName(name string) error {
 	if name == "" {
 		return fmt.Errorf("header name cannot be empty")
+	}
+	if !validHeaderRegex.MatchString(name) {
+		return fmt.Errorf("header name %s is not a valid header name", name)
+	}
+	return nil
+}
+
+// ValidateCORSHTTPHeaderName validates a headers for CORS.
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers#directives
+func ValidateCORSHTTPHeaderName(name string) error {
+	if name == "" {
+		return fmt.Errorf("header name cannot be empty")
+	}
+	if name == "*" {
+		return nil
 	}
 	if !validHeaderRegex.MatchString(name) {
 		return fmt.Errorf("header name %s is not a valid header name", name)
@@ -734,7 +750,7 @@ var ValidateSidecar = RegisterValidateFunc("ValidateSidecar",
 					}
 					if sHost != "" && sHost != "127.0.0.1" && sHost != "0.0.0.0" && sHost != "::1" && sHost != "::" {
 						errMsg := "sidecar: defaultEndpoint must be of form 127.0.0.1:<port>,0.0.0.0:<port>,[::1]:port,[::]:port,unix://filepath or unset"
-						errs = AppendValidation(errs, fmt.Errorf(errMsg))
+						errs = AppendValidation(errs, errors.New(errMsg))
 					}
 					port, err := strconv.Atoi(sPort)
 					if err != nil {
@@ -1190,6 +1206,7 @@ func validatePolicyTargetReferences(targetRefs []*type_beta.PolicyTargetReferenc
 // don't validate version, just group and kind
 var allowedTargetRefs = []config.GroupVersionKind{
 	gvk.Service,
+	gvk.ServiceEntry,
 	gvk.KubernetesGateway,
 }
 
@@ -2302,11 +2319,11 @@ func validateCORSPolicy(policy *networking.CorsPolicy) (errs error) {
 	}
 
 	for _, name := range policy.AllowHeaders {
-		errs = appendErrors(errs, ValidateHTTPHeaderName(name))
+		errs = appendErrors(errs, ValidateCORSHTTPHeaderName(name))
 	}
 
 	for _, name := range policy.ExposeHeaders {
-		errs = appendErrors(errs, ValidateHTTPHeaderName(name))
+		errs = appendErrors(errs, ValidateCORSHTTPHeaderName(name))
 	}
 
 	if policy.MaxAge != nil {
@@ -2694,7 +2711,7 @@ func validateReadinessProbe(probe *networking.ReadinessProbe) (errs error) {
 		}
 		errs = appendErrors(errs, agent.ValidatePort(int(h.Port)))
 		if h.Scheme != "" && h.Scheme != string(apimirror.URISchemeHTTPS) && h.Scheme != string(apimirror.URISchemeHTTP) {
-			errs = appendErrors(errs, fmt.Errorf(`httpGet.scheme must be one of "http", "https"`))
+			errs = appendErrors(errs, fmt.Errorf(`httpGet.scheme must be one of %q, %q`, apimirror.URISchemeHTTPS, apimirror.URISchemeHTTP))
 		}
 		for _, header := range h.HttpHeaders {
 			if header == nil {
@@ -2776,6 +2793,8 @@ var ValidateServiceEntry = RegisterValidateFunc("ValidateServiceEntry",
 			}
 		}
 
+		// check for v2 auto IP allocation or opt-out by user
+		autoAllocation := serviceentry.ShouldV2AutoAllocateIPFromConfig(cfg)
 		servicePortNumbers := sets.New[uint32]()
 		servicePorts := sets.NewWithLength[string](len(serviceEntry.Ports))
 		for _, port := range serviceEntry.Ports {
@@ -2795,7 +2814,7 @@ var ValidateServiceEntry = RegisterValidateFunc("ValidateServiceEntry",
 					errs = AppendWarningf(errs, "targetPort has no effect when resolution mode is NONE")
 				}
 			}
-			if len(serviceEntry.Addresses) == 0 {
+			if len(serviceEntry.Addresses) == 0 && !autoAllocation {
 				if port.Protocol == "" || port.Protocol == "TCP" {
 					errs = AppendValidation(errs, WrapWarning(fmt.Errorf("addresses are required for ports serving TCP (or unset) protocol "+
 						"when ISTIO_META_DNS_AUTO_ALLOCATE is not set on a proxy")))

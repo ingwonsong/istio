@@ -20,17 +20,23 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/gateway-api/apis/v1beta1"
 
-	networkingclient "istio.io/client-go/pkg/apis/networking/v1alpha3"
-	securityclient "istio.io/client-go/pkg/apis/security/v1beta1"
+	"istio.io/api/meta/v1alpha1"
+	networkingclient "istio.io/client-go/pkg/apis/networking/v1"
+	securityclient "istio.io/client-go/pkg/apis/security/v1"
+	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pilot/pkg/serviceregistry/kube/controller/ambient/statusqueue"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/schema/gvr"
 	"istio.io/istio/pkg/config/schema/kind"
 	kubeclient "istio.io/istio/pkg/kube"
+	"istio.io/istio/pkg/kube/controllers"
 	"istio.io/istio/pkg/kube/kclient"
 	"istio.io/istio/pkg/kube/krt"
 	"istio.io/istio/pkg/kube/kubetypes"
@@ -48,17 +54,28 @@ type Index interface {
 	WorkloadsForWaypoint(key model.WaypointKey) []model.WorkloadInfo
 	ServicesForWaypoint(key model.WaypointKey) []model.ServiceInfo
 	SyncAll()
+	NetworksSynced()
+	RunStatus(stop <-chan struct{})
 	HasSynced() bool
 	model.AmbientIndexes
 }
 
 var _ Index = &index{}
 
+type NamespaceHostname struct {
+	Namespace string
+	Hostname  string
+}
+
+func (n NamespaceHostname) String() string {
+	return n.Namespace + "/" + n.Hostname
+}
+
 type workloadsCollection struct {
 	krt.Collection[model.WorkloadInfo]
 	ByAddress        krt.Index[networkAddress, model.WorkloadInfo]
 	ByServiceKey     krt.Index[string, model.WorkloadInfo]
-	ByOwningWaypoint krt.Index[networkAddress, model.WorkloadInfo]
+	ByOwningWaypoint krt.Index[NamespaceHostname, model.WorkloadInfo]
 }
 
 type waypointsCollection struct {
@@ -68,7 +85,7 @@ type waypointsCollection struct {
 type servicesCollection struct {
 	krt.Collection[model.ServiceInfo]
 	ByAddress        krt.Index[networkAddress, model.ServiceInfo]
-	ByOwningWaypoint krt.Index[networkAddress, model.ServiceInfo]
+	ByOwningWaypoint krt.Index[NamespaceHostname, model.ServiceInfo]
 }
 
 // index maintains an index of ambient WorkloadInfo objects by various keys.
@@ -80,6 +97,8 @@ type index struct {
 
 	authorizationPolicies krt.Collection[model.WorkloadAuthorization]
 	networkUpdateTrigger  *krt.RecomputeTrigger
+
+	statusQueue *statusqueue.StatusQueue
 
 	SystemNamespace string
 	DomainSuffix    string
@@ -105,7 +124,7 @@ type Options struct {
 
 func New(options Options) Index {
 	a := &index{
-		networkUpdateTrigger: krt.NewRecomputeTrigger(),
+		networkUpdateTrigger: krt.NewRecomputeTrigger(false),
 
 		SystemNamespace:       options.SystemNamespace,
 		DomainSuffix:          options.DomainSuffix,
@@ -142,7 +161,8 @@ func New(options Options) Index {
 	gatewayClassClient := kclient.NewDelayedInformer[*v1beta1.GatewayClass](options.Client, gvr.GatewayClass, kubetypes.StandardInformer, filter)
 	GatewayClasses := krt.WrapClient[*v1beta1.GatewayClass](gatewayClassClient, krt.WithName("GatewayClasses"))
 
-	Services := krt.NewInformerFiltered[*v1.Service](options.Client, filter, krt.WithName("Services"))
+	servicesClient := kclient.NewFiltered[*v1.Service](options.Client, filter)
+	Services := krt.WrapClient[*v1.Service](servicesClient, krt.WithName("Services"))
 	Nodes := krt.NewInformerFiltered[*v1.Node](options.Client, kclient.Filter{
 		ObjectFilter:    options.Client.ObjectFilter(),
 		ObjectTransform: kubeclient.StripNodeUnusedFields,
@@ -160,18 +180,41 @@ func New(options Options) Index {
 	}, krt.WithName("EndpointSlices"))
 
 	MeshConfig := MeshConfigCollection(ConfigMaps, options)
-	Waypoints := WaypointsCollection(Gateways, GatewayClasses, Pods)
+	Waypoints := a.WaypointsCollection(Gateways, GatewayClasses, Pods)
 
 	// AllPolicies includes peer-authentication converted policies
 	AuthorizationPolicies, AllPolicies := PolicyCollections(AuthzPolicies, PeerAuths, MeshConfig, Waypoints)
-	AllPolicies.RegisterBatch(PushXds(a.XDSUpdater, func(i model.WorkloadAuthorization) model.ConfigKey {
-		return model.ConfigKey{Kind: kind.AuthorizationPolicy, Name: i.Authorization.Name, Namespace: i.Authorization.Namespace}
-	}), false)
+	AllPolicies.RegisterBatch(PushXds(a.XDSUpdater,
+		func(i model.WorkloadAuthorization) (model.ConfigKey, bool) {
+			if i.Authorization == nil {
+				return model.ConfigKey{}, true // nop, filter this out
+			}
+			return model.ConfigKey{Kind: kind.AuthorizationPolicy, Name: i.Authorization.Name, Namespace: i.Authorization.Namespace}, false
+		}), false)
 
+	serviceEntriesWriter := kclient.NewWriteClient[*networkingclient.ServiceEntry](options.Client)
+	servicesWriter := kclient.NewWriteClient[*v1.Service](options.Client)
 	// these are workloadapi-style services combined from kube services and service entries
 	WorkloadServices := a.ServicesCollection(Services, ServiceEntries, Waypoints, Namespaces)
+
+	authorizationPoliciesWriter := kclient.NewWriteClient[*securityclient.AuthorizationPolicy](options.Client)
+
+	statusQueue := statusqueue.NewQueue()
+	if features.EnableAmbientStatus {
+		statusqueue.Register(statusQueue, "istio-ambient-service", WorkloadServices, func(info model.ServiceInfo) (kclient.Patcher, []string) {
+			// Since we have 1 collection for multiple types, we need to split these out
+			if info.Source.Kind == kind.ServiceEntry {
+				return kclient.ToPatcher(serviceEntriesWriter), getConditions(info.Source.NamespacedName, serviceEntries)
+			}
+			return kclient.ToPatcher(servicesWriter), getConditions(info.Source.NamespacedName, servicesClient)
+		})
+		statusqueue.Register(statusQueue, "istio-ambient-policy", AuthorizationPolicies, func(pol model.WorkloadAuthorization) (kclient.Patcher, []string) {
+			return kclient.ToPatcher(authorizationPoliciesWriter), getConditions(pol.Source.NamespacedName, authzPolicies)
+		})
+	}
+
 	ServiceAddressIndex := krt.NewIndex[networkAddress, model.ServiceInfo](WorkloadServices, networkAddressFromService)
-	ServiceInfosByOwningWaypoint := krt.NewIndex[networkAddress, model.ServiceInfo](WorkloadServices, func(s model.ServiceInfo) []networkAddress {
+	ServiceInfosByOwningWaypoint := krt.NewIndex(WorkloadServices, func(s model.ServiceInfo) []NamespaceHostname {
 		// Filter out waypoint services
 		if s.Labels[constants.ManagedGatewayLabel] == constants.ManagedGatewayMeshControllerLabel {
 			return nil
@@ -180,26 +223,23 @@ func New(options Options) Index {
 		if waypoint == nil {
 			return nil
 		}
-		waypointAddress := waypoint.GetAddress()
+		waypointAddress := waypoint.GetHostname()
 		if waypointAddress == nil {
 			return nil
 		}
 
-		ip := waypointAddress.GetAddress()
-		netip, _ := netip.AddrFromSlice(ip)
-		netaddr := networkAddress{
-			network: waypointAddress.GetNetwork(),
-			ip:      netip.String(),
-		}
-		return append(make([]networkAddress, 1), netaddr)
+		return []NamespaceHostname{{
+			Namespace: waypointAddress.Namespace,
+			Hostname:  waypointAddress.Hostname,
+		}}
 	})
 	WorkloadServices.RegisterBatch(krt.BatchedEventFilter(
 		func(a model.ServiceInfo) *workloadapi.Service {
 			// Only trigger push if the XDS object changed; the rest is just for computation of others
 			return a.Service
 		},
-		PushXds(a.XDSUpdater, func(i model.ServiceInfo) model.ConfigKey {
-			return model.ConfigKey{Kind: kind.Address, Name: i.ResourceName()}
+		PushXds(a.XDSUpdater, func(i model.ServiceInfo) (model.ConfigKey, bool) {
+			return model.ConfigKey{Kind: kind.Address, Name: i.ResourceName()}, false
 		})), false)
 
 	Workloads := a.WorkloadsCollection(
@@ -219,7 +259,7 @@ func New(options Options) Index {
 	WorkloadServiceIndex := krt.NewIndex[string, model.WorkloadInfo](Workloads, func(o model.WorkloadInfo) []string {
 		return maps.Keys(o.Services)
 	})
-	WorkloadWaypointIndex := krt.NewIndex[networkAddress, model.WorkloadInfo](Workloads, func(w model.WorkloadInfo) []networkAddress {
+	WorkloadWaypointIndex := krt.NewIndex(Workloads, func(w model.WorkloadInfo) []NamespaceHostname {
 		// Filter out waypoints.
 		if w.Labels[constants.ManagedGatewayLabel] == constants.ManagedGatewayMeshControllerLabel {
 			return nil
@@ -228,26 +268,23 @@ func New(options Options) Index {
 		if waypoint == nil {
 			return nil
 		}
-		waypointAddress := waypoint.GetAddress()
+		waypointAddress := waypoint.GetHostname()
 		if waypointAddress == nil {
 			return nil
 		}
 
-		ip := waypointAddress.GetAddress()
-		netip, _ := netip.AddrFromSlice(ip)
-		netaddr := networkAddress{
-			network: waypointAddress.GetNetwork(),
-			ip:      netip.String(),
-		}
-		return append(make([]networkAddress, 1), netaddr)
+		return []NamespaceHostname{{
+			Namespace: waypointAddress.Namespace,
+			Hostname:  waypointAddress.Hostname,
+		}}
 	})
 	Workloads.RegisterBatch(krt.BatchedEventFilter(
 		func(a model.WorkloadInfo) *workloadapi.Workload {
 			// Only trigger push if the XDS object changed; the rest is just for computation of others
 			return a.Workload
 		},
-		PushXds(a.XDSUpdater, func(i model.WorkloadInfo) model.ConfigKey {
-			return model.ConfigKey{Kind: kind.Address, Name: i.ResourceName()}
+		PushXds(a.XDSUpdater, func(i model.WorkloadInfo) (model.ConfigKey, bool) {
+			return model.ConfigKey{Kind: kind.Address, Name: i.ResourceName()}, false
 		})), false)
 
 	a.workloads = workloadsCollection{
@@ -265,8 +302,27 @@ func New(options Options) Index {
 		Collection: Waypoints,
 	}
 	a.authorizationPolicies = AllPolicies
+	a.statusQueue = statusQueue
 
 	return a
+}
+
+func getConditions[T controllers.ComparableObject](name types.NamespacedName, i kclient.Informer[T]) []string {
+	o := i.Get(name.Name, name.Namespace)
+	if controllers.IsNil(o) {
+		return nil
+	}
+	switch t := any(o).(type) {
+	case *v1.Service:
+		return slices.Map(t.Status.Conditions, func(c metav1.Condition) string { return c.Type })
+	case *networkingclient.ServiceEntry:
+		return slices.Map(t.Status.Conditions, (*v1alpha1.IstioCondition).GetType)
+	case *securityclient.AuthorizationPolicy:
+		return slices.Map(t.Status.Conditions, (*v1alpha1.IstioCondition).GetType)
+	default:
+		log.Fatalf("unknown type %T; cannot write status", o)
+	}
+	return nil
 }
 
 // Lookup finds all addresses associated with a given key. Many different key formats are supported; see inline comments.
@@ -285,19 +341,7 @@ func (a *index) Lookup(key string) []model.AddressInfo {
 
 	// 2. Workload by IP
 	if wls := a.workloads.ByAddress.Lookup(networkAddr); len(wls) > 0 {
-		// If there is just one, return it
-		if len(wls) == 1 {
-			return []model.AddressInfo{modelWorkloadToAddressInfo(wls[0])}
-		}
-		// Otherwise, try to find a pod - pods have precedence
-		pod := slices.FindFunc(wls, func(info model.WorkloadInfo) bool {
-			return info.Source == kind.Pod
-		})
-		if pod != nil {
-			return []model.AddressInfo{modelWorkloadToAddressInfo(*pod)}
-		}
-		// Otherwise just return the first one; all WorkloadEntry have the same weight
-		return []model.AddressInfo{modelWorkloadToAddressInfo(wls[0])}
+		return dedupeWorkloads(wls)
 	}
 
 	// 3. Service
@@ -329,26 +373,39 @@ func (a *index) lookupService(key string) *model.ServiceInfo {
 
 // All return all known workloads. Result is un-ordered
 func (a *index) All() []model.AddressInfo {
+	res := dedupeWorkloads(a.workloads.List())
+	for _, s := range a.services.List() {
+		res = append(res, serviceToAddressInfo(s.Service))
+	}
+	return res
+}
+
+func dedupeWorkloads(workloads []model.WorkloadInfo) []model.AddressInfo {
+	if len(workloads) <= 1 {
+		return slices.Map(workloads, modelWorkloadToAddressInfo)
+	}
 	res := []model.AddressInfo{}
 	seenAddresses := sets.New[netip.Addr]()
-	for _, wl := range a.workloads.List() {
+	for _, wl := range workloads {
 		write := true
-		for _, addr := range wl.Addresses {
-			a := byteIPToAddr(addr)
-			if seenAddresses.InsertContains(a) {
-				// We have already seen this address. We don't want to include it.
-				// We do want to prefer Pods > WorkloadEntry to give precedence to Kubernetes. However, the underlying `a.workloads`
-				// already guarantees this, so no need to handle it here.
-				write = false
-				break
+		// HostNetwork mode is expected to have overlapping IPs, and tells the data plane to avoid relying on the IP as a unique
+		// identifier.
+		// For anything else, exclude duplicates.
+		if wl.NetworkMode != workloadapi.NetworkMode_HOST_NETWORK {
+			for _, addr := range wl.Addresses {
+				a := byteIPToAddr(addr)
+				if seenAddresses.InsertContains(a) {
+					// We have already seen this address. We don't want to include it.
+					// We do want to prefer Pods > WorkloadEntry to give precedence to Kubernetes. However, the underlying `a.workloads`
+					// already guarantees this, so no need to handle it here.
+					write = false
+					break
+				}
 			}
 		}
 		if write {
 			res = append(res, workloadToAddressInfo(wl.Workload))
 		}
-	}
-	for _, s := range a.services.List() {
-		res = append(res, serviceToAddressInfo(s.Service))
 	}
 	return res
 }
@@ -380,26 +437,25 @@ func (a *index) AddressInformation(addresses sets.String) ([]model.AddressInfo, 
 
 func (a *index) ServicesForWaypoint(key model.WaypointKey) []model.ServiceInfo {
 	var out []model.ServiceInfo
-	for _, addr := range key.Addresses {
-		out = append(out, a.services.ByOwningWaypoint.Lookup(networkAddress{
-			network: key.Network,
-			ip:      addr,
+	for _, host := range key.Hostnames {
+		out = append(out, a.services.ByOwningWaypoint.Lookup(NamespaceHostname{
+			Namespace: key.Namespace,
+			Hostname:  host,
 		})...)
 	}
 	return out
 }
 
 func (a *index) WorkloadsForWaypoint(key model.WaypointKey) []model.WorkloadInfo {
-	// TODO: we should be able to handle multiple IPs or a hostname
-	if len(key.Addresses) == 0 {
-		return nil
+	var out []model.WorkloadInfo
+	for _, host := range key.Hostnames {
+		out = append(out, a.workloads.ByOwningWaypoint.Lookup(NamespaceHostname{
+			Namespace: key.Namespace,
+			Hostname:  host,
+		})...)
 	}
-	workloads := a.workloads.ByOwningWaypoint.Lookup(networkAddress{
-		network: key.Network,
-		ip:      key.Addresses[0],
-	})
-	workloads = model.SortWorkloadsByCreationTime(workloads)
-	return workloads
+	out = model.SortWorkloadsByCreationTime(out)
+	return out
 }
 
 func (a *index) AdditionalPodSubscriptions(
@@ -446,6 +502,14 @@ func (a *index) SyncAll() {
 	a.networkUpdateTrigger.TriggerRecomputation()
 }
 
+func (a *index) NetworksSynced() {
+	a.networkUpdateTrigger.MarkSynced()
+}
+
+func (a *index) RunStatus(stop <-chan struct{}) {
+	go a.statusQueue.Run(stop)
+}
+
 func (a *index) HasSynced() bool {
 	return a.services.Synced().HasSynced() &&
 		a.workloads.Synced().HasSynced() &&
@@ -458,12 +522,15 @@ type (
 	LookupNetworkGateways func() []model.NetworkGateway
 )
 
-func PushXds[T any](xds model.XDSUpdater, f func(T) model.ConfigKey) func(events []krt.Event[T], initialSync bool) {
+func PushXds[T any](xds model.XDSUpdater, f func(T) (model.ConfigKey, bool)) func(events []krt.Event[T], initialSync bool) {
 	return func(events []krt.Event[T], initialSync bool) {
 		cu := sets.New[model.ConfigKey]()
 		for _, e := range events {
 			for _, i := range e.Items() {
-				cu.Insert(f(i))
+				c, nop := f(i)
+				if !nop {
+					cu.Insert(c)
+				}
 			}
 		}
 		xds.ConfigUpdate(&model.PushRequest{

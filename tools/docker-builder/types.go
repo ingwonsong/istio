@@ -276,7 +276,7 @@ func fetchBaseVersion() string {
 	}
 	match := baseVersionRegexp.FindSubmatch(b)
 	if len(match) < 2 {
-		log.Fatalf("failed to find match")
+		log.Fatal("failed to find match")
 		return "unknown"
 	}
 	return string(match[1])
@@ -295,7 +295,7 @@ func fetchIstioVersion() string {
 	}
 	match := istioVersionRegexp.FindSubmatch(b)
 	if len(match) < 2 {
-		log.Fatalf("failed to find match")
+		log.Fatal("failed to find match")
 		return "unknown"
 	}
 	return string(match[1])
@@ -314,7 +314,7 @@ func fetchIstioBaseReg() string {
 	}
 	match := istioBaseRegRegexp.FindSubmatch(b)
 	if len(match) < 2 {
-		log.Fatalf("failed to find match")
+		log.Fatal("failed to find match")
 		return "unknown"
 	}
 	return string(match[1])

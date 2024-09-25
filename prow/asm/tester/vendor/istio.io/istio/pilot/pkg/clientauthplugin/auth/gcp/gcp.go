@@ -1,5 +1,5 @@
-//go:build !integ
-// +build !integ
+//go:build integ
+// +build integ
 
 /*
 Copyright 2016 The Kubernetes Authors.
@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+//nolint:all
 
 package gcp
 
@@ -52,7 +54,8 @@ var (
 	//   email instead of numeric uniqueID.
 	defaultScopes = []string{
 		"https://www.googleapis.com/auth/cloud-platform",
-		"https://www.googleapis.com/auth/userinfo.email"}
+		"https://www.googleapis.com/auth/userinfo.email",
+	}
 )
 
 // gcpAuthProvider is an auth provider plugin that uses GCP credentials to provide
@@ -187,13 +190,15 @@ func (g *gcpAuthProvider) Login() error { return nil }
 type cachedTokenSource struct {
 	lk          sync.Mutex
 	source      oauth2.TokenSource
-	accessToken string `datapolicy:"token"`
+	accessToken string `datapolicy:"token"` //nolint:revive
 	expiry      time.Time
 	persister   restclient.AuthProviderConfigPersister
 	cache       map[string]string
 }
 
-func newCachedTokenSource(accessToken, expiry string, persister restclient.AuthProviderConfigPersister, ts oauth2.TokenSource, cache map[string]string) (*cachedTokenSource, error) {
+func newCachedTokenSource(
+	accessToken, expiry string, persister restclient.AuthProviderConfigPersister, ts oauth2.TokenSource, cache map[string]string,
+) (*cachedTokenSource, error) { // nolint:unparam
 	var expiryTime time.Time
 	if parsedTime, err := time.Parse(time.RFC3339Nano, expiry); err == nil {
 		expiryTime = parsedTime
@@ -268,8 +273,8 @@ func (t *cachedTokenSource) baseCache() map[string]string {
 type commandTokenSource struct {
 	cmd       string
 	args      []string
-	tokenKey  string `datapolicy:"token"`
-	expiryKey string `datapolicy:"secret-key"`
+	tokenKey  string `datapolicy:"token"`      //nolint:revive
+	expiryKey string `datapolicy:"secret-key"` //nolint:revive
 	timeFmt   string
 }
 
@@ -299,7 +304,7 @@ func (c *commandTokenSource) Token() (*oauth2.Token, error) {
 	cmd.Stderr = &stderr
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("error executing access token command %q: err=%v output=%s stderr=%s", fullCmd, err, output, string(stderr.Bytes()))
+		return nil, fmt.Errorf("error executing access token command %q: err=%v output=%s stderr=%s", fullCmd, err, output, stderr.String())
 	}
 	token, err := c.parseTokenCmdOutput(output)
 	if err != nil {
@@ -366,14 +371,13 @@ func (t *conditionalTransport) RoundTrip(req *http.Request) (*http.Response, err
 	}
 
 	res, err := t.oauthTransport.RoundTrip(req)
-
 	if err != nil {
 		return nil, err
 	}
 
 	if res.StatusCode == 401 {
 		klog.V(4).Infof("The credentials that were supplied are invalid for the target cluster")
-		t.persister.Persist(t.resetCache)
+		t.persister.Persist(t.resetCache) // nolint:errcheck
 	}
 
 	return res, nil

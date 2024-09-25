@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"net"
 	"os"
 	"time"
 
@@ -37,11 +36,6 @@ import (
 const (
 	// The size of a private key for a leaf certificate.
 	keySize = 2048
-
-	// The number of retries when attempting to request kubernetes version
-	versionRetryCount = 5
-
-	apiv1Beta1RemovedMinorVersion = 22
 
 	LegacyKubernetesSigner = "kubernetes.io/legacy-unknown"
 
@@ -142,21 +136,6 @@ func readCACert(caCertPath string) ([]byte, error) {
 	}
 
 	return caCert, nil
-}
-
-func isTCPReachable(host string, port int) bool {
-	addr := fmt.Sprintf("%s:%d", host, port)
-	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
-	if err != nil {
-		log.Debugf("DialTimeout() returns err: %v", err)
-		// No connection yet, so no need to conn.Close()
-		return false
-	}
-	err = conn.Close()
-	if err != nil {
-		log.Infof("tcp connection is not closed: %v", err)
-	}
-	return true
 }
 
 func submitCSR(

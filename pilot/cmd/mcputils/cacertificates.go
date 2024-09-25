@@ -22,10 +22,10 @@ import (
 	"net/http"
 	"time"
 
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/log"

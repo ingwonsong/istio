@@ -251,6 +251,15 @@ var testGrid = []testCase{
 		},
 	},
 	{
+		name:       "conflicting gateways detect by sub selector",
+		inputFiles: []string{"testdata/conflicting-gateways-subSelector.yaml"},
+		analyzer:   &gateway.ConflictingGatewayAnalyzer{},
+		expected: []message{
+			{msg.ConflictingGateways, "Gateway alpha"},
+			{msg.ConflictingGateways, "Gateway beta"},
+		},
+	},
+	{
 		name:       "conflicting gateways detect: no port",
 		inputFiles: []string{"testdata/conflicting-gateways-invalid-port.yaml"},
 		analyzer:   &gateway.ConflictingGatewayAnalyzer{},
@@ -422,6 +431,7 @@ var testGrid = []testCase{
 		inputFiles: []string{"testdata/virtualservice_destinationhosts.yaml"},
 		analyzer:   &virtualservice.DestinationHostAnalyzer{},
 		expected: []message{
+			{msg.ReferencedResourceNotFound, "VirtualService default/reviews-bogushost"},
 			{msg.ReferencedResourceNotFound, "VirtualService default/reviews-bogushost"},
 			{msg.ReferencedResourceNotFound, "VirtualService default/reviews-bookinfo-other"},
 			{msg.ReferencedResourceNotFound, "VirtualService default/reviews-mirror-bogushost"},

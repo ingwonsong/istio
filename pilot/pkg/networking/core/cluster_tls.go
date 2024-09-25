@@ -45,7 +45,7 @@ var istioMtlsTransportSocketMatch = &structpb.Struct{
 	},
 }
 
-func internalUpstreamSocket() *core.TransportSocket {
+func internalUpstreamSocket(inner *core.TransportSocket) *core.TransportSocket {
 	return &core.TransportSocket{
 		Name: "envoy.transport_sockets.internal_upstream",
 		ConfigType: &core.TransportSocket_TypedConfig{TypedConfig: protoconv.MessageToAny(&internalupstream.InternalUpstreamTransport{
@@ -67,12 +67,12 @@ func internalUpstreamSocket() *core.TransportSocket {
 					Name: "istio",
 				},
 			},
-			TransportSocket: xdsfilters.RawBufferTransportSocket,
+			TransportSocket: inner,
 		})},
 	}
 }
 
-func hboneTransportSocket() *cluster.Cluster_TransportSocketMatch {
+func hboneTransportSocket(inner *core.TransportSocket) *cluster.Cluster_TransportSocketMatch {
 	return &cluster.Cluster_TransportSocketMatch{
 		Name: "hbone",
 		Match: &structpb.Struct{
@@ -80,13 +80,13 @@ func hboneTransportSocket() *cluster.Cluster_TransportSocketMatch {
 				model.TunnelLabelShortName: {Kind: &structpb.Value_StringValue{StringValue: model.TunnelHTTP}},
 			},
 		},
-		TransportSocket: internalUpstreamSocket(),
+		TransportSocket: internalUpstreamSocket(inner),
 	}
 }
 
 func hboneOrPlaintextSocket() []*cluster.Cluster_TransportSocketMatch {
 	return []*cluster.Cluster_TransportSocketMatch{
-		hboneTransportSocket(),
+		hboneTransportSocket(xdsfilters.RawBufferTransportSocket),
 		defaultTransportSocketMatch(),
 	}
 }
@@ -288,7 +288,7 @@ func applyTLSDefaults(tlsContext *tlsv3.UpstreamTlsContext, tlsDefaults *v1alpha
 }
 
 // Set auto_sni if EnableAutoSni feature flag is enabled and if sni field is not explicitly set in DR.
-// Set auto_san_validation if VerifyCertAtClient feature flag is enabled and if there is no explicit SubjectAltNames specified  in DR.
+// Set auto_san_validation if there is no explicit SubjectAltNames specified in DR.
 func setAutoSniAndAutoSanValidation(mc *clusterWrapper, tls *networking.ClientTLSSettings) {
 	if mc == nil || !features.EnableAutoSni {
 		return
@@ -299,7 +299,7 @@ func setAutoSniAndAutoSanValidation(mc *clusterWrapper, tls *networking.ClientTL
 	if len(tls.Sni) == 0 {
 		setAutoSni = true
 	}
-	if features.VerifyCertAtClient && setAutoSni && len(tls.SubjectAltNames) == 0 && !tls.GetInsecureSkipVerify().GetValue() {
+	if setAutoSni && len(tls.SubjectAltNames) == 0 && !tls.GetInsecureSkipVerify().GetValue() {
 		setAutoSanValidation = true
 	}
 
@@ -334,7 +334,7 @@ func (cb *ClusterBuilder) applyHBONETransportSocketMatches(c *cluster.Cluster, t
 			transportSocket := c.TransportSocket
 			c.TransportSocket = nil
 			c.TransportSocketMatches = []*cluster.Cluster_TransportSocketMatch{
-				hboneTransportSocket(),
+				hboneTransportSocket(xdsfilters.RawBufferTransportSocket),
 				{
 					Name:            "tlsMode-" + model.IstioMutualTLSModeLabel,
 					Match:           istioMtlsTransportSocketMatch,
@@ -344,17 +344,31 @@ func (cb *ClusterBuilder) applyHBONETransportSocketMatches(c *cluster.Cluster, t
 			}
 		} else {
 			if c.TransportSocket == nil {
+				// User didn't have any TLS configured. We will send HBONE or plain, depending on backend support
 				c.TransportSocketMatches = hboneOrPlaintextSocket()
 			} else {
 				ts := c.TransportSocket
 				c.TransportSocket = nil
 
-				c.TransportSocketMatches = []*cluster.Cluster_TransportSocketMatch{
-					hboneTransportSocket(),
-					{
-						Name:            "tlsMode-" + model.IstioMutualTLSModeLabel,
-						TransportSocket: ts,
-					},
+				if tls.Mode == networking.ClientTLSSettings_ISTIO_MUTUAL {
+					// If a user sets ISTIO_MUTUAL, then HBONE is replacing it. So we will do HBONE or mTLS, depending on backend support.
+					c.TransportSocketMatches = []*cluster.Cluster_TransportSocketMatch{
+						hboneTransportSocket(ts),
+						{
+							Name:            "tlsMode-" + model.IstioMutualTLSModeLabel,
+							TransportSocket: ts,
+						},
+					}
+				} else {
+					// If user sets another TLS mode, they actually want the backend to receive that. So we want either HBONE+TLS or just TLS, depending on backend support.
+					// For instance, I may want to originate TLS from the gateway, but still tunnel it over HBONE.
+					c.TransportSocketMatches = []*cluster.Cluster_TransportSocketMatch{
+						hboneTransportSocket(ts),
+						{
+							Name:            "user",
+							TransportSocket: ts,
+						},
+					}
 				}
 			}
 		}
@@ -398,6 +412,12 @@ func (cb *ClusterBuilder) buildUpstreamTLSSettings(
 		}
 		// For backward compatibility, use metadata certs if provided.
 		if cb.hasMetadataCerts() {
+			// For mesh external services, we should always use user supplied settings because even though
+			// the proxy has metadata certs, the destination may have different CA certs. So we need to honor
+			// the user supplied settings in Destination Rule.
+			if features.PreferDestinationRulesTLSForExternalServices && meshExternal {
+				return tls, userSupplied
+			}
 			// When building Mutual TLS settings, we should always use user supplied SubjectAltNames and SNI
 			// in destination rule. The Service Accounts and auto computed SNI should only be used for
 			// ISTIO_MUTUAL.

@@ -23,7 +23,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"istio.io/istio/istioctl/cmd/asm"
 	"istio.io/istio/istioctl/pkg/admin"
 	"istio.io/istio/istioctl/pkg/analyze"
 	"istio.io/istio/istioctl/pkg/authz"
@@ -188,7 +187,6 @@ debug and diagnose their Istio mesh.
 	rootCmd.AddCommand(admin.Cmd(ctx))
 	experimentalCmd.AddCommand(injector.Cmd(ctx))
 
-	rootCmd.AddCommand(mesh.NewVerifyCommand(ctx))
 	rootCmd.AddCommand(mesh.UninstallCmd(ctx))
 
 	experimentalCmd.AddCommand(authz.AuthZ(ctx))
@@ -216,17 +214,9 @@ debug and diagnose their Istio mesh.
 	hideInheritedFlags(manifestCmd, cli.FlagNamespace, cli.FlagIstioNamespace, FlagCharts)
 	rootCmd.AddCommand(manifestCmd)
 
-	operatorCmd := mesh.OperatorCmd(ctx)
-	hideInheritedFlags(operatorCmd, cli.FlagNamespace, cli.FlagIstioNamespace, FlagCharts)
-	rootCmd.AddCommand(operatorCmd)
-
 	installCmd := mesh.InstallCmd(ctx)
 	hideInheritedFlags(installCmd, cli.FlagNamespace, cli.FlagIstioNamespace, FlagCharts)
 	rootCmd.AddCommand(installCmd)
-
-	profileCmd := mesh.ProfileCmd(ctx)
-	hideInheritedFlags(profileCmd, cli.FlagNamespace, cli.FlagIstioNamespace, FlagCharts)
-	rootCmd.AddCommand(profileCmd)
 
 	upgradeCmd := mesh.UpgradeCmd(ctx)
 	hideInheritedFlags(upgradeCmd, cli.FlagNamespace, cli.FlagIstioNamespace, FlagCharts)
@@ -243,10 +233,6 @@ debug and diagnose their Istio mesh.
 	// leave the multicluster commands in x for backwards compat
 	rootCmd.AddCommand(multicluster.NewCreateRemoteSecretCommand(ctx))
 	rootCmd.AddCommand(proxyconfig.ClustersCommand(ctx))
-
-	asmCmd := asm.Cmd()
-	hideInheritedFlags(asmCmd, "namespace", "istioNamespace", "charts")
-	rootCmd.AddCommand(asmCmd)
 
 	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, collateral.Metadata{
 		Title:   "Istio Control",

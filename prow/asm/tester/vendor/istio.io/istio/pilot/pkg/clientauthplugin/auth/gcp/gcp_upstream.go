@@ -1,6 +1,5 @@
-// nolint
-//go:build integ
-// +build integ
+//go:build !integ
+// +build !integ
 
 /*
 Copyright 2016 The Kubernetes Authors.
@@ -18,5 +17,5 @@ limitations under the License.
 package gcp
 
 import (
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // Initialize common client auth plugins.
 )

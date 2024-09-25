@@ -214,14 +214,6 @@ var (
 	KubernetesClientContentType = env.Register("ISTIO_KUBE_CLIENT_CONTENT_TYPE", "protobuf",
 		"The content type to use for Kubernetes clients. Defaults to protobuf. Valid options: [protobuf, json]").Get()
 
-	EnableExternalNameAlias = env.Register("ENABLE_EXTERNAL_NAME_ALIAS", true,
-		"If enabled, ExternalName Services will be treated as simple aliases: anywhere where we would match the concrete service, "+
-			"we also match the ExternalName. In general, this mirrors Kubernetes behavior more closely. However, it means that policies (routes and DestinationRule) "+
-			"cannot be applied to the ExternalName service. "+
-			"If disabled, ExternalName behaves in fairly unexpected manner. Port matters, while it does not in Kubernetes. If it is a TCP port, "+
-			"all traffic on that port will be matched, which can have disastrous consequences. Additionally, the destination is seen as an opaque destination; "+
-			"even if it is another service in the mesh, policies such as mTLS and load balancing will not be used when connecting to it.").Get()
-
 	ValidateWorkloadEntryIdentity = env.Register("ISTIO_WORKLOAD_ENTRY_VALIDATE_IDENTITY", true,
 		"If enabled, will validate the identity of a workload matches the identity of the "+
 			"WorkloadEntry it is associating with for health checks and auto registration. "+
@@ -242,9 +234,6 @@ var (
 	EnableAutoSni = env.Register("ENABLE_AUTO_SNI", true,
 		"If enabled, automatically set SNI when `DestinationRules` do not specify the same").Get()
 
-	VerifyCertAtClient = env.Register("VERIFY_CERTIFICATE_AT_CLIENT", true,
-		"If enabled, certificates received by the proxy will be verified against the OS CA certificate bundle.").Get()
-
 	EnableVtprotobuf = env.Register("ENABLE_VTPROTOBUF", true,
 		"If true, will use optimized vtprotobuf based marshaling. Requires a build with -tags=vtprotobuf.").Get()
 
@@ -259,6 +248,12 @@ var (
 
 	BundledCertificateAuthority = env.Register("BUNDLED_CERTIFICATE_AUTHORITY", false,
 		"If set to true, it will create custom config-map name for istiod issued certificate").Get()
+
+	Exclude503FromDefaultRetries = env.Register("EXCLUDE_UNSAFE_503_FROM_DEFAULT_RETRY", true,
+		"If true, excludes unsafe retry on 503 from default retry policy.").Get()
+
+	PreferDestinationRulesTLSForExternalServices = env.Register("PREFER_DESTINATIONRULE_TLS_FOR_EXTERNAL_SERVICES", true,
+		"If true, external services will prefer the TLS settings from DestinationRules over the metadata TLS settings.").Get()
 )
 
 // UnsafeFeaturesEnabled returns true if any unsafe features are enabled.

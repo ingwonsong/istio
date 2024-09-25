@@ -35,7 +35,8 @@ import (
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	tpb "istio.io/api/telemetry/v1alpha1"
 	"istio.io/api/type/v1beta1"
-	"istio.io/istio/pilot/pkg/networking"
+	networking "istio.io/istio/pilot/pkg/networking"
+	"istio.io/istio/pilot/pkg/serviceregistry/provider"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/schema/collection"
@@ -581,6 +582,12 @@ func TestTelemetryFilters(t *testing.T) {
 		Labels:          map[string]string{"app": "test"},
 		Metadata:        &NodeMetadata{Labels: map[string]string{"app": "test"}},
 	}
+	waypoint := &Proxy{
+		ConfigNamespace: "default",
+		Type:            Waypoint,
+		Labels:          map[string]string{"gateway.networking.k8s.io/gateway-name": "waypoint"},
+		Metadata:        &NodeMetadata{Labels: map[string]string{"gateway.networking.k8s.io/gateway-name": "waypoint"}},
+	}
 	emptyPrometheus := &tpb.Telemetry{
 		Metrics: []*tpb.Metrics{
 			{
@@ -745,6 +752,19 @@ func TestTelemetryFilters(t *testing.T) {
 			},
 		},
 	}
+	targetRefs := &tpb.Telemetry{
+		TargetRefs: []*v1beta1.PolicyTargetReference{{
+			Group: gvk.Service.Group,
+			Kind:  gvk.Service.Kind,
+			Name:  "sample-svc",
+		}},
+		Metrics: []*tpb.Metrics{
+			{
+				Overrides: overrides,
+			},
+		},
+	}
+	emptyWaypointMetrics := `{"disable_host_header_fallback":true,"reporter":"SERVER_GATEWAY"}`
 	stackdriverDisabled := &tpb.Telemetry{
 		AccessLogging: []*tpb.AccessLogging{
 			{
@@ -769,58 +789,53 @@ func TestTelemetryFilters(t *testing.T) {
 		class            networking.ListenerClass
 		protocol         networking.ListenerProtocol
 		defaultProviders *meshconfig.MeshConfig_DefaultProviders
+		service          *Service
 		want             map[string]string
 	}{
 		{
-			"empty",
-			nil,
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{},
+			name:     "empty",
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want:     map[string]string{},
 		},
 		{
-			"disabled-prometheus",
-			[]config.Config{newTelemetry("istio-system", disabledAllMetrics)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{},
+			name:     "disabled-prometheus",
+			cfgs:     []config.Config{newTelemetry("istio-system", disabledAllMetrics)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want:     map[string]string{},
 		},
 		{
-			"disabled-prometheus-implicit",
-			[]config.Config{newTelemetry("istio-system", disabledAllMetricsImplicit)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{},
+			name:     "disabled-prometheus-implicit",
+			cfgs:     []config.Config{newTelemetry("istio-system", disabledAllMetricsImplicit)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want:     map[string]string{},
 		},
 		{
-			"disabled-then-empty",
-			[]config.Config{
+			name: "disabled-then-empty",
+			cfgs: []config.Config{
 				newTelemetry("istio-system", disabledAllMetrics),
 				newTelemetry("default", emptyPrometheus),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want:     map[string]string{},
 		},
 		{
-			"disabled-then-reenable",
-			[]config.Config{
+			name: "disabled-then-reenable",
+			cfgs: []config.Config{
 				newTelemetry("istio-system", disabledAllMetrics),
 				newTelemetry("default", reenable),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": `{"metrics":[` +
 					`{"name":"request_messages_total"},` +
 					`{"name":"response_messages_total"},` +
@@ -836,55 +851,52 @@ func TestTelemetryFilters(t *testing.T) {
 			},
 		},
 		{
-			"disabled-then-overrides",
-			[]config.Config{
+			name: "disabled-then-overrides",
+			cfgs: []config.Config{
 				newTelemetry("istio-system", disabledAllMetrics),
 				newTelemetry("default", overridesPrometheus),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": cfg,
 			},
 		},
 		{
-			"default prometheus",
-			[]config.Config{newTelemetry("istio-system", emptyPrometheus)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			name:     "default prometheus",
+			cfgs:     []config.Config{newTelemetry("istio-system", emptyPrometheus)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": "{}",
 			},
 		},
 		{
-			"default provider prometheus",
-			[]config.Config{},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			&meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
-			map[string]string{
+			name:             "default provider prometheus",
+			cfgs:             []config.Config{},
+			proxy:            sidecar,
+			class:            networking.ListenerClassSidecarOutbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
 				"istio.stats": "{}",
 			},
 		},
 		{
-			"prometheus overrides",
-			[]config.Config{newTelemetry("istio-system", overridesPrometheus)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			name:     "prometheus overrides",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesPrometheus)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": cfg,
 			},
 		},
 		{
-			"prometheus overrides all metrics",
-			[]config.Config{newTelemetry("istio-system", &tpb.Telemetry{
+			name: "prometheus overrides all metrics",
+			cfgs: []config.Config{newTelemetry("istio-system", &tpb.Telemetry{
 				Metrics: []*tpb.Metrics{
 					{
 						Providers: []*tpb.ProviderRef{{Name: "prometheus"}},
@@ -904,12 +916,11 @@ func TestTelemetryFilters(t *testing.T) {
 					},
 				},
 			})},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
 			// TODO: the following should be simple to `{"metrics":[{"dimensions":{"add":"bar"},"tags_to_remove":["remove"]}]}`
-			map[string]string{
+			want: map[string]string{
 				"istio.stats": `{"metrics":[` +
 					`{"dimensions":{"add":"bar"},"name":"request_messages_total","tags_to_remove":["remove"]},` +
 					`{"dimensions":{"add":"bar"},"name":"response_messages_total","tags_to_remove":["remove"]},` +
@@ -925,8 +936,8 @@ func TestTelemetryFilters(t *testing.T) {
 			},
 		},
 		{
-			"prometheus overrides all metrics first",
-			[]config.Config{newTelemetry("istio-system", &tpb.Telemetry{
+			name: "prometheus overrides all metrics first",
+			cfgs: []config.Config{newTelemetry("istio-system", &tpb.Telemetry{
 				Metrics: []*tpb.Metrics{
 					{
 						Providers: []*tpb.ProviderRef{{Name: "prometheus"}},
@@ -958,11 +969,10 @@ func TestTelemetryFilters(t *testing.T) {
 					},
 				},
 			})},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": `{"metrics":[` +
 					`{"dimensions":{"add":"bar"},"name":"request_messages_total","tags_to_remove":["remove"]},` +
 					`{"dimensions":{"add":"bar"},"name":"response_messages_total","tags_to_remove":["remove"]},` +
@@ -978,8 +988,8 @@ func TestTelemetryFilters(t *testing.T) {
 			},
 		},
 		{
-			"prometheus overrides all metrics secondary",
-			[]config.Config{newTelemetry("istio-system", &tpb.Telemetry{
+			name: "prometheus overrides all metrics secondary",
+			cfgs: []config.Config{newTelemetry("istio-system", &tpb.Telemetry{
 				Metrics: []*tpb.Metrics{
 					{
 						Providers: []*tpb.ProviderRef{{Name: "prometheus"}},
@@ -1011,11 +1021,10 @@ func TestTelemetryFilters(t *testing.T) {
 					},
 				},
 			})},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": `{"metrics":[` +
 					`{"dimensions":{"add":"bar"},"name":"request_messages_total","tags_to_remove":["remove"]},` +
 					`{"dimensions":{"add":"bar"},"name":"response_messages_total","tags_to_remove":["remove"]},` +
@@ -1031,72 +1040,79 @@ func TestTelemetryFilters(t *testing.T) {
 			},
 		},
 		{
-			"prometheus overrides TCP",
-			[]config.Config{newTelemetry("istio-system", overridesPrometheus)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolTCP,
-			nil,
-			map[string]string{
+			name:     "prometheus overrides TCP",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesPrometheus)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolTCP,
+			want: map[string]string{
 				"istio.stats": cfg,
 			},
 		},
 		{
-			"reporting-interval",
-			[]config.Config{newTelemetry("istio-system", reportingInterval)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			name:     "reporting-interval",
+			cfgs:     []config.Config{newTelemetry("istio-system", reportingInterval)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": `{"tcp_reporting_duration":"15s"}`,
 			},
 		},
 		{
-			"override-interval",
-			[]config.Config{
+			name: "override-interval",
+			cfgs: []config.Config{
 				newTelemetry("istio-system", reportingInterval),
 				newTelemetry("default", overridesInterval),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stats": `{"tcp_reporting_duration":"10s"}`,
 			},
 		},
 		{
-			"empty stackdriver",
-			[]config.Config{newTelemetry("istio-system", emptyStackdriver)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			name: "namespace overrides merge without provider",
+			cfgs: []config.Config{
+				newTelemetry("istio-system", emptyPrometheus),
+				newTelemetry("default", overridesEmptyProvider),
+			},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
+				"istio.stats": cfg,
+			},
+		},
+		{
+			name:     "empty stackdriver",
+			cfgs:     []config.Config{newTelemetry("istio-system", emptyStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stackdriver": `{"disable_server_access_logging":true,"metric_expiry_duration":"3600s"}`,
 			},
 		},
 		{
-			"overrides stackdriver",
-			[]config.Config{newTelemetry("istio-system", overridesStackdriver)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			name:     "overrides stackdriver",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stackdriver": `{"access_logging_filter_expression":"response.code >= 500 && response.code <= 800",` +
 					`"metric_expiry_duration":"3600s","metrics_overrides":{"client/request_count":{"tag_overrides":{"add":"bar"}}}}`,
 			},
 		},
 		{
-			"overrides all metrics stackdriver/client",
-			[]config.Config{newTelemetry("istio-system", overridesAllMetricsStackdriver)},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			name:     "overrides all metrics stackdriver/client",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesAllMetricsStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stackdriver": `{"access_logging_filter_expression":"response.code >= 500 && response.code <= 800",` +
 					`"metric_expiry_duration":"3600s","metrics_overrides":{` +
 					`"client/connection_close_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
@@ -1111,13 +1127,53 @@ func TestTelemetryFilters(t *testing.T) {
 			},
 		},
 		{
-			"overrides all metrics stackdriver/server",
-			[]config.Config{newTelemetry("istio-system", overridesAllMetricsStackdriver)},
-			sidecar,
-			networking.ListenerClassSidecarInbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			name:     "empty stackdriver",
+			cfgs:     []config.Config{newTelemetry("istio-system", emptyStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
+				"istio.stackdriver": `{"disable_server_access_logging":true,"metric_expiry_duration":"3600s"}`,
+			},
+		},
+		{
+			name:     "overrides stackdriver",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
+				"istio.stackdriver": `{"access_logging_filter_expression":"response.code >= 500 && response.code <= 800",` +
+					`"metric_expiry_duration":"3600s","metrics_overrides":{"client/request_count":{"tag_overrides":{"add":"bar"}}}}`,
+			},
+		},
+		{
+			name:     "overrides all metrics stackdriver/client",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesAllMetricsStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
+				"istio.stackdriver": `{"access_logging_filter_expression":"response.code >= 500 && response.code <= 800",` +
+					`"metric_expiry_duration":"3600s","metrics_overrides":{` +
+					`"client/connection_close_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"client/connection_open_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"client/received_bytes_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"client/request_bytes":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"client/request_count":{"tag_overrides":{"destination_service":"fake_dest_override"}},` +
+					`"client/response_bytes":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"client/response_latencies":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"client/sent_bytes_count":{"tag_overrides":{"destination_service":"fake_dest"}}` +
+					`}}`,
+			},
+		},
+		{
+			name:     "overrides all metrics stackdriver/server",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesAllMetricsStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarInbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stackdriver": `{"disable_host_header_fallback":true,"access_logging_filter_expression":"response.code >= 500 && response.code <= 800",` +
 					`"metric_expiry_duration":"3600s","metrics_overrides":{` +
 					`"server/connection_close_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
@@ -1132,121 +1188,338 @@ func TestTelemetryFilters(t *testing.T) {
 			},
 		},
 		{
-			"namespace empty merge",
-			[]config.Config{
+			name: "namespace empty merge",
+			cfgs: []config.Config{
 				newTelemetry("istio-system", emptyPrometheus),
 				newTelemetry("default", emptyStackdriver),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stackdriver": `{"disable_server_access_logging":true,"metric_expiry_duration":"3600s"}`,
 			},
 		},
 		{
-			"namespace overrides merge without provider",
-			[]config.Config{
+			name:     "overrides all metrics stackdriver/server",
+			cfgs:     []config.Config{newTelemetry("istio-system", overridesAllMetricsStackdriver)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarInbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
+				"istio.stackdriver": `{"disable_host_header_fallback":true,"access_logging_filter_expression":"response.code >= 500 && response.code <= 800",` +
+					`"metric_expiry_duration":"3600s","metrics_overrides":{` +
+					`"server/connection_close_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"server/connection_open_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"server/received_bytes_count":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"server/request_bytes":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"server/request_count":{"tag_overrides":{"destination_service":"fake_dest_override"}},` +
+					`"server/response_bytes":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"server/response_latencies":{"tag_overrides":{"destination_service":"fake_dest"}},` +
+					`"server/sent_bytes_count":{"tag_overrides":{"destination_service":"fake_dest"}}` +
+					`}}`,
+			},
+		},
+		{
+			name: "namespace empty merge",
+			cfgs: []config.Config{
 				newTelemetry("istio-system", emptyPrometheus),
-				newTelemetry("default", overridesEmptyProvider),
-			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
-				"istio.stats": cfg,
-			},
-		},
-		{
-			"namespace overrides merge with default provider",
-			[]config.Config{
-				newTelemetry("default", overridesEmptyProvider),
-			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			&meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
-			map[string]string{
-				"istio.stats": cfg,
-			},
-		},
-		{
-			"namespace overrides default provider",
-			[]config.Config{
 				newTelemetry("default", emptyStackdriver),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			&meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stackdriver": `{"disable_server_access_logging":true,"metric_expiry_duration":"3600s"}`,
 			},
 		},
 		{
-			"stackdriver logging",
-			[]config.Config{
+			name: "namespace overrides merge without provider",
+			cfgs: []config.Config{
+				newTelemetry("istio-system", emptyPrometheus),
+				newTelemetry("default", overridesEmptyProvider),
+			},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
+				"istio.stats": cfg,
+			},
+		},
+		{
+			name: "namespace overrides merge with default provider",
+			cfgs: []config.Config{
+				newTelemetry("default", overridesEmptyProvider),
+			},
+			proxy:            sidecar,
+			class:            networking.ListenerClassSidecarOutbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				"istio.stats": cfg,
+			},
+		},
+		{
+			name: "namespace overrides default provider",
+			cfgs: []config.Config{
+				newTelemetry("default", emptyStackdriver),
+			},
+			proxy:            sidecar,
+			class:            networking.ListenerClassSidecarOutbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				"istio.stackdriver": `{"disable_server_access_logging":true,"metric_expiry_duration":"3600s"}`,
+			},
+		},
+		{
+			name: "stackdriver logging",
+			cfgs: []config.Config{
 				newTelemetry("default", sdLogging),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
 				"istio.stackdriver": `{"access_logging":"ERRORS_ONLY","metric_expiry_duration":"3600s"}`,
 			},
 		},
 		{
-			"stackdriver client logging",
-			[]config.Config{
+			name: "stackdriver client logging",
+			cfgs: []config.Config{
 				newTelemetry("default", clientLogging),
 			},
-			sidecar,
-			networking.ListenerClassSidecarOutbound,
-			networking.ListenerProtocolHTTP,
-			nil,
-			map[string]string{},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want:     map[string]string{},
 		},
 		{
-			"stackdriver logging default provider",
-			[]config.Config{
+			name: "stackdriver logging default provider",
+			cfgs: []config.Config{
 				newTelemetry("default", emptyLogging),
 			},
-			sidecar,
-			networking.ListenerClassSidecarInbound,
-			networking.ListenerProtocolHTTP,
-			&meshconfig.MeshConfig_DefaultProviders{AccessLogging: []string{"stackdriver"}},
-			map[string]string{
+			proxy:            sidecar,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{AccessLogging: []string{"stackdriver"}},
+			want: map[string]string{
 				"istio.stackdriver": `{"disable_host_header_fallback":true,"access_logging":"FULL","metric_expiry_duration":"3600s"}`,
 			},
 		},
 		{
-			"stackdriver default for all",
-			[]config.Config{},
-			sidecar,
-			networking.ListenerClassSidecarInbound,
-			networking.ListenerProtocolHTTP,
-			&meshconfig.MeshConfig_DefaultProviders{
+			name:     "stackdriver default for all",
+			cfgs:     []config.Config{},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarInbound,
+			protocol: networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{
 				Metrics:       []string{"stackdriver"},
 				AccessLogging: []string{"stackdriver"},
 			},
-			map[string]string{
+			want: map[string]string{
 				"istio.stackdriver": `{"disable_host_header_fallback":true,"access_logging":"FULL","metric_expiry_duration":"3600s"}`,
 			},
 		},
 		{
-			"disable stackdriver",
-			[]config.Config{newTelemetry("istio-system", stackdriverDisabled)},
-			sidecar,
-			networking.ListenerClassSidecarInbound,
-			networking.ListenerProtocolHTTP,
-			&meshconfig.MeshConfig_DefaultProviders{
+			name:     "disable stackdriver",
+			cfgs:     []config.Config{newTelemetry("istio-system", stackdriverDisabled)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarInbound,
+			protocol: networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{
 				Metrics:       []string{"stackdriver"},
 				AccessLogging: []string{"stackdriver"},
 			},
-			map[string]string{
+			want: map[string]string{
+				"istio.stackdriver": `{"disable_server_access_logging":true,"disable_host_header_fallback":true,"metric_expiry_duration":"3600s"}`,
+			},
+		},
+		{
+			name: "targetRef mismatch no service",
+			cfgs: []config.Config{
+				newTelemetry("default", targetRefs),
+			},
+			proxy:            waypoint,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				// Config is for a service, but we are not building a service-based filter, so ignore it. We just fallback to default provider
+				"istio.stats": emptyWaypointMetrics,
+			},
+		},
+		{
+			name: "targetRef mismatch wrong service",
+			cfgs: []config.Config{
+				newTelemetry("default", targetRefs),
+			},
+			service: &Service{
+				Attributes: ServiceAttributes{
+					Name:            "not-sample-svc",
+					Namespace:       "default",
+					ServiceRegistry: provider.Kubernetes,
+				},
+			},
+			proxy:            waypoint,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				// Config is not for the service, so ignore it. We just fallback to default provider
+				"istio.stats": emptyWaypointMetrics,
+			},
+		},
+		{
+			name: "targetRef match",
+			cfgs: []config.Config{
+				newTelemetry("default", targetRefs),
+			},
+			service: &Service{
+				Attributes: ServiceAttributes{
+					Name:            "sample-svc",
+					Namespace:       "default",
+					ServiceRegistry: provider.Kubernetes,
+				},
+			},
+			proxy:            waypoint,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				"istio.stats": `{"disable_host_header_fallback":true,"metrics":[{"dimensions":{"add":"bar"},"name":"requests_total"` +
+					`,"tags_to_remove":["remove"]}],"reporter":"SERVER_GATEWAY"}`,
+			},
+		},
+		{
+			name: "targetRef mismatch no service",
+			cfgs: []config.Config{
+				newTelemetry("default", targetRefs),
+			},
+			proxy:            waypoint,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				// Config is for a service, but we are not building a service-based filter, so ignore it. We just fallback to default provider
+				"istio.stats": emptyWaypointMetrics,
+			},
+		},
+		{
+			name: "targetRef mismatch wrong service",
+			cfgs: []config.Config{
+				newTelemetry("default", targetRefs),
+			},
+			service: &Service{
+				Attributes: ServiceAttributes{
+					Name:            "not-sample-svc",
+					Namespace:       "default",
+					ServiceRegistry: provider.Kubernetes,
+				},
+			},
+			proxy:            waypoint,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				// Config is not for the service, so ignore it. We just fallback to default provider
+				"istio.stats": emptyWaypointMetrics,
+			},
+		},
+		{
+			name: "targetRef match",
+			cfgs: []config.Config{
+				newTelemetry("default", targetRefs),
+			},
+			service: &Service{
+				Attributes: ServiceAttributes{
+					Name:            "sample-svc",
+					Namespace:       "default",
+					ServiceRegistry: provider.Kubernetes,
+				},
+			},
+			proxy:            waypoint,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				"istio.stats": `{"disable_host_header_fallback":true,"metrics":[{"dimensions":{"add":"bar"},"name":"requests_total"` +
+					`,"tags_to_remove":["remove"]}],"reporter":"SERVER_GATEWAY"}`,
+			},
+		},
+		{
+			name: "namespace overrides default provider",
+			cfgs: []config.Config{
+				newTelemetry("default", emptyStackdriver),
+			},
+			proxy:            sidecar,
+			class:            networking.ListenerClassSidecarOutbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{Metrics: []string{"prometheus"}},
+			want: map[string]string{
+				"istio.stackdriver": `{"disable_server_access_logging":true,"metric_expiry_duration":"3600s"}`,
+			},
+		},
+		{
+			name: "stackdriver logging",
+			cfgs: []config.Config{
+				newTelemetry("default", sdLogging),
+			},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want: map[string]string{
+				"istio.stackdriver": `{"access_logging":"ERRORS_ONLY","metric_expiry_duration":"3600s"}`,
+			},
+		},
+		{
+			name: "stackdriver client logging",
+			cfgs: []config.Config{
+				newTelemetry("default", clientLogging),
+			},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarOutbound,
+			protocol: networking.ListenerProtocolHTTP,
+			want:     map[string]string{},
+		},
+		{
+			name: "stackdriver logging default provider",
+			cfgs: []config.Config{
+				newTelemetry("default", emptyLogging),
+			},
+			proxy:            sidecar,
+			class:            networking.ListenerClassSidecarInbound,
+			protocol:         networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{AccessLogging: []string{"stackdriver"}},
+			want: map[string]string{
+				"istio.stackdriver": `{"disable_host_header_fallback":true,"access_logging":"FULL","metric_expiry_duration":"3600s"}`,
+			},
+		},
+		{
+			name:     "stackdriver default for all",
+			cfgs:     []config.Config{},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarInbound,
+			protocol: networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{
+				Metrics:       []string{"stackdriver"},
+				AccessLogging: []string{"stackdriver"},
+			},
+			want: map[string]string{
+				"istio.stackdriver": `{"disable_host_header_fallback":true,"access_logging":"FULL","metric_expiry_duration":"3600s"}`,
+			},
+		},
+		{
+			name:     "disable stackdriver",
+			cfgs:     []config.Config{newTelemetry("istio-system", stackdriverDisabled)},
+			proxy:    sidecar,
+			class:    networking.ListenerClassSidecarInbound,
+			protocol: networking.ListenerProtocolHTTP,
+			defaultProviders: &meshconfig.MeshConfig_DefaultProviders{
+				Metrics:       []string{"stackdriver"},
+				AccessLogging: []string{"stackdriver"},
+			},
+			want: map[string]string{
 				"istio.stackdriver": `{"disable_server_access_logging":true,"disable_host_header_fallback":true,"metric_expiry_duration":"3600s"}`,
 			},
 		},
@@ -1255,7 +1528,7 @@ func TestTelemetryFilters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			telemetry, _ := createTestTelemetries(tt.cfgs, t)
 			telemetry.meshConfig.DefaultProviders = tt.defaultProviders
-			got := telemetry.telemetryFilters(tt.proxy, tt.class, tt.protocol, nil)
+			got := telemetry.telemetryFilters(tt.proxy, tt.class, tt.protocol, tt.service)
 			res := map[string]string{}
 			http, ok := got.([]*hcm.HttpFilter)
 			if ok {

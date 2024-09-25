@@ -22,6 +22,7 @@ $(TARGET_OUT_LINUX)/knative/injection-template.yaml: manifests/charts/istio-cont
 
 $(TARGET_OUT_LINUX)/knative/mutatingwebhook.yaml: manifests/charts/istio-control/istio-discovery/templates/mutatingwebhook.yaml
 	mkdir -p $(TARGET_OUT_LINUX)/knative-wh/templates
+	cp tools/packaging/knative/istio.labels.yaml $(TARGET_OUT_LINUX)/knative-wh/templates
 	cp manifests/charts/istio-control/istio-discovery/templates/mutatingwebhook.yaml ${TARGET_OUT_LINUX}/knative-wh/templates
 	cp manifests/charts/istio-control/istio-discovery/Chart.yaml ${TARGET_OUT_LINUX}/knative-wh/Chart.yaml
 	helm template istio $(TARGET_OUT_LINUX)/knative-wh -n istio-system -f tools/packaging/knative/values.webhook.yaml | ${GOTEMPLATE_REPLACE} | sed 's/name: istio-sidecar-injector-/name: istiod-/g' > $@
