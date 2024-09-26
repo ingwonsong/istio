@@ -38,7 +38,7 @@ var GRPCRouteHeaderMatching = suite.ConformanceTest{
 	ShortName:   "GRPCRouteHeaderMatching",
 	Description: "A single GRPCRoute with header matching for different backends",
 	Manifests:   []string{"tests/grpcroute-header-matching.yaml"},
-	Features: []features.SupportedFeature{
+	Features: []features.FeatureName{
 		features.SupportGateway,
 		features.SupportGRPCRoute,
 	},
@@ -130,7 +130,7 @@ var GRPCRouteHeaderMatching = suite.ConformanceTest{
 			tc := testCases[i]
 			t.Run(tc.GetTestCaseName(i), func(t *testing.T) {
 				t.Parallel()
-				grpc.MakeRequestAndExpectEventuallyConsistentResponse(t, suite.TimeoutConfig, gwAddr, tc)
+				grpc.MakeRequestAndExpectEventuallyConsistentResponse(t, suite.GRPCClient, suite.TimeoutConfig, gwAddr, tc)
 			})
 		}
 	},

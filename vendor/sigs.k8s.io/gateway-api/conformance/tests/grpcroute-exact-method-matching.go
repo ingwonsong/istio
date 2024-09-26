@@ -38,7 +38,7 @@ var GRPCExactMethodMatching = suite.ConformanceTest{
 	ShortName:   "GRPCExactMethodMatching",
 	Description: "A single GRPCRoute with exact method matching for different backends",
 	Manifests:   []string{"tests/grpcroute-exact-method-matching.yaml"},
-	Features: []features.SupportedFeature{
+	Features: []features.FeatureName{
 		features.SupportGateway,
 		features.SupportGRPCRoute,
 	},
@@ -69,7 +69,7 @@ var GRPCExactMethodMatching = suite.ConformanceTest{
 			tc := testCases[i]
 			t.Run(tc.GetTestCaseName(i), func(t *testing.T) {
 				t.Parallel()
-				grpc.MakeRequestAndExpectEventuallyConsistentResponse(t, suite.TimeoutConfig, gwAddr, tc)
+				grpc.MakeRequestAndExpectEventuallyConsistentResponse(t, suite.GRPCClient, suite.TimeoutConfig, gwAddr, tc)
 			})
 		}
 	},

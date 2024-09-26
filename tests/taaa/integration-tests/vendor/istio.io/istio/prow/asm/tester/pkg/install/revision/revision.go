@@ -16,6 +16,7 @@ package revision
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -103,7 +104,13 @@ func RevisionLabel() string {
 	istioVersion, _ := exec.RunWithOutput(
 		"bash -c \"istioctl version --remote=false -o json | jq -r '.clientVersion.tag'\"")
 	versionParts := strings.Split(istioVersion, "-")
-	version := fmt.Sprintf("asm-%s-%s", versionParts[0], versionParts[1])
+	latterPart := "Unknown"
+	if len(versionParts) > 1 {
+		latterPart = versionParts[1]
+	} else {
+		log.Printf("istioctl emitted unexpected .clientVerion.tag = %s, so fallback to Unknown", istioVersion)
+	}
+	version := fmt.Sprintf("asm-%s-%s", versionParts[0], latterPart)
 	r := strings.NewReplacer(".", "", "\n", "")
 	return r.Replace(version)
 }

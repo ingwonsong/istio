@@ -1,6 +1,6 @@
-# "defaults" is a workaround for Helm limitations. Users should NOT set ".defaults" explicitly, but rather directly set the fields internally.
-# For instance, instead of `--set defaults.foo=bar`, just set `--set foo=bar`.
-defaults:
+# "_internal_defaults_do_not_set" is a workaround for Helm limitations. Users should NOT set "._internal_defaults_do_not_set" explicitly, but rather directly set the fields internally.
+# For instance, instead of `--set _internal_defaults_do_not_set.foo=bar``, just set `--set foo=bar`.
+_internal_defaults_do_not_set:
   autoscaleEnabled: true
   autoscaleMin: 1
   autoscaleMax: 5
@@ -47,10 +47,13 @@ defaults:
   volumeMounts: []
   # Additional volumes to the istiod pod
   volumes: []
+  # Inject initContainers into the istiod pod
+  initContainers: []
   nodeSelector: {}
   podAnnotations: {}
   serviceAnnotations: {}
   serviceAccountAnnotations: {}
+  sidecarInjectorWebhookAnnotations: {}
   topologySpreadConstraints: []
   # You can use jwksResolverExtraRootCA to provide a root certificate
   # in PEM format. This will then be trusted by pilot when resolving

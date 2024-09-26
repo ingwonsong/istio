@@ -1,5 +1,6 @@
-//go:build !integ
-// +build !integ
+// nolint
+//go:build integ
+// +build integ
 
 /*
 Copyright 2016 The Kubernetes Authors.

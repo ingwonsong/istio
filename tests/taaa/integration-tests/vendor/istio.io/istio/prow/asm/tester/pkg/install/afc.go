@@ -396,7 +396,7 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 			if err != nil {
 				return fmt.Errorf("failed to find default credentials for MCP VPCSC installation verification: %w", err)
 			}
-			url := fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/locations/%s/clusters/%s/controlPlanes/asm-managed-rapid:fetchControlPlane", cluster.ProjectID, cluster.Location, cluster.Name)
+			url := fmt.Sprintf("https://meshconfig.googleapis.com/v1alpha1/projects/%s/locations/%s/clusters/%s/controlPlanes/asm-managed:fetchControlPlane", cluster.ProjectID, cluster.Location, cluster.Name)
 			resp, err := oauth2.NewClient(ctx, creds.TokenSource).Get(url)
 			if err != nil {
 				return fmt.Errorf("failed to create HTTP client for MCP VPCSC installation verification: %w", err)
@@ -418,8 +418,8 @@ func (c *installer) installASMManagedControlPlaneAFC(rev *revision.Config) error
 			if err := json.NewDecoder(resp.Body).Decode(&cp); err != nil {
 				return fmt.Errorf("failed to decode HTTP response for MCP VPCSC installation verification: %w", err)
 			}
-			if cp.VPCSCMode != "COMPATIBLE" && cp.VPCSCMode != "SEAMLESS" {
-				return fmt.Errorf("MCP VPCSC installation via AFC failed, got: %v, want COMPATIBLE or SEAMLESS", cp.VPCSCMode)
+			if cp.VPCSCMode != "COMPATIBLE" && cp.VPCSCMode != "SEAMLESS" && cp.VPCSCMode != "EGRESS_BLOCKED" {
+				return fmt.Errorf("MCP VPCSC installation via AFC failed, got: %v, want COMPATIBLE, SEAMLESS, or EGRESS_BLOCKED", cp.VPCSCMode)
 			}
 			contextLogger.Printf("Done verification. MCP VPCSC is installed in %v mode\n", cp.VPCSCMode)
 		}
@@ -440,7 +440,7 @@ data:
 {{- end }}
 kind: ConfigMap
 metadata:
-  name: istio-asm-managed-rapid
+  name: istio-asm-managed
   namespace: istio-system
 EOF'`, map[string]any{
 			"testUserAuth": testUserAuth,

@@ -38,7 +38,7 @@ var GRPCRouteListenerHostnameMatching = suite.ConformanceTest{
 	ShortName:   "GRPCRouteListenerHostnameMatching",
 	Description: "Multiple GRPC listeners with the same port and different hostnames, each with a different GRPCRoute",
 	Manifests:   []string{"tests/grpcroute-listener-hostname-matching.yaml"},
-	Features: []features.SupportedFeature{
+	Features: []features.FeatureName{
 		features.SupportGateway,
 		features.SupportGRPCRoute,
 	},
@@ -126,7 +126,7 @@ var GRPCRouteListenerHostnameMatching = suite.ConformanceTest{
 			tc := testCases[i]
 			t.Run(tc.GetTestCaseName(i), func(t *testing.T) {
 				t.Parallel()
-				grpc.MakeRequestAndExpectEventuallyConsistentResponse(t, suite.TimeoutConfig, gwAddr, tc)
+				grpc.MakeRequestAndExpectEventuallyConsistentResponse(t, suite.GRPCClient, suite.TimeoutConfig, gwAddr, tc)
 			})
 		}
 	},

@@ -49,7 +49,7 @@ endif
 export VERSION
 
 # Base version of Istio image to use
-BASE_VERSION ?= master-2024-09-04T19-00-52
+BASE_VERSION ?= master-2024-09-19T19-01-03
 ISTIO_BASE_REGISTRY ?= gcr.io/istio-release
 
 export GO111MODULE ?= on
@@ -359,7 +359,7 @@ copy-templates:
 
 	# copy istio-discovery values, but apply some local customizations
 	cp manifests/charts/istio-control/istio-discovery/values.yaml manifests/charts/istiod-remote/
-	yq -i '.defaults.telemetry.enabled=false | .defaults.global.externalIstiod=true | .defaults.global.omitSidecarInjectorConfigMap=true | .defaults.configMap=false' manifests/charts/istiod-remote/values.yaml
+	yq -i '._internal_defaults_do_not_set.telemetry.enabled=false | ._internal_defaults_do_not_set.global.externalIstiod=true | ._internal_defaults_do_not_set.global.omitSidecarInjectorConfigMap=true | ._internal_defaults_do_not_set.configMap=false' manifests/charts/istiod-remote/values.yaml
 	warning=$$(cat manifests/helm-profiles/warning-edit.txt | sed ':a;N;$$!ba;s/\n/\\n/g') ; \
 	for chart in $(CHARTS) ; do \
 		for profile in manifests/helm-profiles/*.yaml ; do \

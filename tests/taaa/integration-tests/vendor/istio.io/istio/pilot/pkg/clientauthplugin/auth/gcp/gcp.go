@@ -1,5 +1,6 @@
-//go:build integ
-// +build integ
+// nolint
+//go:build !integ
+// +build !integ
 
 /*
 Copyright 2016 The Kubernetes Authors.
@@ -40,7 +41,7 @@ import (
 
 func init() {
 	if err := restclient.RegisterAuthProviderPlugin("gcp", newGCPAuthProvider); err != nil {
-		klog.Fatalf("Failed to register gcp auth plugin: %v", err)
+		klog.Fatalf("Failed to register gcp auth plugin in ASM: %v", err)
 	}
 }
 
@@ -79,7 +80,7 @@ var (
 //	      # Caching options
 //
 //	      # Raw string data representing cached access token.
-//	      "access-token": "ya29.CjWdA4GiBPTt",
+//	      "access-token": "...",
 //	      # RFC3339Nano expiration timestamp for cached access token.
 //	      "expiry": "2016-10-31 22:31:9.123",
 //

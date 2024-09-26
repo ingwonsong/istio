@@ -250,7 +250,7 @@ func forceReprovisionMCP(settings *resource.Settings) error {
 		if err != nil {
 			return fmt.Errorf("failed to list ControlPlaneRevision: %w", err)
 		}
-		if err := exec.Run(fmt.Sprintf(`kubectl --context=%s patch ControlPlaneRevision %s -n istio-system --type 'json' -p='[{"op": "add", "path": "/metadata/annotations", "value": {"mesh.cloud.google.com/force-reprovision":"true"}}]'`,
+		if err := exec.Run(fmt.Sprintf(`kubectl --context=%s annotate controlplanerevisions.mesh.cloud.google.com %s -n istio-system mesh.cloud.google.com/force-reprovision=true`,
 			context, cprVersion)); err != nil {
 			return fmt.Errorf("failed to patch the the ControlPlaneRevision: %w", err)
 		}
@@ -313,19 +313,19 @@ func setGcpPermissions(settings *resource.Settings) error {
 				return err
 			}
 			computeServiceAccount := fmt.Sprintf("%s-compute@developer.gserviceaccount.com", projectNum)
-            commands := []string{
-                fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
-                    "--member=serviceAccount:%s "+
-                    "--role=roles/storage.objectViewer",
-                    settings.GCRProject,
-                    computeServiceAccount),
-                fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
-                    "--member=serviceAccount:%s "+
-                    "--role=roles/artifactregistry.reader",
-                    settings.GCRProject,
-                    computeServiceAccount),
-            }
-            err = exec.RunMultiple(commands)
+			commands := []string{
+				fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
+					"--member=serviceAccount:%s "+
+					"--role=roles/storage.objectViewer",
+					settings.GCRProject,
+					computeServiceAccount),
+				fmt.Sprintf("gcloud projects add-iam-policy-binding %s "+
+					"--member=serviceAccount:%s "+
+					"--role=roles/artifactregistry.reader",
+					settings.GCRProject,
+					computeServiceAccount),
+			}
+			err = exec.RunMultiple(commands)
 			if err != nil {
 				return fmt.Errorf("error adding the binding for the service account to access GCR project:%s : %w", settings.GCRProject, err)
 			}
