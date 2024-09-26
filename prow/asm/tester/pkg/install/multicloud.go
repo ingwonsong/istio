@@ -222,7 +222,7 @@ func installExpansionGateway(settings *resource.Settings, rev *revision.Config, 
 	// TODO(Monkeyanator) use the correct istioctl version to do this for multiversion testing. Can be found in respective artifacts.
 	var gwInstallCmd string
 	if settings.CA == resource.MeshCA || settings.CA == resource.PrivateCA {
-		gwInstallCmd = fmt.Sprintf("istioctl install -y -f %s --set spec.values.global.pilotCertProvider=kubernetes --set hub=%q --set tag=%q --kubeconfig %s",
+		gwInstallCmd = fmt.Sprintf("istioctl install -y -f %s --set values.global.pilotCertProvider=kubernetes --set hub=%q --set tag=%q --kubeconfig %s",
 			gwIopFileName, os.Getenv("HUB"), os.Getenv("TAG"), kubeconfig)
 	} else {
 		gwInstallCmd = fmt.Sprintf("istioctl install -y -f %s --set hub=%q --set tag=%q --kubeconfig %s",
