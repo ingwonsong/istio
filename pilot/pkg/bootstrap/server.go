@@ -991,10 +991,7 @@ func (s *Server) initIstiodCerts(args *PilotArgs, host string) error {
 		// choose a different source.
 		// The feature didn't work for few releases, but a skip-version upgrade may still
 		// encounter it.
-
-		// TODO b/348547802 :- migrate to use CertProviderIstiod and fail for this case.
-		log.Infof("initializing Istiod DNS certificates using K8S cert provider host: %s, custom host: %s", host, features.IstiodServiceCustomHost)
-		err = s.initDNSCertsCSMSigner()
+		log.Fatalf("PILOT_CERT_PROVIDER=kubernetes is no longer supported by upstream K8S")
 	} else if strings.HasPrefix(features.PilotCertProvider, constants.CertProviderKubernetesSignerPrefix) {
 		log.Infof("initializing Istiod DNS certificates using K8S RA:%s  host: %s, custom host: %s", features.PilotCertProvider,
 			host, features.IstiodServiceCustomHost)
