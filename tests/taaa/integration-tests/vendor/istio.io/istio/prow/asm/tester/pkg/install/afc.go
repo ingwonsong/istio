@@ -113,7 +113,7 @@ EOF'`, context, kubeconfigs[i])); err != nil {
 		}
 
 		// Override CRD to 1.14
-		if err := exec.Run(fmt.Sprintf("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=%s --kubeconfig=%s", context, kubeconfigs[i])); err != nil {
+		if err := exec.Run(fmt.Sprintf("kubectl apply -f manifests/charts/base/files/crd-all.gen.yaml -n istio-system --context=%s --kubeconfig=%s", context, kubeconfigs[i])); err != nil {
 			return fmt.Errorf("error installing 1.14 CRD: %w", err)
 		}
 	}
@@ -278,7 +278,7 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 			return fmt.Errorf("error installing injected-gateway: %w", err)
 		}
 		// Override CRD to 1.14
-		if err := exec.Run("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
+		if err := exec.Run("kubectl apply -f manifests/charts/base/files/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
 			return fmt.Errorf("error installing 1.14 CRD: %w", err)
 		}
 	}
@@ -467,7 +467,7 @@ EOF'`, map[string]any{
 		}
 
 		// Override CRD to 1.14
-		if err := exec.Run("kubectl apply -f manifests/charts/base/crds/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
+		if err := exec.Run("kubectl apply -f manifests/charts/base/files/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
 			return fmt.Errorf("error installing 1.14 CRD: %w", err)
 		}
 		contextLogger.Println("Done installing MCP via AFC...")

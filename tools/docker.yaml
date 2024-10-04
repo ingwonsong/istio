@@ -141,14 +141,14 @@ images:
 - name: mcputils
   dockerfile: tools/packaging/knative/Dockerfile.mcputils
   files:
-  - manifests/charts/base/crds/crd-all.gen.yaml
+  - manifests/charts/base/files/crd-all.gen.yaml
   targets:
   - ${TARGET_OUT_LINUX}/mcputils
 
 - name: cloudrun
   dockerfile: tools/packaging/knative/Dockerfile.cloudrun
   files:
-  - manifests/charts/base/crds/crd-all.gen.yaml
+  - manifests/charts/base/files/crd-all.gen.yaml
   - tools/packaging/knative/injection-values.yaml
   - tools/packaging/knative/mesh_template.yaml
   targets:
