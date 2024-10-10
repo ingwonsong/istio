@@ -35,11 +35,7 @@ func TestBoringssl(t *testing.T) {
 		if err != nil {
 			t.Fatalf("check failed: %v", err)
 		}
-		armBuild, err := isARMBinary(cmd)
-		if err != nil {
-			t.Fatalf("check failed: %v", err)
-		}
-		if !v.BoringCrypto && !armBuild {
+		if !v.BoringCrypto {
 			t.Fatalf("binary not using boringssl")
 		}
 
@@ -67,19 +63,4 @@ func isStaticallyLinked(path string) (bool, error) {
 		}
 	}
 	return strings.Contains(out.String(), "not a dynamic executable"), nil
-}
-
-// isARMBinary checks if it is an arm64 binary
-func isARMBinary(path string) (bool, error) {
-	out := &bytes.Buffer{}
-	c := exec.Command("file", path)
-	c.Stdout = out
-	c.Stderr = out
-	if err := c.Run(); err != nil {
-		_, standardExit := err.(*exec.ExitError)
-		if !standardExit {
-			return false, err
-		}
-	}
-	return strings.Contains(out.String(), "ARM aarch64"), nil
 }

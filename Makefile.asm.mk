@@ -6,13 +6,11 @@ export FINDFILES_IGNORE
 
 LDFLAGS:=-linkmode=external -extldflags -static -s -w
 CGO_ENABLED:=1
-# ifeq ($(TARGET_ARCH), amd64)
-#   LDFLAGS:=-linkmode=external -extldflags -static -s -w
-#   CGO_ENABLED:=1
-# else
-#   LDFLAGS:=-extldflags -static -s -w
-#   CGO_ENABLED:=0
-# endif
+ifeq ($(TARGET_ARCH), arm64)
+  CC=aarch64-linux-gnu-gcc
+  # TODO(b/372456762): switch back to stripped build
+  LDFLAGS:=-linkmode=external -extldflags -static -w
+endif
 
 ifeq ($(IN_CONTAINER),0)
 .PHONY: asm-sync
@@ -61,6 +59,10 @@ ${TARGET_OUT}/release/istioctl-win.exe:
 racetest: $(JUNIT_REPORT)
 	CGO_ENABLED=1 go test ${GOBUILDFLAGS} ${T} -race ./... 2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))
 	$(MAKE) tester-unit-tests
+
+.PHONY: binaries-test
+binaries-test:
+	CGO_ENABLED=1 GOEXPERIMENT=boringcrypto go test ${GOBUILDFLAGS} ./tests/binary/... -v --base-dir ${TARGET_OUT} --binaries="$(RELEASE_SIZE_TEST_BINARIES)"
 
 gen-third-party-notice:
 	./bin/gen-third-party-notice.sh

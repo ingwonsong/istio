@@ -50,6 +50,7 @@ IFS=' ' read -r -a GOBUILDFLAGS_ARRAY <<< "$GOBUILDFLAGS"
 
 GCFLAGS=${GCFLAGS:-}
 export CGO_ENABLED=${CGO_ENABLED:-0}
+export CC=${CC-}
 
 if [[ "${STATIC}" !=  "1" ]];then
     LDFLAGS=""
