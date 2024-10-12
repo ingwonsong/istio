@@ -133,9 +133,9 @@ images:
   dockerfile: pkg/test/echo/docker/Dockerfile.app_sidecar_base
   base: true
 #  TODO(https://github.com/istio/istio/issues/38224)
-#- name: app_sidecar_base_rockylinux_9 # newest RHEL-based
-#  dockerfile: pkg/test/echo/docker/Dockerfile.app_sidecar_base_centos
-#  base: true
+- name: app_sidecar_base_rockylinux_9 # newest RHEL-based
+  dockerfile: pkg/test/echo/docker/Dockerfile.app_sidecar_base_centos
+  base: true
 
 # ASM images
 - name: mcputils
