@@ -25,7 +25,6 @@ spec:
            ipAllocationStrategy: static
            controlPlaneV2Enabled: "{{ .AdditionalParams.controlPlaneV2Enabled | default true }}"
            userAcnMode: "{{ .AdditionalParams.userAcnMode | default true }}"
-           additionalNodes: "8"
            {{- if .Version }}
            gkectlVersion: "{{ .Version }}"
            {{- end }}

@@ -248,30 +248,39 @@ function onprem::configure_ips() {
   echo "Installing herc CLI..."
   gsutil cp "gs://anthos-hercules-public-artifacts/herc/latest/herc" "/usr/local/bin/" && chmod 755 "/usr/local/bin/herc"
 
-  # loop iterations are same as additionalNodes value in rookeries.
+  # assumes the kubeconfig path is */.kubeconfig-syllogi/<env-name>/user-kubeconfig.yaml
+  ENV_NAME=$(basename "$(dirname "$1")")
+  HERC_MANIFEST_PATH=$(dirname "$0")/libs/herc-manifest.yaml
+  # allocates new ips based on the above herc-manifest file to get 8 static ips.
+  herc allocateIPs --parent "environments/${ENV_NAME}/vcenters/default/datacenters/default/networks/default" -f "${HERC_MANIFEST_PATH}"
+
+  # loop to get ips allocated by herc.
   for (( i=1; i<=8; i++ ));
   do
     # shellcheck disable=SC2089
-    jq_query=".environment.resources.vcenter_server.datacenter.networks.fe.ip_addresses.\"additional-user-node-$i\".ip_address"
+    jq_query=".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.\"additional-user-ip-$i\".ip_address"
     # shellcheck disable=SC2090
-    LB_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-    jq -r $jq_query)
-
+    HERC_ENV_JSON=$(herc getEnvironment "${HERC_ENV_ID}" -o json)
+    LB_IP=$(echo "$HERC_ENV_JSON" | \
+    jq -r "{$jq_query}")
     if [[ -z "$LB_IP" || "$LB_IP" == "null" ]]; then
-      # shellcheck disable=SC2089
-      jq_query=".environment.resources.vcenter_server.datacenter.networks.default.ip_addresses.\"additional-user-node-$i\".ip_address"
-      # shellcheck disable=SC2090
-      LB_IP=$(herc getEnvironment "${HERC_ENV_ID}" -o json | \
-      jq -r $jq_query)
+      echo "Unable to get a valid IP from " "$HERC_ENV_JSON"
+      exit 1
     fi
-    ip_list+=("$LB_IP")
+    ip_list+=("$LB_IP/32")
   done
 
-  kubectl get configmap metallb-config --kubeconfig="$1" -n kube-system -o jsonpath='{.data.config}' > temp.txt
-  sed -i "/address-pools:/a\- name: new-pool\n\ \ protocol: layer2\n\ \ addresses:\n\ \ - ${ip_list[0]}-${ip_list[0]}\n\ \ - ${ip_list[1]}-${ip_list[1]}\n\ \ - ${ip_list[2]}-${ip_list[2]}\n\ \ - ${ip_list[3]}-${ip_list[3]}\n\ \ - ${ip_list[4]}-${ip_list[4]}\n\ \ - ${ip_list[5]}-${ip_list[5]}\n\ \ - ${ip_list[6]}-${ip_list[6]}\n\ \ - ${ip_list[7]}-${ip_list[7]}\n \ avoid-buggy-ips: false\n\ \ auto-assign: true" temp.txt
-  new_config=$(cat temp.txt)
-  kubectl create configmap metallb-config --kubeconfig="$1" -n kube-system --from-literal config="$new_config" --dry-run=client -o yaml | kubectl replace --kubeconfig="$1" -f -
-  rm -rf temp.txt
+  # update user-cluster.yaml file and add a new pool the ips extracted above.
+  LOCAL_DIR=$(dirname "$1")
+  LOCAL_USER_CLUSTER_CONFIG=$(dirname "$1")/user-cluster.yaml
+  ADMIN_VM_IP=$(grep -e '^ADMIN_VM_IP=' "${LOCAL_DIR}"/exported_envs.env | sed -re 's/ADMIN_VM_IP=//')
+  sed -i "/addressPools:$/a\    - name: new-pool\n      addresses:\n      - ${ip_list[0]}\n      - ${ip_list[1]}\n      - ${ip_list[2]}\n      - ${ip_list[3]}\n      - ${ip_list[4]}\n      - ${ip_list[5]}\n      - ${ip_list[6]}\n      - ${ip_list[7]}\n" "${LOCAL_USER_CLUSTER_CONFIG}"
+  # upload the user-cluster.yaml file to the admin workstation cluster.
+  scp -o UserKnownHostsFile=/dev/null -o 'StrictHostKeyChecking no' -i "${LOCAL_DIR}"/.ssh/admin_workstation "${LOCAL_USER_CLUSTER_CONFIG}" ubuntu@"${ADMIN_VM_IP}":~/user-cluster.yaml
+  # run the update cluster command with the new user-cluster config remotely.
+  ADMIN_CLUSTER_KUBECONIFG="/ubuntu/home/kubeconfig"
+  USER_CLUSTER_CONFIG="/ubuntu/home/user-cluster.yaml"
+  ssh -o UserKnownHostsFile=/dev/null -o 'StrictHostKeyChecking no' -i "${LOCAL_DIR}"/.ssh/admin_workstation ubuntu@"${ADMIN_VM_IP}" "gkectl update cluster --kubeconfig ${ADMIN_CLUSTER_KUBECONIFG} --config ${USER_CLUSTER_CONFIG} --yes"
 }
 
 # baremetal specific fucntion to configure external ips for the eastwest gateway
