@@ -262,7 +262,8 @@ function onprem::configure_ips() {
     # shellcheck disable=SC2090
     HERC_ENV_JSON=$(herc getEnvironment "${HERC_ENV_ID}" -o json)
     LB_IP=$(echo "$HERC_ENV_JSON" | \
-    jq -r "{$jq_query}")
+    jq . | \
+    jq -r "${jq_query}")
     if [[ -z "$LB_IP" || "$LB_IP" == "null" ]]; then
       echo "Unable to get a valid IP from " "$HERC_ENV_JSON"
       exit 1
@@ -278,8 +279,8 @@ function onprem::configure_ips() {
   # upload the user-cluster.yaml file to the admin workstation cluster.
   scp -o UserKnownHostsFile=/dev/null -o 'StrictHostKeyChecking no' -i "${LOCAL_DIR}"/.ssh/admin_workstation "${LOCAL_USER_CLUSTER_CONFIG}" ubuntu@"${ADMIN_VM_IP}":~/user-cluster.yaml
   # run the update cluster command with the new user-cluster config remotely.
-  ADMIN_CLUSTER_KUBECONIFG="/ubuntu/home/kubeconfig"
-  USER_CLUSTER_CONFIG="/ubuntu/home/user-cluster.yaml"
+  ADMIN_CLUSTER_KUBECONIFG="/home/ubuntu/kubeconfig"
+  USER_CLUSTER_CONFIG="/home/ubuntu/user-cluster.yaml"
   ssh -o UserKnownHostsFile=/dev/null -o 'StrictHostKeyChecking no' -i "${LOCAL_DIR}"/.ssh/admin_workstation ubuntu@"${ADMIN_VM_IP}" "gkectl update cluster --kubeconfig ${ADMIN_CLUSTER_KUBECONIFG} --config ${USER_CLUSTER_CONFIG} --yes"
 }
 
