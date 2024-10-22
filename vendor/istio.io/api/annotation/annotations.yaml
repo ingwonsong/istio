@@ -248,6 +248,16 @@ annotations:
     resources:
       - Pod
 
+  - name: sidecar.istio.io/nativeSidecar
+    featureStatus: Alpha
+    description: Specifies if the istio-proxy sidecar should be injected as a
+      native sidecar or not. Takes precedence over the ENABLE_NATIVE_SIDECARS
+      environment variable.
+    deprecated: false
+    hidden: false
+    resources:
+      - Pod
+
   - name: readiness.status.sidecar.istio.io/initialDelaySeconds
     featureStatus: Alpha
     description: Specifies the initial delay (in seconds) for the Envoy sidecar readiness
@@ -540,3 +550,33 @@ annotations:
     hidden: true
     resources:
       - Gateway
+
+  - name: networking.istio.io/traffic-distribution
+    featureStatus: Alpha
+    description: |
+      Controls how traffic is distributed across the set of available endpoints.
+      
+      At this time, this annotation only impacts routing done by Ztunnel.
+      
+      Accepted values:
+      * `PreferClose`: endpoints will be categorized by how "close" they are, consider network, region, zone, and subzone.
+        Traffic will be prioritized to the closest healthy endpoints.
+        For example, if I have a Service with `PreferClose` set, with endpoints in zones `us-west,us-west,us-east`. When 
+        sending traffic from a client in zone `us-west`, all traffic will go to the two `us-west` backends.
+        If one those backends become unhealthy, all traffic will go to the remaining endpoint in `us-west`.
+        If that backend becomes unhealthy, traffic will sent to `us-east`.
+    deprecated: false
+    hidden: false
+    resources:
+      - Service
+      - ServiceEntry
+
+  - name: ambient.istio.io/bypass-inbound-capture
+    featureStatus: Alpha
+    description: |
+      When specified on a `Pod` enrolled in ambient mesh, only outbound traffic will be captured.
+      This is intended to be used when enrolling a workload that only receives traffic from out-of-the-mesh clients, such as third party ingress controllers.
+    deprecated: false
+    hidden: true
+    resources:
+      - Pod

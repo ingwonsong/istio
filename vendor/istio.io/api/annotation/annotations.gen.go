@@ -35,6 +35,7 @@ const (
     Namespace
     Pod
     Service
+    ServiceEntry
     WorkloadEntry
 )
 
@@ -57,6 +58,8 @@ func (r ResourceTypes) String() string {
 	case 8:
 		return "Service"
 	case 9:
+		return "ServiceEntry"
+	case 10:
 		return "WorkloadEntry"
 	}
 	return "Unknown"
@@ -106,6 +109,19 @@ var (
 		Deprecated:    true,
 		Resources: []ResourceTypes{
 			Service,
+		},
+	}
+
+	AmbientBypassInboundCapture = Instance {
+		Name:          "ambient.istio.io/bypass-inbound-capture",
+		Description:   `When specified on a "Pod" enrolled in ambient mesh, only outbound traffic will be captured.
+This is intended to be used when enrolling a workload that only receives traffic from out-of-the-mesh clients, such as third party ingress controllers.
+`,
+		FeatureStatus: Alpha,
+		Hidden:        true,
+		Deprecated:    false,
+		Resources: []ResourceTypes{
+			Pod,
 		},
 	}
 
@@ -321,6 +337,29 @@ This takes the format: "<protocol>" or "<protocol>/<port>".
 		},
 	}
 
+	NetworkingTrafficDistribution = Instance {
+		Name:          "networking.istio.io/traffic-distribution",
+		Description:   `Controls how traffic is distributed across the set of available endpoints.
+
+At this time, this annotation only impacts routing done by Ztunnel.
+
+Accepted values:
+* "PreferClose": endpoints will be categorized by how "close" they are, consider network, region, zone, and subzone.
+  Traffic will be prioritized to the closest healthy endpoints.
+  For example, if I have a Service with "PreferClose" set, with endpoints in zones "us-west,us-west,us-east". When 
+  sending traffic from a client in zone "us-west", all traffic will go to the two "us-west" backends.
+  If one those backends become unhealthy, all traffic will go to the remaining endpoint in "us-west".
+  If that backend becomes unhealthy, traffic will sent to "us-east".
+`,
+		FeatureStatus: Alpha,
+		Hidden:        false,
+		Deprecated:    false,
+		Resources: []ResourceTypes{
+			Service,
+			ServiceEntry,
+		},
+	}
+
 	PrometheusMergeMetrics = Instance {
 		Name:          "prometheus.istio.io/merge-metrics",
 		Description:   "Specifies if application Prometheus metric will be merged "+
@@ -507,6 +546,19 @@ This takes the format: "<protocol>" or "<protocol>/<port>".
 	SidecarLogLevel = Instance {
 		Name:          "sidecar.istio.io/logLevel",
 		Description:   "Specifies the log level for Envoy.",
+		FeatureStatus: Alpha,
+		Hidden:        false,
+		Deprecated:    false,
+		Resources: []ResourceTypes{
+			Pod,
+		},
+	}
+
+	SidecarNativeSidecar = Instance {
+		Name:          "sidecar.istio.io/nativeSidecar",
+		Description:   "Specifies if the istio-proxy sidecar should be injected "+
+                        "as a native sidecar or not. Takes precedence over the "+
+                        "ENABLE_NATIVE_SIDECARS environment variable.",
 		FeatureStatus: Alpha,
 		Hidden:        false,
 		Deprecated:    false,
@@ -839,6 +891,7 @@ func AllResourceAnnotations() []*Instance {
 	return []*Instance {
 		&AlphaCanonicalServiceAccounts,
 		&AlphaKubernetesServiceAccounts,
+		&AmbientBypassInboundCapture,
 		&AmbientRedirection,
 		&AmbientWaypointInboundBinding,
 		&GalleyAnalyzeSuppress,
@@ -855,6 +908,7 @@ func AllResourceAnnotations() []*Instance {
 		&IoKubernetesIngressClass,
 		&NetworkingExportTo,
 		&NetworkingServiceType,
+		&NetworkingTrafficDistribution,
 		&PrometheusMergeMetrics,
 		&ProxyConfig,
 		&ProxyOverrides,
@@ -871,6 +925,7 @@ func AllResourceAnnotations() []*Instance {
 		&SidecarInject,
 		&SidecarInterceptionMode,
 		&SidecarLogLevel,
+		&SidecarNativeSidecar,
 		&SidecarProxyCPU,
 		&SidecarProxyCPULimit,
 		&SidecarProxyImage,
@@ -909,6 +964,7 @@ func AllResourceTypes() []string {
 		"Namespace",
 		"Pod",
 		"Service",
+		"ServiceEntry",
 		"WorkloadEntry",
 	}
 }
