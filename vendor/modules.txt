@@ -266,7 +266,7 @@ github.com/docker/docker-credential-helpers/credentials
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
-# github.com/envoyproxy/go-control-plane v0.13.1-0.20240823165802-4363a624d376
+# github.com/envoyproxy/go-control-plane v0.13.2-0.20241021143235-b9a6b9d351f8
 ## explicit; go 1.21
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzip/compressor/v3alpha
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzstd/compressor/v3alpha
@@ -333,6 +333,7 @@ github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/aggregate/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dynamic_forward_proxy/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/redis/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/common/async_files/v3
+github.com/envoyproxy/go-control-plane/envoy/extensions/common/aws/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/common/dynamic_forward_proxy/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/common/matching/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/common/ratelimit/v3
@@ -393,7 +394,7 @@ github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/oauth2/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/on_demand/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/original_src/v3
-github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/proto_message_logging/v3
+github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/proto_message_extraction/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/rate_limit_quota/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ratelimit/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/rbac/v3
@@ -505,6 +506,7 @@ github.com/envoyproxy/go-control-plane/envoy/extensions/rbac/audit_loggers/strea
 github.com/envoyproxy/go-control-plane/envoy/extensions/rbac/matchers/upstream_ip_port/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/regex_engines/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/request_id/uuid/v3
+github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/cpu_utilization/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/downstream_connections/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/fixed_heap/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/injected_resource/v3
@@ -555,6 +557,7 @@ github.com/envoyproxy/go-control-plane/envoy/service/load_stats/v3
 github.com/envoyproxy/go-control-plane/envoy/service/metrics/v3
 github.com/envoyproxy/go-control-plane/envoy/service/rate_limit_quota/v3
 github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3
+github.com/envoyproxy/go-control-plane/envoy/service/redis_auth/v3
 github.com/envoyproxy/go-control-plane/envoy/service/route/v3
 github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3
 github.com/envoyproxy/go-control-plane/envoy/service/secret/v3

@@ -116,6 +116,9 @@ func TestGolden(t *testing.T) {
 			base: "default",
 		},
 		{
+			base: "explicit_internal_address",
+		},
+		{
 			base: "legacy_stats_tags_regex",
 			envVars: map[string]string{
 				"ENABLE_DELIMITED_STATS_TAG_REGEX": "false",

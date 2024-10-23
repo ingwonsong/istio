@@ -51,6 +51,13 @@ func (m *OAuth2Credentials_CookieNames) MarshalToSizedBufferVTStrict(dAtA []byte
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.OauthNonce) > 0 {
+		i -= len(m.OauthNonce)
+		copy(dAtA[i:], m.OauthNonce)
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.OauthNonce)))
+		i--
+		dAtA[i] = 0x32
+	}
 	if len(m.RefreshToken) > 0 {
 		i -= len(m.RefreshToken)
 		copy(dAtA[i:], m.RefreshToken)
@@ -239,6 +246,54 @@ func (m *OAuth2Config) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.DisableRefreshTokenSetCookie {
+		i--
+		if m.DisableRefreshTokenSetCookie {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa0
+	}
+	if m.DisableAccessTokenSetCookie {
+		i--
+		if m.DisableAccessTokenSetCookie {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x98
+	}
+	if m.RetryPolicy != nil {
+		if vtmsg, ok := interface{}(m.RetryPolicy).(interface {
+			MarshalToSizedBufferVTStrict([]byte) (int, error)
+		}); ok {
+			size, err := vtmsg.MarshalToSizedBufferVTStrict(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = protohelpers.EncodeVarint(dAtA, i, uint64(size))
+		} else {
+			encoded, err := proto.Marshal(m.RetryPolicy)
+			if err != nil {
+				return 0, err
+			}
+			i -= len(encoded)
+			copy(dAtA[i:], encoded)
+			i = protohelpers.EncodeVarint(dAtA, i, uint64(len(encoded)))
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x92
 	}
 	if m.DisableIdTokenSetCookie {
 		i--
@@ -537,6 +592,10 @@ func (m *OAuth2Credentials_CookieNames) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
+	l = len(m.OauthNonce)
+	if l > 0 {
+		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -702,6 +761,22 @@ func (m *OAuth2Config) SizeVT() (n int) {
 		n += 3
 	}
 	if m.DisableIdTokenSetCookie {
+		n += 3
+	}
+	if m.RetryPolicy != nil {
+		if size, ok := interface{}(m.RetryPolicy).(interface {
+			SizeVT() int
+		}); ok {
+			l = size.SizeVT()
+		} else {
+			l = proto.Size(m.RetryPolicy)
+		}
+		n += 2 + l + protohelpers.SizeOfVarint(uint64(l))
+	}
+	if m.DisableAccessTokenSetCookie {
+		n += 3
+	}
+	if m.DisableRefreshTokenSetCookie {
 		n += 3
 	}
 	n += len(m.unknownFields)
