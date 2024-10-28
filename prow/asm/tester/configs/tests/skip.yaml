@@ -52,9 +52,6 @@ tests:
         - TestClusterLocal/cross_cluster
       buganizerID: 189899338
     - names:
-        - TestTraffic/virtualservice/shifting-*
-      buganizerID: 189899340
-    - names:
         - TestRemoteClusters
       buganizerID: 194713967
     - names:
