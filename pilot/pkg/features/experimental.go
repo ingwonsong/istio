@@ -187,7 +187,9 @@ var (
 	Enable100ContinueHeaders = env.Register("ENABLE_100_CONTINUE_HEADERS", true,
 		"If enabled, istiod will proxy 100-continue headers as is").Get()
 
-	EnableDeferredClusterCreation = env.Register("ENABLE_DEFERRED_CLUSTER_CREATION", true,
+	// CSM: Overriding the ENABLE_DEFERRED_CLUSTER_CREATION flag to false
+	// For more info, refer here: b/365710553
+	EnableDeferredClusterCreation = env.Register("ENABLE_DEFERRED_CLUSTER_CREATION", false,
 		"If enabled, Istio will create clusters only when there are requests. This will save memory and CPU cycles"+
 			" in cases where there are lots of inactive clusters and > 1 worker thread").Get()
 
