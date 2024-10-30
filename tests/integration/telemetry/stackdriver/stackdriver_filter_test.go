@@ -44,7 +44,6 @@ func TestStackdriverMonitoring(t *testing.T) {
 			t.ConfigIstio().EvalFile(EchoNsInst.Name(), nil, filepath.Join(env.IstioSrc, accessLogPolicyEnvoyFilter)).ApplyOrFail(t)
 			g, _ := errgroup.WithContext(context.Background())
 			for _, cltInstance := range Clt {
-				cltInstance := cltInstance
 				g.Go(func() error {
 					err := retry.UntilSuccess(func() error {
 						if err := SendTraffic(cltInstance, http.Header{}, false); err != nil {

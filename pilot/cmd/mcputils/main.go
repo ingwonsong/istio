@@ -404,7 +404,6 @@ func (s *server) isMultiProject(req *http.Request) (any, error) {
 	ch := make(chan isMultiProjectResult, len(secrets.Items))
 	for _, secret := range secrets.Items {
 		log.Infof("%v", s)
-		secret := secret
 		go func() {
 			ch <- checkGKEMetadataServer(ctx, secret)
 		}()

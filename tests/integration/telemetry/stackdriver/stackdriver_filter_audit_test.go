@@ -58,7 +58,6 @@ func TestStackdriverHTTPAuditLogging(t *testing.T) {
 			t.Logf("Audit policy deployed to namespace %v", ns)
 
 			for _, cltInstance := range Clt {
-				cltInstance := cltInstance
 				scopes.Framework.Infof("Validating Audit policy and Telemetry for Cluster %v", cltInstance.Config().Cluster.StableName())
 				g.Go(func() error {
 					err := retry.UntilSuccess(func() error {

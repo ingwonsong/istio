@@ -56,7 +56,6 @@ func TestStackdriverMonitoring(t *testing.T) {
 		Run(func(t framework.TestContext) {
 			g, _ := errgroup.WithContext(context.Background())
 			for _, cltInstance := range stackdrivertest.Clt {
-				cltInstance := cltInstance
 				g.Go(func() error {
 					err := retry.UntilSuccess(func() error {
 						if err := stackdrivertest.SendTraffic(cltInstance, http.Header{}, false); err != nil {

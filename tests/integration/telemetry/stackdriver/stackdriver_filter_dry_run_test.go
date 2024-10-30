@@ -65,7 +65,6 @@ func testDryRun(t *testing.T, policies []string, cases []dryRunCase, isTCP bool)
 				t.NewSubTest(tc.name).Run(func(ctx framework.TestContext) {
 					g, _ := errgroup.WithContext(context.Background())
 					for _, cltInstance := range Clt {
-						cltInstance := cltInstance
 						g.Go(func() error {
 							err := retry.UntilSuccess(func() error {
 								if err := SendTraffic(cltInstance, tc.headers, isTCP); err != nil {

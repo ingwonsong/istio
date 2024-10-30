@@ -154,7 +154,6 @@ func (m *membershipCache) refreshCache() error {
 	var wg sync.WaitGroup
 	wg.Add(len(memberships))
 	for _, membership := range memberships {
-		membership := membership
 		go func() {
 			defer wg.Done()
 			cluster, err := m.clusterFromMembership(membership)

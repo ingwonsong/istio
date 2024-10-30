@@ -133,7 +133,6 @@ func TestAuditStackdriver(t *testing.T) {
 func testMulticluster(ctx framework.TestContext, doTest func(ctx framework.TestContext, ns namespace.Instance, src, dest echo.Instance)) {
 	for _, src := range apps {
 		for _, dst := range apps {
-			src, dst := src, dst
 			ctx.
 				NewSubTest(fmt.Sprintf("from %s to %s", src.Config().Cluster.StableName(), dst.Config().Cluster.StableName())).
 				Run(func(ctx framework.TestContext) {

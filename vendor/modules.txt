@@ -266,7 +266,7 @@ github.com/docker/docker-credential-helpers/credentials
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
-# github.com/envoyproxy/go-control-plane v0.13.2-0.20241021143235-b9a6b9d351f8
+# github.com/envoyproxy/go-control-plane v0.13.2-0.20241022220226-23b7e55d7f65
 ## explicit; go 1.21
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzip/compressor/v3alpha
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzstd/compressor/v3alpha
@@ -1784,7 +1784,7 @@ helm.sh/helm/v3/pkg/chart/loader
 helm.sh/helm/v3/pkg/chartutil
 helm.sh/helm/v3/pkg/engine
 helm.sh/helm/v3/pkg/ignore
-# istio.io/api v1.24.0-alpha.0.0.20241018201654-7c8ec5b5ab72
+# istio.io/api v1.24.0-alpha.0.0.20241024220948-49f1d2bc3441
 ## explicit; go 1.22.0
 istio.io/api/analysis/v1alpha1
 istio.io/api/annotation
@@ -1807,7 +1807,7 @@ istio.io/api/security/v1alpha1
 istio.io/api/security/v1beta1
 istio.io/api/telemetry/v1alpha1
 istio.io/api/type/v1beta1
-# istio.io/client-go v1.24.0-alpha.0.0.20241018201953-b3ca3b2a6ef6
+# istio.io/client-go v1.24.0-alpha.0.0.20241024221348-6b23703139b8
 ## explicit; go 1.22.0
 istio.io/client-go/pkg/apis/extensions/v1alpha1
 istio.io/client-go/pkg/apis/networking/v1

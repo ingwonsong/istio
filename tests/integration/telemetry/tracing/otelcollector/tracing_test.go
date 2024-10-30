@@ -48,7 +48,6 @@ func TestProxyTracingOpenCensusMeshConfig(t *testing.T) {
 			appNsInst := tracing.GetAppNamespace()
 			// TODO fix tracing tests in multi-network https://github.com/istio/istio/issues/28890
 			for _, cluster := range t.Clusters().ByNetwork()[t.Clusters().Default().NetworkName()] {
-				cluster := cluster
 				t.NewSubTest(cluster.StableName()).Run(func(ctx framework.TestContext) {
 					retry.UntilSuccessOrFail(ctx, func() error {
 						err := tracing.SendTraffic(ctx, nil, cluster)
@@ -128,7 +127,6 @@ func TestProxyTracingOpenTelemetryProvider(t *testing.T) {
 
 						// TODO fix tracing tests in multi-network https://github.com/istio/istio/issues/28890
 						for _, cluster := range ctx.Clusters().ByNetwork()[ctx.Clusters().Default().NetworkName()] {
-							cluster := cluster
 							ctx.NewSubTest(cluster.StableName()).Run(func(ctx framework.TestContext) {
 								retry.UntilSuccessOrFail(ctx, func() error {
 									err := tracing.SendTraffic(ctx, nil, cluster)
