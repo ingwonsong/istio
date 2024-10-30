@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/http/headers"
@@ -35,6 +36,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/istio/ingress"
 	"istio.io/istio/pkg/test/framework/label"
+	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/istio/tests/common/jwt"
 	"istio.io/istio/tests/integration/security/util/authn"
 )
@@ -476,6 +478,16 @@ func TestIngressRequestAuthentication(t *testing.T) {
 					customizeCall func(opts *echo.CallOptions, to echo.Target)
 				}{
 					{
+						name: "allow healthz",
+						customizeCall: func(opts *echo.CallOptions, to echo.Target) {
+							opts.HTTP.Path = "/healthz"
+							opts.HTTP.Headers = headers.New().
+								WithHost(fmt.Sprintf("example.%s.com", to.ServiceName())).
+								Build()
+							opts.Check = check.OK()
+						},
+					},
+					{
 						name: "deny without token",
 						customizeCall: func(opts *echo.CallOptions, to echo.Target) {
 							opts.HTTP.Path = "/"
@@ -561,16 +573,6 @@ func TestIngressRequestAuthentication(t *testing.T) {
 							opts.Check = check.Status(http.StatusForbidden)
 						},
 					},
-					{
-						name: "allow healthz",
-						customizeCall: func(opts *echo.CallOptions, to echo.Target) {
-							opts.HTTP.Path = "/healthz"
-							opts.HTTP.Headers = headers.New().
-								WithHost(fmt.Sprintf("example.%s.com", to.ServiceName())).
-								Build()
-							opts.Check = check.OK()
-						},
-					},
 				}
 
 				newTrafficTest(t, apps.Ns1.All.Instances()).
@@ -631,6 +633,21 @@ func TestGatewayAPIRequestAuthentication(t *testing.T) {
 					name          string
 					customizeCall func(opts *echo.CallOptions, to echo.Target)
 				}{
+					{
+						name: "allow healthz",
+						customizeCall: func(opts *echo.CallOptions, to echo.Target) {
+							opts.HTTP.Path = "/healthz"
+							opts.HTTP.Headers = headers.New().
+								WithHost(fmt.Sprintf("example.%s.com", to.ServiceName())).
+								Build()
+							opts.Retry = echo.Retry{
+								Options: []retry.Option{
+									retry.Timeout(50 * time.Second),
+								},
+							}
+							opts.Check = check.OK()
+						},
+					},
 					{
 						name: "deny without token",
 						customizeCall: func(opts *echo.CallOptions, to echo.Target) {
@@ -726,16 +743,6 @@ func TestGatewayAPIRequestAuthentication(t *testing.T) {
 								WithAuthz(jwt.TokenIssuer1).
 								Build()
 							opts.Check = check.Status(http.StatusForbidden)
-						},
-					},
-					{
-						name: "allow healthz",
-						customizeCall: func(opts *echo.CallOptions, to echo.Target) {
-							opts.HTTP.Path = "/healthz"
-							opts.HTTP.Headers = headers.New().
-								WithHost(fmt.Sprintf("example.%s.com", to.ServiceName())).
-								Build()
-							opts.Check = check.OK()
 						},
 					},
 				}
