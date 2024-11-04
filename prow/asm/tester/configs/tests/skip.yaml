@@ -230,11 +230,6 @@ tests:
       cluster_topology: mcmn
     targets:
     - names:
-      - TestBadRemoteSecret
-      - TestTraffic/sniffing/http/headless.*
-      - TestTraffic/sniffing/grpc/headless.*
-      buganizerID: 205190928
-    - names:
       - TestClusterLocal/subsets
       buganizerID: 209865846
 
