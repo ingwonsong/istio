@@ -33,3 +33,4 @@ RUN ln -s iptables-legacy iptables \
 FROM distroless_libc
 COPY --from=pkgs ["/dpkg/", "/"]
 
+USER 65532
