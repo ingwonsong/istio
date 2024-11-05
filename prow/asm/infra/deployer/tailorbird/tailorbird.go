@@ -50,7 +50,7 @@ const (
 	// the relative dir from the working dir (istio.io/istio) to the TRAC-generated, ASM-specific config dir
 	tracConfigRelDir = "../../team/anthos-trac-team/configs/tailorbird/csm/"
 
-	tracConfigRelDirForVersionFiles = "../../team/anthos-trac-team/configs/upgrade/asm/gen-0"
+	tracConfigRelDirForVersionFiles = "../../team/anthos-trac-team/configs/upgrade/csm/gen-0"
 
 	// GCS path for downloading kubetest2-tailorbird binary
 	kubetest2TailorbirdPath = "gs://tailorbird-artifacts/staging/kubetest2-tailorbird/2024-05-30-230228/kubetest2-tailorbird"
