@@ -27,7 +27,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/env"
@@ -81,10 +80,12 @@ func TestStatsFilter(t *testing.T) {
 							return err
 						}
 						c := cltInstance.Config().Cluster
-						sourceCluster := constants.DefaultClusterName
-						if len(t.AllClusters()) > 1 {
-							sourceCluster = c.Name()
-						}
+						// todo: Temporary fix for CSM 1.21, and need to find a working solution
+						// for OSS and CSM. OSS uses cluster name as 'Kubernetes' for
+						// single clusters while actual cluster name for multicluster. This
+						// ends up causing conflict for single cluster jobs for OSS while comparing
+						// the result of prom ql.
+						sourceCluster := c.Name()
 						sourceQuery, destinationQuery, appQuery := buildQuery(sourceCluster)
 						// Query client side metrics
 						prom := promInst
@@ -162,10 +163,12 @@ func TestStatsTCPFilter(t *testing.T) {
 							return err
 						}
 						c := cltInstance.Config().Cluster
-						sourceCluster := constants.DefaultClusterName
-						if len(t.AllClusters()) > 1 {
-							sourceCluster = c.Name()
-						}
+						// todo: Temporary fix for CSM 1.21, and need to find a working solution
+						// for OSS and CSM. OSS uses cluster name as 'Kubernetes' for
+						// single clusters while actual cluster name for multicluster. This
+						// ends up causing conflict for single cluster jobs for OSS while comparing
+						// the result of prom ql.
+						sourceCluster := c.Name()
 						destinationQuery := buildTCPQuery(sourceCluster)
 						if _, err := promInst.Query(c, destinationQuery); err != nil {
 							util.PromDiff(t, promInst, c, destinationQuery)
@@ -224,10 +227,12 @@ func TestStatsGatewayServerTCPFilter(t *testing.T) {
 						}
 
 						c := cltInstance.Config().Cluster
-						sourceCluster := constants.DefaultClusterName
-						if len(t.AllClusters()) > 1 {
-							sourceCluster = c.Name()
-						}
+						// todo: Temporary fix for CSM 1.21, and need to find a working solution
+						// for OSS and CSM. OSS uses cluster name as 'Kubernetes' for
+						// single clusters while actual cluster name for multicluster. This
+						// ends up causing conflict for single cluster jobs for OSS while comparing
+						// the result of prom ql.
+						sourceCluster := c.Name()
 						destinationQuery := buildGatewayTCPServerQuery(sourceCluster)
 						if _, err := promInst.Query(c, destinationQuery); err != nil {
 							util.PromDiff(t, promInst, c, destinationQuery)
