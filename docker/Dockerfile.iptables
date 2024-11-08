@@ -22,6 +22,7 @@ RUN apt-get update \
     && find /dpkg/
 
 WORKDIR /dpkg/usr/sbin/
+RUN mkdir /dpkg/run && chmod 755 /dpkg/run
 
 RUN ln -s iptables-legacy iptables \
     && ln -s iptables-legacy-restore iptables-restore \
