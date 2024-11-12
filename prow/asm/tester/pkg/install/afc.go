@@ -431,6 +431,11 @@ apiVersion: v1
 data:
   mesh: |-
     accessLogFile: /dev/stdout
+{{- if .isDistroless}}
+    defaultConfig:
+      image:
+        imageType: distroless
+{{- end }}
 {{- if .testUserAuth}}
     extensionProviders:
       - name: "asm-userauth-grpc"
@@ -444,6 +449,7 @@ metadata:
   namespace: istio-system
 EOF'`, map[string]any{
 			"testUserAuth": testUserAuth,
+			"isDistroless": c.settings.UseDistroless,
 			"context":      context,
 		})); err != nil {
 			if testUserAuth {
