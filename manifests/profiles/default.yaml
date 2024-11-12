@@ -124,5 +124,7 @@ spec:
     gateways:
       istio-ingressgateway: {}
       istio-egressgateway: {}
+    ztunnel:
+      resourceName: ztunnel
     mdp:
       enabled: false

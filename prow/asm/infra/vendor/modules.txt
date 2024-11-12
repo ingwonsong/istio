@@ -46,14 +46,14 @@ github.com/mitchellh/reflectwalk
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/prometheus/client_golang v1.20.4
+# github.com/prometheus/client_golang v1.20.5
 ## explicit; go 1.20
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.6.1
 ## explicit; go 1.19
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.60.0
+# github.com/prometheus/common v0.60.1
 ## explicit; go 1.21
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
@@ -95,13 +95,13 @@ go.uber.org/zap/zapgrpc
 # go4.org v0.0.0-20201209231011-d4a079459e60
 ## explicit; go 1.13
 go4.org/bytereplacer
-# golang.org/x/crypto v0.27.0
+# golang.org/x/crypto v0.28.0
 ## explicit; go 1.20
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/scrypt
-# golang.org/x/sys v0.25.0
+# golang.org/x/sys v0.26.0
 ## explicit; go 1.18
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -109,8 +109,8 @@ golang.org/x/sys/windows
 ## explicit; go 1.21
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/grpclog/internal
-# google.golang.org/protobuf v1.34.2
-## explicit; go 1.20
+# google.golang.org/protobuf v1.35.1
+## explicit; go 1.21
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
@@ -143,10 +143,10 @@ google.golang.org/protobuf/types/known/timestamppb
 ## explicit; go 1.15
 gopkg.in/yaml.v2
 # istio.io/istio v0.0.0-20220408200757-466c02050528 => ../../..
-## explicit; go 1.22.0
+## explicit; go 1.23
 istio.io/istio/pkg/log
 istio.io/istio/pkg/test/env
-# k8s.io/apimachinery v0.31.1
+# k8s.io/apimachinery v0.31.2
 ## explicit; go 1.22.0
 k8s.io/apimachinery/pkg/util/errors
 k8s.io/apimachinery/pkg/util/sets

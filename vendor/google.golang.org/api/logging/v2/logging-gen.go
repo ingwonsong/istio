@@ -1816,8 +1816,8 @@ type IndexConfig struct {
 	// FieldPath: Required. The LogEntry field path to index.Note that some paths
 	// are automatically indexed, and other paths are not eligible for indexing.
 	// See indexing documentation(
-	// https://cloud.google.com/logging/docs/view/advanced-queries#indexed-fields)
-	// for details.For example: jsonPayload.request.status
+	// https://cloud.google.com/logging/docs/analyze/custom-index) for details.For
+	// example: jsonPayload.request.status
 	FieldPath string `json:"fieldPath,omitempty"`
 	// Type: Required. The type of data in this index.
 	//
@@ -2179,9 +2179,14 @@ type ListLogEntriesRequest struct {
 	// Example: "my-project-1A".
 	ProjectIds []string `json:"projectIds,omitempty"`
 	// ResourceNames: Required. Names of one or more parent resources from which to
-	// retrieve log entries: projects/[PROJECT_ID] organizations/[ORGANIZATION_ID]
-	// billingAccounts/[BILLING_ACCOUNT_ID] folders/[FOLDER_ID]May alternatively be
-	// one or more views:
+	// retrieve log entries. Resources may either be resource containers or
+	// specific LogViews. For the case of resource containers, all logs ingested
+	// into that container will be returned regardless of which LogBuckets they are
+	// actually stored in - i.e. these queries may fan out to multiple regions. In
+	// the event of region unavailability, specify a specific set of LogViews that
+	// do not include the unavailable region. projects/[PROJECT_ID]
+	// organizations/[ORGANIZATION_ID] billingAccounts/[BILLING_ACCOUNT_ID]
+	// folders/[FOLDER_ID]
 	// projects/[PROJECT_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/views/[VIEW
 	// _ID]
 	// organizations/[ORGANIZATION_ID]/locations/[LOCATION_ID]/buckets/[BUCKET_ID]/v
@@ -8758,6 +8763,21 @@ func (r *BillingAccountsLocationsSavedQueriesService) List(parent string) *Billi
 	return c
 }
 
+// Filter sets the optional parameter "filter": Specifies the type ("Logging"
+// or "OpsAnalytics") and the visibility (PRIVATE or SHARED) of the saved
+// queries to list. If provided, the filter must contain either the type
+// function or a visibility token, or both. If both are chosen, they can be
+// placed in any order, but they must be joined by the AND operator or the
+// empty character.The two supported type function calls are: type("Logging")
+// type("OpsAnalytics")The two supported visibility tokens are: visibility =
+// PRIVATE visibility = SHAREDFor example:type("Logging") AND visibility =
+// PRIVATE visibility=SHARED type("OpsAnalytics") type("OpsAnalytics)"
+// visibility = PRIVATE visibility = SHARED
+func (c *BillingAccountsLocationsSavedQueriesListCall) Filter(filter string) *BillingAccountsLocationsSavedQueriesListCall {
+	c.urlParams_.Set("filter", filter)
+	return c
+}
+
 // PageSize sets the optional parameter "pageSize": The maximum number of
 // results to return from this request.Non-positive values are ignored. The
 // presence of nextPageToken in the response indicates that more results might
@@ -11348,8 +11368,8 @@ type FoldersUpdateSettingsCall struct {
 // information.
 //
 //   - name: The resource name for the settings to update.
-//     "organizations/[ORGANIZATION_ID]/settings" For
-//     example:"organizations/12345/settings".
+//     "organizations/[ORGANIZATION_ID]/settings" "folders/[FOLDER_ID]/settings"
+//     For example:"organizations/12345/settings".
 func (r *FoldersService) UpdateSettings(name string, settings *Settings) *FoldersUpdateSettingsCall {
 	c := &FoldersUpdateSettingsCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name
@@ -15695,6 +15715,21 @@ type FoldersLocationsSavedQueriesListCall struct {
 func (r *FoldersLocationsSavedQueriesService) List(parent string) *FoldersLocationsSavedQueriesListCall {
 	c := &FoldersLocationsSavedQueriesListCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.parent = parent
+	return c
+}
+
+// Filter sets the optional parameter "filter": Specifies the type ("Logging"
+// or "OpsAnalytics") and the visibility (PRIVATE or SHARED) of the saved
+// queries to list. If provided, the filter must contain either the type
+// function or a visibility token, or both. If both are chosen, they can be
+// placed in any order, but they must be joined by the AND operator or the
+// empty character.The two supported type function calls are: type("Logging")
+// type("OpsAnalytics")The two supported visibility tokens are: visibility =
+// PRIVATE visibility = SHAREDFor example:type("Logging") AND visibility =
+// PRIVATE visibility=SHARED type("OpsAnalytics") type("OpsAnalytics)"
+// visibility = PRIVATE visibility = SHARED
+func (c *FoldersLocationsSavedQueriesListCall) Filter(filter string) *FoldersLocationsSavedQueriesListCall {
+	c.urlParams_.Set("filter", filter)
 	return c
 }
 
@@ -20800,8 +20835,8 @@ type OrganizationsUpdateSettingsCall struct {
 // information.
 //
 //   - name: The resource name for the settings to update.
-//     "organizations/[ORGANIZATION_ID]/settings" For
-//     example:"organizations/12345/settings".
+//     "organizations/[ORGANIZATION_ID]/settings" "folders/[FOLDER_ID]/settings"
+//     For example:"organizations/12345/settings".
 func (r *OrganizationsService) UpdateSettings(name string, settings *Settings) *OrganizationsUpdateSettingsCall {
 	c := &OrganizationsUpdateSettingsCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name
@@ -25147,6 +25182,21 @@ type OrganizationsLocationsSavedQueriesListCall struct {
 func (r *OrganizationsLocationsSavedQueriesService) List(parent string) *OrganizationsLocationsSavedQueriesListCall {
 	c := &OrganizationsLocationsSavedQueriesListCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.parent = parent
+	return c
+}
+
+// Filter sets the optional parameter "filter": Specifies the type ("Logging"
+// or "OpsAnalytics") and the visibility (PRIVATE or SHARED) of the saved
+// queries to list. If provided, the filter must contain either the type
+// function or a visibility token, or both. If both are chosen, they can be
+// placed in any order, but they must be joined by the AND operator or the
+// empty character.The two supported type function calls are: type("Logging")
+// type("OpsAnalytics")The two supported visibility tokens are: visibility =
+// PRIVATE visibility = SHAREDFor example:type("Logging") AND visibility =
+// PRIVATE visibility=SHARED type("OpsAnalytics") type("OpsAnalytics)"
+// visibility = PRIVATE visibility = SHARED
+func (c *OrganizationsLocationsSavedQueriesListCall) Filter(filter string) *OrganizationsLocationsSavedQueriesListCall {
+	c.urlParams_.Set("filter", filter)
 	return c
 }
 
@@ -30971,6 +31021,21 @@ func (r *ProjectsLocationsSavedQueriesService) List(parent string) *ProjectsLoca
 	return c
 }
 
+// Filter sets the optional parameter "filter": Specifies the type ("Logging"
+// or "OpsAnalytics") and the visibility (PRIVATE or SHARED) of the saved
+// queries to list. If provided, the filter must contain either the type
+// function or a visibility token, or both. If both are chosen, they can be
+// placed in any order, but they must be joined by the AND operator or the
+// empty character.The two supported type function calls are: type("Logging")
+// type("OpsAnalytics")The two supported visibility tokens are: visibility =
+// PRIVATE visibility = SHAREDFor example:type("Logging") AND visibility =
+// PRIVATE visibility=SHARED type("OpsAnalytics") type("OpsAnalytics)"
+// visibility = PRIVATE visibility = SHARED
+func (c *ProjectsLocationsSavedQueriesListCall) Filter(filter string) *ProjectsLocationsSavedQueriesListCall {
+	c.urlParams_.Set("filter", filter)
+	return c
+}
+
 // PageSize sets the optional parameter "pageSize": The maximum number of
 // results to return from this request.Non-positive values are ignored. The
 // presence of nextPageToken in the response indicates that more results might
@@ -33914,8 +33979,8 @@ type V2UpdateSettingsCall struct {
 // information.
 //
 //   - name: The resource name for the settings to update.
-//     "organizations/[ORGANIZATION_ID]/settings" For
-//     example:"organizations/12345/settings".
+//     "organizations/[ORGANIZATION_ID]/settings" "folders/[FOLDER_ID]/settings"
+//     For example:"organizations/12345/settings".
 func (r *V2Service) UpdateSettings(name string, settings *Settings) *V2UpdateSettingsCall {
 	c := &V2UpdateSettingsCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.name = name

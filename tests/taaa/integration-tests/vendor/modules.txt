@@ -245,13 +245,13 @@ go.uber.org/zap/internal/pool
 go.uber.org/zap/internal/stacktrace
 go.uber.org/zap/zapcore
 go.uber.org/zap/zapgrpc
-# golang.org/x/crypto v0.27.0
+# golang.org/x/crypto v0.28.0
 ## explicit; go 1.20
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/scrypt
-# golang.org/x/net v0.29.0
+# golang.org/x/net v0.30.0
 ## explicit; go 1.18
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -272,30 +272,30 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.8.0
 ## explicit; go 1.18
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.25.0
+# golang.org/x/sys v0.26.0
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.24.0
+# golang.org/x/term v0.25.0
 ## explicit; go 1.18
 golang.org/x/term
-# golang.org/x/text v0.18.0
+# golang.org/x/text v0.19.0
 ## explicit; go 1.18
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/time v0.6.0
+# golang.org/x/time v0.7.0
 ## explicit; go 1.18
 golang.org/x/time/rate
 # google.golang.org/grpc v1.67.1
 ## explicit; go 1.21
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/grpclog/internal
-# google.golang.org/protobuf v1.34.2
-## explicit; go 1.20
+# google.golang.org/protobuf v1.35.1
+## explicit; go 1.21
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -341,7 +341,7 @@ gopkg.in/yaml.v3
 # gotest.tools/v3 v3.4.0
 ## explicit; go 1.13
 # istio.io/istio v0.0.0-00010101000000-000000000000 => ../../..
-## explicit; go 1.22.0
+## explicit; go 1.23
 istio.io/istio/pilot/pkg/clientauthplugin/auth/gcp
 istio.io/istio/pkg/log
 istio.io/istio/pkg/test
@@ -351,7 +351,7 @@ istio.io/istio/pkg/test/util/file
 istio.io/istio/pkg/test/util/retry
 istio.io/istio/pkg/test/util/tmpl
 # istio.io/istio/prow/asm/tester v0.0.0-00010101000000-000000000000 => ../../../prow/asm/tester
-## explicit; go 1.22.0
+## explicit; go 1.23
 istio.io/istio/prow/asm/tester/pkg/exec
 istio.io/istio/prow/asm/tester/pkg/gcp
 istio.io/istio/prow/asm/tester/pkg/install
@@ -362,7 +362,7 @@ istio.io/istio/prow/asm/tester/pkg/pipeline/env
 istio.io/istio/prow/asm/tester/pkg/resource
 istio.io/istio/prow/asm/tester/pkg/tests
 istio.io/istio/prow/asm/tester/pkg/tests/topology
-# k8s.io/api v0.31.1
+# k8s.io/api v0.31.2
 ## explicit; go 1.22.0
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1alpha1
@@ -419,7 +419,7 @@ k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
 k8s.io/api/storagemigration/v1alpha1
-# k8s.io/apimachinery v0.31.1
+# k8s.io/apimachinery v0.31.2
 ## explicit; go 1.22.0
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -466,7 +466,7 @@ k8s.io/apimachinery/pkg/util/yaml
 k8s.io/apimachinery/pkg/version
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/client-go v0.31.1
+# k8s.io/client-go v0.31.2
 ## explicit; go 1.22.0
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1
