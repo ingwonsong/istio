@@ -186,9 +186,6 @@ tests:
           - TestIngress/update-class-not-istio
           - TestTraffic/consistent-hash/query_param
         buganizerID: 187725074
-      - names:
-        - TestTraffic/jwt-claim-route
-        reason: Temporary disable until mesh agent upgraded to 1.11.2
 
       # security/ tests
       - names:
@@ -426,9 +423,6 @@ tests:
         - TestXdsProxyStatus
         buganizerID: 187722953
       - names:
-        - TestTraffic/jwt-claim-route
-        reason: Temporary disable until mesh agent upgraded to 1.11.2
-      - names:
         - TestDescribe
         buganizerID: 208485368
 
@@ -459,9 +453,6 @@ tests:
         - TestAddToAndRemoveFromMesh
         - TestTraffic/dns
         buganizerID: 230795812
-      - names:
-        - TestTraffic/jwt-claim-route
-        reason: Temporary disable until mesh agent upgraded to 1.11.2
       - names:
         - TestGatewayConformance
         buganizerID: 289492735
