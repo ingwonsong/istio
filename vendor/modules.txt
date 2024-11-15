@@ -1784,7 +1784,7 @@ helm.sh/helm/v3/pkg/chart/loader
 helm.sh/helm/v3/pkg/chartutil
 helm.sh/helm/v3/pkg/engine
 helm.sh/helm/v3/pkg/ignore
-# istio.io/api v1.24.0-alpha.0.0.20241107225227-f9df5ff15ee1
+# istio.io/api v1.24.0-alpha.0.0.20241113163033-dec7c6690854
 ## explicit; go 1.22.0
 istio.io/api/analysis/v1alpha1
 istio.io/api/annotation
@@ -1807,7 +1807,7 @@ istio.io/api/security/v1alpha1
 istio.io/api/security/v1beta1
 istio.io/api/telemetry/v1alpha1
 istio.io/api/type/v1beta1
-# istio.io/client-go v1.24.0-alpha.0.0.20241107225527-f8c2067e09f2
+# istio.io/client-go v1.24.0-alpha.0.0.20241114185735-ec09604bc205
 ## explicit; go 1.22.0
 istio.io/client-go/pkg/apis/extensions/v1alpha1
 istio.io/client-go/pkg/apis/networking/v1
