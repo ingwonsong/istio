@@ -266,7 +266,7 @@ github.com/docker/docker-credential-helpers/credentials
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
-# github.com/envoyproxy/go-control-plane v0.13.2-0.20241022220226-23b7e55d7f65
+# github.com/envoyproxy/go-control-plane v0.13.2-0.20241113160204-6670eaa3b0e4
 ## explicit; go 1.21
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzip/compressor/v3alpha
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzstd/compressor/v3alpha
@@ -345,6 +345,7 @@ github.com/envoyproxy/go-control-plane/envoy/extensions/compression/gzip/decompr
 github.com/envoyproxy/go-control-plane/envoy/extensions/compression/zstd/compressor/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/compression/zstd/decompressor/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/config/validators/minimum_clusters/v3
+github.com/envoyproxy/go-control-plane/envoy/extensions/dynamic_modules/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/early_data/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/common/dependency/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/common/fault/v3
@@ -353,6 +354,7 @@ github.com/envoyproxy/go-control-plane/envoy/extensions/filters/common/set_filte
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/adaptive_concurrency/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/admission_control/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/alternate_protocols_cache/v3
+github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/api_key_auth/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/aws_lambda/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/aws_request_signing/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/bandwidth_limit/v3
@@ -369,6 +371,7 @@ github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/csrf/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/custom_response/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/decompressor/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/dynamic_forward_proxy/v3
+github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/dynamic_modules/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/fault/v3
@@ -496,6 +499,7 @@ github.com/envoyproxy/go-control-plane/envoy/extensions/outlier_detection_monito
 github.com/envoyproxy/go-control-plane/envoy/extensions/outlier_detection_monitors/consecutive_errors/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/path/match/uri_template/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/path/rewrite/uri_template/v3
+github.com/envoyproxy/go-control-plane/envoy/extensions/quic/connection_debug_visitor/quic_stats/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/quic/connection_debug_visitor/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/quic/connection_id_generator/v3
 github.com/envoyproxy/go-control-plane/envoy/extensions/quic/crypto_stream/v3
