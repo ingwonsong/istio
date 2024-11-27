@@ -299,7 +299,7 @@ func maxTimeToReconcile(dpc *v1alpha1.DataPlaneControl, now time.Time) (maxTimeT
 		return
 	}
 	// Return the gap between Now and upgradeDurationValidUntil.
-	maxTimeToReconcile = min(int64(upgradeDurationValidUntil.Sub(now)), int64(MaxTimeToReconcile))
+	maxTimeToReconcile = customMin(int64(upgradeDurationValidUntil.Sub(now)), int64(MaxTimeToReconcile))
 	return
 }
 
@@ -362,7 +362,7 @@ func calculateStatus(dpc *v1alpha1.DataPlaneControl, total int, actual int, fail
 	}
 }
 
-func min(x, y int64) int64 {
+func customMin(x, y int64) int64 {
 	if x < y {
 		return x
 	}
