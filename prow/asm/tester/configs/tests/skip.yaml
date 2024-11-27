@@ -82,17 +82,10 @@ tests:
           - TestValidation/.*
         buganizerID: 207384361
       - names:
-          - TestTraffic/virtualservice/redirect_port_and_scheme/.*
-        buganizerID: 198205125
-      - names:
-          - TestTraffic/host/ip/.*
-        buganizerID: 207384317
-      - names:
           - TestClusterLocal
         buganizerID: 207384171
       - names:
           - TestTraffic/dns/.*
-          - TestTraffic/serverfirst/.*
           - TestXdsProxyStatus
         buganizerID: 187956450
         reason: UNKNOWN
