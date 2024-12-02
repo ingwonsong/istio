@@ -528,6 +528,9 @@ tests:
       - names:
         - TestGatewayConformance
         buganizerID: 289492735
+      - names:
+        - TestMultiClusterWithSecrets
+        reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip when cluster naming logic is resolved
 
   # Unmanaged CP + Openshift
   - selectors:
