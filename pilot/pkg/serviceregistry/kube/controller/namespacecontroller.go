@@ -76,10 +76,10 @@ func NewNamespaceController(kubeClient kube.Client, caBundleWatcher *keycertbund
 
 	c.configmaps = kclient.NewFiltered[*v1.ConfigMap](kubeClient, kclient.Filter{
 		FieldSelector: "metadata.name=" + IstiodCACertConfigMapName(),
-		ObjectFilter:  kube.FilterIfEnhancedFilteringEnabled(kubeClient),
+		ObjectFilter:  kubeClient.ObjectFilter(),
 	})
 	c.namespaces = kclient.NewFiltered[*v1.Namespace](kubeClient, kclient.Filter{
-		ObjectFilter: kube.FilterIfEnhancedFilteringEnabled(kubeClient),
+		ObjectFilter: kubeClient.ObjectFilter(),
 	})
 	// kube-system is not skipped to enable deploying ztunnel in that namespace
 	c.ignoredNamespaces = inject.IgnoredNamespaces.Copy().Delete(constants.KubeSystemNamespace)
