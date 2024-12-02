@@ -222,6 +222,10 @@ tests:
     - names:
       - TestClusterLocal/subsets
       buganizerID: 209865846
+    # networking/ tests
+    - names:
+      - TestMultiClusterWithSecrets
+      reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip, when cluster naming logic is resolved
 
   # Unmanaged CP + gcp-and-bare-metal hybrid
   - selectors:
@@ -418,6 +422,9 @@ tests:
       - names:
         - TestDescribe
         buganizerID: 208485368
+      - names:
+        - TestMultiClusterWithSecrets
+        reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip, when cluster naming logic is resolved
 
   # Unmanaged CP + azure
   - selectors:
@@ -449,6 +456,9 @@ tests:
       - names:
         - TestGatewayConformance
         buganizerID: 289492735
+      - names:
+        - TestMultiClusterWithSecrets
+        reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip, when cluster naming logic is resolved
 
   # Unmanaged CP + EKS (don't confuse with regular AWS)
   - selectors:
@@ -591,6 +601,10 @@ tests:
       - names:
           - TestTraffic/dns.*
         buganizerID: 191802552
+      # networking/ tests
+      - names:
+        - TestMultiClusterWithSecrets
+        buganizerID: 378608882
 
   # Unmanaged CP, cluster topology = mc OR multiproject
   - selectors:
