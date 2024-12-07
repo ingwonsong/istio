@@ -131,6 +131,9 @@ roleRef:
 # This manifest installs the Istio install-cni container, as well
 # as the Istio CNI plugin and config on
 # each master and worker node in a Kubernetes cluster.
+#
+# $detectedBinDir exists to support a GKE-specific platform override,
+# and is deprecated in favor of using the explicit `gke` platform profile.
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
