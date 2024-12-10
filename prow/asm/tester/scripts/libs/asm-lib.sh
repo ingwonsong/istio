@@ -184,12 +184,22 @@ function configure_remote_secrets_for_baremetal() {
     BM_CLUSTER_NAME_SET+=( "${BM_CLUSTER_NAME}")
     echo "For index ${i}, BM_CLUSTER_NAME: ${BM_CLUSTER_NAME}"
   done
+
   for i in "${!MC_CONFIGS[@]}"; do
     for j in "${!MC_CONFIGS[@]}"; do
       if [[ "$i" != "$j" ]]; then
+        set +e # do not exit if a command fails
+        it=1
         HTTPS_PROXY=${HTTP_PROXYS[$j]} istioctl create-remote-secret \
           --kubeconfig="${MC_CONFIGS[$j]}" \
           --name="${BM_CLUSTER_NAME_SET[$j]}" > "secret-${j}"
+        # retry for 10 times to make sure transient issues or small delays in secret creation does not stop the job
+        while [[ $? -ne 0 && $it -lt 10 ]]; do
+          it=$((it+1))
+          sleep 1
+          HTTPS_PROXY=${HTTP_PROXYS[$j]} istioctl create-remote-secret --kubeconfig="${MC_CONFIGS[$j]}"  --name="${BM_CLUSTER_NAME_SET[$j]}" > "secret-${j}"
+        done
+        set -e # exit if a command fails
         sed -i 's/certificate-authority-data\:.*/insecure-skip-tls-verify\: true/' "secret-${j}"
         HTTPS_PROXY=${HTTP_PROXYS[$i]} kubectl apply --kubeconfig="${MC_CONFIGS[$i]}" -f "secret-${j}"
       fi
