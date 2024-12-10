@@ -3,9 +3,6 @@ tests:
       all: true
     targets:
     - names:
-      - TestAccessLogsFilter
-      reason: enabled waiting for oss sync
-    - names:
       - TestLocalRateLimitingServiceAccount
       - TestMetricDefinitions
       - TestStackdriverHTTPAuditLogging
@@ -69,9 +66,6 @@ tests:
       - TestOutboundTrafficPolicy_AllowAny
       - TestOutboundTrafficPolicy_RegistryOnly
       buganizerID: 283891115
-    - names:
-      - TestAccessLogsDefaultProvider
-      buganizerID: 285941126
 
 # Multiversion test skips.
   - selectors:
