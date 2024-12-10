@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/test/util/retry"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/install/multiversion"
@@ -38,6 +39,11 @@ const (
 	stagingEndpoint           = "https://staging-container.sandbox.googleapis.com/"
 	staging2Endpoint          = "https://staging2-container.sandbox.googleapis.com/"
 )
+
+var telemetryTests = []string{
+	"test.integration.asm.telemetry",
+	"test.integration.asm.telemetry.realstackdriver",
+}
 
 func (c *installer) install(r *revision.Config) error {
 	if c.settings.ControlPlane == resource.Unmanaged {
@@ -166,9 +172,10 @@ func (c *installer) postInstall(rev *revision.Config) error {
 		if err := multiversion.ReplaceWebhook(rev, context); err != nil {
 			return err
 		}
-		if c.settings.ControlPlane != resource.Managed && c.settings.ClusterType != resource.GKEOnGCP {
-			// for managed or unmanaged on GKE cases, we by default enable StackDriver logging. Enable access logs in this method
+		if c.settings.ControlPlane != resource.Managed && c.settings.ClusterType != resource.GKEOnGCP && !slices.Contains(telemetryTests, c.settings.TestTarget) {
+			// For managed or unmanaged on GKE cases, we by default enable StackDriver logging. Enable access logs in this method
 			// will actually disable the SD logging. Instead, we configure them separately to avoid this issue.
+			// Access logging is not enabled for telemetry suites as the tests may be directly impacted
 			if err := EnableAccessLogging(context); err != nil {
 				return err
 			}
