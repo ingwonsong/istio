@@ -55,8 +55,3 @@ for h in ${HUBS}; do
     APKO_IMAGES+="${h}/iptables:$t "
   done
 done
-
-# Build apko base image, which isn't part of our image building tool
-APKO_ARCHES="$(echo "${DOCKER_ARCHITECTURES:-arm64,amd64}" | sed 's/linux\///g')"
-# shellcheck disable=SC2086
-apko publish --arch="${APKO_ARCHES}" docker/iptables.yaml ${APKO_IMAGES}
