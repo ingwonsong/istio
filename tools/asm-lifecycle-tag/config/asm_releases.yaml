@@ -62,11 +62,11 @@ versions:
   - name: 1.20.8-asm.10
     status: deprecated
   - name: 1.21.5-asm.12
-    status: live
+    status: deprecated
   - name: 1.22.6-asm.2
-    status: live
+    status: deprecated
   - name: 1.23.3-asm.2
-    status: live
+    status: deprecated
   - name: 1.29.9-gke.3
     status: live
   - name: 1.28.7-gke.3
@@ -78,6 +78,16 @@ versions:
   - name: 956c6e3_20241121_2249
     status: live
   - name: 1.19.10-asm.22
-    status: live
+    status: deprecated
   - name: 1.20.8-asm.12
+    status: deprecated
+  - name: 1.19.10-asm.24
     status: live
+  - name: 1.20.8-asm.14
+    status: live
+  - name: 1.21.5-asm.17
+    status: deprecated
+  - name: 1.22.6-asm.2
+    status: deprecated
+  - name: 1.23.3-asm.2
+    status: deprecated
