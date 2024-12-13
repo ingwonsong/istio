@@ -189,6 +189,9 @@ func generateASMMultiCloudInstallFlags(settings *resource.Settings, rev *revisio
 	if len(filepath.SplitList(settings.Kubeconfig)) > 1 {
 		citadelPluginCerts = true
 	}
+	if settings.UseDistroless {
+		installFlags = append(installFlags, "--option", "distroless-proxy")
+	}
 	caFlags, _ := GenCaFlags(ca, settings, nil, citadelPluginCerts)
 	installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/custom_istio.yaml"))
 	installFlags = append(installFlags, "--custom_overlay", filepath.Join(pkgPath, "overlay/multicloud.yaml"))
