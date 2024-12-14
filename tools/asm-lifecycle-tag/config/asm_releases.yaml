@@ -86,8 +86,8 @@ versions:
   - name: 1.20.8-asm.14
     status: live
   - name: 1.21.5-asm.17
-    status: deprecated
+    status: live
   - name: 1.22.6-asm.2
-    status: deprecated
+    status: live
   - name: 1.23.3-asm.2
-    status: deprecated
+    status: live
