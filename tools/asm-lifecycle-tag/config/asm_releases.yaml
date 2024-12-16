@@ -87,7 +87,7 @@ versions:
     status: live
   - name: 1.21.5-asm.17
     status: live
-  - name: 1.22.6-asm.2
+  - name: 1.22.7-asm.1
     status: live
-  - name: 1.23.3-asm.2
+  - name: 1.23.4-asm.1
     status: live
