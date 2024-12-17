@@ -213,8 +213,7 @@ spec:
               path: /readyz
               port: 8000
           securityContext:
-            # TODO: revert back to false after b/376188587
-            privileged: true
+            privileged: false
             runAsGroup: 0
             runAsUser: 0
             runAsNonRoot: false
