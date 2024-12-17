@@ -76,6 +76,7 @@ import (
 	"istio.io/istio/pkg/kube/multicluster"
 	"istio.io/istio/pkg/kube/namespace"
 	"istio.io/istio/pkg/log"
+	"istio.io/istio/pkg/monitoring"
 	"istio.io/istio/pkg/network"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/spiffe"
@@ -130,6 +131,8 @@ type Server struct {
 	monitoringMux *http.ServeMux
 	// internalDebugMux is a mux for *internal* calls to the debug interface. That is, authentication is disabled.
 	internalDebugMux *http.ServeMux
+
+	metricsExporter http.Handler
 
 	// httpMux listens on the httpAddr (8080).
 	// If a Gateway is used in front and https is off it is also multiplexing
@@ -231,6 +234,10 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 	})
 	e.ServiceDiscovery = ac
 
+	exporter, err := monitoring.RegisterPrometheusExporter(nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not set up prometheus exporter: %v", err)
+	}
 	s := &Server{
 		clusterID:               getClusterID(args),
 		environment:             e,
@@ -244,6 +251,7 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 		internalStop:            make(chan struct{}),
 		istiodCertBundleWatcher: keycertbundle.NewWatcher(),
 		webhookInfo:             &webhookInfo{},
+		metricsExporter:         exporter,
 	}
 
 	// Apply custom initialization functions.
