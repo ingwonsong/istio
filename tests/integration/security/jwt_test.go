@@ -642,7 +642,9 @@ func TestGatewayAPIRequestAuthentication(t *testing.T) {
 								Build()
 							opts.Retry = echo.Retry{
 								Options: []retry.Option{
-									retry.Timeout(50 * time.Second),
+									// TODO(b/380022899): Switch back to 50 Seconds.
+									retry.Timeout(2 * time.Minute),
+									retry.Delay(1 * time.Second),
 								},
 							}
 							opts.Check = check.OK()
