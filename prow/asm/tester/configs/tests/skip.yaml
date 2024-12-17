@@ -1022,6 +1022,12 @@ tests:
       - TestNormalization
       - TestPassThroughFilterChain
       - TestReachability
+    # telemetry tests
+    - names:
+      - TestAccessLogs
+      - TestAccessLogsDefaultProvider
+      - TestAccessLogsMode
+      - TestAccessLogsFilter
 
   # MCP multi-project with private cluster tests skips the following packages that's skipped by multi-cluster.
   - selectors:
