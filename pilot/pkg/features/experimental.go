@@ -186,7 +186,9 @@ var (
 		"If enabled, Istio will create clusters only when there are requests. This will save memory and CPU cycles"+
 			" in cases where there are lots of inactive clusters and > 1 worker thread").Get()
 
-	EnableDeferredStatsCreation = env.Register("ENABLE_DEFERRED_STATS_CREATION", true,
+	// CSM: Overriding the ENABLE_DEFERRED_STATS_CREATION flag to false
+	// For more info, refer here: b/384415930
+	EnableDeferredStatsCreation = env.Register("ENABLE_DEFERRED_STATS_CREATION", false,
 		"If enabled, Istio will lazily initialize a subset of the stats").Get()
 
 	EnableLocalityWeightedLbConfig = env.Register("ENABLE_LOCALITY_WEIGHTED_LB_CONFIG", false,
