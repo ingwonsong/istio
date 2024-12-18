@@ -91,3 +91,5 @@ versions:
     status: live
   - name: 1.23.4-asm.1
     status: live
+  - name: 1.21.5-asm.19
+    status: live
