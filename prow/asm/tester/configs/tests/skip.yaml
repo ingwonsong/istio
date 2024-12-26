@@ -453,6 +453,9 @@ tests:
       - names:
         - TestMultiClusterWithSecrets
         reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip, when cluster naming logic is resolved
+      - names:
+        - TestTraffic/externalname/routed/auto-http
+        reason: Test is failing as Virtual Service cannot route traffic to ExternalName Service in case of port mismatch. To unskip when feature is updated (https://github.com/istio/istio/issues/54310).
 
   # Unmanaged CP + EKS (don't confuse with regular AWS)
   - selectors:
@@ -491,6 +494,9 @@ tests:
         - TestXdsVersion
         - TestXdsProxyStatus
         buganizerID: 187722953
+      - names:
+        - TestTraffic/externalname/routed/auto-http
+        reason: Test is failing as Virtual Service cannot route traffic to ExternalName Service in case of port mismatch. To unskip when feature is updated (https://github.com/istio/istio/issues/54310).
 
   # Unmanaged CP + AKS
   - selectors:
@@ -535,6 +541,9 @@ tests:
       - names:
         - TestMultiClusterWithSecrets
         reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip when cluster naming logic is resolved
+      - names:
+        - TestTraffic/externalname/routed/auto-http
+        reason: Test is failing as Virtual Service cannot route traffic to ExternalName Service in case of port mismatch. To unskip when feature is updated (https://github.com/istio/istio/issues/54310).
 
   # Unmanaged CP + Openshift
   - selectors:
