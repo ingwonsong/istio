@@ -54,8 +54,6 @@ tests:
     - names:
       - TestReachability/global_mtls_disabled
       - TestReachability/global_mtls_permissive
-      - TestReachability/global_automtls_strict
-      - TestReachability/global_automtls_disable
       buganizerID: 281072503
     - names:
       - TestAuthz_NotPort
