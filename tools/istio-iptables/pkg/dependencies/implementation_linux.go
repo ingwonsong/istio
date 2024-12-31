@@ -203,8 +203,8 @@ func mount(src, dst string) error {
 	return syscall.Mount(src, dst, "", syscall.MS_BIND|syscall.MS_RDONLY, "")
 }
 
-func (r *RealDependencies) executeXTablesWithOutput(cmd constants.IptablesCmd, iptVer *IptablesVersion,
-	ignoreErrors bool, stdin io.ReadSeeker, args ...string,
+func (r *RealDependencies) executeXTablesWithOutput(log *log.Scope, cmd constants.IptablesCmd, iptVer *IptablesVersion,
+	ignoreErrors bool, silenceOutput bool, stdin io.ReadSeeker, args ...string,
 ) (*bytes.Buffer, error) {
 	mode := "without lock"
 	stdout := &bytes.Buffer{}
@@ -219,7 +219,16 @@ func (r *RealDependencies) executeXTablesWithOutput(cmd constants.IptablesCmd, i
 	run := func(c *exec.Cmd) error {
 		return c.Run()
 	}
-	if r.HostFilesystemPodNetwork {
+	if needLock {
+		// For _any_ mode where we need a lock (sandboxed or not)
+		// use the wait flag. In sandbox mode we use the container's netns itself
+		// as the lockfile, if one is needed, to avoid lock contention 99% of the time.
+		// But a container netns is just a file, and like any Linux file,
+		// we can't guarantee no other process has it locked.
+		args = append(args, "--wait=30")
+	}
+
+	if r.UsePodScopedXtablesLock {
 		c = exec.Command(cmdBin, args...)
 		// In CNI, we are running the pod network namespace, but the host filesystem, so we need to do some tricks
 		// Call our binary again, but with <original binary> "unshare (subcommand to trigger mounts)" --lock-file=<network namespace> <original command...>
@@ -227,14 +236,14 @@ func (r *RealDependencies) executeXTablesWithOutput(cmd constants.IptablesCmd, i
 		var lockFile string
 		if needLock {
 			if iptVer.Version.LessThan(IptablesLockfileEnv) {
-				mode = "without lock by mount and nss"
+				mode = "sandboxed local lock by mount and nss"
 				lockFile = r.NetworkNamespace
 			} else {
-				mode = "without lock by env and nss"
+				mode = "sandboxed local lock by env and nss"
 				c.Env = append(c.Env, "XTABLES_LOCKFILE="+r.NetworkNamespace)
 			}
 		} else {
-			mode = "without nss"
+			mode = "sandboxed without lock"
 		}
 
 		run = func(c *exec.Cmd) error {
@@ -244,11 +253,9 @@ func (r *RealDependencies) executeXTablesWithOutput(cmd constants.IptablesCmd, i
 		}
 	} else {
 		if needLock {
-			// We want the lock. Wait up to 30s for it.
-			args = append(args, "--wait=30")
 			c = exec.Command(cmdBin, args...)
 			log.Debugf("running with lock")
-			mode = "with wait lock"
+			mode = "with global lock"
 		} else {
 			// No locking supported/needed, just run as is. Nothing special
 			c = exec.Command(cmdBin, args...)
@@ -261,7 +268,11 @@ func (r *RealDependencies) executeXTablesWithOutput(cmd constants.IptablesCmd, i
 	c.Stdin = stdin
 	err := run(c)
 	if len(stdout.String()) != 0 {
-		log.Infof("Command output: \n%v", stdout.String())
+		if !silenceOutput {
+			log.Infof("Command output: \n%v", stdout.String())
+		} else {
+			log.Debugf("Command output: \n%v", stdout.String())
+		}
 	}
 
 	// TODO Check naming and redirection logic
@@ -282,7 +293,14 @@ func (r *RealDependencies) executeXTablesWithOutput(cmd constants.IptablesCmd, i
 	return stdout, err
 }
 
-func (r *RealDependencies) executeXTables(cmd constants.IptablesCmd, iptVer *IptablesVersion, ignoreErrors bool, stdin io.ReadSeeker, args ...string) error {
-	_, err := r.executeXTablesWithOutput(cmd, iptVer, ignoreErrors, stdin, args...)
+func (r *RealDependencies) executeXTables(
+	logger *log.Scope,
+	cmd constants.IptablesCmd,
+	iptVer *IptablesVersion,
+	ignoreErrors bool,
+	stdin io.ReadSeeker,
+	args ...string,
+) error {
+	_, err := r.executeXTablesWithOutput(logger, cmd, iptVer, ignoreErrors, false, stdin, args...)
 	return err
 }

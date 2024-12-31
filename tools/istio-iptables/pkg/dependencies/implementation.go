@@ -54,8 +54,11 @@ var exittypeToString = map[XTablesExittype]string{
 
 // RealDependencies implementation of interface Dependencies, which is used in production
 type RealDependencies struct {
-	NetworkNamespace         string
-	HostFilesystemPodNetwork bool
+	NetworkNamespace string
+	// Should generally be set to true anytime we are "jumping" from a shared iptables
+	// context (the node, an agent container) into a pod to do iptables stuff,
+	// as it's faster and reduces contention for legacy iptables versions that use file-based locking.
+	UsePodScopedXtablesLock bool
 }
 
 const iptablesVersionPattern = `v([0-9]+(\.[0-9]+)+)`
@@ -217,16 +220,34 @@ func transformToXTablesErrorMessage(stderr string, err error) string {
 }
 
 // Run runs a command
-func (r *RealDependencies) Run(cmd constants.IptablesCmd, iptVer *IptablesVersion, stdin io.ReadSeeker, args ...string) error {
-	return r.executeXTables(cmd, iptVer, false, stdin, args...)
+func (r *RealDependencies) Run(
+	logger *log.Scope,
+	cmd constants.IptablesCmd,
+	iptVer *IptablesVersion,
+	stdin io.ReadSeeker,
+	args ...string,
+) error {
+	return r.executeXTables(logger, cmd, iptVer, false, stdin, args...)
 }
 
 // Run runs a command and returns stdout
-func (r *RealDependencies) RunWithOutput(cmd constants.IptablesCmd, iptVer *IptablesVersion, stdin io.ReadSeeker, args ...string) (*bytes.Buffer, error) {
-	return r.executeXTablesWithOutput(cmd, iptVer, false, stdin, args...)
+func (r *RealDependencies) RunWithOutput(
+	logger *log.Scope,
+	cmd constants.IptablesCmd,
+	iptVer *IptablesVersion,
+	stdin io.ReadSeeker,
+	args ...string,
+) (*bytes.Buffer, error) {
+	return r.executeXTablesWithOutput(logger, cmd, iptVer, false, true, stdin, args...)
 }
 
 // RunQuietlyAndIgnore runs a command quietly and ignores errors
-func (r *RealDependencies) RunQuietlyAndIgnore(cmd constants.IptablesCmd, iptVer *IptablesVersion, stdin io.ReadSeeker, args ...string) {
-	_ = r.executeXTables(cmd, iptVer, true, stdin, args...)
+func (r *RealDependencies) RunQuietlyAndIgnore(
+	logger *log.Scope,
+	cmd constants.IptablesCmd,
+	iptVer *IptablesVersion,
+	stdin io.ReadSeeker,
+	args ...string,
+) {
+	_ = r.executeXTables(logger, cmd, iptVer, true, stdin, args...)
 }

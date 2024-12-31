@@ -94,7 +94,7 @@ func NewMDPRateLimitingQueueWithSpeedLimit(limit rate.Limit, burst int, speedLim
 	maxSuccess := workqueue.NewTypedMaxOfRateLimiter[any](bucketltr, speedLimit)
 	return &rateLimitingType{
 		rateLimiter: maxSuccess,
-		limiter:     l, DelayingInterface: workqueue.TypedNewDelayingQueue[any](),
+		limiter:     l, DelayingInterface: workqueue.TypedNewDelayingQueue[any](), // nolint:staticcheck
 		failureRateLimiter: workqueue.NewTypedMaxOfRateLimiter(maxSuccess, failureLimiter),
 	}
 }

@@ -102,17 +102,17 @@ var rootCmd = &cobra.Command{
 			log.Infof("Starting ambient node agent with inpod redirect mode on socket %s", cniEventAddr)
 			ambientAgent, err := nodeagent.NewServer(ctx, watchServerReady, cniEventAddr,
 				nodeagent.AmbientArgs{
-					SystemNamespace: nodeagent.SystemNamespace,
-					Revision:        nodeagent.Revision,
-					ServerSocket:    cfg.InstallConfig.ZtunnelUDSAddress,
-					DNSCapture:      cfg.InstallConfig.AmbientDNSCapture,
-					EnableIPv6:      cfg.InstallConfig.AmbientIPv6,
+					SystemNamespace:            nodeagent.SystemNamespace,
+					Revision:                   nodeagent.Revision,
+					ServerSocket:               cfg.InstallConfig.ZtunnelUDSAddress,
+					DNSCapture:                 cfg.InstallConfig.AmbientDNSCapture,
+					EnableIPv6:                 cfg.InstallConfig.AmbientIPv6,
+					ReconcilePodRulesOnStartup: cfg.InstallConfig.AmbientReconcilePodRulesOnStartup,
 				})
 			if err != nil {
 				return fmt.Errorf("failed to create ambient nodeagent service: %v", err)
 			}
 
-			ambientAgent.Start()
 			// Ambient watch server IS enabled - on shutdown
 			// we need to check and see if this is an upgrade.
 			//
@@ -134,15 +134,13 @@ var rootCmd = &cobra.Command{
 				// new ambient-enabled pods while our replacement spins up.
 				if !isUpgrade {
 					if cleanErr := installer.Cleanup(); cleanErr != nil {
-						if err != nil {
-							err = fmt.Errorf("%s: %w", cleanErr.Error(), err)
-						} else {
-							err = cleanErr
-						}
+						log.Error(cleanErr.Error())
 					}
 				}
 				ambientAgent.Stop(isUpgrade)
 			}()
+
+			ambientAgent.Start()
 
 			log.Info("Ambient node agent started, starting installer...")
 
@@ -155,11 +153,7 @@ var rootCmd = &cobra.Command{
 			defer func() {
 				log.Infof("CNI node agent shutting down")
 				if cleanErr := installer.Cleanup(); cleanErr != nil {
-					if err != nil {
-						err = fmt.Errorf("%s: %w", cleanErr.Error(), err)
-					} else {
-						err = cleanErr
-					}
+					log.Error(cleanErr.Error())
 				}
 			}()
 		}
@@ -318,10 +312,11 @@ func constructConfig() (*config.Config, error) {
 		ExcludeNamespaces: viper.GetString(constants.ExcludeNamespaces),
 		ZtunnelUDSAddress: viper.GetString(constants.ZtunnelUDSAddress),
 
-		AmbientEnabled:            viper.GetBool(constants.AmbientEnabled),
-		AmbientDNSCapture:         viper.GetBool(constants.AmbientDNSCapture),
-		AmbientIPv6:               viper.GetBool(constants.AmbientIPv6),
-		AmbientDisableSafeUpgrade: viper.GetBool(constants.AmbientDisableSafeUpgrade),
+		AmbientEnabled:                    viper.GetBool(constants.AmbientEnabled),
+		AmbientDNSCapture:                 viper.GetBool(constants.AmbientDNSCapture),
+		AmbientIPv6:                       viper.GetBool(constants.AmbientIPv6),
+		AmbientDisableSafeUpgrade:         viper.GetBool(constants.AmbientDisableSafeUpgrade),
+		AmbientReconcilePodRulesOnStartup: viper.GetBool(constants.AmbientReconcilePodRulesOnStartup),
 	}
 
 	if len(installCfg.K8sNodeName) == 0 {

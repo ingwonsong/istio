@@ -62,7 +62,6 @@ test.integration.asm.telemetry: | $(JUNIT_REPORT)
 	PATH=${PATH}:${ISTIO_OUT} $(GO) test -p 1 ${T} -tags=integ $(shell go list -tags=integ ./tests/integration/multiclusterasm/... | grep -v "${DISABLED_PACKAGES}") \
 	 $(shell go list -tags=integ ./tests/integration/telemetry/api/... | grep -v "${DISABLED_PACKAGES}") \
 	 $(shell go list -tags=integ ./tests/integration/telemetry/policy/... | grep -v "${DISABLED_PACKAGES}") \
-	 $(shell go list -tags=integ ./tests/integration/telemetry/envoyfilter/... | grep -v "${DISABLED_PACKAGES}") \
 	 $(shell go list -tags=integ ./tests/integration/telemetry/canonicalservices/... | grep -v "${DISABLED_PACKAGES}") -timeout 30m \
 	${_INTEGRATION_TEST_FLAGS} ${_INTEGRATION_TEST_SELECT_FLAGS} --log_output_level=tf:debug \
 	2>&1 | tee >($(JUNIT_REPORT) > $(JUNIT_OUT))

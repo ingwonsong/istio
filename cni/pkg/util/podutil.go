@@ -71,7 +71,10 @@ func PodRedirectionEnabled(namespace *corev1.Namespace, pod *corev1.Pod) bool {
 //
 // If you just want to know if the pod _should be_ configured for traffic redirection, see PodRedirectionEnabled
 func PodRedirectionActive(pod *corev1.Pod) bool {
-	return pod.GetAnnotations()[annotation.AmbientRedirection.Name] == constants.AmbientRedirectionEnabled
+	if pod != nil {
+		return pod.GetAnnotations()[annotation.AmbientRedirection.Name] == constants.AmbientRedirectionEnabled
+	}
+	return false
 }
 
 func podHasSidecar(pod *corev1.Pod) bool {
@@ -101,10 +104,6 @@ func AnnotateEnrolledPod(client kubernetes.Interface, pod *metav1.ObjectMeta) er
 }
 
 func AnnotateUnenrollPod(client kubernetes.Interface, pod *metav1.ObjectMeta) error {
-	if pod.Annotations[annotation.AmbientRedirection.Name] != constants.AmbientRedirectionEnabled {
-		return nil
-	}
-	// TODO: do not overwrite if already none
 	_, err := client.CoreV1().
 		Pods(pod.Namespace).
 		Patch(
