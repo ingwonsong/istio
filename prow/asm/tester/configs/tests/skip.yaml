@@ -414,7 +414,6 @@ tests:
         - TestAddToAndRemoveFromMesh
         - TestServiceExports/exported/0/create
         - TestTraffic/dns
-        - TestXdsVersion
         - TestXdsProxyStatus
         buganizerID: 187722953
       - names:
@@ -495,7 +494,6 @@ tests:
         - TestAddToAndRemoveFromMesh
         - TestServiceExports/exported/0/create
         - TestTraffic/dns
-        - TestXdsVersion
         - TestXdsProxyStatus
         buganizerID: 187722953
       - names:
@@ -536,7 +534,6 @@ tests:
         - TestAddToAndRemoveFromMesh
         - TestServiceExports/exported/0/create
         - TestTraffic/dns
-        - TestXdsVersion
         - TestXdsProxyStatus
         buganizerID: 187722953
       - names:
