@@ -94,8 +94,12 @@ tests:
       - names:
           - TestAddToAndRemoveFromMesh
         reason: istioctl x add-to-mesh does not work with revisions
+      - names:
+        - TestTraffic/virtualservice/shifting-50/.*
+        - TestTraffic/virtualservice/shifting-80/.*
+        reason: https://github.com/istio/istio/pull/53907
 
-      # security/
+    # security/
       - names:
           - TestRequestAuthentication
         buganizerID: 207384362
