@@ -87,9 +87,6 @@ tests:
           - TestCustomGateway
         reason: istio-injection=disabled on the namespace
       - names:
-          - TestAddToAndRemoveFromMesh
-        reason: istioctl x add-to-mesh does not work with revisions
-      - names:
         - TestTraffic/virtualservice/shifting-50/.*
         - TestTraffic/virtualservice/shifting-80/.*
         reason: https://github.com/istio/istio/pull/53907
@@ -163,7 +160,6 @@ tests:
       - names:
           - TestTraffic/serverfirst/auto-tcp-server.*
           - TestCustomGateway
-          - TestAddToAndRemoveFromMesh
           - TestGateway/.*
           - TestGatewayConformance
           - TestVMRegistrationLifecycle
@@ -233,7 +229,6 @@ tests:
     - names:
       - TestTraffic/serverfirst/auto-tcp-server.*
       - TestCustomGateway
-      - TestAddToAndRemoveFromMesh
       - TestGateway
       - TestVMRegistrationLifecycle
       - TestValidation
@@ -292,7 +287,6 @@ tests:
       - TestTraffic/serverfirst/auto-tcp-server.*
       - TestCustomGateway
       - TestMultiVersionRevision
-      - TestAddToAndRemoveFromMesh
       - TestGateway
       - TestRevisionedUpgrade
       - TestVMRegistrationLifecycle
@@ -360,7 +354,6 @@ tests:
       # pilot/ tests
       - names:
         - TestCustomGateway/helm
-        - TestAddToAndRemoveFromMesh
         - TestIngress
         - TestServiceExports/exported/0/create
         - TestTraffic/dns
@@ -410,7 +403,6 @@ tests:
       # networking/ tests
       - names:
         - TestCustomGateway/helm
-        - TestAddToAndRemoveFromMesh
         - TestServiceExports/exported/0/create
         - TestTraffic/dns
         buganizerID: 187722953
@@ -445,7 +437,6 @@ tests:
       # networking/ tests
       - names:
         - TestCustomGateway/helm
-        - TestAddToAndRemoveFromMesh
         - TestTraffic/dns
         buganizerID: 230795812
       - names:
@@ -489,7 +480,6 @@ tests:
       # networking/ tests
       - names:
         - TestCustomGateway/helm
-        - TestAddToAndRemoveFromMesh
         - TestServiceExports/exported/0/create
         - TestTraffic/dns
         buganizerID: 187722953
@@ -528,7 +518,6 @@ tests:
       # networking/ tests
       - names:
         - TestCustomGateway/helm
-        - TestAddToAndRemoveFromMesh
         - TestServiceExports/exported/0/create
         - TestTraffic/dns
         buganizerID: 187722953
@@ -555,7 +544,6 @@ tests:
       # networking/ tests
       - names:
         - TestTcpProbe
-        - TestAddToAndRemoveFromMesh
         - TestCustomGateway/minimal
         - TestCustomGateway/helm
         - TestCustomGateway/helm-simple
@@ -659,9 +647,6 @@ tests:
           - TestValidation
           - TestWebhook
         buganizerID: 170404545
-      - names:
-          - TestAddToAndRemoveFromMesh
-        reason: test doesn't respect --istio.test.revision istio.test.revision
       - names:
           - TestRemoteClusters
         buganizerID: 194713967
@@ -922,10 +907,6 @@ tests:
         - TestValidation
         - TestWebhook
       buganizerID: 170404545
-    # This test is skipped in MCP and other multicloud envs
-    - names:
-        - TestAddToAndRemoveFromMesh
-      reason: test doesn't respect --istio.test.revision
     # This test is skipped in a few multcloud envs.
     - names:
       - TestDescribe
@@ -966,7 +947,6 @@ tests:
       - TestVersion
       - TestXdsVersion
       - TestDescribe
-      - TestAddToAndRemoveFromMesh
       - TestAuthZCheck
       - TestKubeInject
       - TestRemoteClusters
