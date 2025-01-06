@@ -52,10 +52,6 @@ tests:
         - TestRemoteClusters
       buganizerID: 194713967
     - names:
-      - TestReachability/global_mtls_disabled
-      - TestReachability/global_mtls_permissive
-      buganizerID: 281072503
-    - names:
       - TestAuthz_NotPort
       - TestAuthz_DenyPlaintext
       - TestAuthz_JWT/a/to_headless/from_primary.*
