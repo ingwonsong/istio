@@ -1,4 +1,6 @@
 revisions:
 - name: "asm-master"
+  tag: "default"
 - name: "asm-1-22"
   version: "1.22"
+  tag: "asm-1-22"
