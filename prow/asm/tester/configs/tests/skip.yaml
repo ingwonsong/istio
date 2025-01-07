@@ -198,9 +198,6 @@ tests:
           - TestCanonicalServices
         buganizerID: 203557135
       - names:
-          - TestTelemetryAPITCPStats
-        buganizerID: 205336277
-      - names:
           - TestStackdriverLegacy
           - TestStackdriverAudit
           - TestVMTelemetry
@@ -273,9 +270,6 @@ tests:
     - names:
       - TestCanonicalServices
       buganizerID: 203557135
-    - names:
-      - TestTelemetryAPITCPStats
-      buganizerID: 205336277
 
   # Unmanaged CP + gcp-and-eks hybrid
   - selectors:
@@ -335,9 +329,6 @@ tests:
     - names:
       - TestCanonicalServices
       buganizerID: 203557135
-    - names:
-      - TestTelemetryAPITCPStats
-      buganizerID: 205336277
 
   # Unmanaged CP + apm
   - selectors:
@@ -396,9 +387,6 @@ tests:
           - TestStackdriverAuthz
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
-      - names:
-          - TestTelemetryAPITCPStats
-        buganizerID: 205336277
 
       # networking/ tests
       - names:
@@ -474,9 +462,6 @@ tests:
           - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
-      - names:
-        - TestTelemetryAPITCPStats
-        buganizerID: 205336277
       # networking/ tests
       - names:
         - TestCustomGateway/helm
@@ -512,9 +497,6 @@ tests:
           - TestStackdriverAuthz
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
-      - names:
-        - TestTelemetryAPITCPStats
-        buganizerID: 205336277
       # networking/ tests
       - names:
         - TestCustomGateway/helm
