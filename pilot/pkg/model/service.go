@@ -1008,14 +1008,18 @@ type ServicePortName struct {
 }
 
 type ServiceInfo struct {
-	*workloadapi.Service
+	Service *workloadapi.Service
 	// LabelSelectors for the Service. Note these are only used internally, not sent over XDS
-	LabelSelector
+	LabelSelector LabelSelector
 	// PortNames provides a mapping of ServicePort -> port names. Note these are only used internally, not sent over XDS
 	PortNames map[int32]ServicePortName
 	// Source is the type that introduced this service.
 	Source   TypedObject
 	Waypoint WaypointBindingStatus
+}
+
+func (i ServiceInfo) GetLabelSelector() map[string]string {
+	return i.LabelSelector.Labels
 }
 
 func (i ServiceInfo) GetStatusTarget() TypedObject {
@@ -1030,7 +1034,7 @@ const (
 	WaypointAccepted ConditionType = "WaypointAccepted"
 )
 
-type ConditionSet = map[ConditionType][]Condition
+type ConditionSet = map[ConditionType]*Condition
 
 type Condition struct {
 	ObservedGeneration int64
@@ -1039,8 +1043,15 @@ type Condition struct {
 	Status             bool
 }
 
+func (c *Condition) Equals(v *Condition) bool {
+	return c.ObservedGeneration == v.ObservedGeneration &&
+		c.Reason == v.Reason &&
+		c.Message == v.Message &&
+		c.Status == v.Status
+}
+
 func (i ServiceInfo) GetConditions() ConditionSet {
-	set := map[ConditionType][]Condition{
+	set := ConditionSet{
 		// Write all conditions here, then override if we want them set.
 		// This ensures we can properly prune the condition if its no longer needed (such as if there is no waypoint attached at all).
 		WaypointBound: nil,
@@ -1057,20 +1068,16 @@ func (i ServiceInfo) GetConditions() ConditionSet {
 			buildMsg.WriteString(". Ingress traffic is not using the waypoint, set the istio.io/ingress-use-waypoint label to true if desired.")
 		}
 
-		set[WaypointBound] = []Condition{
-			{
-				Status:  true,
-				Reason:  string(WaypointAccepted),
-				Message: buildMsg.String(),
-			},
+		set[WaypointBound] = &Condition{
+			Status:  true,
+			Reason:  string(WaypointAccepted),
+			Message: buildMsg.String(),
 		}
 	} else if i.Waypoint.Error != nil {
-		set[WaypointBound] = []Condition{
-			{
-				Status:  false,
-				Reason:  i.Waypoint.Error.Reason,
-				Message: i.Waypoint.Error.Message,
-			},
+		set[WaypointBound] = &Condition{
+			Status:  false,
+			Reason:  i.Waypoint.Error.Reason,
+			Message: i.Waypoint.Error.Message,
 		}
 	}
 
@@ -1098,7 +1105,11 @@ func (i WaypointBindingStatus) Equals(other WaypointBindingStatus) bool {
 }
 
 func (i ServiceInfo) NamespacedName() types.NamespacedName {
-	return types.NamespacedName{Name: i.Name, Namespace: i.Namespace}
+	return types.NamespacedName{Name: i.Service.Name, Namespace: i.Service.Namespace}
+}
+
+func (i ServiceInfo) GetNamespace() string {
+	return i.Service.Namespace
 }
 
 func (i ServiceInfo) Equals(other ServiceInfo) bool {
@@ -1118,7 +1129,7 @@ func serviceResourceName(s *workloadapi.Service) string {
 }
 
 type WorkloadInfo struct {
-	*workloadapi.Workload
+	Workload *workloadapi.Workload
 	// Labels for the workload. Note these are only used internally, not sent over XDS
 	Labels map[string]string
 	// Source is the type that introduced this workload.
@@ -1172,7 +1183,7 @@ func (i WaypointPolicyStatus) GetStatusTarget() TypedObject {
 func (i WaypointPolicyStatus) GetConditions() ConditionSet {
 	set := make(ConditionSet, 1)
 
-	set[WaypointAccepted] = []Condition{flattenConditions(i.Conditions)}
+	set[WaypointAccepted] = flattenConditions(i.Conditions)
 
 	return set
 }
@@ -1182,7 +1193,7 @@ func (i WaypointPolicyStatus) GetConditions() ConditionSet {
 // flattenConditions is a work around for the uncertain future of Ancestor in gtwapi which exists at the moment.
 // It is intended to take many conditions which have ancestors and condense them into a single condition so we can
 // retain detail in the codebase to be prepared when a canonical representation is accepted upstream.
-func flattenConditions(conditions []PolicyBindingStatus) Condition {
+func flattenConditions(conditions []PolicyBindingStatus) *Condition {
 	status := false
 	reason := WaypointPolicyReasonInvalid
 	unboundAncestors := []string{}
@@ -1191,7 +1202,7 @@ func flattenConditions(conditions []PolicyBindingStatus) Condition {
 	// flatten causes a loss of some information and there is only 1 condition so no need to flatten
 	if len(conditions) == 1 {
 		c := conditions[0]
-		return Condition{
+		return &Condition{
 			ObservedGeneration: c.ObservedGeneration,
 			Reason:             c.Status.Reason,
 			Message:            c.Status.Message,
@@ -1227,7 +1238,7 @@ func flattenConditions(conditions []PolicyBindingStatus) Condition {
 		message = fmt.Sprintf("Invalid targetRefs: %s", strings.Join(unboundAncestors, ", "))
 	}
 
-	return Condition{
+	return &Condition{
 		highestObservedGeneration,
 		reason,
 		message,
@@ -1274,23 +1285,19 @@ func (i WorkloadAuthorization) GetConditions() ConditionSet {
 	set := make(ConditionSet, 1)
 
 	if i.Binding.Status != nil {
-		set[ZtunnelAccepted] = []Condition{
-			{
-				ObservedGeneration: i.Binding.ObservedGeneration,
-				Reason:             i.Binding.Status.Reason,
-				Message:            i.Binding.Status.Message,
-				Status:             i.Binding.Bound,
-			},
+		set[ZtunnelAccepted] = &Condition{
+			ObservedGeneration: i.Binding.ObservedGeneration,
+			Reason:             i.Binding.Status.Reason,
+			Message:            i.Binding.Status.Message,
+			Status:             i.Binding.Bound,
 		}
 	} else {
 		message := "attached to ztunnel"
-		set[ZtunnelAccepted] = []Condition{
-			{
-				ObservedGeneration: i.Binding.ObservedGeneration,
-				Reason:             "Accepted",
-				Message:            message,
-				Status:             i.Binding.Bound,
-			},
+		set[ZtunnelAccepted] = &Condition{
+			ObservedGeneration: i.Binding.ObservedGeneration,
+			Reason:             "Accepted",
+			Message:            message,
+			Status:             i.Binding.Bound,
 		}
 	}
 
@@ -1336,7 +1343,7 @@ func ExtractWorkloadsFromAddresses(addrs []AddressInfo) []WorkloadInfo {
 func SortWorkloadsByCreationTime(workloads []WorkloadInfo) []WorkloadInfo {
 	sort.SliceStable(workloads, func(i, j int) bool {
 		if workloads[i].CreationTime.Equal(workloads[j].CreationTime) {
-			return workloads[i].Uid < workloads[j].Uid
+			return workloads[i].Workload.Uid < workloads[j].Workload.Uid
 		}
 		return workloads[i].CreationTime.Before(workloads[j].CreationTime)
 	})

@@ -249,26 +249,30 @@ func New(options Options) Index {
 
 	if features.EnableAmbientStatus {
 		statusQueue := statusqueue.NewQueue(options.StatusNotifier)
-		statusqueue.Register(statusQueue, "istio-ambient-service", WorkloadServices, func(info model.ServiceInfo) (kclient.Patcher, []string) {
-			// Since we have 1 collection for multiple types, we need to split these out
-			if info.Source.Kind == kind.ServiceEntry {
-				return kclient.ToPatcher(serviceEntriesWriter), getConditions(info.Source.NamespacedName, serviceEntries)
-			}
-			return kclient.ToPatcher(servicesWriter), getConditions(info.Source.NamespacedName, servicesClient)
-		})
-		statusqueue.Register(statusQueue, "istio-ambient-ztunnel-policy", AuthorizationPolicies, func(pol model.WorkloadAuthorization) (kclient.Patcher, []string) {
-			return kclient.ToPatcher(authorizationPoliciesWriter), getConditions(pol.Source.NamespacedName, authzPolicies)
-		})
-		statusqueue.Register(statusQueue, "istio-ambient-waypoint-policy", WaypointPolicyStatus, func(pol model.WaypointPolicyStatus) (kclient.Patcher, []string) {
-			return kclient.ToPatcher(authorizationPoliciesWriter), getConditions(pol.Source.NamespacedName, authzPolicies)
-		})
+		statusqueue.Register(statusQueue, "istio-ambient-service", WorkloadServices,
+			func(info model.ServiceInfo) (kclient.Patcher, map[string]model.Condition) {
+				// Since we have 1 collection for multiple types, we need to split these out
+				if info.Source.Kind == kind.ServiceEntry {
+					return kclient.ToPatcher(serviceEntriesWriter), getConditions(info.Source.NamespacedName, serviceEntries)
+				}
+				return kclient.ToPatcher(servicesWriter), getConditions(info.Source.NamespacedName, servicesClient)
+			})
+		statusqueue.Register(statusQueue, "istio-ambient-ztunnel-policy", AuthorizationPolicies,
+			func(pol model.WorkloadAuthorization) (kclient.Patcher, map[string]model.Condition) {
+				return kclient.ToPatcher(authorizationPoliciesWriter), getConditions(pol.Source.NamespacedName, authzPolicies)
+			})
+		statusqueue.Register(statusQueue, "istio-ambient-waypoint-policy", WaypointPolicyStatus,
+			func(pol model.WaypointPolicyStatus) (kclient.Patcher, map[string]model.Condition) {
+				return kclient.ToPatcher(authorizationPoliciesWriter), getConditions(pol.Source.NamespacedName, authzPolicies)
+			})
 		a.statusQueue = statusQueue
 	}
 
 	ServiceAddressIndex := krt.NewIndex[networkAddress, model.ServiceInfo](WorkloadServices, networkAddressFromService)
 	ServiceInfosByOwningWaypointHostname := krt.NewIndex(WorkloadServices, func(s model.ServiceInfo) []NamespaceHostname {
 		// Filter out waypoint services
-		if s.Labels[label.GatewayManaged.Name] == constants.ManagedGatewayMeshControllerLabel {
+		// TODO: we are looking at the *selector* -- we should be looking the labels themselves or something equivalent.
+		if s.LabelSelector.Labels[label.GatewayManaged.Name] == constants.ManagedGatewayMeshControllerLabel {
 			return nil
 		}
 		waypoint := s.Service.Waypoint
@@ -287,7 +291,7 @@ func New(options Options) Index {
 	})
 	ServiceInfosByOwningWaypointIP := krt.NewIndex(WorkloadServices, func(s model.ServiceInfo) []networkAddress {
 		// Filter out waypoint services
-		if s.Labels[label.GatewayManaged.Name] == constants.ManagedGatewayMeshControllerLabel {
+		if s.LabelSelector.Labels[label.GatewayManaged.Name] == constants.ManagedGatewayMeshControllerLabel {
 			return nil
 		}
 		waypoint := s.Service.Waypoint
@@ -332,14 +336,14 @@ func New(options Options) Index {
 
 	WorkloadAddressIndex := krt.NewIndex[networkAddress, model.WorkloadInfo](Workloads, networkAddressFromWorkload)
 	WorkloadServiceIndex := krt.NewIndex[string, model.WorkloadInfo](Workloads, func(o model.WorkloadInfo) []string {
-		return maps.Keys(o.Services)
+		return maps.Keys(o.Workload.Services)
 	})
 	WorkloadWaypointIndexHostname := krt.NewIndex(Workloads, func(w model.WorkloadInfo) []NamespaceHostname {
 		// Filter out waypoints.
 		if w.Labels[label.GatewayManaged.Name] == constants.ManagedGatewayMeshControllerLabel {
 			return nil
 		}
-		waypoint := w.Waypoint
+		waypoint := w.Workload.Waypoint
 		if waypoint == nil {
 			return nil
 		}
@@ -358,7 +362,7 @@ func New(options Options) Index {
 		if w.Labels[label.GatewayManaged.Name] == constants.ManagedGatewayMeshControllerLabel {
 			return nil
 		}
-		waypoint := w.Waypoint
+		waypoint := w.Workload.Waypoint
 		if waypoint == nil {
 			return nil
 		}
@@ -416,22 +420,50 @@ func New(options Options) Index {
 	return a
 }
 
-func getConditions[T controllers.ComparableObject](name types.NamespacedName, i kclient.Informer[T]) []string {
+func getConditions[T controllers.ComparableObject](name types.NamespacedName, i kclient.Informer[T]) map[string]model.Condition {
 	o := i.Get(name.Name, name.Namespace)
 	if controllers.IsNil(o) {
 		return nil
 	}
 	switch t := any(o).(type) {
 	case *v1.Service:
-		return slices.Map(t.Status.Conditions, func(c metav1.Condition) string { return c.Type })
+		return translateKubernetesCondition(t.Status.Conditions)
 	case *networkingclient.ServiceEntry:
-		return slices.Map(t.Status.Conditions, (*v1alpha1.IstioCondition).GetType)
+		return translateIstioCondition(t.Status.Conditions)
 	case *securityclient.AuthorizationPolicy:
-		return slices.Map(t.Status.Conditions, (*v1alpha1.IstioCondition).GetType)
+		return translateIstioCondition(t.Status.Conditions)
 	default:
 		log.Fatalf("unknown type %T; cannot write status", o)
 	}
 	return nil
+}
+
+func translateIstioCondition(conds []*v1alpha1.IstioCondition) map[string]model.Condition {
+	res := make(map[string]model.Condition, len(conds))
+	for _, cond := range conds {
+		c := model.Condition{
+			ObservedGeneration: cond.ObservedGeneration,
+			Reason:             cond.Reason,
+			Message:            cond.Message,
+			Status:             cond.Status == string(metav1.ConditionTrue),
+		}
+		res[cond.Type] = c
+	}
+	return res
+}
+
+func translateKubernetesCondition(conds []metav1.Condition) map[string]model.Condition {
+	res := make(map[string]model.Condition, len(conds))
+	for _, cond := range conds {
+		c := model.Condition{
+			ObservedGeneration: cond.ObservedGeneration,
+			Reason:             cond.Reason,
+			Message:            cond.Message,
+			Status:             cond.Status == metav1.ConditionTrue,
+		}
+		res[cond.Type] = c
+	}
+	return res
 }
 
 // Lookup finds all addresses associated with a given key. Many different key formats are supported; see inline comments.
@@ -500,8 +532,8 @@ func dedupeWorkloads(workloads []model.WorkloadInfo) []model.AddressInfo {
 		// HostNetwork mode is expected to have overlapping IPs, and tells the data plane to avoid relying on the IP as a unique
 		// identifier.
 		// For anything else, exclude duplicates.
-		if wl.NetworkMode != workloadapi.NetworkMode_HOST_NETWORK {
-			for _, addr := range wl.Addresses {
+		if wl.Workload.NetworkMode != workloadapi.NetworkMode_HOST_NETWORK {
+			for _, addr := range wl.Workload.Addresses {
 				a := byteIPToAddr(addr)
 				if seenAddresses.InsertContains(a) {
 					// We have already seen this address. We don't want to include it.
@@ -616,7 +648,7 @@ func (a *index) AdditionalPodSubscriptions(
 		for _, wl := range model.ExtractWorkloadsFromAddresses(a.Lookup(addr)) {
 			// We may have gotten an update for Pod, but are subscribed to a Service.
 			// We need to force a subscription on the Pod as well
-			for namespacedHostname := range wl.Services {
+			for namespacedHostname := range wl.Workload.Services {
 				if currentSubs.Contains(namespacedHostname) {
 					shouldSubscribe.Insert(wl.ResourceName())
 					break
@@ -628,7 +660,7 @@ func (a *index) AdditionalPodSubscriptions(
 	// Next, as an optimization, we will send all node-local endpoints
 	if nodeName := proxy.Metadata.NodeName; nodeName != "" {
 		for _, wl := range model.ExtractWorkloadsFromAddresses(a.All()) {
-			if wl.Node == nodeName {
+			if wl.Workload.Node == nodeName {
 				n := wl.ResourceName()
 				if currentSubs.Contains(n) {
 					continue
