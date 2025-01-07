@@ -29,9 +29,9 @@ const (
 // ReplaceWebhook creates a webhook with per-revision object selectors.
 // this is useful when performing compat testing with older ASM versions.
 func ReplaceWebhook(rev *revision.Config, contextName string) error {
-	// If no name specified we are installing only one revision
-	// and the webhooks have the desired behavior as is.
-	if rev.Name == "" {
+	// If no name specified we are installing only one revision and no tag and revision
+	// indicates the webhooks have the desired behavior as is.
+	if rev.Name == "" || (rev.Tag == "" && rev.Version == "") {
 		return nil
 	}
 
@@ -42,6 +42,8 @@ func ReplaceWebhook(rev *revision.Config, contextName string) error {
 		webhookPrefix, rev.Name)
 	if rev.Tag == "default" {
 		webhookName = fmt.Sprintf("%s-default", webhookPrefix)
+	} else if rev.Tag == "" {
+		rev.Tag = rev.Name
 	}
 	webhookCreateCmd := fmt.Sprintf("istioctl tag set %s --revision %s --context %s --webhook-name %s --overwrite -y",
 		rev.Tag, rev.Name, contextName, webhookName)
