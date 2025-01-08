@@ -77,13 +77,6 @@ tests:
         buganizerID: 187956450
         reason: UNKNOWN
       - names:
-          - TestEmptyCluster
-          - TestKubeOnly
-          - TestFileAndKubeCombined
-          - TestAllNamespaces
-        reason: validation tests fail because of missing istio-injection on namespaces under compat mode
-        buganizerID: 187956450
-      - names:
           - TestCustomGateway
         reason: istio-injection=disabled on the namespace
       - names:
