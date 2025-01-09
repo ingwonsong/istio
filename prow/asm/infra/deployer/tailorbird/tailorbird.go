@@ -79,8 +79,6 @@ const (
 
 	statusCheckInterval = 30
 	statusCheckMaxRetry = 360
-
-	adminHubCleanupScriptPath = "scripts/admin-membership-cleanup.sh"
 )
 
 var (
@@ -336,25 +334,6 @@ func (d *Instance) createMetadataFile() {
 func (d *Instance) Run() error {
 	log.Println("Will run kubetest2 tailorbird deployer to create the clusters...")
 
-	// If clustertype is on-prem, clean up stale hub memberships that are older
-	// than 4-hours to avoid exceeding quota.
-	// See http://b/195998781#comment10
-	if string(d.cfg.Cluster) == string(types.GKEOnPrem) || string(d.cfg.Cluster) == string(types.HybridGKEAndEKS) || string(d.cfg.Cluster) == string(types.HybridGKEAndGKEOnBareMetal) ||
-		string(d.cfg.Cluster) == string(types.EKSOnAWS) || string(d.cfg.Cluster) == string(types.AKSOnAzure) {
-		hubEnvs := []string{
-			"https://staging-gkehub.sandbox.googleapis.com/",
-			"https://gkehub.googleapis.com/",
-		}
-		for _, v := range hubEnvs {
-			if err := cleanMembership(v); err != nil {
-				return err
-			}
-			if err := cleanAdminMembership(v); err != nil {
-				return err
-			}
-		}
-	}
-
 	if err := d.installTools(); err != nil {
 		return fmt.Errorf("error installing tools for testing with Tailorbird: %w", err)
 	}
@@ -376,50 +355,6 @@ func (d *Instance) Run() error {
 	// Run the deployer
 	cmd := fmt.Sprintf("kubetest2 %s", strings.Join(flags, " "))
 	return exec.Run(cmd, exec.WithWorkingDir(d.cfg.RepoRootDir))
-}
-
-// Delete hub memberships with update time older than 4 hours on onPremHubDevProject.
-// hubEnv is the gkehub endpoint where the project is present.
-// 4 hours is chosen as the tests can take upto 3 hours until it times out.
-func cleanMembership(hubEnv string) error {
-	if err := exec.Run(fmt.Sprintf("gcloud config set api_endpoint_overrides/gkehub %s", hubEnv)); err != nil {
-		return fmt.Errorf("error setting gke hub endpoint to %s: %w", hubEnv, err)
-	}
-
-	log.Printf("Cleaning up stale hub memberships in the project %s", onPremHubDevProject)
-	hms, err := exec.Output(fmt.Sprintf("gcloud container hub memberships list --format='value(name)' --filter='updateTime<-P4H' --project=%s", onPremHubDevProject))
-	if err != nil {
-		return err
-	}
-
-	for _, hm := range strings.Split(strings.TrimSpace(string(hms)), "\n") {
-		if strings.TrimSpace(hm) == "" {
-			// hm may be empty
-			continue
-		}
-		if err := exec.Run(fmt.Sprintf("gcloud container hub memberships delete %s --quiet --project=%s",
-			hm, onPremHubDevProject)); err != nil {
-			// Error may be expected and should not cause the program to return, e.g., other test instances
-			// may also be cleaning up, which causes an error when deleting a membership that has been deleted.
-			log.Printf("Cleaning up %s returns an err: %v", hm, err)
-		}
-	}
-
-	if err := exec.Run("gcloud config unset api_endpoint_overrides/gkehub"); err != nil {
-		return fmt.Errorf("error unsetting gke hub endpoint: %w", err)
-	}
-
-	return nil
-}
-
-func cleanAdminMembership(hubEnv string) error {
-	log.Printf("Cleaning up stale *admin cluster* hub memberships in the project %s", onPremHubDevProject)
-	out, err := exec.Output(adminHubCleanupScriptPath + ` "` + hubEnv + `" "` + onPremHubDevProject + `" "5 hour"`)
-	log.Printf("%s", out)
-	if err != nil {
-		return fmt.Errorf("error cleaning up stale *admin cluster* hub memberships: %w", err)
-	}
-	return nil
 }
 
 func (d *Instance) flags() ([]string, error) {
