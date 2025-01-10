@@ -723,9 +723,6 @@ func TestPeerAuthentication(t *testing.T) {
 	framework.NewTest(t).Run(func(t framework.TestContext) {
 		applyDrainingWorkaround(t)
 		runTestContext(t, func(t framework.TestContext, src echo.Instance, dst echo.Instance, opt echo.CallOptions) {
-			if opt.Scheme != scheme.TCP {
-				return
-			}
 			// Ensure we don't get stuck on old connections with old RBAC rules. This causes 45s test times
 			// due to draining.
 			opt.NewConnectionPerRequest = true
@@ -824,7 +821,7 @@ spec:
     18080:
       mode: PERMISSIVE
     19090:
-      mode: STRICT
+      mode: PERMISSIVE
         `).ApplyOrFail(t)
 				opt = opt.DeepCopy()
 				// Should pass for all workloads, in or out of mesh, targeting this port
@@ -836,7 +833,7 @@ spec:
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
-  name: global-strict
+  name: global-permissive
 spec:
   mtls:
     mode: PERMISSIVE
@@ -858,7 +855,6 @@ spec:
       mode: STRICT
     19090:
       mode: STRICT
-
         `).ApplyOrFail(t)
 				opt = opt.DeepCopy()
 				if !src.Config().HasProxyCapabilities() && dst.Config().HasProxyCapabilities() {
@@ -2736,7 +2732,7 @@ func buildQuery(src, dst echo.Instance) prometheus.Query {
 		"destination_service_namespace":  destns,
 		"source_canonical_service":       src.ServiceName(),
 		"source_canonical_revision":      src.Config().Version,
-		"source_principal":               "spiffe://" + src.Config().ServiceAccountName(),
+		"source_principal":               "spiffe://" + src.Config().SpiffeIdentity(),
 		"source_workload":                deployName(src),
 		"source_workload_namespace":      srcns,
 	}
@@ -2761,13 +2757,13 @@ func buildL4Query(src, dst echo.Instance) prometheus.Query {
 		"destination_service":            fmt.Sprintf("%s.%s.svc.cluster.local", dst.Config().Service, destns),
 		"destination_service_name":       dst.Config().Service,
 		"destination_service_namespace":  destns,
-		"destination_principal":          "spiffe://" + dst.Config().ServiceAccountName(),
+		"destination_principal":          "spiffe://" + dst.Config().SpiffeIdentity(),
 		"destination_version":            dst.Config().Version,
 		"destination_workload":           deployName(dst),
 		"destination_workload_namespace": destns,
 		"source_canonical_service":       src.ServiceName(),
 		"source_canonical_revision":      src.Config().Version,
-		"source_principal":               "spiffe://" + src.Config().ServiceAccountName(),
+		"source_principal":               "spiffe://" + src.Config().SpiffeIdentity(),
 		"source_version":                 src.Config().Version,
 		"source_workload":                deployName(src),
 		"source_workload_namespace":      srcns,

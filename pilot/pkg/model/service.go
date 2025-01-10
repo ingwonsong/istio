@@ -23,6 +23,7 @@
 package model
 
 import (
+	"bytes"
 	"fmt"
 	"net/netip"
 	"sort"
@@ -33,11 +34,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"k8s.io/apimachinery/pkg/types"
 
 	"istio.io/api/label"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/serviceregistry/provider"
+	"istio.io/istio/pilot/pkg/util/protoconv"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/host"
@@ -958,6 +961,11 @@ var _ AmbientIndexes = NoopAmbientIndexes{}
 
 type AddressInfo struct {
 	*workloadapi.Address
+	Marshaled *anypb.Any
+}
+
+func (i AddressInfo) Equals(other AddressInfo) bool {
+	return protoconv.Equals(i.Address, other.Address)
 }
 
 func (i AddressInfo) Aliases() []string {
@@ -1016,6 +1024,12 @@ type ServiceInfo struct {
 	// Source is the type that introduced this service.
 	Source   TypedObject
 	Waypoint WaypointBindingStatus
+	// MarshaledAddress contains the pre-marshaled representation.
+	// Note: this is an Address -- not a Service.
+	MarshaledAddress *anypb.Any
+	// AsAddress contains a pre-created AddressInfo representation. This ensures we do not need repeated conversions on
+	// the hotpath
+	AsAddress AddressInfo
 }
 
 func (i ServiceInfo) GetLabelSelector() map[string]string {
@@ -1113,7 +1127,7 @@ func (i ServiceInfo) GetNamespace() string {
 }
 
 func (i ServiceInfo) Equals(other ServiceInfo) bool {
-	return proto.Equal(i.Service, other.Service) &&
+	return equalUsingPremarshaled(i.Service, i.MarshaledAddress, other.Service, other.MarshaledAddress) &&
 		maps.Equal(i.LabelSelector.Labels, other.LabelSelector.Labels) &&
 		maps.Equal(i.PortNames, other.PortNames) &&
 		i.Source == other.Source &&
@@ -1136,10 +1150,16 @@ type WorkloadInfo struct {
 	Source kind.Kind
 	// CreationTime is the time when the workload was created. Note this is used internally only.
 	CreationTime time.Time
+	// MarshaledAddress contains the pre-marshaled representation.
+	// Note: this is an Address -- not a Workload.
+	MarshaledAddress *anypb.Any
+	// AsAddress contains a pre-created AddressInfo representation. This ensures we do not need repeated conversions on
+	// the hotpath
+	AsAddress AddressInfo
 }
 
 func (i WorkloadInfo) Equals(other WorkloadInfo) bool {
-	return proto.Equal(i.Workload, other.Workload) &&
+	return equalUsingPremarshaled(i.Workload, i.MarshaledAddress, other.Workload, other.MarshaledAddress) &&
 		maps.Equal(i.Labels, other.Labels) &&
 		i.Source == other.Source &&
 		i.CreationTime == other.CreationTime
@@ -1307,8 +1327,8 @@ func (i WorkloadAuthorization) GetConditions() ConditionSet {
 // end impl StatusWriter
 
 func (i WorkloadAuthorization) Equals(other WorkloadAuthorization) bool {
-	return maps.Equal(i.Labels, other.Labels) &&
-		proto.Equal(i.Authorization, other.Authorization) &&
+	return protoconv.Equals(i.Authorization, other.Authorization) &&
+		maps.Equal(i.Labels, other.Labels) &&
 		i.Source == other.Source &&
 		i.Binding.Equals(other.Binding)
 }
@@ -1767,4 +1787,14 @@ func (ep *IstioEndpoint) Equals(other *IstioEndpoint) bool {
 	}
 
 	return true
+}
+
+func equalUsingPremarshaled[T proto.Message](a T, am *anypb.Any, b T, bm *anypb.Any) bool {
+	// If they are both pre-marshaled, use the marshaled representation. This is orders of magnitude faster
+	if am != nil && bm != nil {
+		return bytes.Equal(am.Value, bm.Value)
+	}
+
+	// Fallback to equals
+	return protoconv.Equals(a, b)
 }

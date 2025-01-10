@@ -54,6 +54,7 @@ require (
 	github.com/onsi/gomega v1.36.0
 	github.com/openshift/api v0.0.0-20241216151652-de9de05a8e43
 	github.com/pires/go-proxyproto v0.8.0
+	github.com/planetscale/vtprotobuf v0.6.1-0.20240409071808-615f978279ca
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/prometheus/client_golang v1.20.5
 	github.com/prometheus/client_model v0.6.1
@@ -96,7 +97,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.16.3
-	istio.io/api v1.24.0-alpha.0.0.20241217180900-c363ca75e894
+	istio.io/api v1.24.0-alpha.0.0.20241218215532-27d505cbdb11
 	istio.io/client-go v1.24.0-alpha.0.0.20241217181500-0630716ab2c6
 	k8s.io/api v0.32.0
 	k8s.io/apiextensions-apiserver v0.32.0
@@ -208,7 +209,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/planetscale/vtprotobuf v0.6.1-0.20240409071808-615f978279ca // indirect
 	github.com/prometheus/statsd_exporter v0.22.7 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect

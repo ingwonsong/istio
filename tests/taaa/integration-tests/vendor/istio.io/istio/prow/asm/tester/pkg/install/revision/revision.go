@@ -49,6 +49,8 @@ type Config struct {
 	CustomCerts bool
 	// Overlay is a path to additional configuration for this revision.
 	Overlay string `yaml:"overlay"`
+	// Tag is used to add a tag for the version using istioctl
+	Tag string `yaml:"tag"`
 }
 
 func ParseConfig(path string) (*Configs, error) {

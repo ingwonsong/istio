@@ -1794,7 +1794,7 @@ helm.sh/helm/v3/pkg/chart/loader
 helm.sh/helm/v3/pkg/chartutil
 helm.sh/helm/v3/pkg/engine
 helm.sh/helm/v3/pkg/ignore
-# istio.io/api v1.24.0-alpha.0.0.20241217180900-c363ca75e894
+# istio.io/api v1.24.0-alpha.0.0.20241218215532-27d505cbdb11
 ## explicit; go 1.22.0
 istio.io/api/analysis/v1alpha1
 istio.io/api/annotation
