@@ -202,7 +202,17 @@ ifeq ($(DEBUG),1)
 # gobuild script uses custom linker flag to set the variables.
 RELEASE_LDFLAGS=''
 else
-RELEASE_LDFLAGS='-extldflags -static -s -w'
+RELEASE_LDFLAGS='-extldflags -s -w'
+endif
+
+DYNAMIC_LDFLAGS:='-linkmode=external -extldflags -s -w'
+STATIC_LDFLAGS:='-linkmode=external -extldflags -static -s -w'
+CGO_ENABLED:=1
+ifeq ($(TARGET_ARCH), arm64)
+  CC=aarch64-linux-gnu-gcc
+  # TODO(b/372456762): switch back to stripped build
+  DYNAMIC_LDFLAGS:='-linkmode=external -extldflags -w'
+  STATIC_LDFLAGS:='-linkmode=external -extldflags -static -w'
 endif
 
 # List of all binaries to build
@@ -215,13 +225,13 @@ STANDARD_BINARIES:=./istioctl/cmd/istioctl \
   ./pkg/test/echo/cmd/client \
   ./pkg/test/echo/cmd/server \
   ./samples/extauthz/cmd/extauthz \
-  ./mdp/controller/cmd/mdp \
+  ./mdp/controller/cmd/mdp
+CNI_BINARIES:=./cni/cmd/istio-cni \
+  ./cni/cmd/install-cni
 
 # These are binaries that require Linux to build, and should
 # be skipped on other platforms. Notably this includes the current Linux-only Istio CNI plugin
-LINUX_AGENT_BINARIES:=./cni/cmd/istio-cni \
-  ./cni/cmd/install-cni \
-  $(AGENT_BINARIES)
+LINUX_AGENT_BINARIES:=$(CNI_BINARIES) $(AGENT_BINARIES)
 
 BINARIES:=$(STANDARD_BINARIES) $(AGENT_BINARIES) $(LINUX_AGENT_BINARIES)
 
@@ -231,15 +241,15 @@ RELEASE_SIZE_TEST_BINARIES:=pilot-discovery pilot-agent istioctl envoy ztunnel c
 # agent: enables agent-specific files. Usually this is used to trim dependencies where they would be hard to trim through standard refactoring
 # disable_pgv: disables protoc-gen-validation. This is not used buts adds many MB to Envoy protos
 # not set vtprotobuf: this adds some performance improvement, but at a binary cost increase that is not worth it for the agent
-AGENT_TAGS=agent,disable_pgv
+AGENT_TAGS=agent,disable_pgv,netgo,osusergo
 # disable_pgv: disables protoc-gen-validation. This is not used buts adds many MB to Envoy protos
 # vtprotobuf: enables optimized protobuf marshalling.
 STANDARD_TAGS=vtprotobuf,disable_pgv
 
 .PHONY: build
 build: depend ## Builds all go binaries.
-	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT)/ -tags=$(STANDARD_TAGS) $(STANDARD_BINARIES)
-	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT)/ -tags=$(AGENT_TAGS) $(AGENT_BINARIES)
+	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(DYNAMIC_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT)/ -tags=$(STANDARD_TAGS) $(STANDARD_BINARIES)
+	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(DYNAMIC_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT)/ -tags=$(AGENT_TAGS) $(AGENT_BINARIES)
 
 # The build-linux target is responsible for building binaries used within containers.
 # This target should be expanded upon as we add more Linux architectures: i.e. build-arm64.
@@ -247,8 +257,9 @@ build: depend ## Builds all go binaries.
 # various platform images.
 .PHONY: build-linux
 build-linux: depend
-	GOOS=linux GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT_LINUX)/ -tags=$(STANDARD_TAGS) $(STANDARD_BINARIES)
-	GOOS=linux GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(RELEASE_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT_LINUX)/ -tags=$(AGENT_TAGS) $(LINUX_AGENT_BINARIES)
+	GOOS=linux GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(DYNAMIC_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT_LINUX)/ -tags=$(STANDARD_TAGS) $(STANDARD_BINARIES)
+	GOOS=linux GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(DYNAMIC_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT_LINUX)/ -tags=$(AGENT_TAGS) $(AGENT_BINARIES)
+	GOOS=$(GOOS_LOCAL) GOARCH=$(GOARCH_LOCAL) LDFLAGS=$(STATIC_LDFLAGS) common/scripts/gobuild.sh $(TARGET_OUT)/ -tags=$(AGENT_TAGS) $(CNI_BINARIES)
 
 # Create targets for TARGET_OUT_LINUX/binary
 # There are two use cases here:
