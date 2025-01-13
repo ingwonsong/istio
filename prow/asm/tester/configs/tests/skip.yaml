@@ -4,7 +4,6 @@ tests:
     targets:
     - names:
       - TestLocalRateLimitingServiceAccount
-      - TestMetricDefinitions
       - TestStackdriverHTTPAuditLogging
       - TestStackdriverAuthzDryRun
       - TestProxyTracingOpenCensusMeshConfig
