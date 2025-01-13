@@ -82,21 +82,11 @@ tests:
 
     # security/
       - names:
-          - TestRequestAuthentication
-        buganizerID: 207384362
-      - names:
-          - TestReachability/automtls-passthrough.*
-        reason: UNKNOWN
-      - names:
           - TestAuthz_Conditions
         reason: relies on specific pod IP when creating authz policies
       - names:
           - TestNormalization
         reason: uses ctx.Settings().Revision to modify singular CM
-      - names:
-          - TestPassThroughFilterChain
-        reason: requires PR 28601, should add RequireIstioVersion to the test in OSS and then unskip.
-        buganizerID: 194120617
       - names:
           - TestAuthz_Custom
         reason: requires mesh config
@@ -104,9 +94,6 @@ tests:
           - TestAuthz_WorkloadSelector/single_workload/.*/.*/.*//bad\((allow)\)/.*
         buganizerID: 244709600
         reason: labels are not applied to both revision pods
-      - names:
-        - TestSingleOptionalMTLSGateway
-        reason: OPTIONAL_MUTUAL Mode only supported for version 1.19 and above
       # telemetry/
       - names:
           - TestStackdriverLegacy
