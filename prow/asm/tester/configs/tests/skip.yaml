@@ -154,7 +154,6 @@ tests:
           - TestGatewayConformance
           - TestVMRegistrationLifecycle
           - TestValidation
-          - TestServiceExports*
           - TestTraffic/dns
           - TestIngress/update-class-not-istio
           - TestTraffic/consistent-hash/query_param
@@ -219,7 +218,6 @@ tests:
       - TestGateway
       - TestVMRegistrationLifecycle
       - TestValidation
-      - TestServiceExports*
       - TestTraffic/dns
       - TestIngress/update-class-not-istio
       - TestTraffic/consistent-hash/query_param
@@ -278,7 +276,6 @@ tests:
       - TestRevision*
       - TestMultiRevision
       - TestUninstall*
-      - TestServiceExports*
       - TestTraffic/dns
       - TestIngress/update-class-not-istio
       - TestTraffic/consistent-hash/query_param
@@ -336,7 +333,6 @@ tests:
       - names:
         - TestCustomGateway/helm
         - TestIngress
-        - TestServiceExports/exported/0/create
         - TestTraffic/dns
         - TestTraffic/consistent-hash
         buganizerID: 191913525
@@ -381,7 +377,6 @@ tests:
       # networking/ tests
       - names:
         - TestCustomGateway/helm
-        - TestServiceExports/exported/0/create
         - TestTraffic/dns
         buganizerID: 187722953
       - names:
@@ -455,7 +450,6 @@ tests:
       # networking/ tests
       - names:
         - TestCustomGateway/helm
-        - TestServiceExports/exported/0/create
         - TestTraffic/dns
         buganizerID: 187722953
       - names:
@@ -490,7 +484,6 @@ tests:
       # networking/ tests
       - names:
         - TestCustomGateway/helm
-        - TestServiceExports/exported/0/create
         - TestTraffic/dns
         buganizerID: 187722953
       - names:
