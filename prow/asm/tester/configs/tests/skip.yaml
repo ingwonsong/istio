@@ -67,9 +67,6 @@ tests:
     targets:
       # networking/
       - names:
-          - TestValidation/.*
-        buganizerID: 207384361
-      - names:
           - TestClusterLocal
         buganizerID: 207384171
       - names:
