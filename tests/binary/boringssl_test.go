@@ -44,8 +44,8 @@ func TestBoringssl(t *testing.T) {
 			t.Fatalf("check failed: %v", err)
 		}
 
-		if !static {
-			t.Fatalf("binary not statically compiled")
+		if static {
+			t.Fatalf("binary is statically compiled")
 		}
 	})
 }
