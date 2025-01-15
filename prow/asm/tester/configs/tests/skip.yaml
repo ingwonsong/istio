@@ -166,9 +166,9 @@ tests:
         reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
       # telemetry/ tests
-      - names:
-          - TestCanonicalServices
-        buganizerID: 203557135
+      #- names:
+      #    - TestCanonicalServices
+      #  buganizerID: 203557135
       - names:
           - TestStackdriverLegacy
           - TestStackdriverAudit
@@ -346,9 +346,9 @@ tests:
         reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
 
       # telemetry/ tests
-      - names:
-          - TestCanonicalServices
-        buganizerID: 203557135
+      #- names:
+      #    - TestCanonicalServices
+      #  buganizerID: 203557135
       - names:
           - TestStackdriverLegacy
           - TestStackdriverAuditLogging
