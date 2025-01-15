@@ -73,9 +73,6 @@ tests:
         buganizerID: 187956450
         reason: UNKNOWN
       - names:
-          - TestCustomGateway
-        reason: istio-injection=disabled on the namespace
-      - names:
         - TestTraffic/virtualservice/shifting-50/.*
         - TestTraffic/virtualservice/shifting-80/.*
         reason: https://github.com/istio/istio/pull/53907
