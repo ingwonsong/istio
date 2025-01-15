@@ -275,6 +275,9 @@ var (
 
 	PreferDestinationRulesTLSForExternalServices = env.Register("PREFER_DESTINATIONRULE_TLS_FOR_EXTERNAL_SERVICES", true,
 		"If true, external services will prefer the TLS settings from DestinationRules over the metadata TLS settings.").Get()
+
+	Enforce1PSEnvoyFilterAllowlist = env.Register("ENFORCE_1PS_ENVOYFILTER_ALLOWLIST", false,
+		"If set to true, only those EnvoyFilters that are supported for 1P services can be applied onto listeners.").Get()
 )
 
 // UnsafeFeaturesEnabled returns true if any unsafe features are enabled.

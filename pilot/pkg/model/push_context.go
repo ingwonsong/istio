@@ -2228,6 +2228,9 @@ func (ps *PushContext) initEnvoyFilters(env *Environment, changed sets.Set[Confi
 		if efw == nil {
 			efw = convertToEnvoyFilterWrapper(&envoyFilterConfig)
 		}
+		if features.Enforce1PSEnvoyFilterAllowlist {
+			envoyFilterConfig = enforce1PSEnvoyFilterAllowlist(env, efw, envoyFilterConfig)
+		}
 		ps.envoyFiltersByNamespace[envoyFilterConfig.Namespace] = append(ps.envoyFiltersByNamespace[envoyFilterConfig.Namespace], efw)
 	}
 }

@@ -113,7 +113,7 @@ func (s *Server) initConfigController(args *PilotArgs) error {
 	}
 
 	// Wrap the config controller with a cache.
-	aggregateConfigController, err := configaggregate.MakeCache(s.ConfigStores)
+	aggregateConfigController, err := configaggregate.MakeWriteableCache(s.ConfigStores, s.makeKubeConfigController(args))
 	if err != nil {
 		return err
 	}

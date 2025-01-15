@@ -23,10 +23,13 @@ import (
 	"testing"
 	"time"
 
+	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	. "github.com/onsi/gomega"
 	"go.uber.org/atomic"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -974,6 +977,212 @@ func TestEnvoyFilterUpdate(t *testing.T) {
 				t.Errorf("Expected %d envoy filters, found %d", total1+len(tt.creates)-len(tt.deletes), total2)
 			}
 		})
+	}
+}
+
+func TestSupported1PSEnvoyfilters(t *testing.T) {
+	const (
+		fullySupportedPatchType     = "type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb"
+		partiallySupportedPatchType = "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+		unsupportedPatchType        = "type.googleapis.com/envoy.extensions.filters.network.mongo_proxy.v3.MongoProxy"
+		supportedHCMUpgradeConfig   = "SPDY/3.1"
+		unsupportedHCMUpgradeConfig = "TLS/1.2"
+		defaultNamespace            = "default"
+	)
+	envoyFilters := []config.Config{
+		{
+			Meta: config.Meta{Name: "fully-supported-patch", Namespace: defaultNamespace, GroupVersionKind: gvk.EnvoyFilter},
+			Spec: &networking.EnvoyFilter{
+				ConfigPatches: []*networking.EnvoyFilter_EnvoyConfigObjectPatch{
+					{
+						ApplyTo: networking.EnvoyFilter_HTTP_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s"
+								}
+							}`, fullySupportedPatchType)),
+						},
+					},
+				},
+			},
+		},
+		{
+			Meta: config.Meta{Name: "partially-supported-patch", Namespace: defaultNamespace, GroupVersionKind: gvk.EnvoyFilter},
+			Spec: &networking.EnvoyFilter{
+				ConfigPatches: []*networking.EnvoyFilter_EnvoyConfigObjectPatch{
+					{
+						ApplyTo: networking.EnvoyFilter_NETWORK_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s",
+									"upgradeConfigs": [
+										{
+											"upgradeType": "%s"
+										}
+									]
+								}
+							}`, partiallySupportedPatchType, supportedHCMUpgradeConfig)),
+						},
+					},
+				},
+			},
+		},
+		{
+			Meta: config.Meta{Name: "unsupported-patch-configuration", Namespace: defaultNamespace, GroupVersionKind: gvk.EnvoyFilter},
+			Spec: &networking.EnvoyFilter{
+				ConfigPatches: []*networking.EnvoyFilter_EnvoyConfigObjectPatch{
+					{
+						ApplyTo: networking.EnvoyFilter_NETWORK_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s",
+									"upgradeConfigs": [
+										{
+											"upgradeType": "%s"
+										}
+									]
+								}
+							}`, partiallySupportedPatchType, unsupportedHCMUpgradeConfig)),
+						},
+					},
+				},
+			},
+		},
+		{
+			Meta: config.Meta{Name: "unsupported-patch-type", Namespace: defaultNamespace, GroupVersionKind: gvk.EnvoyFilter},
+			Spec: &networking.EnvoyFilter{
+				ConfigPatches: []*networking.EnvoyFilter_EnvoyConfigObjectPatch{
+					{
+						ApplyTo: networking.EnvoyFilter_HTTP_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s"
+								}
+							}`, unsupportedPatchType)),
+						},
+					},
+				},
+			},
+		},
+		{
+			Meta: config.Meta{Name: "multiple-patches", Namespace: defaultNamespace, GroupVersionKind: gvk.EnvoyFilter},
+			Spec: &networking.EnvoyFilter{
+				ConfigPatches: []*networking.EnvoyFilter_EnvoyConfigObjectPatch{
+					{
+						ApplyTo: networking.EnvoyFilter_HTTP_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s"
+								}
+							}`, unsupportedPatchType)),
+						},
+					},
+					{
+						ApplyTo: networking.EnvoyFilter_HTTP_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s"
+								}
+							}`, fullySupportedPatchType)),
+						},
+					},
+					{
+						ApplyTo: networking.EnvoyFilter_NETWORK_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s",
+									"upgradeConfigs": [
+										{
+											"upgradeType": "%s"
+										}
+									]
+								}
+							}`, partiallySupportedPatchType, supportedHCMUpgradeConfig)),
+						},
+					},
+					{
+						ApplyTo: networking.EnvoyFilter_NETWORK_FILTER,
+						Patch: &networking.EnvoyFilter_Patch{
+							Value: buildPatchStruct(fmt.Sprintf(`{
+								"typed_config": {
+									"@type": "%s",
+									"upgradeConfigs": [
+										{
+											"upgradeType": "%s"
+										}
+									]
+								}
+							}`, partiallySupportedPatchType, unsupportedHCMUpgradeConfig)),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	env := &Environment{}
+	store := NewFakeStore()
+	for _, cfg := range envoyFilters {
+		_, _ = store.Create(cfg)
+	}
+	env.ConfigStore = store
+	m := mesh.DefaultMeshConfig()
+	env.Watcher = mesh.NewFixedWatcher(m)
+	env.Init()
+
+	pc := NewPushContext()
+	prevEnforce1PSEnvoyFilterAllowlist := features.Enforce1PSEnvoyFilterAllowlist
+	features.Enforce1PSEnvoyFilterAllowlist = true
+	t.Cleanup(func() { features.Enforce1PSEnvoyFilterAllowlist = prevEnforce1PSEnvoyFilterAllowlist })
+	pc.initEnvoyFilters(env, nil, nil)
+
+	gotPatches := 0
+	const wantPatches = 4
+	for _, efw := range pc.envoyFiltersByNamespace[defaultNamespace] {
+		for _, p := range efw.Patches {
+			for _, pw := range p {
+				gotPatches++
+				httpFilter, ok1 := (pw.Value).(*hcm.HttpFilter)
+				listenerFilter, ok2 := (pw.Value).(*listener.Filter)
+				if !ok1 && !ok2 {
+					t.Errorf("Unknown type of patch wrapper: %v", pw)
+				}
+				if ok1 {
+					if httpFilter.GetTypedConfig().GetTypeUrl() != fullySupportedPatchType {
+						t.Errorf("Got type URL %q; want %q", httpFilter.GetTypedConfig().GetTypeUrl(), fullySupportedPatchType)
+					}
+				} else {
+					if listenerFilter.GetTypedConfig().GetTypeUrl() != partiallySupportedPatchType {
+						t.Errorf("Got type URL %q; want %q", listenerFilter.GetTypedConfig().GetTypeUrl(), partiallySupportedPatchType)
+					}
+					wantConfig := &hcm.HttpConnectionManager{
+						UpgradeConfigs: []*hcm.HttpConnectionManager_UpgradeConfig{
+							{
+								UpgradeType: supportedHCMUpgradeConfig,
+							},
+						},
+					}
+					gotConfig := &hcm.HttpConnectionManager{}
+					if err := proto.Unmarshal(listenerFilter.GetTypedConfig().GetValue(), gotConfig); err != nil {
+						t.Errorf("Unmarshal patch config value: %v", err)
+					}
+					if !proto.Equal(gotConfig, wantConfig) {
+						t.Errorf("Got HCM config %v; want %v", gotConfig, wantConfig)
+					}
+				}
+			}
+		}
+	}
+
+	if gotPatches != wantPatches {
+		t.Errorf("Got %v patches; Want %v", gotPatches, wantPatches)
 	}
 }
 
