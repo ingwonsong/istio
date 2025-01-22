@@ -132,14 +132,9 @@ tests:
       # pilot/ tests
       - names:
           - TestTraffic/serverfirst/auto-tcp-server.*
-          - TestCustomGateway
-          - TestGateway/.*
           - TestGatewayConformance
           - TestVMRegistrationLifecycle
-          - TestValidation
           - TestTraffic/dns
-          - TestIngress/update-class-not-istio
-          - TestTraffic/consistent-hash/query_param
         buganizerID: 187725074
       - names:
         - TestTraffic/externalname/routed/auto-http
