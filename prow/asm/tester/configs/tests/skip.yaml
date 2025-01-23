@@ -45,16 +45,8 @@ tests:
       - TestMutualTlsOrigination
       reason: relies on egress gateway deployed to cluster
     - names:
-        - TestClusterLocal/cross_cluster
-      buganizerID: 189899338
-    - names:
         - TestRemoteClusters
       buganizerID: 194713967
-    - names:
-      - TestAuthz_NotPort
-      - TestAuthz_DenyPlaintext
-      - TestAuthz_JWT/a/to_headless/from_primary.*
-      buganizerID: 281837365
     - names:
       - TestOutboundTrafficPolicy_AllowAny
       - TestOutboundTrafficPolicy_RegistryOnly
@@ -952,7 +944,6 @@ tests:
     # telemetry tests
     - names:
       - TestAccessLogs
-      - TestAccessLogsDefaultProvider
       - TestAccessLogsMode
       - TestAccessLogsFilter
 
