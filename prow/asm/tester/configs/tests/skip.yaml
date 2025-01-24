@@ -77,9 +77,6 @@ tests:
           - TestNormalization
         reason: uses ctx.Settings().Revision to modify singular CM
       - names:
-          - TestAuthz_Custom
-        reason: requires mesh config
-      - names:
           - TestAuthz_WorkloadSelector/single_workload/.*/.*/.*//bad\((allow)\)/.*
         buganizerID: 244709600
         reason: labels are not applied to both revision pods
@@ -140,9 +137,6 @@ tests:
       - names:
           - TestStrictMTLS
         reason: MeshCA does not support ECDSA
-      - names:
-          - TestAuthz_Custom
-        reason: requires mesh config
       - names:
           - TestStackdriverLegacy
           - TestStackdriverAuditLogging
@@ -213,9 +207,6 @@ tests:
       - TestStrictMTLS
       reason: MeshCA does not support ECDSA
     - names:
-      - TestAuthz_Custom
-      reason: requires mesh config
-    - names:
       - TestStackdriverLegacy
       - TestStackdriverAuditLogging
       - TestStackdriverHTTPAuditLogging
@@ -271,9 +262,6 @@ tests:
       - TestStrictMTLS
       reason: MeshCA does not support ECDSA
     - names:
-      - TestAuthz_Custom
-      reason: requires mesh config
-    - names:
       - TestStackdriverLegacy
       - TestStackdriverAuditLogging
       - TestStackdriverHTTPAuditLogging
@@ -318,9 +306,6 @@ tests:
       - names:
           - TestStrictMTLS
         reason: MeshCA does not support ECDSA
-      - names:
-          - TestAuthz_Custom
-        reason: requires mesh config
       - names:
           - TestSingleTlsGateway*
           - TestSingleMTLSGateway*
@@ -401,9 +386,6 @@ tests:
           - TestStrictMTLS
         reason: MeshCA does not support ECDSA
       - names:
-          - TestAuthz_Custom
-        reason: requires mesh config
-      - names:
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
         reason: Experemental code.
@@ -434,9 +416,6 @@ tests:
       - names:
           - TestStrictMTLS
         reason: MeshCA does not support ECDSA
-      - names:
-          - TestAuthz_Custom
-        reason: requires mesh config
       - names:
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
@@ -661,9 +640,6 @@ tests:
       - names:
           - TestStrictMTLS
         reason: Mesh CA does not support ECDSA
-      - names:
-          - TestAuthz_Custom
-        reason: requires mesh config
       - names:
           - TestTelemetry
         buganizerID: 190420441
