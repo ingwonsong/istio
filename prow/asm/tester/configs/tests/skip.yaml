@@ -38,9 +38,6 @@ tests:
       reason: relies on istiod in cluster
       buganizerID: 177606974
     - names:
-        - TestStackdriverAudit
-      buganizerID: 183508169
-    - names:
       - TestSimpleTlsOrigination
       - TestMutualTlsOrigination
       reason: relies on egress gateway deployed to cluster
@@ -151,7 +148,6 @@ tests:
       #  buganizerID: 203557135
       - names:
           - TestStackdriverLegacy
-          - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
@@ -395,7 +391,6 @@ tests:
           - TestStackdriverAuditLogging
           - TestStackdriverHTTPAuditLogging
           - TestStackdriverAuthz
-          - TestStackdriverAudit
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro installation
       # networking/ tests
@@ -598,7 +593,6 @@ tests:
 
       # telemetry/ tests
       - names:
-          - TestStackdriverAudit
           - TestStackdriverHTTPAuditLogging
         reason: relies on custom Stackdriver EnvoyFilter
       - names:
@@ -623,9 +617,6 @@ tests:
       - names:
           - TestOutboundTrafficPolicy
         reason: relies on egress gateway deployed to the cluster
-      - names:
-          - TestStackdriverAudit
-        buganizerID: 183508169
       - names:
           - TestCNI19Upgrade
         reason: no longer needed
@@ -767,9 +758,6 @@ tests:
         - TestCustomizeMetrics
       reason: relies on istiod in cluster
       buganizerID: 177606974
-    - names:
-        - TestStackdriverAudit
-      buganizerID: 183508169
     - names:
         - TestAuthz_IngressGateway
       reason: unknown
