@@ -103,7 +103,6 @@ tests:
       buganizerID: 201558623
     - names:
       - TestCustomGateway/helm
-      - TestBadWasmRemoteLoad
       - TestStackdriverLegacy
       - TestStackdriverAuditLogging
       - TestStackdriverHTTPAuditLogging
