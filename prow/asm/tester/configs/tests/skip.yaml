@@ -96,7 +96,6 @@ tests:
         - TestXFFGateway
       buganizerID: 201558623
     - names:
-      - TestCustomGateway/helm
       - TestStackdriverLegacy
       - TestStackdriverAuditLogging
       - TestStackdriverHTTPAuditLogging
@@ -326,7 +325,6 @@ tests:
 
       # networking/ tests
       - names:
-        - TestCustomGateway/helm
         - TestTraffic/dns
         buganizerID: 187722953
       - names:
@@ -359,7 +357,6 @@ tests:
 
       # networking/ tests
       - names:
-        - TestCustomGateway/helm
         - TestTraffic/dns
         buganizerID: 230795812
       - names:
@@ -395,7 +392,6 @@ tests:
         reason: Stackdriver is not enabled with ASM Distro installation
       # networking/ tests
       - names:
-        - TestCustomGateway/helm
         - TestTraffic/dns
         buganizerID: 187722953
       - names:
@@ -426,7 +422,6 @@ tests:
         reason: Stackdriver is not enabled with ASM Distro installation
       # networking/ tests
       - names:
-        - TestCustomGateway/helm
         - TestTraffic/dns
         buganizerID: 187722953
       - names:
