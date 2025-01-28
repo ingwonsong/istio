@@ -874,6 +874,9 @@ tests:
       - TestEnsureNoMissingCRDs
       - TestVmOSPost
       - TestVMRegistrationLifecycle
+    - names:
+      - TestTraffic/externalname/routed/auto-http
+      reason: Test is failing as Virtual Service cannot route traffic to ExternalName Service in case of port mismatch. To unskip when feature is updated (https://github.com/istio/istio/issues/54310).
     # security tests
     - names:
       - TestAuthz_Principal
