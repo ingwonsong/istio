@@ -21,10 +21,10 @@ tests:
       - TestGatewaySelection
       - TestImagePullPolicy
       - TestImagePullPolicyWithHTTP
+      reason: csm doesn't support wasm plugins
       buganizerID: 362399273
     - names:
         - TestProxyStatus
-        - TestWait
         - TestVersion
       reason: istioctl does not work
     - names:
@@ -141,15 +141,6 @@ tests:
           - TestVMTelemetry
         reason: Stackdriver is not enabled with ASM Distro Baremetal installation
 
-      # telemetry/ tests
-      #- names:
-      #    - TestCanonicalServices
-      #  buganizerID: 203557135
-      - names:
-          - TestStackdriverLegacy
-          - TestVMTelemetry
-        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
-
   # Unmanaged CP + bare-metal
   - selectors:
       control_plane: unmanaged
@@ -163,134 +154,6 @@ tests:
     - names:
       - TestMultiClusterWithSecrets
       reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip, when cluster naming logic is resolved
-
-  # Unmanaged CP + gcp-and-bare-metal hybrid
-  - selectors:
-      control_plane: unmanaged
-      cluster_type: hybrid-gke-and-bare-metal
-    targets:
-    # pilot/ tests
-    - names:
-      - TestTraffic/serverfirst/auto-tcp-server.*
-      - TestCustomGateway
-      - TestGateway
-      - TestVMRegistrationLifecycle
-      - TestValidation
-      - TestTraffic/dns
-      - TestIngress/update-class-not-istio
-      - TestTraffic/consistent-hash/query_param
-      buganizerID: 187725074
-    - names:
-      - TestTraffic/jwt-claim-route
-      reason: Temporary disable until mesh agent upgraded to 1.11.2
-    - names:
-      - TestBadRemoteSecret
-      - TestTraffic/sniffing/http/headless.*
-      - TestTraffic/sniffing/grpc/headless.*
-      buganizerID: 205190928
-    - names:
-      - TestClusterLocal/subsets
-      buganizerID: 209865846
-
-    # security/ tests
-    - names:
-      - TestTlsGatewaysWithQUIC/quic*
-      - TestMtlsGatewaysWithQUIC/quic*
-      buganizerID: 199551889
-      reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
-    - names:
-      - TestStrictMTLS
-      reason: MeshCA does not support ECDSA
-    - names:
-      - TestStackdriverLegacy
-      - TestStackdriverAuditLogging
-      - TestStackdriverHTTPAuditLogging
-      - TestStackdriverAuthz
-      - TestVMTelemetry
-      reason: Stackdriver is not enabled with ASM Distro Baremetal installation
-
-    # telemetry/ tests
-    - names:
-      - TestCanonicalServices
-      buganizerID: 203557135
-
-  # Unmanaged CP + gcp-and-eks hybrid
-  - selectors:
-      control_plane: unmanaged
-      cluster_type: hybrid-gke-and-eks
-    targets:
-    # pilot/ tests
-    - names:
-      - TestTraffic/serverfirst/auto-tcp-server.*
-      - TestCustomGateway
-      - TestMultiVersionRevision
-      - TestGateway
-      - TestRevisionedUpgrade
-      - TestVMRegistrationLifecycle
-      - TestValidation
-      - TestRevision*
-      - TestMultiRevision
-      - TestUninstall*
-      - TestTraffic/dns
-      - TestIngress/update-class-not-istio
-      - TestTraffic/consistent-hash/query_param
-      buganizerID: 187725074
-    - names:
-      - TestTraffic/jwt-claim-route
-      reason: Temporary disable until mesh agent upgraded to 1.11.2
-    - names:
-      - TestBadRemoteSecret
-      - TestTraffic/sniffing/http/headless.*
-      - TestTraffic/sniffing/grpc/headless.*
-      buganizerID: 205190928
-    - names:
-      - TestClusterLocal/subsets
-      buganizerID: 209865846
-
-    # security/ tests
-    - names:
-      - TestTlsGatewaysWithQUIC/quic*
-      - TestMtlsGatewaysWithQUIC/quic*
-      buganizerID: 199551889
-      reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
-    - names:
-      - TestStrictMTLS
-      reason: MeshCA does not support ECDSA
-    - names:
-      - TestStackdriverLegacy
-      - TestStackdriverAuditLogging
-      - TestStackdriverHTTPAuditLogging
-      - TestStackdriverAuthz
-      - TestVMTelemetry
-      reason: Stackdriver is not enabled with ASM Distro Baremetal installation
-
-    # telemetry/ tests
-    - names:
-      - TestCanonicalServices
-      buganizerID: 203557135
-
-  # Unmanaged CP + apm
-  - selectors:
-      control_plane: unmanaged
-      cluster_type: apm
-    targets:
-      - names:
-          - TestStackdriverLegacy
-          - TestStackdriverAuditLogging
-          - TestStackdriverHTTPAuditLogging
-          - TestStackdriverAuthz
-          - TestVMTelemetry
-        reason: Stackdriver is not enabled with ASM Distro Baremetal installation
-      # pilot/ tests
-      - names:
-        - TestCustomGateway/helm
-        - TestIngress
-        - TestTraffic/dns
-        - TestTraffic/consistent-hash
-        buganizerID: 191913525
-      - names:
-        - TestTraffic/jwt-claim-route
-        reason: Temporary disable until mesh agent upgraded to 1.11.2
 
   # Unmanaged CP + aws
   - selectors:
@@ -311,10 +174,6 @@ tests:
         buganizerID: 200846058
         reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
 
-      # telemetry/ tests
-      #- names:
-      #    - TestCanonicalServices
-      #  buganizerID: 203557135
       - names:
           - TestStackdriverLegacy
           - TestStackdriverAuditLogging
@@ -468,9 +327,6 @@ tests:
     targets:
     - names:
       - TestStatsFilter
-      - TestTcpMetric
-      - TestWasmStatsFilter
-      - TestWasmTcpMetric
       buganizerID: 177606974
     # pilot/ tests
     - names:
@@ -484,9 +340,6 @@ tests:
     targets:
       - names:
           - TestStatsFilter
-          - TestTcpMetric
-          - TestWasmStatsFilter
-          - TestWasmTcpMetric
         buganizerID: 177606974
       # pilot/ tests
       - names:
@@ -504,9 +357,6 @@ tests:
     targets:
       - names:
           - TestStatsFilter
-          - TestTcpMetric
-          - TestWasmStatsFilter
-          - TestWasmTcpMetric
         buganizerID: 177606974
       # pilot/ tests
       - names:
@@ -519,7 +369,6 @@ tests:
     targets:
       # pilot/ tests
       - names:
-          - TestWait
           - TestVersion
           - TestProxyStatus
           - TestDescribe
@@ -651,31 +500,6 @@ tests:
           - TestCloudESFApiKeyHttpBackend
         reason: it requires installing istiod first
 
-  - selectors:
-      gce_vms: true
-    targets:
-      - names:
-          - TestTraffic/dns/a/.*
-          - TestTraffic/dns/tproxy/.*
-        reason: Delay or breakage in resolving SE from Pods
-        buganizerID: 190209498
-      - names:
-          - TestValidation
-        reason: incompatible with stableNamespaces flag
-      - names:
-          - TestReachability/no-peer-authn/headless.*
-          - TestReachability/no-peer-authn/naked.*
-        buganizerID: 192372391
-      - names:
-          - TestStackdriverLegacy
-          - TestStackdriverAuditLogging
-          - TestStackdriverHTTPAuditLogging
-          - TestStackdriverAuthz
-        buganizerID: 187956450
-      - names:
-          - TestWorkloadEntryUpdatesStatus
-        buganizerID: 198725015
-
   # Managed CP, cluster topology = sc OR SINGLECLUSTER
   - selectors:
       control_plane: managed
@@ -736,7 +560,6 @@ tests:
     targets:
     - names:
         - TestProxyStatus
-        - TestWait
         - TestVersion
       reason: istioctl does not work
     - names:
@@ -805,14 +628,6 @@ tests:
       - TestDescribe
       buganizerID: 208485368
 
-  # Kubevirt
-  - selectors:
-      deployment_type: kubevirt_vm
-    targets:
-    - names:
-      - TestTelemetryAPIStats/mockprom-to-metrics
-      reason: unable to share istio-proxy certs to kubevirt vms
-
   # Smoke test
   - selectors:
       test_type: test.integration.asm.smoke
@@ -836,7 +651,6 @@ tests:
       - TestXFFGateway
       - TestIngress
       - TestCustomGateway
-      - TestWait
       - TestVersion
       - TestXdsVersion
       - TestDescribe
@@ -924,15 +738,14 @@ packages:
   - selectors:
       all: true
     targets:
-    - reason: we never re-install control plane to use endpointslice mode, dupe of default pilot suite
-      names:
-      - /pilot/endpointslice
+    - names:
+      - /pilot/cni
+      reason: an old test that is not updated or required now
 
   - selectors:
       control_plane: unmanaged
     targets:
       - names:
-          - /pilot/cni
           - /security/ca_migration
         reason: not supported
       - names:
@@ -945,7 +758,6 @@ packages:
       control_plane: managed_local
     targets:
       - names:
-          - /pilot/cni
           - /security/ca_migration
         reason: not supported
       - names:
@@ -962,7 +774,6 @@ packages:
           - /multicluster
           - /helm
           - /operator
-          - /pilot/cni
           - /pilot/revisions
           - /pilot/revisioncmd
           - /telemetry/stackdriver/vm
@@ -988,7 +799,6 @@ packages:
           - /multicluster
           - /helm
           - /operator
-          - /pilot/cni
           - /pilot/revisions
           - /pilot/revisioncmd
           - /telemetry/stackdriver/vm
@@ -1013,7 +823,6 @@ packages:
     - names:
       - /helm
       - /operator
-      - /pilot/cni
       - /pilot/revisions
       - /pilot/revisioncmd
       - /telemetry/stackdriver/vm
@@ -1039,7 +848,6 @@ packages:
     - names:
       - /helm
       - /operator
-      - /pilot/cni
       - /pilot/revisions
       - /pilot/revisioncmd
       - /telemetry/stackdriver/vm
@@ -1067,7 +875,6 @@ packages:
     - names:
       - /helm
       - /operator
-      - /pilot/cni
       - /pilot/revisions
       - /pilot/revisioncmd
       - /telemetry/stackdriver/vm
