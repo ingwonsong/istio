@@ -164,6 +164,8 @@ type manyCollection[I, O any] struct {
 	synced       chan struct{}
 	stop         <-chan struct{}
 	queue        queue.Instance
+
+	syncer Syncer
 }
 
 type collectionIndex[I, O any] struct {
@@ -244,11 +246,12 @@ type multiIndex[I, O any] struct {
 	mappings map[Key[I]]sets.Set[Key[O]]
 }
 
-func (h *manyCollection[I, O]) Synced() Syncer {
-	return channelSyncer{
-		name:   h.collectionName,
-		synced: h.synced,
-	}
+func (h *manyCollection[I, O]) HasSynced() bool {
+	return h.syncer.HasSynced()
+}
+
+func (h *manyCollection[I, O]) WaitUntilSynced(stop <-chan struct{}) bool {
+	return h.syncer.WaitUntilSynced(stop)
 }
 
 // nolint: unused // (not true, its to implement an interface)
@@ -353,7 +356,7 @@ func (h *manyCollection[I, O]) onPrimaryInputEventLocked(items []Event[I]) {
 		i := a.Latest()
 		iKey := getTypedKey(i)
 
-		ctx := &collectionDependencyTracker[I, O]{h, nil, iKey}
+		ctx := &collectionDependencyTracker[I, O]{manyCollection: h, key: iKey}
 		results := slices.GroupUnique(h.transformation(ctx, i), getTypedKey[O])
 		recomputedResults[idx] = results
 		// Store new dependency state, to insert in the next loop under the lock
@@ -390,8 +393,20 @@ func (h *manyCollection[I, O]) onPrimaryInputEventLocked(items []Event[I]) {
 			delete(h.collectionState.inputs, iKey)
 			h.dependencyState.delete(iKey)
 		} else {
-			h.dependencyState.update(iKey, pendingDepStateUpdates[iKey].d)
+			ctx := pendingDepStateUpdates[iKey]
 			results := recomputedResults[idx]
+			if ctx.discardUpdate {
+				// Called when the collection explicitly calls DiscardResult() on the context.
+				// This is typically used when we want to retain the last-correct state.
+				_, alreadyHasAResult := h.collectionState.mappings[iKey]
+				nowHasAResult := len(results) > 0
+				if alreadyHasAResult || !nowHasAResult {
+					h.log.WithLabels("iKey", iKey).Debugf("discarding result")
+					continue
+				}
+				h.log.WithLabels("iKey", iKey).Debugf("would discard result, but it is the first so including it")
+			}
+			h.dependencyState.update(iKey, ctx.d)
 			newKeys := sets.New(maps.Keys(results)...)
 			oldKeys := h.collectionState.mappings[iKey]
 			h.collectionState.mappings[iKey] = newKeys
@@ -446,40 +461,11 @@ func (h *manyCollection[I, O]) onPrimaryInputEventLocked(items []Event[I]) {
 	h.eventHandlers.Distribute(events, false)
 }
 
-// WithName allows explicitly naming a controller. This is a best practice to make debugging easier.
-// If not set, a default name is picked.
-func WithName(name string) CollectionOption {
+// WithJoinUnchecked enables an optimization for join collections, where keys are not deduplicated across collections.
+// This option can only be used when joined collections are disjoint: keys overlapping between collections is undefined behavior
+func WithJoinUnchecked() CollectionOption {
 	return func(c *collectionOptions) {
-		c.name = name
-	}
-}
-
-// WithObjectAugmentation allows transforming an object into another for usage throughout the library.
-// Currently this applies to things like Name, Namespace, Labels, LabelSelector, etc. Equals is not currently supported,
-// but likely in the future.
-// The intended usage is to add support for these fields to collections of types that do not implement the appropriate interfaces.
-// The conversion function can convert to a embedded struct with extra methods added:
-//
-//	type Wrapper struct { Object }
-//	func (w Wrapper) ResourceName() string { return ... }
-//	WithObjectAugmentation(func(o any) any { return Wrapper{o.(Object)} })
-func WithObjectAugmentation(fn func(o any) any) CollectionOption {
-	return func(c *collectionOptions) {
-		c.augmentation = fn
-	}
-}
-
-// WithStop sets a custom stop channel so a collection can be terminated when the channel is closed
-func WithStop(stop <-chan struct{}) CollectionOption {
-	return func(c *collectionOptions) {
-		c.stop = stop
-	}
-}
-
-// WithDebugging enables debugging of the collection
-func WithDebugging(handler *DebugHandler) CollectionOption {
-	return func(c *collectionOptions) {
-		c.debugger = handler
+		c.joinUnchecked = true
 	}
 }
 
@@ -515,6 +501,7 @@ func NewManyCollection[I, O any](c Collection[I], hf TransformationMulti[I, O], 
 
 func newManyCollection[I, O any](cc Collection[I], hf TransformationMulti[I, O], opts collectionOptions) Collection[O] {
 	c := cc.(internalCollection[I])
+
 	h := &manyCollection[I, O]{
 		transformation: hf,
 		collectionName: opts.name,
@@ -537,6 +524,10 @@ func newManyCollection[I, O any](cc Collection[I], hf TransformationMulti[I, O],
 		synced:        make(chan struct{}),
 		stop:          opts.stop,
 	}
+	h.syncer = channelSyncer{
+		name:   h.collectionName,
+		synced: h.synced,
+	}
 	maybeRegisterCollectionForDebugging(h, opts.debugger)
 
 	// Create our queue. When it syncs (that is, all items that were present when Run() was called), we mark ourselves as synced.
@@ -556,7 +547,7 @@ func newManyCollection[I, O any](cc Collection[I], hf TransformationMulti[I, O],
 func (h *manyCollection[I, O]) runQueue() {
 	c := h.parent
 	// Wait for primary dependency to be ready
-	if !c.Synced().WaitUntilSynced(h.stop) {
+	if !c.WaitUntilSynced(h.stop) {
 		return
 	}
 	// Now register to our primary collection. On any event, we will enqueue the update.
@@ -615,6 +606,7 @@ func (h *manyCollection[I, O]) onSecondaryDependencyEvent(sourceCollection colle
 	h.onPrimaryInputEventLocked(toRun)
 }
 
+// nolint: unused // it is used to implement interface
 func (h *manyCollection[I, O]) _internalHandler() {
 }
 
@@ -641,7 +633,7 @@ func (h *manyCollection[I, O]) Register(f func(o Event[O])) Syncer {
 func (h *manyCollection[I, O]) RegisterBatch(f func(o []Event[O], initialSync bool), runExistingState bool) Syncer {
 	if !runExistingState {
 		// If we don't to run the initial state this is simple, we just register the handler.
-		return h.eventHandlers.Insert(f, h.Synced(), nil, h.stop)
+		return h.eventHandlers.Insert(f, h, nil, h.stop)
 	}
 	// We need to run the initial state, but we don't want to get duplicate events.
 	// We should get "ADD initialObject1, ADD initialObjectN, UPDATE someLaterUpdate" without mixing the initial ADDs
@@ -659,7 +651,7 @@ func (h *manyCollection[I, O]) RegisterBatch(f func(o []Event[O], initialSync bo
 	}
 
 	// Send out all the initial objects to the handler. We will then unlock the new events so it gets the future updates.
-	return h.eventHandlers.Insert(f, h.Synced(), events, h.stop)
+	return h.eventHandlers.Insert(f, h, events, h.stop)
 }
 
 func (h *manyCollection[I, O]) name() string {
@@ -680,8 +672,9 @@ func (h *manyCollection[I, O]) uid() collectionUID {
 // for a given transformation call at once, then apply it in a single transaction to the manyCollection.
 type collectionDependencyTracker[I, O any] struct {
 	*manyCollection[I, O]
-	d   []*dependency
-	key Key[I]
+	d             []*dependency
+	key           Key[I]
+	discardUpdate bool
 }
 
 func (i *collectionDependencyTracker[I, O]) name() string {
@@ -711,4 +704,8 @@ func (i *collectionDependencyTracker[I, O]) registerDependency(
 }
 
 func (i *collectionDependencyTracker[I, O]) _internalHandler() {
+}
+
+func (i *collectionDependencyTracker[I, O]) DiscardResult() {
+	i.discardUpdate = true
 }

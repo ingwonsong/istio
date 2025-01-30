@@ -46,6 +46,7 @@ import (
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/labels"
+	"istio.io/istio/pkg/config/mesh/meshwatcher"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/config/schema/gvr"
 	"istio.io/istio/pkg/config/schema/kind"
@@ -1643,7 +1644,7 @@ func newAmbientTestServerWithFlags(t *testing.T, clusterID cluster.ID, networkID
 	} {
 		clienttest.MakeCRD(t, cl, crd)
 	}
-	debugger := &krt.DebugHandler{}
+	debugger := krt.GlobalDebugHandler
 	idx := New(Options{
 		Client:          cl,
 		SystemNamespace: systemNS,
@@ -1659,9 +1660,8 @@ func newAmbientTestServerWithFlags(t *testing.T, clusterID cluster.ID, networkID
 		StatusNotifier: activenotifier.New(true),
 		Debugger:       debugger,
 		Flags:          flags,
+		MeshConfig:     meshwatcher.NewTestWatcher(nil),
 	})
-	idx.NetworksSynced()
-	cl.RunAndWait(test.NewStop(t))
 
 	dumpOnFailure(t, debugger)
 	a := &ambientTestServer{
@@ -1696,10 +1696,17 @@ func newAmbientTestServerWithFlags(t *testing.T, clusterID cluster.ID, networkID
 	a.ns.Create(&corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   testNS,
-			Labels: map[string]string{"istio.io/dataplane-mode": "ambient"},
+			Labels: map[string]string{label.IoIstioDataplaneMode.Name: "ambient"},
+		},
+	})
+	a.ns.Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   systemNS,
+			Labels: map[string]string{label.TopologyNetwork.Name: string(networkID)},
 		},
 	})
 
+	cl.RunAndWait(test.NewStop(t))
 	return a
 }
 

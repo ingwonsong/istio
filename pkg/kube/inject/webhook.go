@@ -59,7 +59,6 @@ import (
 	"istio.io/istio/pkg/slices"
 	"istio.io/istio/pkg/util/protomarshal"
 	"istio.io/istio/pkg/util/sets"
-	iptablesconstants "istio.io/istio/tools/istio-iptables/pkg/constants"
 )
 
 var (
@@ -611,7 +610,7 @@ func adjustInitContainerUser(finalPod *corev1.Pod, originalPod *corev1.Pod, prox
 	tproxy := false
 	if proxyConfig.InterceptionMode == meshconfig.ProxyConfig_TPROXY {
 		tproxy = true
-	} else if mode, found := finalPod.Annotations[annotation.SidecarInterceptionMode.Name]; found && mode == iptablesconstants.TPROXY {
+	} else if mode, found := finalPod.Annotations[annotation.SidecarInterceptionMode.Name]; found && mode == "TPROXY" {
 		tproxy = true
 	}
 

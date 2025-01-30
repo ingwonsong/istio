@@ -39,6 +39,7 @@ import (
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/mesh"
+	"istio.io/istio/pkg/config/mesh/meshwatcher"
 	"istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/monitoring/monitortest"
 	"istio.io/istio/pkg/slices"
@@ -403,7 +404,7 @@ func TestEnforce1PSEnvoyFilterAllowlist(t *testing.T) {
 	_, _ = store.Create(cfg)
 	env.ConfigStore = store
 	m := mesh.DefaultMeshConfig()
-	env.Watcher = mesh.NewFixedWatcher(m)
+	env.Watcher = meshwatcher.NewTestWatcher(m)
 	env.Init()
 	mt := monitortest.New(t)
 

@@ -70,7 +70,7 @@ func TestJoinCollection(t *testing.T) {
 
 func TestCollectionJoin(t *testing.T) {
 	stop := test.NewStop(t)
-	opts := KrtOptions{stop}
+	opts := testOptions(t)
 	c := kube.NewFakeClient()
 	pods := krt.NewInformer[*corev1.Pod](c, opts.WithName("Pods")...)
 	services := krt.NewInformer[*corev1.Service](c, opts.WithName("Services")...)
@@ -168,7 +168,7 @@ func TestCollectionJoin(t *testing.T) {
 
 func TestCollectionJoinSync(t *testing.T) {
 	stop := test.NewStop(t)
-	opts := KrtOptions{stop}
+	opts := testOptions(t)
 	c := kube.NewFakeClient(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
@@ -186,7 +186,7 @@ func TestCollectionJoinSync(t *testing.T) {
 		IP:      "9.9.9.9",
 	}, true)
 	AllPods := krt.JoinCollection([]krt.Collection[SimplePod]{SimplePods, ExtraSimplePods.AsCollection()})
-	assert.Equal(t, AllPods.Synced().WaitUntilSynced(stop), true)
+	assert.Equal(t, AllPods.WaitUntilSynced(stop), true)
 	// Assert Equal -- not EventuallyEqual -- to ensure our WaitForCacheSync is proper
 	assert.Equal(t, fetcherSorted(AllPods)(), []SimplePod{
 		{Named{"namespace", "name"}, NewLabeled(map[string]string{"app": "foo"}), "1.2.3.4"},

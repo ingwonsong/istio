@@ -43,6 +43,7 @@ import (
 	"istio.io/istio/pkg/config/host"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/config/mesh"
+	"istio.io/istio/pkg/config/mesh/meshwatcher"
 	"istio.io/istio/pkg/config/protocol"
 	"istio.io/istio/pkg/config/schema/kind"
 	"istio.io/istio/pkg/config/visibility"
@@ -125,7 +126,7 @@ type Options struct {
 	MeshNetworksWatcher mesh.NetworksWatcher
 
 	// MeshWatcher observes changes to the mesh config
-	MeshWatcher mesh.Watcher
+	MeshWatcher meshwatcher.WatcherCollection
 
 	// Maximum QPS when communicating with kubernetes API
 	KubernetesAPIQPS float32
@@ -146,6 +147,8 @@ type Options struct {
 	// StatusWritingEnabled determines if status writing is enabled. This may be set to `nil`, in which case status
 	// writing will never be enabled
 	StatusWritingEnabled *activenotifier.ActiveNotifier
+
+	KrtDebugger *krt.DebugHandler
 }
 
 // kubernetesNode represents a kubernetes node that is reachable externally
@@ -288,6 +291,7 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 			ClusterID:       options.ClusterID,
 			Revision:        options.Revision,
 			XDSUpdater:      options.XDSUpdater,
+			MeshConfig:      options.MeshWatcher,
 			LookupNetwork:   c.Network,
 			LookupNetworkGateways: func() []model.NetworkGateway {
 				return slices.Filter(c.NetworkGateways(), func(g model.NetworkGateway) bool {
@@ -295,7 +299,7 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 				})
 			},
 			StatusNotifier: options.StatusWritingEnabled,
-			Debugger:       krt.GlobalDebugHandler,
+			Debugger:       options.KrtDebugger,
 			Flags: ambient.FeatureFlags{
 				DefaultAllowFromWaypoint:              features.DefaultAllowFromWaypoint,
 				EnableK8SServiceSelectWorkloadEntries: features.EnableK8SServiceSelectWorkloadEntries,
@@ -312,13 +316,6 @@ func NewController(kubeClient kubelib.Client, options Options) *Controller {
 			c.onNetworkChange()
 		})
 		c.reloadMeshNetworks()
-	}
-	if c.ambientIndex != nil {
-		c.networkManager.NetworkGatewaysHandler.AppendNetworkGatewayHandler(func() {
-			// This is to ensure the ambient workloads are updated dynamically, aligning them with the current network settings.
-			// With this, the pod do not need to restart when the network configuration changes.
-			c.ambientIndex.SyncAll()
-		})
 	}
 	return c
 }
@@ -666,20 +663,11 @@ func (c *Controller) Run(stop <-chan struct{}) {
 
 	go c.imports.Run(stop)
 	go c.exports.Run(stop)
+	if c.ambientIndex != nil {
+		go c.ambientIndex.Run(stop)
+	}
 	kubelib.WaitForCacheSync("kube controller", stop, c.informersSynced)
 	log.Infof("kube controller for %s synced after %v", c.opts.ClusterID, time.Since(st))
-	if c.ambientIndex != nil {
-		go func() {
-			// Wait until we have everything ready, then we can notify ambient everything is ready
-			// This ensures it gets the initial network state.
-			kubelib.WaitForCacheSync("kube controller queue", stop, func() bool {
-				return c.queue.HasSynced() || c.initialSyncTimedout.Load()
-			})
-
-			c.ambientIndex.NetworksSynced()
-			c.ambientIndex.Run(stop)
-		}()
-	}
 
 	// after the in-order sync we can start processing the queue
 	c.queue.Run(stop)

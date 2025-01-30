@@ -33,7 +33,7 @@ import (
 
 func TestIndex(t *testing.T) {
 	stop := test.NewStop(t)
-	opts := KrtOptions{stop}
+	opts := testOptions(t)
 	c := kube.NewFakeClient()
 	kpc := kclient.New[*corev1.Pod](c)
 	pc := clienttest.Wrap(t, kpc)
@@ -91,7 +91,7 @@ func TestIndex(t *testing.T) {
 
 func TestIndexCollection(t *testing.T) {
 	stop := test.NewStop(t)
-	opts := KrtOptions{stop}
+	opts := testOptions(t)
 	c := kube.NewFakeClient()
 	kpc := kclient.New[*corev1.Pod](c)
 	pc := clienttest.Wrap(t, kpc)
@@ -107,7 +107,7 @@ func TestIndexCollection(t *testing.T) {
 		names := slices.Sort(slices.Map(pods, SimplePod.ResourceName))
 		return ptr.Of(strings.Join(names, ","))
 	}, opts.WithName("Collection")...)
-	Collection.AsCollection().Synced().WaitUntilSynced(stop)
+	Collection.AsCollection().WaitUntilSynced(stop)
 	fetchSorted := func(ip string) []SimplePod {
 		return slices.SortBy(IPIndex.Lookup(ip), func(t SimplePod) string {
 			return t.ResourceName()

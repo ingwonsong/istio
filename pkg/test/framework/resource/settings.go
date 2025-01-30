@@ -170,8 +170,8 @@ type Settings struct {
 	// MaxDumps is the maximum number of full test dumps that are allowed to occur within a test suite.
 	MaxDumps uint64
 
-	// EnableDualStack indicates the test should have dual stack enabled or not.
-	EnableDualStack bool
+	// IP Families (IPv6, IPv4) to test with. The order indicates precedence.
+	IPFamilies ArrayFlags
 
 	// Helm repo to be used for tests
 	HelmRepo string
@@ -266,11 +266,12 @@ func (s *Settings) String() string {
 	result += fmt.Sprintf("UseDefaultInjectionLabels:      %t\n", s.UseDefaultInjectionLabels)
 	result += fmt.Sprintf("Hub:                            %s\n", s.Image.Hub)
 	result += fmt.Sprintf("Tag:                            %s\n", s.Image.Tag)
-	result += fmt.Sprintf("Variant:           						 %s\n", s.Image.Variant)
+	result += fmt.Sprintf("Variant:           	   		   %s\n", s.Image.Variant)
 	result += fmt.Sprintf("PullPolicy:                     %s\n", s.Image.PullPolicy)
 	result += fmt.Sprintf("PullSecret:                     %s\n", s.Image.PullSecret)
 	result += fmt.Sprintf("MaxDumps:                       %d\n", s.MaxDumps)
 	result += fmt.Sprintf("HelmRepo:                       %v\n", s.HelmRepo)
+	result += fmt.Sprintf("IPFamilies:					   %v\n", s.IPFamilies)
 	result += fmt.Sprintf("GatewayConformanceStandardOnly: %v\n", s.GatewayConformanceStandardOnly)
 	return result
 }
