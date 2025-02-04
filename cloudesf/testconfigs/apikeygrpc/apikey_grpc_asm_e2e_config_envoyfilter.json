@@ -232,6 +232,7 @@
                 "checkCacheConfig": {},
                 "estubsGrpc": {
                   "clientRootCertPath": "/roots.pem",
+                  "enableEstubsShortestDeadline": true,
                   "targetUri": "servicecontrol.googleapis.com:443"
                 },
                 "imdsUri": {
