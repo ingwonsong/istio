@@ -56,7 +56,6 @@ func TestDependencies(t *testing.T) {
 				`envoy/extensions/wasm/`,
 				`envoy/extensions/filters/(http|network)/wasm/`,
 				`github.com/envoyproxy/protoc-gen-validate/validate`,
-				`github.com/envoyproxy/go-control-plane/pkg/conversion`,
 				`github.com/envoyproxy/go-control-plane/envoy/config`,
 				`github.com/envoyproxy/go-control-plane/envoy/extensions/filters`,
 				`^istio\.io/api/(annotation|label|mcp|mesh|networking|type)`,

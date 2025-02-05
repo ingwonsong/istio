@@ -91,7 +91,10 @@ function fix_gomod() {
   go mod tidy
   go mod vendor
   cd "${ISTIO_DIR}" || return
-  find . -iname go.mod | grep -v 'vendor' | while read -r x; do
+  find . -iname go.mod ! -path './go-control-plane*' | grep -v 'vendor' | while read -r x; do
+    # if [ $x  == "*go-control-plane*" ]; then
+    #   continue
+    # fi
     pushd "$(dirname "$x")" || return
     go mod tidy
     go mod vendor

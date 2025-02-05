@@ -1188,7 +1188,6 @@ func (wh *Webhook) inject(ar *kube.AdmissionReview, path string) *kube.Admission
 			return &pt
 		}(),
 	}
-	totalSuccessfulInjections.Increment()
 	return &reviewResponse
 }
 
@@ -1219,6 +1218,7 @@ func (wh *Webhook) serveInject(w http.ResponseWriter, r *http.Request) {
 		if data, err := kube.HTTPConfigReader(r); err == nil {
 			body = data
 		} else {
+			handleError(log, err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -1275,14 +1275,17 @@ func (wh *Webhook) serveInject(w http.ResponseWriter, r *http.Request) {
 	responseKube = kube.AdmissionReviewAdapterToKube(&response, apiVersion)
 	resp, err := json.Marshal(responseKube)
 	if err != nil {
-		log.Errorf("Could not encode response: %v", err)
+		handleError(log, fmt.Sprintf("Could not encode response: %v", err))
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return
 	}
 	if _, err := w.Write(resp); err != nil {
 		log.Errorf("Could not write response: %v", err)
+		handleError(log, fmt.Sprintf("could not write response: %v", err))
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return
 	}
+	totalSuccessfulInjections.Increment()
 }
 
 // parseInjectEnvs parse new envs from inject url path. format: /inject/k1/v1/k2/v2

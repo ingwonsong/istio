@@ -1,6 +1,6 @@
 IN_CONTAINER := $(shell bash -c "test -f /.dockerenv && echo '1' || echo '0'")
 
-FINDFILES_IGNORE= -path ./tests/taaa/integration-tests/vendor -o -path ./tools/asm-lifecycle-tag/vendor -o -path ./prow/asm/tester/vendor -o -path ./prow/asm/infra/vendor
+FINDFILES_IGNORE= -path ./tests/taaa/integration-tests/vendor -o -path ./tools/asm-lifecycle-tag/vendor -o -path ./prow/asm/tester/vendor -o -path ./prow/asm/infra/vendor -o -path ./go-control-plane
 export FINDFILES_IGNORE
 
 ifeq ($(IN_CONTAINER),0)

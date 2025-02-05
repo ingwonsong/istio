@@ -230,7 +230,9 @@ the policy applies to.</p>
 <p>Currently, the following resource attachment types are supported:</p>
 <ul>
 <li><code>kind: Gateway</code> with <code>group: gateway.networking.k8s.io</code> in the same namespace.</li>
+<li><code>kind: GatewayClass</code> with <code>group: gateway.networking.k8s.io</code> in the root namespace.</li>
 <li><code>kind: Service</code> with <code>group: &quot;&quot;</code> or <code>group: &quot;core&quot;</code> in the same namespace. This type is only supported for waypoints.</li>
+<li><code>kind: ServiceEntry</code> with <code>group: networking.istio.io</code> in the same namespace.</li>
 </ul>
 <p>If not set, the policy is applied as defined by the selector.
 At most one of the selector and targetRefs can be set.</p>
@@ -557,7 +559,8 @@ This field requires mTLS enabled and is the same as the <code>source.namespace</
 <td>
 <p>A list of Kubernetes service accounts derived from the peer certificate.
 This field requires mTLS enabled and is the same as the <code>source.serviceaccount</code> attribute.</p>
-<p>This takes the format <code>&lt;namespace&gt;/&lt;serviceaccount&gt;</code>.</p>
+<p>This takes the format <code>&lt;namespace&gt;/&lt;serviceaccount&gt;</code>.
+<code>&lt;serviceaccount&gt;</code> may also be used to use the same namespace as the <code>AuthorizationPolicy</code>.</p>
 <p>If not set, any service account is allowed.</p>
 <p>No form of wildcard (<code>*</code>) is allowed.
 Cannot be set with <code>principals</code> or <code>namespaces</code>.</p>
@@ -570,7 +573,8 @@ Cannot be set with <code>principals</code> or <code>namespaces</code>.</p>
 </div></td>
 <td>
 <p>A list of negative match of Kubernetes service accounts.</p>
-<p>This takes the format <code>&lt;namespace&gt;/&lt;serviceaccount&gt;</code>.</p>
+<p>This takes the format <code>&lt;namespace&gt;/&lt;serviceaccount&gt;</code>.
+<code>&lt;serviceaccount&gt;</code> may also be used to use the same namespace as the <code>AuthorizationPolicy</code>.</p>
 <p>No form of wildcard (<code>*</code>) is allowed.</p>
 
 </td>
