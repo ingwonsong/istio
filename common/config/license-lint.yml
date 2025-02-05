@@ -140,3 +140,6 @@ allowlisted_modules:
 
 # Apache 2.0
 - github.com/aws/smithy-go
+
+# We copy this module and check-in to repo 
+- github.com/envoyproxy/go-control-plane/envoy
