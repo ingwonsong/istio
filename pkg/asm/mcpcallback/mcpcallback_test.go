@@ -31,7 +31,7 @@ func TestToPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WithDetails returned unexpected error: %v", err)
 	}
-	payload, err := toPayload(st, 685032*time.Nanosecond, "rev1", "101010")
+	payload, err := toPayload(st, 685032*time.Nanosecond, "rev1", "101010", "202020")
 	if err != nil {
 		t.Fatalf("toPayload returned unexpected error: %v", err)
 	}
@@ -56,7 +56,8 @@ func TestToPayload(t *testing.T) {
 			}]
 		},
 		"revision": "rev1",
-		"instance_id": "101010"
+		"instance_id": "101010",
+		"tenant_project": "projects/202020"
 	}`
 	if diff := cmp.Diff(want, payload, transformJSON); diff != "" {
 		t.Fatalf("toPayload returned unexpected diff (-want +got):\n%s", diff)

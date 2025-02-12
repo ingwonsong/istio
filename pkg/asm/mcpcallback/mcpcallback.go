@@ -159,7 +159,7 @@ func reportStatusURL(p asm.MCPParameters) string {
 	return fmt.Sprintf(apiFmt, api, p.Project, p.Zone, p.Cluster, p.Revision)
 }
 
-func toPayload(st *status.Status, startupDuration time.Duration, rev, instanceID string) (string, error) {
+func toPayload(st *status.Status, startupDuration time.Duration, rev, instanceID, tenantProject string) (string, error) {
 	t, err := protomarshal.ToJSON(durationpb.New(startupDuration))
 	if err != nil {
 		return "", err
@@ -168,7 +168,8 @@ func toPayload(st *status.Status, startupDuration time.Duration, rev, instanceID
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(`{ "startup_duration": %s, "status": %s, "revision": %q, "instance_id": %q }`, t, s, rev, instanceID), nil
+	tmpl := `{ "startup_duration": %s, "status": %s, "revision": %q, "instance_id": %q, "tenant_project": "projects/%s" }`
+	return fmt.Sprintf(tmpl, t, s, rev, instanceID, tenantProject), nil
 }
 
 func report(ctx context.Context, st *status.Status) error {
@@ -176,7 +177,8 @@ func report(ctx context.Context, st *status.Status) error {
 	if err != nil {
 		return fmt.Errorf("failed to get MCPParameters: %w", err)
 	}
-	payload, err := toPayload(st, time.Since(startTime), p.KRevision, platform.NewGCP().Metadata()[platform.GCEInstanceID])
+	md := platform.NewGCP().Metadata()
+	payload, err := toPayload(st, time.Since(startTime), p.KRevision, md[platform.GCEInstanceID], md[platform.GCPProjectNumber])
 	if err != nil {
 		return fmt.Errorf("failed to marshal the payload of a request to Callback: %w", err)
 	}
