@@ -169,8 +169,6 @@ tests:
           - TestSingleMTLSGateway*
           - TestTlsGatewaysWithQUIC/quic*
           - TestMtlsGatewaysWithQUIC/quic*
-          - TestTlsGateways
-          - TestMtlsGateways
         buganizerID: 200846058
         reason: Requires MixedProtocolLBService k8s alpha feature flag which isn't something we can turn on. It is not supported in ASM.
 
@@ -186,9 +184,6 @@ tests:
       - names:
         - TestTraffic/dns
         buganizerID: 187722953
-      - names:
-        - TestDescribe
-        buganizerID: 208485368
       - names:
         - TestMultiClusterWithSecrets
         reason: The test is failing with error '$clusterName is not a valid DNS 1123 label'. To unskip, when cluster naming logic is resolved
@@ -345,9 +340,13 @@ tests:
       - names:
           - TestTraffic/dns.*
         buganizerID: 191802552
-      # networking/ tests
+  - selectors:
+      control_plane: unmanaged
+      cluster_topology: mp
+      feature_to_test: VPC_SC
+    targets:
       - names:
-        - TestMultiClusterWithSecrets
+          - TestMultiClusterWithSecrets
         buganizerID: 378608882
 
   # Unmanaged CP, cluster topology = mc OR multiproject
