@@ -46,6 +46,7 @@ import (
 	"istio.io/istio/pilot/pkg/gcpmonitoring"
 	"istio.io/istio/pkg/asm"
 	"istio.io/istio/pkg/asm/mcpcallback"
+	"istio.io/istio/pkg/asm/mcphttpovergrpc"
 	"istio.io/istio/pkg/bootstrap/platform"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/cmd"
@@ -217,7 +218,9 @@ func initializeMCP(p asm.MCPParameters) (kubelib.Client, error) {
 	serverArgs.ServerOptions.HTTPSAddr = ""
 	serverArgs.ServerOptions.SecureGRPCAddr = ""
 	serverArgs.ServerOptions.MonitoringAddr = ""
-	serverArgs.ServerOptions.GRPCAddr = ""
+	if !mcphttpovergrpc.Enabled {
+		serverArgs.ServerOptions.GRPCAddr = ""
+	}
 
 	if _, ok := os.LookupEnv("PILOT_JWT_ENABLE_REMOTE_JWKS"); !ok {
 		// Allow overriding, but keep the default aligned with previous MCP releases.

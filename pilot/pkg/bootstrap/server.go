@@ -59,6 +59,7 @@ import (
 	tb "istio.io/istio/pilot/pkg/trustbundle"
 	"istio.io/istio/pilot/pkg/xds"
 	"istio.io/istio/pkg/asm/mcpcallback"
+	"istio.io/istio/pkg/asm/mcphttpovergrpc"
 	"istio.io/istio/pkg/cluster"
 	"istio.io/istio/pkg/config"
 	"istio.io/istio/pkg/config/constants"
@@ -615,6 +616,12 @@ func (s *Server) initServers(args *PilotArgs) {
 	multiplexGRPC := false
 	if args.ServerOptions.GRPCAddr != "" {
 		s.grpcAddress = args.ServerOptions.GRPCAddr
+		if mcphttpovergrpc.Enabled {
+			log.Infof("multiplexing ADS and Webhook on http addr %v and gRPC addr %v", args.ServerOptions.HTTPAddr, s.grpcAddress)
+			// We are now providing Webhook and ADS in gRPC server as well as HTTP server.
+			// TODO(igsong): Delete this block after we finished migrating to HTTPOverGRPC.
+			multiplexGRPC = true
+		}
 	} else {
 		// This happens only if the GRPC port (15010) is disabled. We will multiplex
 		// it on the HTTP port. Does not impact the HTTPS gRPC or HTTPS.
@@ -757,10 +764,17 @@ func (s *Server) initGrpcServer(options *istiokeepalive.Options) {
 		// setup server prometheus monitoring (as final interceptor in chain)
 		grpcprom.UnaryServerInterceptor,
 	}
+	if mcphttpovergrpc.Enabled {
+		interceptors = append(interceptors, mcpUnaryInterceptorForInjectingResponseHeader()) // CSM cdoe
+	}
 	grpcOptions := istiogrpc.ServerOptions(options, interceptors...)
+	if mcphttpovergrpc.Enabled {
+		grpcOptions = append(grpcOptions, grpc.StreamInterceptor(mcpStreamInterceptorForInjectingResponseHeader())) // CSM code
+	}
 	s.grpcServer = grpc.NewServer(grpcOptions...)
 	s.XDSServer.Register(s.grpcServer)
 	reflection.Register(s.grpcServer)
+	mcphttpovergrpc.Initialize(s.httpMux, s.grpcServer) // CSM code
 }
 
 // initialize secureGRPCServer.
