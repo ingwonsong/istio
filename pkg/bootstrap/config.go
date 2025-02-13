@@ -145,6 +145,8 @@ func (cfg Config) toTemplateParams() (map[string]any, error) {
 		}
 	}
 
+	opts = append(opts, option.WorkloadIdentitySocketFile(cfg.Metadata.WorkloadIdentitySocketFile))
+
 	// Support passing extra info from node environment as metadata
 	opts = append(opts, getNodeMetadataOptions(cfg.Node, cfg.CompliancePolicy)...)
 
@@ -583,6 +585,7 @@ type MetadataOptions struct {
 	ExitOnZeroActiveConnections bool
 	MetadataDiscovery           *bool
 	EnvoySkipDeprecatedLogs     bool
+	WorkloadIdentitySocketFile  string
 }
 
 const (
@@ -644,6 +647,8 @@ func GetNodeMetaData(options MetadataOptions) (*model.Node, error) {
 		meta.MetadataDiscovery = ptr.Of(model.StringBool(*options.MetadataDiscovery))
 	}
 	meta.EnvoySkipDeprecatedLogs = model.StringBool(options.EnvoySkipDeprecatedLogs)
+
+	meta.WorkloadIdentitySocketFile = options.WorkloadIdentitySocketFile
 
 	meta.ProxyConfig = (*model.NodeMetaProxyConfig)(options.ProxyConfig)
 
