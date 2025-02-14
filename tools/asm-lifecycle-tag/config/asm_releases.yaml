@@ -123,3 +123,5 @@ versions:
     status: live
   - name: 1.20.8-asm.19
     status: live
+  - name: dev-gke.1
+    status: live
