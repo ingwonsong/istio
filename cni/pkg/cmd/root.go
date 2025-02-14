@@ -166,21 +166,6 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Failed to register CNI metrics exporter: %v", err)
 		}
 
-		log.Info("Creating CNI metrics exporter")
-		if err := registerExporter(); err != nil {
-			log.Fatalf("Failed to register CNI metrics exporter: %v", err)
-		}
-
-		log.Info("Creating CNI metrics exporter")
-		if err := registerExporter(); err != nil {
-			log.Fatalf("Failed to register CNI metrics exporter: %v", err)
-		}
-
-		log.Info("Creating CNI metrics exporter")
-		if err := registerExporter(); err != nil {
-			log.Fatalf("Failed to register CNI metrics exporter: %v", err)
-		}
-
 		// Note that even though we "install" the CNI plugin here *after* we start the node agent,
 		// it will block ambient-enabled pods from starting until `watchServerReady` == true
 		// (that is, the node agent is ready to respond to plugin events)
