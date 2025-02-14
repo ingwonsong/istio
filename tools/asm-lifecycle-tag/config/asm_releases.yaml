@@ -94,10 +94,16 @@ versions:
   - name: 1.21.5-asm.19
     status: deprecated
   - name: 1.29.12-gke.1
+    status: deprecated
+  - name: 1.29.12-gke.2
     status: live
   - name: 1.30.9-gke.1
+    status: deprecated
+  - name: 1.30.9-gke.2
     status: live
   - name: 1.31.5-gke.1
+    status: deprecated
+  - name: 1.31.5-gke.2
     status: live
   - name: 1.21.5-17
     status: live
