@@ -16,9 +16,9 @@ package system
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"istio.io/istio/pkg/log"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
 	"istio.io/istio/prow/asm/tester/pkg/gcp"
 	"istio.io/istio/prow/asm/tester/pkg/kube"
@@ -26,8 +26,13 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/resource"
 )
 
+type binding struct {
+	member string
+	role   string
+}
+
 func Teardown(settings *resource.Settings) error {
-	log.Println("🎬 start cleaning up ASM control plane installation...")
+	log.Info("🎬 start cleaning up ASM control plane installation...\n")
 
 	if settings.CA == resource.PrivateCA {
 		cleanupPrivateCa(settings)
@@ -81,21 +86,30 @@ func removeGcpPermissions(settings *resource.Settings) error {
 	if settings.InstallOverride.IsSet() {
 		return nil
 	}
-	for _, projectId := range settings.ClusterGCPProjects {
-		if projectId != settings.GCRProject {
-			projectNum, err := gcp.GetProjectNumber(projectId)
-			if err != nil {
-				return err
-			}
-			err = exec.Run(
-				fmt.Sprintf("gcloud projects remove-iam-policy-binding %s "+
-					"--member=serviceAccount:%s-compute@developer.gserviceaccount.com "+
-					"--role=roles/storage.objectViewer",
-					settings.GCRProject,
-					projectNum),
-			)
-			if err != nil {
-				return fmt.Errorf("error removing the binding for the service account to access GCR: %w", err)
+	for _, projectIdSrc := range settings.ClusterGCPProjects {
+		for _, projectIdDest := range settings.ClusterGCPProjects {
+			if projectIdDest != projectIdSrc {
+				projectNum, err := gcp.GetProjectNumber(projectIdDest)
+				if err != nil {
+					return err
+				}
+				bindings := []binding{
+					{member: fmt.Sprintf("serviceAccount:%s-compute@developer.gserviceaccount.com", projectNum), role: "roles/storage.objectViewer"},
+					{member: fmt.Sprintf("serviceAccount:%s-compute@developer.gserviceaccount.com", projectNum), role: "roles/artifactregistry.reader"},
+					{member: fmt.Sprintf("serviceAccount:service-%s@gcp-sa-gkehub.iam.gserviceaccount.com", projectNum), role: "roles/gkehub.serviceAgent"},
+					{member: fmt.Sprintf("serviceAccount:service-%s@gcp-sa-staging-gkehub.iam.gserviceaccount.com", projectNum), role: "roles/gkehub.serviceAgent"},
+					{member: fmt.Sprintf("serviceAccount:service-%s@gcp-sa-servicemesh.iam.gserviceaccount.com", projectNum), role: "roles/anthosservicemesh.serviceAgent"},
+					{member: fmt.Sprintf("serviceAccount:service-%s@gcp-sa-staging-servicemesh.iam.gserviceaccount.com", projectNum), role: "roles/anthosservicemesh.serviceAgent"},
+					{member: fmt.Sprintf("serviceAccount:service-%s@container-engine-robot.iam.gserviceaccount.com", projectNum), role: "roles/container.hostServiceAgentUser"},
+				}
+				for _, b := range bindings {
+					cmd := exec.Command("gcloud", "projects", "remove-iam-policy-binding", projectIdSrc,
+						"--member="+fmt.Sprintf(b.member),
+						"--role="+fmt.Sprintf(b.role))
+					if err := cmd.Run(); err != nil {
+						log.Warn(fmt.Errorf("error removing gcp permissions: error removing the binding (%s)  (%s) for the service account to access GCR: %w", "--member="+fmt.Sprintf(b.member), "--role="+fmt.Sprintf(b.role), err))
+					}
+				}
 			}
 		}
 	}

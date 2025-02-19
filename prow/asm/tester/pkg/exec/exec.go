@@ -36,6 +36,10 @@ func WithAdditionalEnvs(envs []string) Option {
 	}
 }
 
+func Command(name string, arg ...string) *exec.Cmd {
+	return exec.Command(name, arg...)
+}
+
 // WithAdditionalArgs returns an option that adds additional env vars
 // for the given Cmd.
 func WithAdditionalArgs(args []string) Option {
