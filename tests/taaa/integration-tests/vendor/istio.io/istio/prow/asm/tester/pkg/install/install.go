@@ -43,6 +43,7 @@ const (
 var telemetryTests = []string{
 	"test.integration.asm.telemetry",
 	"test.integration.asm.telemetry.realstackdriver",
+	"test.integration.asm.telemetry-and-envoyfilter",
 }
 
 func (c *installer) install(r *revision.Config) error {

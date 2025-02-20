@@ -135,6 +135,7 @@ roleRef:
 #
 # $detectedBinDir exists to support a GKE-specific platform override,
 # and is deprecated in favor of using the explicit `gke` platform profile.
+
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:

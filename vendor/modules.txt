@@ -270,8 +270,8 @@ github.com/emicklei/go-restful/v3/log
 # github.com/envoyproxy/go-control-plane v0.13.5-0.20250123154839-2a6715911fec
 ## explicit; go 1.22
 github.com/envoyproxy/go-control-plane/pkg/resource/v3
-# github.com/envoyproxy/go-control-plane/contrib v1.32.5-0.20250207140015-90270e3c85fd
-## explicit; go 1.22
+# github.com/envoyproxy/go-control-plane/contrib v1.32.5-0.20250211152746-ef139ef8ea6b
+## explicit; go 1.22.0
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzip/compressor/v3alpha
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/compression/qatzstd/compressor/v3alpha
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/config/v3alpha
@@ -301,7 +301,7 @@ github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/router/cluster_s
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/tap_sinks/udp_sink/v3alpha
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/upstreams/http/tcp/golang/v3alpha
 github.com/envoyproxy/go-control-plane/contrib/envoy/extensions/vcl/v3alpha
-# github.com/envoyproxy/go-control-plane/envoy v1.32.5-0.20250207140015-90270e3c85fd => ./go-control-plane/envoy
+# github.com/envoyproxy/go-control-plane/envoy v1.32.5-0.20250211152746-ef139ef8ea6b => ./go-control-plane/envoy
 ## explicit; go 1.22
 github.com/envoyproxy/go-control-plane/envoy/admin/v3
 github.com/envoyproxy/go-control-plane/envoy/annotations
@@ -1726,7 +1726,7 @@ google.golang.org/grpc/xds/internal/xdsclient/xdslbregistry
 google.golang.org/grpc/xds/internal/xdsclient/xdslbregistry/converter
 google.golang.org/grpc/xds/internal/xdsclient/xdsresource
 google.golang.org/grpc/xds/internal/xdsclient/xdsresource/version
-# google.golang.org/protobuf v1.36.4
+# google.golang.org/protobuf v1.36.5
 ## explicit; go 1.21
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/protojson
@@ -1797,7 +1797,7 @@ helm.sh/helm/v3/pkg/chart/loader
 helm.sh/helm/v3/pkg/chartutil
 helm.sh/helm/v3/pkg/engine
 helm.sh/helm/v3/pkg/ignore
-# istio.io/api v1.25.0-alpha.0.0.20250210220544-0b64afd2de85
+# istio.io/api v1.25.0-alpha.0.0.20250218184651-391fae208a15
 ## explicit; go 1.22.0
 istio.io/api/analysis/v1alpha1
 istio.io/api/annotation
@@ -1820,7 +1820,7 @@ istio.io/api/security/v1alpha1
 istio.io/api/security/v1beta1
 istio.io/api/telemetry/v1alpha1
 istio.io/api/type/v1beta1
-# istio.io/client-go v1.25.0-alpha.0.0.20250210220843-5a4065fded65
+# istio.io/client-go v1.25.0-alpha.0.0.20250218185150-c0b8a64f6033
 ## explicit; go 1.23.0
 istio.io/client-go/pkg/apis/extensions/v1alpha1
 istio.io/client-go/pkg/apis/networking/v1
