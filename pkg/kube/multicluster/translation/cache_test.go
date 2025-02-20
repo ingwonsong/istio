@@ -207,7 +207,6 @@ func TestCache(t *testing.T) {
 				},
 				clusterFetcher:        mockFetcher,
 				membershipLister:      mockLister,
-				validateEndpoint:      false,
 				publicIPToMembership:  tc.existingCacheState,
 				privateIPToMembership: tc.existingCacheState,
 				knownPublicIPs:        tc.existingKnownPublicIPCache,

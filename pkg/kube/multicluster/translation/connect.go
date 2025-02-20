@@ -15,46 +15,29 @@
 package translation
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/gkehub/apiv1beta1/gkehubpb"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/googleapi"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 var (
 	membershipNameRegex = regexp.MustCompile(`^projects/([^/]+)/locations/([^/]+)/memberships/([^/]+)$`)
-	validateTimeout     = time.Second * 5
 
 	cgwHostRegex = regexp.MustCompile(`^([^\.]*)-?(autopush|staging)?\-?connectgateway.(?:sandbox\.)?googleapis.com$`)
 	cgwPathRegex = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/gkeMemberships/([^/]+)$`)
 )
 
-func apiConfigFromMembership(membership *gkehubpb.Membership, hubEndpoint, fleetProjectNumber string, validateEndpoint bool) (api.Config, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), validateTimeout)
-	defer cancel()
-
+func apiConfigFromMembership(membership *gkehubpb.Membership, hubEndpoint, fleetProjectNumber string) (api.Config, error) {
 	cgwEndpoint, err := connectEndpointFromMembership(membership, hubEndpoint, fleetProjectNumber)
 	if err != nil {
 		return api.Config{}, fmt.Errorf("failed to generate connect gateway endpoint: %w", err)
 	}
 
 	cgwURL := fmt.Sprintf("https://%s", cgwEndpoint)
-	if validateEndpoint {
-		err = validateCGWAccess(ctx, cgwURL)
-		if err != nil {
-			return api.Config{}, fmt.Errorf("failed to validate config gateway endpoint %s: %w",
-				cgwURL, err)
-		}
-	}
-
 	return api.Config{
 		Clusters: map[string]*api.Cluster{
 			"cgw": {
@@ -101,24 +84,6 @@ func connectGatewayEndpointFromHubEndpoint(hubEndpoint string) string {
 	default:
 		return "connectgateway.googleapis.com"
 	}
-}
-
-// validateCGWAccess tests the following:
-// 1) If the CGW API is enabled.
-// 2) Whether the caller has permission to call CGW and permission to access the API server resource.
-// 3) Whether the resource exists.
-func validateCGWAccess(ctx context.Context, url string) error {
-	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
-	if err != nil {
-		return err
-	}
-	// ConnectGateway doesn't support gRPC client.
-	resp, err := oauth2.NewClient(ctx, creds.TokenSource).Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return googleapi.CheckResponse(resp)
 }
 
 func connectGatewayKubeConfig(hostname string) (api.Config, error) {

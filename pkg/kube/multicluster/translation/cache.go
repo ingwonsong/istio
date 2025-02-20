@@ -51,10 +51,6 @@ type membershipCache struct {
 	publicIPToMembership  map[string]*gkehubpb.Membership
 	privateIPToMembership map[string]*gkehubpb.Membership
 
-	// Determines whether to attempt connection to the generated CGW endpoint
-	// before adding to the cache.
-	validateEndpoint bool
-
 	// If cacheInitialized is false, the cache has been never refreshed.
 	// In that case, `refreshCache` will be called regardless of bootstrapping time.
 	cacheInitialized bool
@@ -95,7 +91,6 @@ func newIPMembershipCache() (*membershipCache, error) {
 		publicIPToMembership:  map[string]*gkehubpb.Membership{},
 		privateIPToMembership: map[string]*gkehubpb.Membership{},
 		knownPublicIPs:        map[string]bool{},
-		validateEndpoint:      true,
 	}
 	if err := mc.refreshCache(); err != nil {
 		log.Warnf("Failed to seed translation cache: %v", err)
@@ -224,7 +219,7 @@ func (m *membershipCache) apiConfig(ip string) (api.Config, bool) {
 	if ok {
 		log.Infof("Found cached membership %s for IP %s", cachedMembership.GetName(), ip)
 		config, err := apiConfigFromMembership(
-			cachedMembership, m.opts.hubEndpoint, m.opts.fleetProjectNumber, m.validateEndpoint)
+			cachedMembership, m.opts.hubEndpoint, m.opts.fleetProjectNumber)
 		if err != nil {
 			log.Warnf("Failed to get apiConfig from membership: %v", err)
 			return api.Config{}, false
