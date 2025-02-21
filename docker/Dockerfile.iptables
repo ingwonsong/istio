@@ -1,8 +1,8 @@
 # hadolint ignore=DL3026
-FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250107.00_p0@sha256:1815080f790e160ae891eb733b8302ae04f4cefe4f872ed0bf6dc3f61e80e0e0 AS distroless_libc
+FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250207.00_p0@sha256:67e894aea577fb4781acc755b13eb7a4a11a6efc3627965f4b09a2c0fdd763fb AS distroless_libc
 
 # hadolint ignore=DL3026
-FROM us.gcr.io/gke-release/debian-base:bookworm-v1.0.4-gke.2@sha256:faa59c6ecc8b107b79429245712f08a67f4aa12ad072deb8ff51cdb99bac99cb AS pkgs
+FROM us.gcr.io/gke-release/debian-base:bookworm-v1.0.4-gke.3@sha256:08736f08c8d6d01e5d4740d22e6e319ffeb6064425b00488a9443ce2b2b8c0ff AS pkgs
 
 ARG PKGS="ca-certificates-bundle iptables ip6tables libnetfilter_conntrack libnfnetlink libmnl"
 
