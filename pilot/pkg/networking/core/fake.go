@@ -19,7 +19,7 @@ package core
 
 import (
 	"bytes"
-	"text/template"
+	"text/template" // NOLINT
 	"time"
 
 	"github.com/Masterminds/sprig/v3"

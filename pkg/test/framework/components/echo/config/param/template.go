@@ -15,7 +15,7 @@
 package param
 
 import (
-	"text/template"
+	"text/template" // NOLINT
 	"text/template/parse"
 
 	"istio.io/istio/pkg/util/sets"

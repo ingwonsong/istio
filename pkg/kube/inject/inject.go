@@ -24,7 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 
 	"github.com/Masterminds/sprig/v3"
 	jsonpatch "github.com/evanphx/json-patch/v5"

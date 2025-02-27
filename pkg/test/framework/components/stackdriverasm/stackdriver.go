@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 	"time"
 
 	"github.com/google/go-cmp/cmp"

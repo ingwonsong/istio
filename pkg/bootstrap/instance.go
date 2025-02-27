@@ -21,7 +21,7 @@ import (
 	"os"
 	"path"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 
 	"github.com/Masterminds/sprig/v3"
 

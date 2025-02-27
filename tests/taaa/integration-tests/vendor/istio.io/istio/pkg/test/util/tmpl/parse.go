@@ -16,7 +16,7 @@ package tmpl
 
 import (
 	"fmt"
-	"text/template"
+	"text/template" // NOLINT
 
 	"github.com/Masterminds/sprig/v3"
 

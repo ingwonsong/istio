@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pkg/config/schema/ast"

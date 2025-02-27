@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"text/template"
+	"text/template" // NOLINT
 
 	"sigs.k8s.io/yaml"
 )

@@ -21,7 +21,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"

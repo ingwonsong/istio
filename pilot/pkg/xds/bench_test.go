@@ -23,7 +23,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"text/template"
+	"text/template" // NOLINT
 	"time"
 
 	"github.com/Masterminds/sprig/v3"

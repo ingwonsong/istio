@@ -16,7 +16,7 @@ package local
 
 import (
 	"bytes"
-	"text/template"
+	"text/template" // NOLINT
 )
 
 const defaultIstioIngressGateway = `

@@ -16,7 +16,7 @@ package tmpl
 
 import (
 	"bytes"
-	"text/template"
+	"text/template" // NOLINT
 
 	"istio.io/istio/pkg/test"
 )

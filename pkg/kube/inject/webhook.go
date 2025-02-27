@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"text/template"
+	"text/template" // NOLINT
 	"time"
 
 	"github.com/prometheus/prometheus/util/strutil"

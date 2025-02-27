@@ -22,7 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 	"time"
 
 	"github.com/hashicorp/go-multierror"

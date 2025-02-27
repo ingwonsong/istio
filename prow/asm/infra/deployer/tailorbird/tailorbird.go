@@ -27,7 +27,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
