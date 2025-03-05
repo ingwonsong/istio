@@ -158,11 +158,19 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 			"cannot reconcile: %v", dpc.Spec.Revision, err)
 	}
 	rateLogger.Infof("MCP is injecting version %s", cpVersion)
+
+	if dpc.Spec.UseTDProxy {
+		// If we are using TDproxy we need to compare proxyVersionTD with InjectedProxyVersion.
+		// The cpVersion extracted from TAG in the revision configmap is not used in case of TD proxy.
+		// This value can be different from proxyVersionTD during an MDP rollout and pause reconciliation until
+		//  the value is updated to proxyVersionTD usually within the next slm refresh (5 mins)
+		cpVersion = dpc.Spec.InjectedProxyVersion
+	}
 	if proxyVersionForDPC(dpc) == "" || !expectedProxyVersion(proxyVersionForDPC(dpc), cpVersion) {
 		n.stopUpdateWorkerForDPR(request.NamespacedName)
 		resultMetricLabel = metrics.VersionError
 		err := fmt.Errorf("DataPlaneControl for revision %s expects version '%s', but Control Plane is "+
-			"injecting version '%s', cannot reconcile.  MCP rollout may be in progress", dpc.Spec.Revision, proxyVersionForDPC(dpc), cpVersion)
+			"injecting version '%s', cannot reconcile.  MCP or MDP(for TD proxy) rollout may be in progress", dpc.Spec.Revision, proxyVersionForDPC(dpc), cpVersion)
 		dpc.Status = v1alpha1.DataPlaneControlStatus{
 			State: v1alpha1.Error,
 			ErrorDetails: &v1alpha1.DataPlaneControlError{
@@ -225,9 +233,15 @@ func (n *NewReconciler) Reconcile(ctx context.Context, request reconcile.Request
 }
 
 func proxyVersionForDPC(dpc *v1alpha1.DataPlaneControl) string {
+	if dpc.Spec.UseTDProxy {
+		return dpc.Spec.ProxyVersionTD
+	}
 	switch dpc.Spec.ServingMode {
 	case v1alpha1.ServingMode_SERVING_MODE_TD:
-		return dpc.Spec.ProxyVersionTD
+	// Add dpc.Spec.proxyVersionTD here when this field is being used.
+	// the field will be used once migration to g3proxy is complete and the UseTDProxy
+	// flag can be removed.
+
 	// UNSPECIFIED is to continue existing behavior before ServingMode is populated.
 	case v1alpha1.ServingMode_SERVING_MODE_ISTIOD, v1alpha1.ServingMode_SERVING_MODE_ISTIOD_WITH_LRS, v1alpha1.ServingMode_SERVING_MODE_UNSPECIFIED:
 	default:
@@ -237,9 +251,16 @@ func proxyVersionForDPC(dpc *v1alpha1.DataPlaneControl) string {
 }
 
 func proxyTargetBasisPointsForDPC(dpc *v1alpha1.DataPlaneControl) int32 {
+	if dpc.Spec.UseTDProxy {
+		return dpc.Spec.ProxyTargetBasisPointsTD
+	}
+
 	switch dpc.Spec.ServingMode {
 	case v1alpha1.ServingMode_SERVING_MODE_TD:
-		return dpc.Spec.ProxyTargetBasisPointsTD
+	// Add dpc.Spec.proxyVersionTD here when this field is being used.
+	// the field will be used once migration to g3proxy is complete and the UseTDProxy
+	// flag can be removed.
+
 	// UNSPECIFIED is to continue existing behavior before ServingMode is populated.
 	case v1alpha1.ServingMode_SERVING_MODE_ISTIOD, v1alpha1.ServingMode_SERVING_MODE_ISTIOD_WITH_LRS, v1alpha1.ServingMode_SERVING_MODE_UNSPECIFIED:
 	default:

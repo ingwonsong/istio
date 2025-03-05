@@ -113,6 +113,12 @@ func (f FakeUpdater) PerformUpgrade(_ context.Context, _ types.NamespacedName) e
 }
 
 func buildClient(sm v1alpha1.ServingMode) client.Client {
+	useTDProxy := false
+	injectedVersion := version
+	if sm == v1alpha1.ServingMode_SERVING_MODE_TD {
+		useTDProxy = true
+		injectedVersion = versionTD
+	}
 	myrevCfg := &v1alpha1.DataPlaneControl{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      myrev,
@@ -124,6 +130,8 @@ func buildClient(sm v1alpha1.ServingMode) client.Client {
 			ProxyTargetBasisPoints:   8000,
 			ProxyVersionTD:           versionTD,
 			ProxyTargetBasisPointsTD: 8000,
+			InjectedProxyVersion:     injectedVersion,
+			UseTDProxy:               useTDProxy,
 			ServingMode:              sm,
 		},
 	}
@@ -170,7 +178,7 @@ func TestReconcile(t *testing.T) {
 		Name:      myrev,
 	}})
 
-	g := gomega.NewGomegaWithT(t)
+	g := gomega.NewWithT(t)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(res.Requeue).NotTo(gomega.BeTrue())
 	g.Expect(res.RequeueAfter).To(gomega.Equal(time.Duration(0)))

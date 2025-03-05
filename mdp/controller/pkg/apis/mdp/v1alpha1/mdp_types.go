@@ -59,6 +59,15 @@ type DataPlaneControlSpec struct {
 	// +optional
 	UpgradeDurationValidUntil string `json:"upgradeDurationValidUntil,omitempty"`
 
+	// InjectedProxyVersion currently injected g3proxy version.
+	// +optional
+	InjectedProxyVersion string `json:"injectedProxyVersion,omitempty"`
+
+	// UseTDProxy is a boolean indicating whether to use TD proxy or not.
+	// This will be removed once the migration to TD is complete.
+	// +optional
+	UseTDProxy bool `json:"useTDProxy,omitempty"`
+
 	// ServingMode is the serving mode of the control plane.
 	// +optional
 	ServingMode ServingMode `json:"servingMode,omitempty"`
