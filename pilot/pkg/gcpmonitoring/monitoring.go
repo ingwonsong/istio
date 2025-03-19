@@ -84,8 +84,8 @@ var (
 		Measure:     configConvergenceMeasuare,
 		Description: "Time (in seconds) until applied config is active",
 		Aggregation: view.Distribution([]float64{
-			0.001, 0.002, 0.004, 0.008, 0.016, 0.032, 0.064,
 			0.128, 0.256, 0.512, 1, 2, 4, 8, 16, 32,
+			64, 128, 256, 512, 1024, 2048, 4096,
 		}...),
 		TagKeys: []tag.Key{typeKey},
 	}

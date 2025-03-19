@@ -98,7 +98,7 @@ func TestGCPMonitoringPilotXDSMetrics(t *testing.T) {
 		{"proxiesConvergeDelay", proxiesConvergeDelay, false, 0.4, "control/config_convergence_latencies", &view.Row{
 			Tags: []tag.Tag{},
 			Data: &view.DistributionData{
-				CountPerBucket: []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+				CountPerBucket: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			},
 		}},
 	}
