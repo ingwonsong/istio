@@ -17,6 +17,8 @@ package system
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/prow/asm/tester/pkg/exec"
@@ -24,6 +26,10 @@ import (
 	"istio.io/istio/prow/asm/tester/pkg/kube"
 	"istio.io/istio/prow/asm/tester/pkg/pipeline/env"
 	"istio.io/istio/prow/asm/tester/pkg/resource"
+)
+
+const (
+	CustomFleetProject = "asm-ci-mc"
 )
 
 type binding struct {
@@ -42,7 +48,7 @@ func Teardown(settings *resource.Settings) error {
 	} else {
 		cleanUpImagesForManagedControlPlane()
 	}
-
+	cleanUpMemberships(settings)
 	if err := removePermissions(settings); err != nil {
 		return fmt.Errorf("error removing gcp permissions: %w", err)
 	}
@@ -55,6 +61,7 @@ func Teardown(settings *resource.Settings) error {
 func cleanUpImages() {
 	hub := os.Getenv("HUB")
 	tag := os.Getenv("TAG")
+
 	exec.RunMultiple([]string{
 		fmt.Sprintf("gcloud beta container images delete %s/app:%s --force-delete-tags --quiet", hub, tag),
 		fmt.Sprintf("gcloud beta container images delete %s/pilot:%s --force-delete-tags --quiet", hub, tag),
@@ -72,6 +79,58 @@ func cleanUpImagesForManagedControlPlane() {
 		fmt.Sprintf("gcloud beta container images delete %s/cloudrun:%s --force-delete-tags --quiet", hub, tag),
 		fmt.Sprintf("gcloud beta container images delete %s/proxyv2:%s --force-delete-tags --quiet", hub, tag),
 	})
+}
+
+func cleanUpMemberships(settings *resource.Settings) {
+	cleanupCommands := []string{}
+	var environProject string
+	switch settings.ClusterType {
+	case resource.OnPrem, resource.EKS, resource.AKS:
+		environProject = CustomFleetProject
+	default:
+		log.Infof("CleanUpMemberships: Unsupported cluster type: %s ", settings.ClusterType)
+		return
+	}
+
+	kubeConfigs := filepath.SplitList(settings.Kubeconfig)
+	for i, config := range kubeConfigs {
+		membershipDetailsCmd := fmt.Sprintf("kubectl --kubeconfig %s --context %s get memberships.hub.gke.io membership -o=jsonpath={.spec.identity_provider}",
+			config, settings.KubeContexts[i])
+		membershipDetails, err := exec.RunWithOutput(membershipDetailsCmd)
+		if err != nil {
+			log.Debugf("failed to get membership name for context %s: %v", settings.KubeContexts[i], err)
+			continue
+		}
+		if membershipDetails == "" {
+			continue //Membership likely does not exist.
+		}
+		lastSlashIndex := strings.LastIndex(membershipDetails, "/")
+		if lastSlashIndex == -1 {
+			log.Debugf("unexpected format for memerbershipDetails: %s", membershipDetails)
+			continue
+		}
+		membershipName := membershipDetails[lastSlashIndex+1:]
+		cleanupCommands = append(cleanupCommands, fmt.Sprintf("gcloud --project=%s container hub memberships delete %s --quiet", environProject, membershipName))
+	}
+
+	//delete admin-cluster memberships for on-prem clusters
+	if settings.ClusterType == resource.OnPrem {
+		for _, config := range kubeConfigs {
+			adminConfig := filepath.Join(filepath.Dir(config), "admin-kubeconfig.yaml")
+			adminClusterName, err := exec.RunWithOutput(`kubectl config view -o 'jsonpath={.contexts[0].name}' --kubeconfig=` + adminConfig)
+			if err != nil {
+				log.Debugf(fmt.Sprintf("error getting the admin cluster name: %v", err))
+				continue
+			}
+			adminClusterName = strings.TrimSpace(string(adminClusterName))
+			if adminClusterName == "" {
+				log.Debugf(fmt.Sprintf("context in admin-kubeconfig.yaml is empty"))
+				continue
+			}
+			cleanupCommands = append(cleanupCommands, fmt.Sprintf("gcloud --project=%s container hub memberships delete %s --quiet", environProject, adminClusterName))
+		}
+	}
+	exec.RunMultiple(cleanupCommands)
 }
 
 func removePermissions(settings *resource.Settings) error {
