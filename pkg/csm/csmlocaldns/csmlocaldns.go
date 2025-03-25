@@ -43,10 +43,14 @@ func init() {
 	}
 }
 
+func Enabled() bool {
+	return enableLocalEnvoyDNS
+}
+
 func Query(req *dns.Msg) (*dns.Msg, error) {
 	if !enableLocalEnvoyDNS {
 		return &dns.Msg{}, nil
 	}
-	resp, _, err := defaultClientForLocalEnvoy.Exchange(req, "127.0.0.1:15053")
+	resp, _, err := defaultClientForLocalEnvoy.Exchange(req, "127.0.0.1:15153")
 	return resp, err
 }
