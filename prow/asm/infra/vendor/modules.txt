@@ -46,8 +46,8 @@ github.com/mitchellh/reflectwalk
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/prometheus/client_golang v1.20.5
-## explicit; go 1.20
+# github.com/prometheus/client_golang v1.21.1
+## explicit; go 1.21
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.6.1
@@ -71,10 +71,10 @@ github.com/sirupsen/logrus
 # github.com/spf13/cast v1.7.0
 ## explicit; go 1.19
 github.com/spf13/cast
-# github.com/spf13/cobra v1.8.1
+# github.com/spf13/cobra v1.9.1
 ## explicit; go 1.15
 github.com/spf13/cobra
-# github.com/spf13/pflag v1.0.5
+# github.com/spf13/pflag v1.0.6
 ## explicit; go 1.12
 github.com/spf13/pflag
 # go.uber.org/multierr v1.11.0
@@ -95,22 +95,22 @@ go.uber.org/zap/zapgrpc
 # go4.org v0.0.0-20201209231011-d4a079459e60
 ## explicit; go 1.13
 go4.org/bytereplacer
-# golang.org/x/crypto v0.35.0
+# golang.org/x/crypto v0.36.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/scrypt
-# golang.org/x/sys v0.30.0
-## explicit; go 1.18
+# golang.org/x/sys v0.31.0
+## explicit; go 1.23.0
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# google.golang.org/grpc v1.70.0
-## explicit; go 1.22
+# google.golang.org/grpc v1.71.0
+## explicit; go 1.22.0
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/grpclog/internal
-# google.golang.org/protobuf v1.36.5
-## explicit; go 1.21
+# google.golang.org/protobuf v1.36.6
+## explicit; go 1.22
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
@@ -140,14 +140,17 @@ google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/known/timestamppb
+# gopkg.in/natefinch/lumberjack.v2 v2.2.1
+## explicit; go 1.13
+gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
 # istio.io/istio v0.0.0-20220408200757-466c02050528 => ../../..
-## explicit; go 1.23.0
+## explicit; go 1.24.0
 istio.io/istio/pkg/log
 istio.io/istio/pkg/test/env
-# k8s.io/apimachinery v0.32.1
+# k8s.io/apimachinery v0.32.3
 ## explicit; go 1.23.0
 k8s.io/apimachinery/pkg/util/errors
 k8s.io/apimachinery/pkg/util/sets

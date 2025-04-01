@@ -56,8 +56,6 @@ func (e WorkloadGenerator) GenerateDeltas(
 		return e.generateDeltasOndemand(proxy, req, w)
 	}
 
-	subs := w.ResourceNames
-
 	reqAddresses := addresses
 	if isReq {
 		reqAddresses = nil
@@ -74,14 +72,16 @@ func (e WorkloadGenerator) GenerateDeltas(
 	if isReq {
 		// If it's a full push, AddressInformation won't have info to compute the full set of removals.
 		// Instead, we need can see what resources are missing that we were subscribe to; those were removed.
-		removed = subs.Difference(have).Merge(removed)
+		// During a request, a client will send a subscription request with its current state, so our removals will be:
+		// ZtunnelCurrentResources - IstiodCurrentResources (+ empty `removed`).
+		removed = req.Delta.Subscribed.Difference(have).Merge(removed)
 	}
 
-	proxy.Lock()
-	defer proxy.Unlock()
-	// For wildcard, we record all resources that have been pushed and not removed
-	// It was to correctly calculate removed resources during full push alongside with specific address removed.
-	w.ResourceNames = subs.Merge(have).DeleteAllSet(removed)
+	// Due to the high resource count in WDS at scale, we elide updating ResourceNames here.
+	// A name will be ~50-100 bytes. So 50k pods would be 5MB per XDS client (plus overheads around GC, sets, fragmentation, etc).
+	// Fortunately, we do not actually need this: the only time we need to know the state in Ztunnel is on reconnection which we handle from
+	// `req.Delta.Subscribed`.
+
 	return resources, removed.UnsortedList(), model.XdsLogDetails{}, true, nil
 }
 
@@ -184,25 +184,23 @@ func (e WorkloadRBACGenerator) GenerateDeltas(
 	w *model.WatchedResource,
 ) (model.Resources, model.DeletedResources, model.XdsLogDetails, bool, error) {
 	var updatedPolicies sets.Set[model.ConfigKey]
-	if len(req.ConfigsUpdated) != 0 {
+	expected := sets.New[string]()
+	if req.Forced {
+		// Full update, expect everything
+		expected.Merge(w.ResourceNames)
+	} else {
 		// The ambient store will send all of these as kind.AuthorizationPolicy, even if generated from PeerAuthentication,
 		// so we can only fetch these ones.
 		updatedPolicies = model.ConfigsOfKind(req.ConfigsUpdated, kind.AuthorizationPolicy)
-	}
-	if len(req.ConfigsUpdated) != 0 && len(updatedPolicies) == 0 {
-		// This was a incremental push for a resource we don't watch... skip
-		return nil, nil, model.DefaultXdsLogDetails, false, nil
-	}
 
-	expected := sets.New[string]()
-	if len(updatedPolicies) > 0 {
-		// Partial update. Removes are ones we request but didn't get back when querying the policies
+		if len(updatedPolicies) == 0 {
+			// This was a incremental push for a resource we don't watch... skip
+			return nil, nil, model.DefaultXdsLogDetails, false, nil
+		}
+
 		for k := range updatedPolicies {
 			expected.Insert(k.Namespace + "/" + k.Name)
 		}
-	} else {
-		// Full update, expect everything
-		expected.Merge(w.ResourceNames)
 	}
 
 	resources := make(model.Resources, 0)

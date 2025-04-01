@@ -80,6 +80,16 @@ func (m *CaresDnsResolverConfig) MarshalToSizedBufferVTStrict(dAtA []byte) (int,
 		i--
 		dAtA[i] = 0x32
 	}
+	if m.UdpMaxQueries != nil {
+		size, err := (*wrapperspb.UInt32Value)(m.UdpMaxQueries).MarshalToSizedBufferVTStrict(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x2a
+	}
 	if m.FilterUnroutableFamilies {
 		i--
 		if m.FilterUnroutableFamilies {
@@ -182,6 +192,10 @@ func (m *CaresDnsResolverConfig) SizeVT() (n int) {
 	}
 	if m.FilterUnroutableFamilies {
 		n += 2
+	}
+	if m.UdpMaxQueries != nil {
+		l = (*wrapperspb.UInt32Value)(m.UdpMaxQueries).SizeVT()
+		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.QueryTimeoutSeconds != nil {
 		l = (*wrapperspb.UInt64Value)(m.QueryTimeoutSeconds).SizeVT()

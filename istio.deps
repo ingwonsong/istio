@@ -4,13 +4,13 @@
     "name": "PROXY_REPO_SHA",
     "repoName": "proxy",
     "file": "",
-    "lastStableSHA": "8385cf761ce05a1a21938e45a55fb947c38a3400"
+    "lastStableSHA": "026bedd7bd838a12ec05c9f74f5c1cce92f52075"
   },
   {
     "_comment": "",
     "name": "ZTUNNEL_REPO_SHA",
     "repoName": "ztunnel",
     "file": "",
-    "lastStableSHA": "0df8081020e7793b5c64afdfb72bb8fa0dcb4aa1"
+    "lastStableSHA": "9bf0c748c01106a3ab9330176fb691e164952c1a"
   }
 ]

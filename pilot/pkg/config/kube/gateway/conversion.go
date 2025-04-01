@@ -33,6 +33,7 @@ import (
 	k8sbeta "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	"istio.io/api/annotation"
+	"istio.io/api/label"
 	istio "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
@@ -61,6 +62,11 @@ func sortConfigByCreationTime(configs []config.Config) {
 		}
 		return cmp.Compare(configs[i].Name, configs[j].Name) == -1
 	})
+}
+
+func sortedConfigByCreationTime(configs []config.Config) []config.Config {
+	sortConfigByCreationTime(configs)
+	return configs
 }
 
 // convertResources is the top level entrypoint to our conversion logic, computing the full state based
@@ -230,6 +236,7 @@ func convertHTTPRoute(r k8s.HTTPRouteRule, ctx configContext,
 			Method:      method,
 		})
 	}
+	var mirrorBackendErr *ConfigError
 	for _, filter := range r.Filters {
 		switch filter.Type {
 		case k8s.HTTPRouteFilterRequestHeaderModifier:
@@ -255,9 +262,10 @@ func convertHTTPRoute(r k8s.HTTPRouteRule, ctx configContext,
 		case k8s.HTTPRouteFilterRequestMirror:
 			mirror, err := createMirrorFilter(ctx, filter.RequestMirror, obj.Namespace, enforceRefGrant, gvk.HTTPRoute)
 			if err != nil {
-				return nil, err
+				mirrorBackendErr = err
+			} else {
+				vs.Mirrors = append(vs.Mirrors, mirror)
 			}
-			vs.Mirrors = append(vs.Mirrors, mirror)
 		case k8s.HTTPRouteFilterURLRewrite:
 			vs.Rewrite = createRewriteFilter(filter.URLRewrite)
 		default:
@@ -320,10 +328,21 @@ func convertHTTPRoute(r k8s.HTTPRouteRule, ctx configContext,
 			return nil, err
 		}
 		vs.Route = route
-		return vs, backendErr
+		return vs, joinErrors(backendErr, mirrorBackendErr)
 	}
 
-	return vs, nil
+	return vs, mirrorBackendErr
+}
+
+func joinErrors(a *ConfigError, b *ConfigError) *ConfigError {
+	if b == nil {
+		return a
+	}
+	if a == nil {
+		return b
+	}
+	a.Message += "; " + b.Message
+	return a
 }
 
 func convertGRPCRoute(r k8s.GRPCRouteRule, ctx configContext,
@@ -421,7 +440,7 @@ func buildHTTPVirtualServices(
 	meshRoutes map[string]map[string]*config.Config,
 ) {
 	route := obj.Spec.(*k8s.HTTPRouteSpec)
-	parentRefs := extractParentReferenceInfo(ctx.GatewayReferences, route.ParentRefs, route.Hostnames, gvk.HTTPRoute, obj.Namespace)
+	parentRefs := extractParentReferenceInfo(ctx, route.ParentRefs, route.Hostnames, gvk.HTTPRoute, obj.Namespace)
 	reportStatus := func(results []RouteParentResult) {
 		obj.Status.(*kstatus.WrappedStatus).Mutate(func(s config.Status) config.Status {
 			rs := s.(*k8s.HTTPRouteStatus)
@@ -472,6 +491,7 @@ func buildHTTPVirtualServices(
 		}
 		if r.IsMesh() {
 			res.RouteError = meshResult.error
+			res.WaypointError = r.WaypointError
 		}
 		return res
 	}))
@@ -661,7 +681,7 @@ func buildGRPCVirtualServices(
 	meshRoutes map[string]map[string]*config.Config,
 ) {
 	route := obj.Spec.(*k8s.GRPCRouteSpec)
-	parentRefs := extractParentReferenceInfo(ctx.GatewayReferences, route.ParentRefs, route.Hostnames, gvk.GRPCRoute, obj.Namespace)
+	parentRefs := extractParentReferenceInfo(ctx, route.ParentRefs, route.Hostnames, gvk.GRPCRoute, obj.Namespace)
 	reportStatus := func(results []RouteParentResult) {
 		obj.Status.(*kstatus.WrappedStatus).Mutate(func(s config.Status) config.Status {
 			rs := s.(*k8s.GRPCRouteStatus)
@@ -908,19 +928,77 @@ func toInternalParentReference(p k8s.ParentReference, localNamespace string) (pa
 	}, nil
 }
 
+// waypointConfigured returns true if a waypoint is configured via expected label's key-value pair.
+func waypointConfigured(labels map[string]string) bool {
+	if val, ok := labels[label.IoIstioUseWaypoint.Name]; ok && len(val) > 0 && !strings.EqualFold(val, "none") {
+		return true
+	}
+	return false
+}
+
 func referenceAllowed(
+	ctx configContext,
 	parent *parentInfo,
 	routeKind config.GroupVersionKind,
 	parentRef parentReference,
 	hostnames []k8s.Hostname,
 	namespace string,
-) *ParentError {
-	if parentRef.Kind == gvk.Service || parentRef.Kind == gvk.ServiceEntry {
-		// TODO: check if the service reference is valid
-		if false {
+) (*ParentError, *WaypointError) {
+	if parentRef.Kind == gvk.Service {
+		var svc *model.Service
+
+		// check that the referenced svc exists
+		if svc = ctx.Context.GetService(fmt.Sprintf("%s.%s.svc.%s", parentRef.Name, parentRef.Namespace, ctx.Domain), parentRef.Namespace); svc == nil {
 			return &ParentError{
-				Reason:  ParentErrorParentRefConflict,
-				Message: fmt.Sprintf("parent service: %q is invalid", parentRef.Name),
+					Reason:  ParentErrorNotAccepted,
+					Message: fmt.Sprintf("parent service: %q not found", parentRef.Name),
+				}, &WaypointError{
+					Reason:  WaypointErrorReasonNoMatchingParent,
+					Message: WaypointErrorMsgNoMatchingParent,
+				}
+		}
+
+		// check that the reference has the use-waypoint label
+		if !waypointConfigured(svc.Attributes.Labels) {
+			// if reference does not have use-waypoint label, check the namespace of the reference
+			if ns, ok := ctx.Namespaces[svc.Attributes.Namespace]; ok {
+				if !waypointConfigured(ns.Labels) {
+					return nil, &WaypointError{
+						Reason:  WaypointErrorReasonMissingLabel,
+						Message: WaypointErrorMsgMissingLabel,
+					}
+				}
+			}
+		}
+	} else if parentRef.Kind == gvk.ServiceEntry {
+		// check that the referenced svc entry exists
+		// TODO (conradhanson) - improve se lookup efficiency (existing index?)
+		svcEntry := slices.FindFunc(ctx.ServiceEntry, func(cfg config.Config) bool {
+			if cfg.GetName() == parentRef.Name && cfg.GetNamespace() == parentRef.Namespace {
+				return true
+			}
+			return false
+		})
+		if svcEntry == nil {
+			return &ParentError{
+					Reason:  ParentErrorNotAccepted,
+					Message: fmt.Sprintf("parent service entry: %q not found", parentRef.Name),
+				}, &WaypointError{
+					Reason:  WaypointErrorReasonNoMatchingParent,
+					Message: WaypointErrorMsgNoMatchingParent,
+				}
+		}
+
+		// check that the reference has the use-waypoint label
+		if !waypointConfigured(svcEntry.Labels) {
+			// if reference does not have use-waypoint label, check the namespace of the reference
+			if ns, ok := ctx.Namespaces[svcEntry.Namespace]; ok {
+				if !waypointConfigured(ns.Labels) {
+					return nil, &WaypointError{
+						Reason:  WaypointErrorReasonMissingLabel,
+						Message: WaypointErrorMsgMissingLabel,
+					}
+				}
 			}
 		}
 	} else {
@@ -929,13 +1007,13 @@ func referenceAllowed(
 			return &ParentError{
 				Reason:  ParentErrorNotAccepted,
 				Message: fmt.Sprintf("port %v not found", parentRef.Port),
-			}
+			}, nil
 		}
 		if len(parentRef.SectionName) > 0 && parentRef.SectionName != parent.SectionName {
 			return &ParentError{
 				Reason:  ParentErrorNotAccepted,
 				Message: fmt.Sprintf("sectionName %q not found", parentRef.SectionName),
-			}
+			}, nil
 		}
 
 		// Next check the hostnames are a match. This is a bi-directional wildcard match. Only one route
@@ -972,7 +1050,7 @@ func referenceAllowed(
 							"hostnames matched parent hostname %q, but namespace %q is not allowed by the parent",
 							parent.OriginalHostname, namespace,
 						),
-					}
+					}, nil
 				}
 				return &ParentError{
 					Reason: ParentErrorNoHostname,
@@ -980,7 +1058,7 @@ func referenceAllowed(
 						"no hostnames matched parent hostname %q",
 						parent.OriginalHostname,
 					),
-				}
+				}, nil
 			}
 		}
 	}
@@ -996,12 +1074,12 @@ func referenceAllowed(
 		return &ParentError{
 			Reason:  ParentErrorNotAllowed,
 			Message: fmt.Sprintf("kind %v is not allowed", routeKind),
-		}
+		}, nil
 	}
-	return nil
+	return nil, nil
 }
 
-func extractParentReferenceInfo(gateways map[parentKey][]*parentInfo, routeRefs []k8s.ParentReference,
+func extractParentReferenceInfo(ctx configContext, routeRefs []k8s.ParentReference,
 	hostnames []k8s.Hostname, kind config.GroupVersionKind, localNamespace string,
 ) []routeParentReference {
 	parentRefs := []routeParentReference{}
@@ -1022,7 +1100,7 @@ func extractParentReferenceInfo(gateways map[parentKey][]*parentInfo, routeRefs 
 		}
 		appendParent := func(pr *parentInfo, pk parentReference) {
 			bannedHostnames := sets.New[string]()
-			for _, gw := range gateways[gk] {
+			for _, gw := range ctx.GatewayReferences[gk] {
 				if gw == pr {
 					continue // do not ban ourself
 				}
@@ -1036,13 +1114,15 @@ func extractParentReferenceInfo(gateways map[parentKey][]*parentInfo, routeRefs 
 				}
 				bannedHostnames.Insert(gw.OriginalHostname)
 			}
+			deniedReason, waypointError := referenceAllowed(ctx, pr, kind, pk, hostnames, localNamespace)
 			rpi := routeParentReference{
 				InternalName:      pr.InternalName,
 				InternalKind:      ir.Kind,
 				Hostname:          pr.OriginalHostname,
-				DeniedReason:      referenceAllowed(pr, kind, pk, hostnames, localNamespace),
+				DeniedReason:      deniedReason,
 				OriginalReference: ref,
 				BannedHostnames:   bannedHostnames.Copy().Delete(pr.OriginalHostname),
+				WaypointError:     waypointError,
 			}
 			if rpi.DeniedReason == nil {
 				// Record that we were able to bind to the parent
@@ -1050,7 +1130,7 @@ func extractParentReferenceInfo(gateways map[parentKey][]*parentInfo, routeRefs 
 			}
 			parentRefs = append(parentRefs, rpi)
 		}
-		for _, gw := range gateways[gk] {
+		for _, gw := range ctx.GatewayReferences[gk] {
 			// Append all matches. Note we may be adding mismatch section or ports; this is handled later
 			appendParent(gw, pk)
 		}
@@ -1064,7 +1144,7 @@ func extractParentReferenceInfo(gateways map[parentKey][]*parentInfo, routeRefs 
 
 func buildTCPVirtualService(ctx configContext, obj config.Config) []config.Config {
 	route := obj.Spec.(*k8salpha.TCPRouteSpec)
-	parentRefs := extractParentReferenceInfo(ctx.GatewayReferences, route.ParentRefs, nil, gvk.TCPRoute, obj.Namespace)
+	parentRefs := extractParentReferenceInfo(ctx, route.ParentRefs, nil, gvk.TCPRoute, obj.Namespace)
 
 	reportStatus := func(results []RouteParentResult) {
 		obj.Status.(*kstatus.WrappedStatus).Mutate(func(s config.Status) config.Status {
@@ -1153,7 +1233,7 @@ func buildTCPVirtualService(ctx configContext, obj config.Config) []config.Confi
 
 func buildTLSVirtualService(ctx configContext, obj config.Config) []config.Config {
 	route := obj.Spec.(*k8salpha.TLSRouteSpec)
-	parentRefs := extractParentReferenceInfo(ctx.GatewayReferences, route.ParentRefs, nil, gvk.TLSRoute, obj.Namespace)
+	parentRefs := extractParentReferenceInfo(ctx, route.ParentRefs, nil, gvk.TLSRoute, obj.Namespace)
 
 	reportStatus := func(results []RouteParentResult) {
 		obj.Status.(*kstatus.WrappedStatus).Mutate(func(s config.Status) config.Status {
@@ -1998,6 +2078,8 @@ type routeParentReference struct {
 	// Hostname is the hostname match of the parent, if any
 	Hostname        string
 	BannedHostnames sets.Set[string]
+	// WaypointError, if present, indicates why the reference does not have valid configuration for generating a Waypoint
+	WaypointError *WaypointError
 }
 
 func (r routeParentReference) IsMesh() bool {
@@ -2146,25 +2228,6 @@ func convertGateways(r configContext) ([]config.Config, map[parentKey][]*parentI
 			if programmed {
 				result = append(result, gatewayConfig)
 			}
-		}
-
-		// If "gateway.istio.io/alias-for" annotation is present, any Route
-		// that binds to the gateway will bind to its alias instead.
-		// The typical usage is when the original gateway is not managed by the gateway controller
-		// but the ( generated ) alias is. This allows people to build their own
-		// gateway controllers on top of Istio Gateway Controller.
-		if obj.Annotations != nil && obj.Annotations[gatewayAliasForAnnotationKey] != "" {
-			ref := parentKey{
-				Kind:      gvk.KubernetesGateway,
-				Name:      obj.Annotations[gatewayAliasForAnnotationKey],
-				Namespace: obj.Namespace,
-			}
-			alias := parentKey{
-				Kind:      gvk.KubernetesGateway,
-				Name:      obj.Name,
-				Namespace: obj.Namespace,
-			}
-			gwMap[ref] = gwMap[alias]
 		}
 
 		reportGatewayStatus(r, obj, classInfo, gatewayServices, servers, err)

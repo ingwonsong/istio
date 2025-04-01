@@ -31,19 +31,9 @@ import (
 
 	"istio.io/api/annotation"
 	"istio.io/istio/cni/pkg/iptables"
-	istiolog "istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/test/util/assert"
 	"istio.io/istio/tools/istio-iptables/pkg/dependencies"
 )
-
-func setupLogging() {
-	opts := istiolog.DefaultOptions()
-	opts.SetDefaultOutputLevel(istiolog.OverrideScopeName, istiolog.DebugLevel)
-	istiolog.Configure(opts)
-	for _, scope := range istiolog.Scopes() {
-		scope.SetOutputLevel(istiolog.DebugLevel)
-	}
-}
 
 type netTestFixture struct {
 	netServer               *NetServer
@@ -66,7 +56,12 @@ func getTestFixureWithIptablesConfig(ctx context.Context, fakeDeps *dependencies
 
 	ztunnelServer := &fakeZtunnel{}
 
-	netServer := newNetServer(ztunnelServer, podNsMap, podIptC, NewPodNetnsProcFinder(fakeFs()))
+	procFinder, err := NewPodNetnsProcFinder(fakeFs(true))
+	if err != nil {
+		panic("couldn't create mocked procfinder")
+	}
+
+	netServer := newNetServer(ztunnelServer, podNsMap, podIptC, procFinder)
 
 	netServer.netnsRunner = func(fdable NetnsFd, toRun func() error) error {
 		return toRun()

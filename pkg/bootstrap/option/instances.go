@@ -130,6 +130,10 @@ func OutlierLogPath(value string) Instance {
 	return newOptionOrSkipIfZero("outlier_log_path", value)
 }
 
+func CustomFileSDSPath(value string) Instance {
+	return newOptionOrSkipIfZero("custom_file_path", value)
+}
+
 func ApplicationLogJSON(value bool) Instance {
 	return newOption("log_json", value)
 }
@@ -274,20 +278,12 @@ func MetadataDiscovery(value bool) Instance {
 	return newOption("metadata_discovery", value)
 }
 
-func DelimitedStatsTagsEnabled(value bool) Instance {
-	return newOption("delimited_stats_tags_enabled", value)
-}
-
 func MetricsLocalhostAccessOnly(proxyMetadata map[string]string) Instance {
 	value, ok := proxyMetadata["METRICS_LOCALHOST_ACCESS_ONLY"]
 	if ok && value == "true" {
 		return newOption("metrics_localhost_access_only", true)
 	}
 	return newOption("metrics_localhost_access_only", false)
-}
-
-func DeferredClusterCreation(deferred bool) Instance {
-	return newOption("deferred_cluster_creation", deferred)
 }
 
 func DeferredStatsCreation(deferred bool) Instance {

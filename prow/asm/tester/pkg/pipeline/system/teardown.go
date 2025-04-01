@@ -163,10 +163,10 @@ func removeGcpPermissions(settings *resource.Settings) error {
 				}
 				for _, b := range bindings {
 					cmd := exec.Command("gcloud", "projects", "remove-iam-policy-binding", projectIdSrc,
-						"--member="+fmt.Sprintf(b.member),
-						"--role="+fmt.Sprintf(b.role))
+						"--member="+fmt.Sprint(b.member),
+						"--role="+fmt.Sprint(b.role))
 					if err := cmd.Run(); err != nil {
-						log.Warn(fmt.Errorf("error removing gcp permissions: error removing the binding (%s)  (%s) for the service account to access GCR: %w", "--member="+fmt.Sprintf(b.member), "--role="+fmt.Sprintf(b.role), err))
+						log.Warn(fmt.Errorf("error removing gcp permissions: error removing the binding (%s)  (%s) for the service account to access GCR: %w", "--member="+fmt.Sprint(b.member), "--role="+fmt.Sprint(b.role), err))
 					}
 				}
 			}

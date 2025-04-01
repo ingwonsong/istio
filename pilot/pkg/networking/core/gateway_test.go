@@ -4051,10 +4051,10 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 							// Ext auth makes 2 filters
 							wellknown.RoleBasedAccessControl,
 							wellknown.ExternalAuthorization,
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-authn",
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-authz",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-authn",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-authz",
 							wellknown.RoleBasedAccessControl,
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-stats",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-stats",
 							xds.StatsFilterName,
 							wellknown.TCPProxy,
 						},
@@ -4157,9 +4157,9 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 					{
 						TotalMatch: true,
 						NetworkFilters: []string{
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-network-authn",
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-network-authz",
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-network-stats",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-network-authn",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-network-authz",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-network-stats",
 							wellknown.HTTPConnectionManager,
 						},
 						HTTPFilters: []string{
@@ -4167,10 +4167,10 @@ func TestBuildGatewayListenersFilters(t *testing.T) {
 							// Ext auth makes 2 filters
 							wellknown.HTTPRoleBasedAccessControl,
 							wellknown.HTTPExternalAuthorization,
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-authn",
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-authz",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-authn",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-authz",
 							wellknown.HTTPRoleBasedAccessControl,
-							"extenstions.istio.io/wasmplugin/istio-system.wasm-stats",
+							"extensions.istio.io/wasmplugin/istio-system.wasm-stats",
 							wellknown.HTTPGRPCStats,
 							xdsfilters.Alpn.Name,
 							xdsfilters.Fault.Name,
@@ -4438,6 +4438,60 @@ func TestGatewayHCMInternalAddressConfig(t *testing.T) {
 			httpConnManager := buildGatewayConnectionManager(&meshconfig.ProxyConfig{}, proxy, false, push)
 			if !reflect.DeepEqual(tt.expectedconfig, httpConnManager.InternalAddressConfig) {
 				t.Errorf("unexpected internal address config, expected: %v, got :%v", tt.expectedconfig, httpConnManager.InternalAddressConfig)
+			}
+		})
+	}
+}
+
+func TestListenerTransportSocketConnectTimeoutForGateway(t *testing.T) {
+	cases := []struct {
+		name            string
+		expectedTimeout int64
+		configs         []config.Config
+	}{
+		{
+			name:            "should set timeout",
+			expectedTimeout: durationpb.New(defaultGatewayTransportSocketConnectTimeout).GetSeconds(),
+			configs: []config.Config{
+				{
+					Meta: config.Meta{Name: "http-server", Namespace: "testns", GroupVersionKind: gvk.Gateway},
+					Spec: &networking.Gateway{
+						Servers: []*networking.Server{
+							{
+								Port: &networking.Port{Name: "http", Number: 80, Protocol: "HTTP"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			cg := NewConfigGenTest(t, TestOptions{
+				Configs:    tt.configs,
+				MeshConfig: mesh.DefaultMeshConfig(),
+			})
+			cg.PushContext().ServiceIndex.HostnameAndNamespace = map[host.Name]map[string]*pilot_model.Service{
+				"example.local": {
+					"foo": &pilot_model.Service{
+						Hostname: "example.local",
+					},
+				},
+			}
+			proxy := cg.SetupProxy(&proxyGateway)
+			metadata := proxyGatewayMetadata
+			metadata.ProxyConfig = &pilot_model.NodeMetaProxyConfig{
+				GatewayTopology: &meshconfig.Topology{ProxyProtocol: &meshconfig.Topology_ProxyProtocolConfiguration{}},
+			}
+			proxy.Metadata = &metadata
+
+			lb := NewListenerBuilder(proxy, cg.PushContext())
+			builder := cg.ConfigGen.buildGatewayListeners(lb)
+			fc := builder.gatewayListeners[0].FilterChains[0]
+			if fc.TransportSocketConnectTimeout == nil || fc.TransportSocketConnectTimeout.Seconds != tt.expectedTimeout {
+				t.Errorf("expected transport socket connect timeout to be %v on gateway listern's filter chain %v, got %v",
+					tt.expectedTimeout, fc.Name, fc.TransportSocketConnectTimeout)
 			}
 		})
 	}

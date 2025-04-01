@@ -39,7 +39,7 @@ type staticList[T any] struct {
 	syncer         Syncer
 }
 
-func NewStaticCollection[T any](vals []T, opts ...CollectionOption) StaticCollection[T] {
+func NewStaticCollection[T any](synced Syncer, vals []T, opts ...CollectionOption) StaticCollection[T] {
 	o := buildCollectionOptions(opts...)
 	if o.name == "" {
 		o.name = fmt.Sprintf("Static[%v]", ptr.TypeName[T]())
@@ -50,13 +50,17 @@ func NewStaticCollection[T any](vals []T, opts ...CollectionOption) StaticCollec
 		res[GetKey(v)] = v
 	}
 
+	if synced == nil {
+		synced = alwaysSynced{}
+	}
+
 	sl := &staticList[T]{
-		eventHandlers:  &handlerSet[T]{},
+		eventHandlers:  newHandlerSet[T](),
 		vals:           res,
 		id:             nextUID(),
 		stop:           o.stop,
 		collectionName: o.name,
-		syncer:         alwaysSynced{},
+		syncer:         synced,
 	}
 
 	c := StaticCollection[T]{
@@ -107,6 +111,30 @@ func (s *staticList[T]) UpdateObject(obj T) {
 	old, f := s.vals[k]
 	s.vals[k] = obj
 	if f {
+		s.eventHandlers.Distribute([]Event[T]{{
+			Old:   &old,
+			New:   &obj,
+			Event: controllers.EventUpdate,
+		}}, false)
+	} else {
+		s.eventHandlers.Distribute([]Event[T]{{
+			New:   &obj,
+			Event: controllers.EventAdd,
+		}}, false)
+	}
+}
+
+// ConditionalUpdateObject adds or updates an object into the collection.
+func (s *staticList[T]) ConditionalUpdateObject(obj T) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	k := GetKey(obj)
+	old, f := s.vals[k]
+	s.vals[k] = obj
+	if f {
+		if equal(old, obj) {
+			return
+		}
 		s.eventHandlers.Distribute([]Event[T]{{
 			Old:   &old,
 			New:   &obj,
@@ -185,7 +213,7 @@ func (s *staticList[T]) List() []T {
 	return maps.Values(s.vals)
 }
 
-func (s *staticList[T]) Register(f func(o Event[T])) Syncer {
+func (s *staticList[T]) Register(f func(o Event[T])) HandlerRegistration {
 	return registerHandlerAsBatched(s, f)
 }
 
@@ -202,7 +230,7 @@ func (s *staticList[T]) Synced() Syncer {
 	return alwaysSynced{}
 }
 
-func (s *staticList[T]) RegisterBatch(f func(o []Event[T], initialSync bool), runExistingState bool) Syncer {
+func (s *staticList[T]) RegisterBatch(f func(o []Event[T]), runExistingState bool) HandlerRegistration {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var objs []Event[T]

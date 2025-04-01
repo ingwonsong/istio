@@ -35,7 +35,7 @@ data:
   AMBIENT_IPV6: "true"
   AMBIENT_RECONCILE_POD_RULES_ON_STARTUP: "false"
   CHAINED_CNI_PLUGIN: "true"
-  EXCLUDED_NAMESPACES: "kube-system"
+  EXCLUDE_NAMESPACES: "kube-system"
   REPAIR_ENABLED: "true"
   REPAIR_LABEL_PODS: "false"
   REPAIR_DELETE_PODS: "false"
@@ -139,6 +139,10 @@ roleRef:
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
+  # Note that this is templated but evaluates to a fixed name
+  # which the CNI plugin may fall back onto in some failsafe scenarios.
+  # if this name is changed, CNI plugin logic that checks for this name
+  # format should also be updated.
   name: istio-cni-node
   namespace: kube-system
   labels:
@@ -183,7 +187,6 @@ spec:
         container.apparmor.security.beta.kubernetes.io/install-cni: unconfined
         # Custom annotations
     spec:
-
       nodeSelector:
         kubernetes.io/os: linux
       # Can be configured to allow for excluding istio-cni from being scheduled on specified nodes
@@ -257,6 +260,8 @@ spec:
               value: "true"
             - name: REPAIR_SIDECAR_ANNOTATION
               value: "sidecar.istio.io/status"
+            - name: ALLOW_SWITCH_TO_HOST_NS
+              value: "true"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:

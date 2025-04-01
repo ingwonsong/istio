@@ -33,6 +33,8 @@ import (
 	"istio.io/istio/pilot/pkg/util/protoconv"
 	xdsfilters "istio.io/istio/pilot/pkg/xds/filters"
 	"istio.io/istio/pkg/log"
+	pm "istio.io/istio/pkg/model"
+	"istio.io/istio/pkg/ptr"
 	"istio.io/istio/pkg/security"
 	"istio.io/istio/pkg/wellknown"
 )
@@ -200,7 +202,7 @@ func constructUpstreamTLS(opts *buildClusterOpts, tls *networking.ClientTLSSetti
 		// Rather than reading directly in Envoy, which does not support rotation, we will
 		// serve them over SDS by reading the files.
 		res := security.SdsCertificateConfig{
-			CaCertificatePath: tls.CaCertificates,
+			CaCertificatePath: ptr.NonEmptyOrDefault(tls.CaCertificates, "system"),
 		}
 		// If CredentialName is not set fallback to file based approach
 		if mutual {
@@ -212,7 +214,7 @@ func constructUpstreamTLS(opts *buildClusterOpts, tls *networking.ClientTLSSetti
 			res.CertificatePath = tls.ClientCertificate
 			res.PrivateKeyPath = tls.PrivateKey
 			tlsContext.CommonTlsContext.TlsCertificateSdsSecretConfigs = append(tlsContext.CommonTlsContext.TlsCertificateSdsSecretConfigs,
-				sec_model.ConstructSdsSecretConfig(res.GetResourceName()))
+				constructSdsSecretConfigFromFile(res.GetResourceName(), opts.fileCredentialSocketExist))
 		}
 		// If tls.CaCertificate or CaCertificate in Metadata isn't configured, or tls.InsecureSkipVerify is true,
 		// don't set up SdsSecretConfig
@@ -230,7 +232,7 @@ func constructUpstreamTLS(opts *buildClusterOpts, tls *networking.ClientTLSSetti
 			tlsContext.CommonTlsContext.ValidationContextType = &tlsv3.CommonTlsContext_CombinedValidationContext{
 				CombinedValidationContext: &tlsv3.CommonTlsContext_CombinedCertificateValidationContext{
 					DefaultValidationContext:         defaultValidationContext,
-					ValidationContextSdsSecretConfig: sec_model.ConstructSdsSecretConfig(res.GetRootResourceName()),
+					ValidationContextSdsSecretConfig: constructSdsSecretConfigFromFile(res.GetRootResourceName(), opts.fileCredentialSocketExist),
 				},
 			}
 		}
@@ -243,6 +245,13 @@ func constructUpstreamTLS(opts *buildClusterOpts, tls *networking.ClientTLSSetti
 		tlsContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
 	}
 	return tlsContext, nil
+}
+
+func constructSdsSecretConfigFromFile(filename string, customFileSDSCluster bool) *tlsv3.SdsSecretConfig {
+	if customFileSDSCluster {
+		return pm.ConstructSdsFilesSecretConfig(filename)
+	}
+	return pm.ConstructSdsSecretConfig(filename)
 }
 
 // applyTLSDefaults applies tls default settings from mesh config to UpstreamTlsContext.
@@ -258,10 +267,10 @@ func applyTLSDefaults(tlsContext *tlsv3.UpstreamTlsContext, tlsDefaults *v1alpha
 	}
 }
 
-// Set auto_sni if EnableAutoSni feature flag is enabled and if sni field is not explicitly set in DR.
+// Set auto_sni if sni field is not explicitly set in DR.
 // Set auto_san_validation if there is no explicit SubjectAltNames specified in DR.
 func setAutoSniAndAutoSanValidation(mc *clusterWrapper, tls *networking.ClientTLSSettings) {
-	if mc == nil || !features.EnableAutoSni {
+	if mc == nil {
 		return
 	}
 
@@ -324,7 +333,7 @@ func (cb *ClusterBuilder) applyHBONETransportSocketMatches(c *cluster.Cluster, t
 				if tls.Mode == networking.ClientTLSSettings_ISTIO_MUTUAL {
 					// If a user sets ISTIO_MUTUAL, then HBONE is replacing it. So we will do HBONE or mTLS, depending on backend support.
 					c.TransportSocketMatches = []*cluster.Cluster_TransportSocketMatch{
-						hboneTransportSocket(ts),
+						hboneTransportSocket(xdsfilters.RawBufferTransportSocket),
 						{
 							Name:            "tlsMode-" + model.IstioMutualTLSModeLabel,
 							TransportSocket: ts,

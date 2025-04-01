@@ -1276,25 +1276,16 @@ func TestStatNamePattern(t *testing.T) {
 		InboundClusterStatName:  "LocalService_%SERVICE%",
 		OutboundClusterStatName: "%SERVICE%_%SERVICE_PORT_NAME%_%SERVICE_PORT%",
 	}
-	enableDelimitedStatsTagValues := []bool{true, false}
 
-	for _, enableDelimitedStatsTagValue := range enableDelimitedStatsTagValues {
-		test.SetForTest(t, &features.EnableDelimitedStatsTagRegex, enableDelimitedStatsTagValue)
-		clusters := buildTestClusters(clusterTest{
-			t: t, serviceHostname: "*.example.org", serviceResolution: model.DNSLB, nodeType: model.SidecarProxy,
-			locality: &core.Locality{}, mesh: statConfigMesh,
-			destRule: &networking.DestinationRule{
-				Host: "*.example.org",
-			},
-		})
-		if enableDelimitedStatsTagValue {
-			g.Expect(xdstest.ExtractCluster("outbound|8080||*.example.org", clusters).AltStatName).To(Equal("*.example.org_default_8080;"))
-			g.Expect(xdstest.ExtractCluster("inbound|10001||", clusters).AltStatName).To(Equal("LocalService_*.example.org;"))
-		} else {
-			g.Expect(xdstest.ExtractCluster("outbound|8080||*.example.org", clusters).AltStatName).To(Equal("*.example.org_default_8080"))
-			g.Expect(xdstest.ExtractCluster("inbound|10001||", clusters).AltStatName).To(Equal("LocalService_*.example.org"))
-		}
-	}
+	clusters := buildTestClusters(clusterTest{
+		t: t, serviceHostname: "*.example.org", serviceResolution: model.DNSLB, nodeType: model.SidecarProxy,
+		locality: &core.Locality{}, mesh: statConfigMesh,
+		destRule: &networking.DestinationRule{
+			Host: "*.example.org",
+		},
+	})
+	g.Expect(xdstest.ExtractCluster("outbound|8080||*.example.org", clusters).AltStatName).To(Equal("*.example.org_default_8080;"))
+	g.Expect(xdstest.ExtractCluster("inbound|10001||", clusters).AltStatName).To(Equal("LocalService_*.example.org;"))
 }
 
 func TestDuplicateClusters(t *testing.T) {
@@ -3106,52 +3097,6 @@ func TestTelemetryMetadata(t *testing.T) {
 			addTelemetryMetadata(tt.cluster, opt.port, tt.service, tt.direction, tt.svcInsts)
 			if opt.mutable.cluster != nil && !reflect.DeepEqual(opt.mutable.cluster.Metadata, tt.want) {
 				t.Errorf("cluster metadata does not match expectation want %+v, got %+v", tt.want, opt.mutable.cluster.Metadata)
-			}
-		})
-	}
-}
-
-func TestVerifyCertAtClient(t *testing.T) {
-	testCases := []struct {
-		name               string
-		policy             *networking.TrafficPolicy
-		expectedCARootPath string
-	}{
-		{
-			name: "Check that certs are verfied against the OS CA certificate bundle",
-			policy: &networking.TrafficPolicy{
-				ConnectionPool: &networking.ConnectionPoolSettings{
-					Http: &networking.ConnectionPoolSettings_HTTPSettings{
-						MaxRetries: 10,
-					},
-				},
-				Tls: &networking.ClientTLSSettings{
-					CaCertificates: "",
-				},
-			},
-			expectedCARootPath: "system",
-		},
-		{
-			name: "Check that CaCertificates has priority over OS CA certificate bundle",
-			policy: &networking.TrafficPolicy{
-				ConnectionPool: &networking.ConnectionPoolSettings{
-					Http: &networking.ConnectionPoolSettings_HTTPSettings{
-						MaxRetries: 10,
-					},
-				},
-				Tls: &networking.ClientTLSSettings{
-					CaCertificates: "file-root:certPath",
-				},
-			},
-			expectedCARootPath: "file-root:certPath",
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			selectTrafficPolicyComponents(testCase.policy)
-			if testCase.policy.Tls.CaCertificates != testCase.expectedCARootPath {
-				t.Errorf("%v got %v when expecting %v", testCase.name, testCase.policy.Tls.CaCertificates, testCase.expectedCARootPath)
 			}
 		})
 	}

@@ -95,7 +95,16 @@ func NewQueue(name string, options ...func(*Queue)) Queue {
 		o(&q)
 	}
 	if q.queue == nil {
-		q.queue = workqueue.NewTypedRateLimitingQueue[any](workqueue.DefaultTypedControllerRateLimiter[any]())
+		q.queue = workqueue.NewTypedRateLimitingQueueWithConfig[any](
+			workqueue.DefaultTypedControllerRateLimiter[any](),
+			workqueue.TypedRateLimitingQueueConfig[any]{
+				// CSM Code: Workaround to make metrics.NewMetricsProvider() working.
+				// Name: name,
+				// MetricsProvider: nil,
+				// Clock:           nil,
+				// DelayingQueue:   nil,
+			},
+		)
 	}
 	q.log = log.WithLabels("controller", q.name)
 	return q

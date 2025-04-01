@@ -116,9 +116,10 @@ type ClusterBuilder struct {
 	proxyIPAddresses   []string              // IP addresses on which proxy is listening on.
 	configNamespace    string                // Proxy config namespace.
 	// PushRequest to look for updates.
-	req                   *model.PushRequest
-	cache                 model.XdsCache
-	credentialSocketExist bool
+	req                       *model.PushRequest
+	cache                     model.XdsCache
+	credentialSocketExist     bool
+	fileCredentialSocketExist bool
 }
 
 // NewClusterBuilder builds an instance of ClusterBuilder.
@@ -153,6 +154,9 @@ func NewClusterBuilder(proxy *model.Proxy, req *model.PushRequest, cache model.X
 		cb.clusterID = string(proxy.Metadata.ClusterID)
 		if proxy.Metadata.Raw[security.CredentialMetaDataName] == "true" {
 			cb.credentialSocketExist = true
+		}
+		if proxy.Metadata.Raw[security.CredentialFileMetaDataName] == "true" {
+			cb.fileCredentialSocketExist = true
 		}
 	}
 	return cb
@@ -240,14 +244,15 @@ func (cb *ClusterBuilder) applyDestinationRule(mc *clusterWrapper, clusterMode C
 	// merge applicable port level traffic policy settings
 	trafficPolicy, _ := util.GetPortLevelTrafficPolicy(destinationRule.GetTrafficPolicy(), port)
 	opts := buildClusterOpts{
-		mesh:                  cb.req.Push.Mesh,
-		serviceTargets:        cb.serviceTargets,
-		mutable:               mc,
-		policy:                trafficPolicy,
-		port:                  port,
-		clusterMode:           clusterMode,
-		direction:             model.TrafficDirectionOutbound,
-		credentialSocketExist: cb.credentialSocketExist,
+		mesh:                      cb.req.Push.Mesh,
+		serviceTargets:            cb.serviceTargets,
+		mutable:                   mc,
+		policy:                    trafficPolicy,
+		port:                      port,
+		clusterMode:               clusterMode,
+		direction:                 model.TrafficDirectionOutbound,
+		credentialSocketExist:     cb.credentialSocketExist,
+		fileCredentialSocketExist: cb.fileCredentialSocketExist,
 	}
 
 	if clusterMode == DefaultClusterMode {
@@ -653,7 +658,7 @@ func (cb *ClusterBuilder) setUpstreamProtocol(cluster *clusterWrapper, port *mod
 	// h2. Clients would then connect with h2, while the upstream may not support it. This is not a
 	// concern for plaintext, but we do not have a way to distinguish https vs http here. If users of
 	// gateway want this behavior, they can configure UseClientProtocol explicitly.
-	if cb.sidecarProxy() && isAutoProtocol {
+	if (cb.sidecarProxy() || cb.proxyType == model.Waypoint) && isAutoProtocol {
 		// Use downstream protocol. If the incoming traffic use HTTP 1.1, the
 		// upstream cluster will use HTTP 1.1, if incoming traffic use HTTP2,
 		// the upstream cluster will use HTTP2.

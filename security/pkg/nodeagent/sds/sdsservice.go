@@ -78,7 +78,7 @@ func newSDSService(st security.SecretManager, options *security.Options, pkpConf
 
 	ret.rootCaPath = options.CARootPath
 
-	if options.FileMountedCerts || options.CAProviderName == security.GkeWorkloadCertificateProvider {
+	if options.FileMountedCerts || options.ServeOnlyFiles || options.CAProviderName == security.GkeWorkloadCertificateProvider {
 		return ret
 	}
 

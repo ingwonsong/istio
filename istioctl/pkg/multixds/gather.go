@@ -25,8 +25,10 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strings"
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"google.golang.org/protobuf/types/known/anypb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"istio.io/api/label"
@@ -40,6 +42,8 @@ import (
 const (
 	// Service account to create tokens in
 	tokenServiceAccount = "default"
+
+	proxyNotConnectedMessage = "Proxy not connected to this Pilot instance. It may be connected to another instance."
 )
 
 type ControlPlaneNotFoundError struct {
@@ -119,12 +123,48 @@ func queryEachShard(all bool, dr *discovery.DiscoveryRequest, istioNamespace str
 		if err != nil {
 			return nil, fmt.Errorf("could not get XDS from discovery pod %q: %v", pod.Name, err)
 		}
-		responses = append(responses, response)
-		if !all && len(responses) > 0 {
+
+		if all {
+			// If we are getting response from all istiod pods, we should append all responses.
+			responses = append(responses, response)
+			continue
+		}
+
+		// If we are not getting response from all istiod pods, and this response is not from the last one istiod pod,
+		// and it is a response that indicates the proxy is not connected to this current istiod instance,
+		// we should skip this response and try the next istiod pod.
+		// This is very useful to get response from a multi replicas istiod cluster and short the time cost than `all=true`.
+		if !proxyNotConnectedToThisPilotInstanceResponse(response) {
+			responses = append(responses, response)
 			break
 		}
 	}
+
+	// If we are not getting response from all istiod pods,
+	// return with the first response that contains resources.
+	if len(responses) == 0 {
+		responses = append(responses, &discovery.DiscoveryResponse{
+			Resources: []*anypb.Any{
+				{
+					Value: []byte(proxyNotConnectedMessage),
+				},
+			},
+		})
+	}
 	return responses, nil
+}
+
+func proxyNotConnectedToThisPilotInstanceResponse(resp *discovery.DiscoveryResponse) bool {
+	if resp == nil || len(resp.Resources) != 1 {
+		return false
+	}
+	for _, res := range resp.Resources {
+		if strings.Contains(string(res.GetValue()), proxyNotConnectedMessage) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func mergeShards(responses map[string]*discovery.DiscoveryResponse) (*discovery.DiscoveryResponse, error) {
