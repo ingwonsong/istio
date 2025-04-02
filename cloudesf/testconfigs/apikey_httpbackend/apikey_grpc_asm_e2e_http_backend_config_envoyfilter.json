@@ -191,6 +191,9 @@
                 "service": {
                   "removeAuthorizationHeader": true
                 },
+                "serviceAccess": {
+                  "publicDiscovery": true
+                },
                 "transcoderConfig": {
                   "autoMapping": true,
                   "convertGrpcStatus": true,

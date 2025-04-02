@@ -267,7 +267,8 @@
                 "scCallingConfig": {},
                 "service": {
                   "removeAuthorizationHeader": true
-                }
+                },
+                "serviceAccess": {}
               }
             }
           }
