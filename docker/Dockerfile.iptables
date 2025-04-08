@@ -1,5 +1,5 @@
 # hadolint ignore=DL3026
-FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250307.00_p0@sha256:a078aaa37b17bb4b29ddcdaabb702a9ff25d87b6488bd41edc2b7972205ecc3e AS distroless_libc
+FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250407.00_p0@sha256:df9f8d65bb5f790b8b659bfb7f019584a1f1b5be4d56e4c7442353dae75baf77 AS distroless_libc
 
 # hadolint ignore=DL3026
 FROM us.gcr.io/gke-release/debian-base:bookworm-v1.0.4-gke.5@sha256:645f60901185d00d286326f86565db7ef8f633ae6d06e4d4d20f1d49207d94fb AS pkgs

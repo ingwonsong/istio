@@ -1,6 +1,6 @@
 # prepare a distroless source context to copy files from
 # hadolint ignore=DL3026
-FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250307.00_p0@sha256:a078aaa37b17bb4b29ddcdaabb702a9ff25d87b6488bd41edc2b7972205ecc3e as distroless_source
+FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250407.00_p0@sha256:df9f8d65bb5f790b8b659bfb7f019584a1f1b5be4d56e4c7442353dae75baf77 as distroless_source
 
 # prepare a base dev to modify file contents
 # hadolint ignore=DL3007,DL3026
