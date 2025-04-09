@@ -15,6 +15,10 @@
 package mesh
 
 import (
+	"fmt"
+	"reflect"
+
+	"github.com/hashicorp/go-multierror"
 	"google.golang.org/protobuf/types/known/structpb"
 	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -23,6 +27,20 @@ import (
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/util/protomarshal"
 )
+
+var unsupportedProxyMetadata = map[string]any{
+	"CA_ROOT_CA":                       "",
+	"HTTPS_PROXY":                      "",
+	"HTTP_PROXY":                       "",
+	"ISTIO_META_PROXY_XDS_VIA_AGENT":   "",
+	"ISTO_META_ENABLE_NATIVE_SIDECARS": "",
+	"PILOT_JWT_ENABLE_REMOTE_JWKS":     "",
+	"PROXY_CONFIG_XDS_AGENT":           "",
+	"TRUST_DOMAIN":                     "",
+	"XDS_AUTH_PROVIDER":                "",
+	"XDS_HEADER_Cloud-Run-Enable-H2":   "",
+	"XDS_ROOT_CA":                      "",
+}
 
 // MCPDefaultProxyConfig provides defaults for proxy config when running in MCP.
 // This is used, rather than the local file mesh config, when we want users to be able to override settings.
@@ -127,4 +145,172 @@ func accessLogProviderSet(raw map[string]interface{}) bool {
 	}
 	_, f := dp["accessLogging"]
 	return f
+}
+
+// mcpValidateProxyConfig validates any change to the default proxyconfig
+func mcpValidateProxyConfig(proxyConfig *meshconfig.ProxyConfig) map[string]any {
+	unsupportedFields := map[string]any{}
+	if proxyConfig == nil {
+		return unsupportedFields
+	}
+	gc := DefaultProxyConfig()
+	if proxyConfig.GetBinaryPath() != gc.GetBinaryPath() {
+		unsupportedFields["proxyconfig.binaryPath"] = struct{}{}
+	}
+	if proxyConfig.GetConfigPath() != gc.GetConfigPath() {
+		unsupportedFields["proxyconfig.configPath"] = struct{}{}
+	}
+	if proxyConfig.GetControlPlaneAuthPolicy() != gc.GetControlPlaneAuthPolicy() {
+		unsupportedFields["proxyconfig.controlPlaneAuthPolicy"] = struct{}{}
+	}
+	if proxyConfig.GetCustomConfigFile() != gc.GetCustomConfigFile() {
+		unsupportedFields["proxyconfig.customConfigFile"] = struct{}{}
+	}
+	if proxyConfig.GetDiscoveryAddress() != gc.GetDiscoveryAddress() {
+		unsupportedFields["proxyconfig.discoveryAddress"] = struct{}{}
+	}
+	if proxyConfig.GetEnvoyAccessLogService() != gc.GetEnvoyAccessLogService() {
+		unsupportedFields["proxyconfig.envoyAccessLogService"] = struct{}{}
+	}
+	if proxyConfig.GetEnvoyMetricsService() != gc.GetEnvoyMetricsService() {
+		unsupportedFields["proxyconfig.envoyMetricsService"] = struct{}{}
+	}
+	if proxyConfig.GetMeshId() != gc.GetMeshId() {
+		unsupportedFields["proxyconfig.meshId"] = struct{}{}
+	}
+	if proxyConfig.GetPrivateKeyProvider() != gc.GetPrivateKeyProvider() {
+		unsupportedFields["proxyconfig.privateKeyProvider"] = struct{}{}
+	}
+	if proxyConfig.GetProxyBootstrapTemplatePath() != gc.GetProxyBootstrapTemplatePath() {
+		unsupportedFields["proxyconfig.proxyBootstrapTemplatePath"] = struct{}{}
+	}
+	proxyHeaders := proxyConfig.GetProxyHeaders()
+	if proxyHeaders.GetServer().GetValue() != "" {
+		unsupportedFields["proxyconfig.proxyHeaders.server.value"] = struct{}{}
+	}
+	proxyMetadata := proxyConfig.GetProxyMetadata()
+	for k := range proxyMetadata {
+		if _, ok := unsupportedProxyMetadata[k]; ok {
+			unsupportedFields[fmt.Sprintf("proxyconfig.proxyMetadata.%v", k)] = struct{}{}
+		}
+	}
+	if proxyConfig.GetReadinessProbe() != gc.GetReadinessProbe() {
+		unsupportedFields["proxyconfig.readinessProbe"] = struct{}{}
+	}
+
+	if proxyConfig.GetServiceCluster() != gc.GetServiceCluster() {
+		unsupportedFields["proxyconfig.serviceCluster"] = struct{}{}
+	}
+	if proxyConfig.GetStatNameLength() != gc.GetStatNameLength() {
+		unsupportedFields["proxyconfig.statNameLength"] = struct{}{}
+	}
+	if proxyConfig.GetStatsdUdpAddress() != gc.GetStatsdUdpAddress() {
+		unsupportedFields["proxyconfig.statsdUdpAddress"] = struct{}{}
+	}
+	if proxyConfig.GetStatusPort() != gc.GetStatusPort() {
+		unsupportedFields["proxyconfig.statusPort"] = struct{}{}
+	}
+	if proxyConfig.GetTracing() != nil {
+		if proxyConfig.GetTracing().GetLightstep() != nil {
+			unsupportedFields["proxyconfig.tracing.lightstep"] = struct{}{}
+		}
+		if proxyConfig.GetTracing().GetOpenCensusAgent().GetContext() != nil {
+			unsupportedFields["proxyconfig.tracing.openCensusAgent.context"] = struct{}{}
+		}
+		if proxyConfig.GetTracing().GetTlsSettings() != nil {
+			unsupportedFields["proxyconfig.tracing.tlsSettings"] = struct{}{}
+		}
+	}
+	return unsupportedFields
+}
+
+// mcpValidateMeshConfig validates any change to the default meshconfig
+func mcpValidateMeshConfig(mc *meshconfig.MeshConfig) error {
+	unsupportedToErr := func(fields map[string]any) error {
+		var err error
+		for k := range fields {
+			err = multierror.Append(err, fmt.Errorf("unsupported api usage: %v", k))
+		}
+		return err
+	}
+	unsupportedFields := map[string]any{}
+	if mc == nil {
+		return unsupportedToErr(unsupportedFields)
+	}
+	gc := DefaultMeshConfig()
+	if mc.GetCa().GetIstiodSide() != gc.GetCa().GetIstiodSide() {
+		unsupportedFields["meshconfig.ca.istiodSide"] = struct{}{}
+	}
+	if mc.GetCa().GetTlsSettings() != gc.GetCa().GetTlsSettings() {
+		unsupportedFields["meshconfig.ca.tlsSettings"] = struct{}{}
+	}
+	if !reflect.DeepEqual(mc.GetCaCertificates(), gc.GetCaCertificates()) {
+		unsupportedFields["meshconfig.caCertificates"] = struct{}{}
+	}
+	if !reflect.DeepEqual(mc.GetConfigSources(), gc.GetConfigSources()) {
+		unsupportedFields["meshconfig.configSources"] = struct{}{}
+	}
+	if mc.GetIngressClass() != gc.GetIngressClass() {
+		unsupportedFields["meshconfig.ingressClass"] = struct{}{}
+	}
+	if mc.GetIngressControllerMode() != gc.GetIngressControllerMode() {
+		unsupportedFields["meshconfig.ingressControllerMode"] = struct{}{}
+	}
+	if mc.GetIngressService() != gc.GetIngressService() {
+		unsupportedFields["meshconfig.ingressService"] = struct{}{}
+	}
+	if mc.GetIngressSelector() != gc.GetIngressSelector() {
+		unsupportedFields["meshconfig.ingressSelector"] = struct{}{}
+	}
+	if mc.GetProxyHttpPort() != gc.GetProxyHttpPort() {
+		unsupportedFields["meshconfig.proxyHttpPort"] = struct{}{}
+	}
+	if mc.GetProxyListenPort() != gc.GetProxyListenPort() {
+		unsupportedFields["meshconfig.proxyListenPort"] = struct{}{}
+	}
+	if mc.GetProxyInboundListenPort() != gc.GetProxyInboundListenPort() {
+		unsupportedFields["meshconfig.proxyInboundListenPort"] = struct{}{}
+	}
+	for _, distribute := range mc.GetLocalityLbSetting().GetDistribute() {
+		if len(distribute.GetTo()) > 0 {
+			unsupportedFields["meshconfig.localityLbSetting.distribute.to"] = struct{}{}
+		}
+	}
+
+	for _, ext := range mc.GetExtensionProviders() {
+		if ext.GetDatadog().GetMaxTagLength() != 0 {
+			unsupportedFields["meshconfig.extensionProviders.datadog.maxTagLength"] = struct{}{}
+		}
+		if ext.GetEnvoyHttpAls() != nil {
+			unsupportedFields["meshconfig.extensionProviders.envoyHttpAls"] = struct{}{}
+		}
+		if ext.GetEnvoyOtelAls().GetLogName() != "" {
+			unsupportedFields["meshconfig.extensionProviders.envoyOtelAls.logName"] = struct{}{}
+		}
+		if ext.GetEnvoyOtelAls().GetLogFormat().GetText() != "" {
+			unsupportedFields["meshconfig.extensionProviders.envoyOtelAls.logFormat.text"] = struct{}{}
+		}
+		if ext.GetEnvoyOtelAls().GetLogFormat().GetLabels().GetFields() != nil {
+			unsupportedFields["meshconfig.extensionProviders.envoyOtelAls.logFormat.labels.fields"] = struct{}{}
+		}
+		if ext.GetEnvoyTcpAls() != nil {
+			unsupportedFields["meshconfig.extensionProviders.envoyTcpAls"] = struct{}{}
+		}
+		if ext.GetOpentelemetry().GetMaxTagLength() != 0 {
+			unsupportedFields["meshconfig.extensionProviders.opentelemetry.maxTagLength"] = struct{}{}
+		}
+		if ext.GetSkywalking() != nil {
+			unsupportedFields["meshconfig.extensionProviders.skywalking"] = struct{}{}
+		}
+		if ext.GetZipkin().GetMaxTagLength() != 0 {
+			unsupportedFields["meshconfig.extensionProviders.zipkin.maxTagLength"] = struct{}{}
+		}
+		if ext.GetZipkin().GetEnable_64BitTraceId() {
+			unsupportedFields["meshconfig.extensionProviders.zipkin.enable64BitTraceId"] = struct{}{}
+		}
+	}
+	for k := range mcpValidateProxyConfig(mc.GetDefaultConfig()) {
+		unsupportedFields[k] = struct{}{}
+	}
+	return unsupportedToErr(unsupportedFields)
 }

@@ -273,6 +273,11 @@ func ApplyMeshConfig(yaml string, defaultConfig *meshconfig.MeshConfig) (*meshco
 	if warn != nil {
 		log.Warnf("warnings occurred during mesh validation: %v", warn)
 	}
+	if asm.IsCloudRun() {
+		if err = mcpValidateMeshConfig(defaultConfig); err != nil {
+			return nil, err
+		}
+	}
 
 	return defaultConfig, nil
 }
