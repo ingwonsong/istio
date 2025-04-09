@@ -22,7 +22,6 @@ var (
 	// Relative to the repo root.
 	TestSupplementDirs = []string{
 		"manifests/",
-		"pkg/test/framework/features/",
 		"prow/asm/tester/",
 		IntegrationTestRoot,
 		"samples/multicluster/",
