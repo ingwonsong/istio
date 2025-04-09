@@ -1,0 +1,40 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {{ .envoyfilterName | default "ext-authz" }}
+  namespace: {{ .namespace | default "default" }}
+spec:
+  priority: 1
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+            subFilter:
+              name: envoy.filters.http.router
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.ext_authz
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+{{- if .isGoogleGrpc }}
+          grpcService:
+            googleGrpc:
+              targetUri:  {{ .targetUri }}:{{ .extAuthzGrpcPort }}
+              statPrefix: {{ .statPrefix }}
+{{- end }}
+{{- if .isEnvoyGrpc }}
+          grpcService:
+            envoyGrpc:
+              authority: outbound_.{{ .extAuthzGrpcPort }}_._.{{ .authority }}
+              clusterName: outbound|{{ .extAuthzGrpcPort }}||{{ .clusterName }}
+{{- end }}
+            timeout: {{ .timeout }}
+          transportApiVersion: {{ .transportApiVersion }}
+  workloadSelector:
+    labels:
+      {{ .label }}
