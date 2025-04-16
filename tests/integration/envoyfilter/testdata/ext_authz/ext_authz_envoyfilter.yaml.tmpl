@@ -4,7 +4,7 @@ metadata:
   name: {{ .envoyfilterName | default "ext-authz" }}
   namespace: {{ .namespace | default "default" }}
 spec:
-  priority: 1
+  priority: 10 # This filter should be placed after header-to-metadata filter to populate metadata
   configPatches:
   - applyTo: HTTP_FILTER
     match:
@@ -35,6 +35,10 @@ spec:
 {{- end }}
             timeout: {{ .timeout }}
           transportApiVersion: {{ .transportApiVersion }}
+{{- if .metadataContextNamespaces }}
+          metadataContextNamespaces:
+          - {{ .metadataContextNamespaces }}
+{{- end }}
   workloadSelector:
     labels:
       {{ .label }}

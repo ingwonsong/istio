@@ -54,6 +54,8 @@ const (
 	echoCallRetryTimeout     time.Duration = 5 * time.Minute
 	echoCallRetryMaxAttempts int           = 10
 	echoCallRetryDelay       time.Duration = 10 * time.Second
+
+	labelAppA string = "app: a"
 )
 
 func TestMain(m *testing.M) {
