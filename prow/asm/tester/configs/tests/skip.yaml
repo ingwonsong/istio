@@ -13,7 +13,10 @@ tests:
       - TestWorkloadEntryGateway
       reason: relies on unsupported istio feature
       buganizerID: b/307328378
-
+    - names:
+      - TestStatsFilter/additional-labels
+      - TestStatsTCPFilter/additional-labels
+      reason: We are not gonna support this feature.
   - selectors:
       control_plane: unmanaged
     targets:
