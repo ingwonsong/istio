@@ -230,6 +230,7 @@
               "typeUrl": "type.googleapis.com/net.envoy.proto.service_control_v2.FilterConfig",
               "value": {
                 "checkCacheConfig": {},
+                "enableAdminPolicyCheck": true,
                 "estubsGrpc": {
                   "clientRootCertPath": "/roots.pem",
                   "enableEstubsShortestDeadline": true,
@@ -261,11 +262,9 @@
                     "operationName": "google.example.apikeys.v1.ApiKeys.UndeleteApiKey"
                   },
                   {
-                    "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
                     "operationName": "google.discovery.Discovery.GetDiscovery"
                   },
                   {
-                    "consumerIdBehavior": "CONSUMER_ID_OPTIONAL",
                     "operationName": "google.discovery.Discovery.GetDiscoveryRest"
                   }
                 ],
