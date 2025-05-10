@@ -40,6 +40,7 @@ metadata:
 data:
   CURRENT_AGENT_VERSION: "{{ .MDP_TAG }}"
   AMBIENT_ENABLED: "false"
+  AMBIENT_ENABLEMENT_SELECTOR: "- podSelector:\n    matchLabels:\n      istio.io/dataplane-mode: ambient\n- namespaceSelector:\n    matchLabels:\n      istio.io/dataplane-mode: ambient\n  podSelector:\n    matchExpressions:\n    - key: istio.io/dataplane-mode\n      operator: NotIn\n      values:\n      - none"
   AMBIENT_DNS_CAPTURE: "true"
   AMBIENT_IPV6: "true"
   AMBIENT_RECONCILE_POD_RULES_ON_STARTUP: "false"
@@ -268,9 +269,9 @@ spec:
     matchLabels:
       k8s-app: istio-cni-node
   updateStrategy:
-    type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -301,10 +302,8 @@ spec:
         kubernetes.io/os: linux
       # Can be configured to allow for excluding istio-cni from being scheduled on specified nodes
       tolerations:
-        # Make sure istio-cni-node gets scheduled on all nodes.
         - effect: NoSchedule
           operator: Exists
-        # Mark the pod as a critical add-on for rescheduling.
         - key: CriticalAddonsOnly
           operator: Exists
         - effect: NoExecute

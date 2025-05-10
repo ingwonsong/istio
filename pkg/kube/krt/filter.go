@@ -38,6 +38,7 @@ type filter struct {
 }
 
 type indexFilter struct {
+	filterUID    collectionUID
 	list         func() any
 	indexMatches func(any) bool
 	extractKeys  objectKeyExtractor
@@ -50,14 +51,18 @@ func getKeyExtractor(o any) []string {
 	return []string{GetKey(o)}
 }
 
-func (f *filter) reverseIndexKey() (string, objectKeyExtractor, bool) {
-	if f.keys.Len() == 1 {
-		return f.keys.List()[0], getKeyExtractor, true
+// reverseIndexKey
+func (f *filter) reverseIndexKey() ([]string, indexedDependencyType, objectKeyExtractor, collectionUID, bool) {
+	if f.keys.Len() > 0 {
+		if f.index != nil {
+			panic("cannot filter by index and key")
+		}
+		return f.keys.List(), getKeyType, getKeyExtractor, 0, true
 	}
 	if f.index != nil {
-		return f.index.key, f.index.extractKeys, true
+		return []string{f.index.key}, indexType, f.index.extractKeys, f.index.filterUID, true
 	}
-	return "", nil, false
+	return nil, unknownIndexType, nil, 0, false
 }
 
 func (f *filter) String() string {
@@ -113,6 +118,7 @@ func FilterIndex[K comparable, I any](idx Index[K, I], k K) FetchOption {
 	return func(h *dependency) {
 		// Index is used to pre-filter on the List, and also to match in Matches. Provide type-erased methods for both
 		h.filter.index = &indexFilter{
+			filterUID: idx.id(),
 			list: func() any {
 				return idx.Lookup(k)
 			},

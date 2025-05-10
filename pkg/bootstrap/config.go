@@ -110,6 +110,11 @@ func (cfg Config) toTemplateParams() (map[string]any, error) {
 	if metadataDiscovery != nil && *metadataDiscovery {
 		mDiscovery = true
 	}
+	if mDiscovery && xdsType == "GRPC" {
+		log.Warnf("disabling metadata discovery; not supported on SotW XDS")
+		// Not supported on legacy SotW protocol
+		mDiscovery = false
+	}
 	customSDSPath := ""
 	if _, f := cfg.RawMetadata[security.CredentialFileMetaDataName]; f {
 		customSDSPath = security.FileCredentialNameSocketPath
@@ -304,8 +309,8 @@ func getStatsOptions(meta *model.BootstrapNodeMetadata) []option.Instance {
 	}
 
 	var compression string
-	// TODO: move annotation to api repo
-	if statsCompression, ok := meta.Annotations["sidecar.istio.io/statsCompression"]; ok && envoyWellKnownCompressorLibrary.Contains(statsCompression) {
+	if statsCompression, ok := meta.Annotations[annotation.SidecarStatsCompression.Name]; ok &&
+		envoyWellKnownCompressorLibrary.Contains(statsCompression) {
 		compression = statsCompression
 	}
 

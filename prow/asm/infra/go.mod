@@ -11,7 +11,7 @@ require (
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-20220408200757-466c02050528
-	k8s.io/apimachinery v0.32.3
+	k8s.io/apimachinery v0.33.0
 	sigs.k8s.io/boskos v0.0.0-20210823185622-ae371c628ac9
 	sigs.k8s.io/kubetest2 v0.0.0-20220713164938-2aac35a0b4ba
 )
@@ -29,8 +29,8 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/prometheus/client_golang v1.21.1 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/client_golang v1.22.0 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
@@ -42,7 +42,7 @@ require (
 	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
-	google.golang.org/grpc v1.71.0 // indirect
+	google.golang.org/grpc v1.71.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/test-infra v0.0.0-20210730160938-8ad9b8c53bd8 // indirect

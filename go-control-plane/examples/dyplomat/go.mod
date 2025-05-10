@@ -13,12 +13,12 @@ replace (
 require (
 	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
-	sigs.k8s.io/aws-iam-authenticator v0.6.30
+	sigs.k8s.io/aws-iam-authenticator v0.6.31
 )
 
 require (
@@ -56,17 +56,17 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/prometheus/client_golang v1.20.5 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.61.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect

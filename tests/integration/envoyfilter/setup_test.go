@@ -90,7 +90,7 @@ func clientAndServerEchoNs(t framework.TestContext) (deployment.EchoNamespace, d
 	return clientEchoNs, serverEchoNs
 }
 
-func applyEnvoyFilter(t framework.TestContext, envoyfilterName string, tmplFilePath string, serverNs deployment.EchoNamespace, params map[string]any) string {
+func applyEnvoyFilter(t framework.TestContext, envoyfilterName string, tmplFilePath string, serverNs deployment.EchoNamespace, params map[string]any) {
 	t.Helper()
 	envoyFilterTmpl, err := os.ReadFile(tmplFilePath)
 	if err != nil {
@@ -105,7 +105,6 @@ func applyEnvoyFilter(t framework.TestContext, envoyfilterName string, tmplFileP
 		// Delete envoyfilter
 		t.ConfigIstio().YAML(serverNs.Namespace.Name(), envoyFilter).DeleteOrFail(t)
 	})
-	return envoyFilter
 }
 
 func echoAInstanceFromNs(t framework.TestContext, ns deployment.EchoNamespace) echo.Instance {

@@ -4,14 +4,13 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package log
 
 import (
@@ -30,7 +29,6 @@ var TraceLoggingEnabled = env.Register(
 	false,
 	"When enable, all iptables actions will be logged. "+
 		"This requires NET_ADMIN privilege and has noisy logs; as a result, this is intended for debugging only").Get()
-
 var iptablesTrace = log.RegisterScope("iptables", "trace logs for iptables")
 
 // ReadNFLOGSocket reads from the nflog socket, sending output to logs.
@@ -47,14 +45,12 @@ func ReadNFLOGSocket(ctx context.Context) {
 		Copymode: nflog.CopyPacket,
 		Logger:   iptablesTrace,
 	}
-
 	nf, err := nflog.Open(&config)
 	if err != nil {
 		log.Errorf("could not open nflog socket: %v", err)
 		return
 	}
 	defer nf.Close()
-
 	fn := func(attrs nflog.Attribute) int {
 		src, dst := "", ""
 		if attrs.Payload != nil {
@@ -99,7 +95,6 @@ func ReadNFLOGSocket(ctx context.Context) {
 		).Infof("istio rule")
 		return 0
 	}
-
 	// Register our callback for the nflog
 	err = nf.RegisterWithErrorFunc(ctx, fn, func(e error) int {
 		iptablesTrace.Warnf("log failed: %v", e)
@@ -109,7 +104,6 @@ func ReadNFLOGSocket(ctx context.Context) {
 		log.Errorf("failed to register nflog callback: %v", err)
 		return
 	}
-
 	// Block util the context expires
 	<-ctx.Done()
 }

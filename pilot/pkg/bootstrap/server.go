@@ -157,7 +157,8 @@ type Server struct {
 	RA       ra.RegistrationAuthority
 	caServer *caserver.Server
 
-	// TrustAnchors for workload to workload mTLS
+	// TrustAnchors for workload to workload mTLS and proxy to istiod TLS
+	// Only initiated when `ISTIO_MULTIROOT_MESH` = true
 	workloadTrustBundle *tb.TrustBundle
 	certMu              sync.RWMutex
 	istiodCert          *tls.Certificate
@@ -302,9 +303,11 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 		return nil, err
 	}
 
-	// Initialize trust bundle after mesh config which it depends on
-	s.workloadTrustBundle = tb.NewTrustBundle(nil, e.Watcher)
-	e.TrustBundle = s.workloadTrustBundle
+	if features.MultiRootMesh {
+		// Initialize trust bundle after mesh config which it depends on
+		s.workloadTrustBundle = tb.NewTrustBundle(nil, e.Watcher)
+		e.TrustBundle = s.workloadTrustBundle
+	}
 
 	// Options based on the current 'defaults' in istio.
 	caOpts := &caOptions{
@@ -393,7 +396,12 @@ func NewServer(args *PilotArgs, initFuncs ...func(*Server)) (*Server, error) {
 	// so we build it later.
 	if s.kubeClient != nil {
 		authenticators = append(authenticators,
-			kubeauth.NewKubeJWTAuthenticator(s.environment.Watcher, s.kubeClient.Kube(), s.clusterID, s.multiclusterController))
+			kubeauth.NewKubeJWTAuthenticator(
+				s.environment.Watcher,
+				s.kubeClient.Kube(),
+				s.clusterID,
+				args.RegistryOptions.KubeOptions.ClusterAliases,
+				s.multiclusterController))
 	}
 	if len(features.TrustedGatewayCIDR) > 0 {
 		authenticators = append(authenticators, &authenticate.XfccAuthenticator{})
@@ -533,10 +541,10 @@ func (s *Server) initSDSServer() {
 		log.Warnf("skipping Kubernetes credential reader; PILOT_ENABLE_XDS_IDENTITY_CHECK must be set to true for this feature.")
 	} else {
 		creds := kubecredentials.NewMulticluster(s.clusterID, s.multiclusterController)
-		creds.AddSecretHandler(func(name string, namespace string) {
+		creds.AddSecretHandler(func(k kind.Kind, name string, namespace string) {
 			s.XDSServer.ConfigUpdate(&model.PushRequest{
 				Full:           false,
-				ConfigsUpdated: sets.New(model.ConfigKey{Kind: kind.Secret, Name: name, Namespace: namespace}),
+				ConfigsUpdated: sets.New(model.ConfigKey{Kind: k, Name: name, Namespace: namespace}),
 				Reason:         model.NewReasonStats(model.SecretTrigger),
 			})
 		})
@@ -920,7 +928,7 @@ func (s *Server) initRegistryEventHandlers() {
 			}
 			pushReq := &model.PushRequest{
 				Full:           true,
-				ConfigsUpdated: sets.New(model.ConfigKey{Kind: kind.MustFromGVK(curr.GroupVersionKind), Name: curr.Name, Namespace: curr.Namespace}),
+				ConfigsUpdated: sets.New(model.ConfigKey{Kind: gvk.MustToKind(curr.GroupVersionKind), Name: curr.Name, Namespace: curr.Namespace}),
 				Reason:         model.NewReasonStats(model.ConfigUpdate),
 			}
 			s.XDSServer.ConfigUpdate(pushReq)
@@ -940,30 +948,12 @@ func (s *Server) initRegistryEventHandlers() {
 			if schema.GroupVersionKind() == gvk.WorkloadGroup {
 				continue
 			}
+			// Already handled by gateway controller
+			if schema.GroupVersionKind().Group == gvk.KubernetesGateway.Group {
+				continue
+			}
 
 			s.configController.RegisterEventHandler(schema.GroupVersionKind(), configHandler)
-		}
-		if s.environment.GatewayAPIController != nil {
-			s.environment.GatewayAPIController.RegisterEventHandler(gvk.Namespace, func(config.Config, config.Config, model.Event) {
-				s.XDSServer.ConfigUpdate(&model.PushRequest{
-					Full:   true,
-					Reason: model.NewReasonStats(model.NamespaceUpdate),
-					Forced: true,
-				})
-			})
-			s.environment.GatewayAPIController.RegisterEventHandler(gvk.Secret, func(_ config.Config, gw config.Config, _ model.Event) {
-				s.XDSServer.ConfigUpdate(&model.PushRequest{
-					Full: true,
-					ConfigsUpdated: map[model.ConfigKey]struct{}{
-						{
-							Kind:      kind.KubernetesGateway,
-							Name:      gw.Name,
-							Namespace: gw.Namespace,
-						}: {},
-					},
-					Reason: model.NewReasonStats(model.SecretTrigger),
-				})
-			})
 		}
 	}
 }

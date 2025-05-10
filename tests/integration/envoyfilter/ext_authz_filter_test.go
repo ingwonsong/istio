@@ -120,7 +120,11 @@ func TestExtAuthzEnvoyfilter(t *testing.T) {
 						params[k] = v
 					}
 					if len(test.headerToMetadataFilterParams) > 0 {
-						applyEnvoyFilter(t, headerToMetadataFilterNameForExtAuthzTest, headerToMetadataFilterTemplFileForExtAuthzTest, serverNs, test.headerToMetadataFilterParams)
+						applyEnvoyFilter(t,
+							headerToMetadataFilterNameForExtAuthzTest,
+							headerToMetadataFilterTemplFileForExtAuthzTest,
+							serverNs,
+							test.headerToMetadataFilterParams)
 					}
 					applyEnvoyFilter(t, extAuthzEnvoyfilterName, extAuthzEnvoyfilterTemplFile, serverNs, params)
 					test.validationFn(t)
@@ -139,13 +143,18 @@ func validateContextMetadataNamespace(t framework.TestContext, aClientInstance e
 			startTime = time.Now()
 		}
 		log.Infof("Validation attempt no. %d. Time since first attempt: %v\n", attempt, time.Since(startTime))
-		uniqueId := string(uuid.NewUUID())
-		validateExtAuthZResponse(t, aClientInstance, aServerInstance, extAuthzAllowHeader, map[string][]string{contextMetadataHeaderName: {"secret"}, "requestId": {uniqueId}}, http.StatusOK)
-		return validateMetadataContextLog(t, uniqueId)
+		uniqueID := string(uuid.NewUUID())
+		validateExtAuthZResponse(t,
+			aClientInstance,
+			aServerInstance,
+			extAuthzAllowHeader,
+			map[string][]string{contextMetadataHeaderName: {"secret"}, "requestId": {uniqueID}},
+			http.StatusOK)
+		return validateMetadataContextLog(t, uniqueID)
 	}, retry.Timeout(time.Second*3))
 }
 
-func validateMetadataContextLog(t framework.TestContext, uniqueId string) error {
+func validateMetadataContextLog(t framework.TestContext, uniqueID string) error {
 	t.Helper()
 	client := t.Clusters().Default()
 	fetch, err := client.PodsForSelector(t.Context(), extAuthzNS.Name(), extAuthzPodLabel)
@@ -160,8 +169,8 @@ func validateMetadataContextLog(t framework.TestContext, uniqueId string) error 
 	if err != nil {
 		return fmt.Errorf("Error fetching pod logs: %v", err)
 	}
-	found := containsSubStrings(logs, []string{uniqueId, contextMetadataNamespaceVal})
-	if found == false {
+	found := containsSubStrings(logs, []string{uniqueID, contextMetadataNamespaceVal})
+	if !found {
 		return fmt.Errorf("Metadata context log not found in ext-authz pod logs")
 	}
 	return nil
@@ -190,7 +199,6 @@ func containsSubStrings(multilineLog string, substrings []string) bool {
 		}
 	}
 	return false
-
 }
 
 func defaultExtAuthzFilterTemplateParams(serverNs deployment.EchoNamespace, authzServerFQDN string) map[string]any {
@@ -209,7 +217,13 @@ func defaultExtAuthzFilterTemplateParams(serverNs deployment.EchoNamespace, auth
 	}
 }
 
-func validateExtAuthZResponse(t framework.TestContext, client echo.Instance, server echo.Instance, extAuthzHeader string, additionalHeaders http.Header, checkStatus int) {
+func validateExtAuthZResponse(t framework.TestContext,
+	client echo.Instance,
+	server echo.Instance,
+	extAuthzHeader string,
+	additionalHeaders http.Header,
+	checkStatus int,
+) {
 	t.Helper()
 	callOptions := echo.CallOptions{
 		To: server,

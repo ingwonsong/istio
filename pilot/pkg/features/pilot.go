@@ -65,6 +65,25 @@ var (
 	ClusterName = env.Register("CLUSTER_ID", constants.DefaultClusterName,
 		"Defines the cluster and service registry that this Istiod instance belongs to").Get()
 
+	// This value defaults to 0 which is interpreted as infinity and causes Envoys to get "stuck" to dead dns pods
+	// (https://github.com/istio/istio/issues/53577).
+	// However, setting this value too high will rate limit the number of DNS requests we can make by using up all
+	// available local udp ports.
+	// Generally, the max dns query rate is
+	//
+	//	(# local dns ports) * (udp_max_queries) / (query duration)
+	//
+	// The longest a query can take should be 5s, the Envoy default timeout.
+	// We underestimate the number of local dns ports to 10,000 (default is ~15,000, but some might be in use).
+	// Setting udp_max_queries to 100 gives us at least 10,000 * 100 / 5 = 200,000 requests / second, which is
+	// hopefully enough for any cluster.
+	PilotDNSCaresUDPMaxQueries = env.Register("PILOT_DNS_CARES_UDP_MAX_QUERIES", uint32(100),
+		"Sets the `udp_max_queries` option in Envoy for the Cares DNS resolver. "+
+			"Defaults to 0, an unlimited number of queries. "+
+			"See `extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig` in "+
+			"https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/network/dns_resolver/cares/v3/cares_dns_resolver.proto "+
+			"and `ARES_OPT_UDP_MAX_QUERIES` in https://c-ares.org/docs/ares_init.html").Get()
+
 	PilotDNSJitterDurationEnv = env.Register("PILOT_DNS_JITTER_DURATION", 100*time.Millisecond, "Jitter added to periodic DNS resolution").Get()
 
 	ExternalIstiod = env.Register("EXTERNAL_ISTIOD", false,
@@ -256,6 +275,27 @@ var (
 
 	Enforce1PSEnvoyFilterAllowlist = env.Register("ENFORCE_1PS_ENVOYFILTER_ALLOWLIST", false,
 		"If set to true, only those EnvoyFilters that are supported for 1P services can be applied onto listeners.").Get()
+
+	EnableGatewayAPIManualDeployment = env.Register("ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT", true,
+		"If true, allows users to bind Gateway API resources to existing gateway deployments.").Get()
+
+	MaxConnectionsToAcceptPerSocketEvent = env.Register("MAX_CONNECTIONS_PER_SOCKET_EVENT_LOOP", 1,
+		"The maximum number of connections to accept from the kernel per socket event. Set this to '0' to accept unlimited connections.").Get()
+
+	EnableClusterTrustBundles = env.Register("ENABLE_CLUSTER_TRUST_BUNDLE_API", false,
+		"If enabled, uses the ClusterTrustBundle API instead of ConfigMaps to store the root certificate in the cluster.").Get()
+
+	// EnableAbsoluteFqdnVhostDomain controls whether the absolute FQDN (hostname followed by a dot,)
+	// e.g. my-service.my-ns.svc.cluster.local. / google.com. is added to the VirtualHost domains list.
+	// Setting this to false disables the addition.
+	// See https://github.com/istio/istio/issues/56007 for more details of this feature with examples.
+	EnableAbsoluteFqdnVhostDomain = env.Register(
+		"PILOT_ENABLE_ABSOLUTE_FQDN_VHOST_DOMAIN", // Environment variable name
+		true, // Default value (true = feature enabled by default)
+		"If set to false, Istio will not add the absolute FQDN variant"+
+			" (e.g., my-service.my-ns.svc.cluster.local.) to the domains"+
+			" list for VirtualHost entries.",
+	).Get()
 )
 
 // UnsafeFeaturesEnabled returns true if any unsafe features are enabled.

@@ -937,6 +937,14 @@ type WaypointKey struct {
 
 // WaypointKeyForProxy builds a key from a proxy to lookup
 func WaypointKeyForProxy(node *Proxy) WaypointKey {
+	return waypointKeyForProxy(node, false)
+}
+
+func WaypointKeyForNetworkGatewayProxy(node *Proxy) WaypointKey {
+	return waypointKeyForProxy(node, true)
+}
+
+func waypointKeyForProxy(node *Proxy, externalAddresses bool) WaypointKey {
 	key := WaypointKey{
 		Namespace: node.ConfigNamespace,
 		Network:   node.Metadata.Network.String(),
@@ -944,7 +952,12 @@ func WaypointKeyForProxy(node *Proxy) WaypointKey {
 	for _, svct := range node.ServiceTargets {
 		key.Hostnames = append(key.Hostnames, svct.Service.Hostname.String())
 
-		ips := svct.Service.ClusterVIPs.GetAddressesFor(node.GetClusterID())
+		var ips []string
+		if externalAddresses {
+			ips = svct.Service.Attributes.ClusterExternalAddresses.GetAddressesFor(node.GetClusterID())
+		} else {
+			ips = svct.Service.ClusterVIPs.GetAddressesFor(node.GetClusterID())
+		}
 		// if we find autoAllocated addresses then ips should contain constants.UnspecifiedIP which should not be used
 		foundAutoAllocated := false
 		if svct.Service.AutoAllocatedIPv4Address != "" {
@@ -1693,6 +1706,10 @@ func (s *Service) getAllAddressesForProxy(node *Proxy) []string {
 }
 
 func filterAddresses(addresses []string, supportsV4, supportsV6 bool) []string {
+	if len(addresses) == 0 {
+		return nil
+	}
+
 	var ipv4Addresses []string
 	var ipv6Addresses []string
 	for _, addr := range addresses {
@@ -1717,6 +1734,34 @@ func filterAddresses(addresses []string, supportsV4, supportsV6 bool) []string {
 			}
 		}
 	}
+
+	if supportsV4 && supportsV6 {
+		firstAddrFamily := ""
+		if strings.Contains(addresses[0], "/") {
+			if prefix, err := netip.ParsePrefix(addresses[0]); err == nil {
+				if prefix.Addr().Is4() {
+					firstAddrFamily = "v4"
+				} else if prefix.Addr().Is6() {
+					firstAddrFamily = "v6"
+				}
+			}
+		} else {
+			if ipAddr, err := netip.ParseAddr(addresses[0]); err == nil {
+				if ipAddr.Is4() {
+					firstAddrFamily = "v4"
+				} else if ipAddr.Is6() {
+					firstAddrFamily = "v6"
+				}
+			}
+		}
+
+		if firstAddrFamily == "v4" {
+			return ipv4Addresses
+		} else if firstAddrFamily == "v6" {
+			return ipv6Addresses
+		}
+	}
+
 	if len(ipv4Addresses) > 0 {
 		return ipv4Addresses
 	}

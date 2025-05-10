@@ -32,10 +32,10 @@ spec:
   selector:
     matchLabels:
       k8s-app: {{ template "name" . }}-node
+  {{- with .Values.updateStrategy }}
   updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: {{ .Values.rollingMaxUnavailable }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       labels:
@@ -72,15 +72,10 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.tolerations }}
       tolerations:
-        # Make sure istio-cni-node gets scheduled on all nodes.
-        - effect: NoSchedule
-          operator: Exists
-        # Mark the pod as a critical add-on for rescheduling.
-        - key: CriticalAddonsOnly
-          operator: Exists
-        - effect: NoExecute
-          operator: Exists
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       priorityClassName: system-node-critical
       serviceAccountName: {{ template "name" . }}
       # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force

@@ -228,7 +228,7 @@ func Cmd(ctx cli.Context) *cobra.Command {
 				if !overwrite && hasWaypoint {
 					// we don't want to error on the user when they don't explicitly overwrite namespaced Waypoints,
 					// we just warn them and provide a suggestion
-					fmt.Fprintf(cmd.OutOrStdout(), "Warning: namespace (%s) already has an enrolled Waypoint. Consider "+
+					fmt.Fprintf(cmd.OutOrStdout(), "⚠️ Warning: namespace (%s) already has an enrolled Waypoint. Consider "+
 						"adding the `"+"--overwrite"+"` flag to your apply command.\n", ns)
 					return nil
 				}
@@ -237,7 +237,7 @@ func Cmd(ctx cli.Context) *cobra.Command {
 					return fmt.Errorf("failed to check if namespace is labeled ambient: %v", err)
 				}
 				if !namespaceIsLabeledAmbient {
-					fmt.Fprintf(cmd.OutOrStdout(), "Warning: namespace is not enrolled in ambient. Consider running\t"+
+					fmt.Fprintf(cmd.OutOrStdout(), "⚠️ Warning: namespace is not enrolled in ambient. Consider running\t"+
 						"`"+"kubectl label namespace %s istio.io/dataplane-mode=ambient"+"`\n", ns)
 				}
 			}
@@ -260,6 +260,8 @@ func Cmd(ctx cli.Context) *cobra.Command {
 				}
 				return err
 			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "✅ waypoint %v/%v applied\n", gw.Namespace, gw.Name)
 
 			if waitReady {
 				startTime := time.Now()
@@ -284,8 +286,9 @@ func Cmd(ctx cli.Context) *cobra.Command {
 						return errorWithMessage("timed out while waiting for waypoint", gwc, err)
 					}
 				}
+
+				fmt.Fprintf(cmd.OutOrStdout(), "✅ waypoint %v/%v is ready!\n", gw.Namespace, gw.Name)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "waypoint %v/%v applied\n", gw.Namespace, gw.Name)
 
 			// If a user decides to enroll their namespace with a waypoint, label the namespace with the waypoint name
 			// after the waypoint has been applied.
@@ -294,7 +297,7 @@ func Cmd(ctx cli.Context) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to label namespace with waypoint: %v", err)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "namespace %v labeled with \"%v: %v\"\n", ctx.NamespaceOrDefault(ctx.Namespace()),
+				fmt.Fprintf(cmd.OutOrStdout(), "✅ namespace %v labeled with \"%v: %v\"\n", ctx.NamespaceOrDefault(ctx.Namespace()),
 					label.IoIstioUseWaypoint.Name, gw.Name)
 			}
 			return nil
@@ -317,7 +320,7 @@ func Cmd(ctx cli.Context) *cobra.Command {
 		Use:   "delete",
 		Short: "Delete a waypoint configuration",
 		Long:  "Delete a waypoint configuration from the cluster",
-		Example: `# Delete a waypoint by name, which can obtain from istioctl waypoint list
+		Example: `  # Delete a waypoint by name, which can obtain from istioctl waypoint list
   istioctl waypoint delete waypoint-name --namespace default
 
   # Delete several waypoints by name
@@ -467,6 +470,7 @@ func Cmd(ctx cli.Context) *cobra.Command {
 // deleteWaypoints handles the deletion of waypoints based on the provided names, or all if names is nil
 func deleteWaypoints(cmd *cobra.Command, kubeClient kube.CLIClient, namespace string, names []string, revision string) error {
 	var multiErr *multierror.Error
+	var nameList []string
 	if names == nil {
 		var selector string
 		if revision != "" {
@@ -484,13 +488,33 @@ func deleteWaypoints(cmd *cobra.Command, kubeClient kube.CLIClient, namespace st
 			if gw.Spec.GatewayClassName != constants.WaypointGatewayClassName {
 				continue
 			}
-			names = append(names, gw.Name)
+			nameList = append(nameList, gw.Name)
+		}
+	} else {
+		gws, err := kubeClient.GatewayAPI().GatewayV1().Gateways(namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		waypoints := make(map[string]gateway.Gateway)
+		for _, gw := range gws.Items {
+			if gw.Spec.GatewayClassName != constants.WaypointGatewayClassName {
+				continue
+			}
+			waypoints[gw.Name] = gw
+		}
+
+		for _, name := range names {
+			if _, ok := waypoints[name]; ok {
+				nameList = append(nameList, name)
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "waypoint %s/%s not found\n", namespace, name)
+			}
 		}
 	}
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	for _, name := range names {
+	for _, name := range nameList {
 		wg.Add(1)
 		go func(name string) {
 			defer wg.Done()

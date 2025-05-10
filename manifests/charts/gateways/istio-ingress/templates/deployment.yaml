@@ -270,8 +270,16 @@ spec:
         name: workload-certs
 {{- if eq .Values.global.pilotCertProvider "istiod" }}
       - name: istiod-ca-cert
+{{- if eq ((.Values.pilot).env).ENABLE_CLUSTER_TRUST_BUNDLE_API true }}
+        projected:
+          sources:
+          - clusterTrustBundle:
+              name: istio.io:istiod-ca:{{ .Values.global.trustBundleName | default "root-cert" }}
+              path: root-cert.pem
+{{- else }}
         configMap:
           name: {{ if eq (toString .Values.meshConfig.defaultConfig.proxyMetadata.BUNDLED_CERTIFICATE_AUTHORITY) "true" }}istio-ca-root-cert-bundled{{- else }}istio-ca-root-cert{{- end }}
+{{- end }}
 {{- end }}
       - name: podinfo
         downwardAPI:

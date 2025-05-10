@@ -44,7 +44,12 @@ const (
 	maxRetries = 5
 )
 
-var configMapLabel = map[string]string{"istio.io/config": "true"}
+var (
+	// CACertNamespaceConfigMap is the name of the ConfigMap in each namespace storing the root cert of non-Kube CA.
+	CACertNamespaceConfigMap = features.CACertConfigMapName
+
+	configMapLabel = map[string]string{"istio.io/config": "true"}
+)
 
 // NamespaceController manages reconciles a configmap in each namespace with a desired set of data.
 type NamespaceController struct {
@@ -106,6 +111,7 @@ func NewNamespaceController(kubeClient kube.Client, caBundleWatcher *keycertbund
 // Run starts the NamespaceController until a value is sent to stopCh.
 func (nc *NamespaceController) Run(stopCh <-chan struct{}) {
 	if !kube.WaitForCacheSync("namespace controller", stopCh, nc.namespaces.HasSynced, nc.configmaps.HasSynced) {
+		nc.queue.ShutDownEarly()
 		return
 	}
 

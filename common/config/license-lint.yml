@@ -143,3 +143,5 @@ allowlisted_modules:
 
 # We copy this module and check-in to repo 
 - github.com/envoyproxy/go-control-plane/envoy
+# Simplified BSD License: https://github.com/gomarkdown/markdown/blob/master/LICENSE.txt
+- github.com/gomarkdown/markdown

@@ -55,3 +55,37 @@ for h in ${HUBS}; do
     APKO_IMAGES+="${h}/iptables:$t "
   done
 done
+
+# Verify the image contains only expected binaries.
+dir=$(mktemp -d)
+pushd "${dir}" > /dev/null
+apko build "${ROOT}/docker/iptables.yaml" dummy-tag "${dir}/img.tar"
+tar xf "${dir}/img.tar"
+echo "write ${dir}"
+for f in *.tar.gz; do
+  exefiles+="$(tar tvfz "${f}" | grep '^-..x' |  awk '{print $6}')"
+  exefiles+="\n"
+done
+unexpectedFiles="$(
+  <<<"${exefiles}" grep -v '^usr/lib/xtables' | \
+    # Allow all libraries - maybe we should lock down more though
+    grep -v '^usr/bin/xtables' | \
+    grep -v '^usr/bin/ldconfig$' | \
+    grep -v '^etc/apk/commit_hooks.d/ldconfig-commit.sh$' | \
+    grep -v '.*\.so[0-9\.]*' || true
+)"
+expectedFiles=(
+  "usr/bin/xtables-legacy-multi"
+)
+for want in "${expectedFiles[@]}"; do
+  if ! grep -q "${want}" <<<"${exefiles}"; then
+    echo "Missing expected binary! ${want}"
+    exit 1
+  fi
+done
+if [[ "${unexpectedFiles}" != "" ]]; then
+  echo "Found unexpected binaries: ${unexpectedFiles}"
+  exit 1
+fi
+
+# Now actually build it

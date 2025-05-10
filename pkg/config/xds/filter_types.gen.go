@@ -176,6 +176,7 @@ import (
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/dubbo_proxy/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/echo/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ext_authz/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ext_proc/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/action/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/codecs/dubbo/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/codecs/http1/v3"
@@ -257,6 +258,7 @@ import (
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/path/rewrite/uri_template/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/quic/connection_debug_visitor/quic_stats/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/quic/connection_debug_visitor/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/quic/connection_id_generator/quic_lb/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/quic/connection_id_generator/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/quic/crypto_stream/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/quic/proof_source/v3"
@@ -264,6 +266,7 @@ import (
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/rate_limit_descriptors/expr/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/rbac/audit_loggers/stream/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/rbac/matchers/upstream_ip_port/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/rbac/principals/mtls_authenticated/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/regex_engines/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/request_id/uuid/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/cpu_utilization/v3"
@@ -279,6 +282,7 @@ import (
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/stat_sinks/open_telemetry/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/stat_sinks/wasm/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/string_matcher/lua/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/tracers/fluentd/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/tracers/opentelemetry/resource_detectors/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/tracers/opentelemetry/samplers/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/alts/v3"
@@ -314,6 +318,7 @@ import (
 	_ "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/service/load_stats/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/service/metrics/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/service/network_ext_proc/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/service/rate_limit_quota/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/service/ratelimit/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/service/redis_auth/v3"
@@ -331,7 +336,6 @@ import (
 
 	// Istio-specific Envoy filters
 	_ "istio.io/api/envoy/config/filter/http/alpn/v2alpha1"
-	_ "istio.io/api/envoy/config/filter/http/authn/v2alpha1"
 	_ "istio.io/api/envoy/config/filter/http/jwt_auth/v2alpha1"
 	_ "istio.io/api/envoy/config/filter/network/tcp_cluster_rewrite/v2alpha1"
 )

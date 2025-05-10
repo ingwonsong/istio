@@ -640,9 +640,11 @@ type CNIAmbientConfig struct {
 	// If enabled, and ambient is enabled, DNS redirection will be enabled.
 	DnsCapture *wrapperspb.BoolValue `protobuf:"bytes,5,opt,name=dnsCapture,proto3" json:"dnsCapture,omitempty"`
 	// UNSTABLE: If enabled, and ambient is enabled, enables ipv6 support
-	Ipv6          *wrapperspb.BoolValue `protobuf:"bytes,7,opt,name=ipv6,proto3" json:"ipv6,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Ipv6 *wrapperspb.BoolValue `protobuf:"bytes,7,opt,name=ipv6,proto3" json:"ipv6,omitempty"`
+	// If enabled, and ambient is enabled, iptables reconciliation will be enabled.
+	ReconcileIptablesOnStartup *wrapperspb.BoolValue `protobuf:"bytes,9,opt,name=reconcileIptablesOnStartup,proto3" json:"reconcileIptablesOnStartup,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *CNIAmbientConfig) Reset() {
@@ -699,6 +701,13 @@ func (x *CNIAmbientConfig) GetDnsCapture() *wrapperspb.BoolValue {
 func (x *CNIAmbientConfig) GetIpv6() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.Ipv6
+	}
+	return nil
+}
+
+func (x *CNIAmbientConfig) GetReconcileIptablesOnStartup() *wrapperspb.BoolValue {
+	if x != nil {
+		return x.ReconcileIptablesOnStartup
 	}
 	return nil
 }
@@ -1795,9 +1804,11 @@ type GlobalConfig struct {
 	// More info: https://kubernetes.io/docs/concepts/services-networking/dual-stack/#services
 	IpFamilyPolicy string `protobuf:"bytes,71,opt,name=ipFamilyPolicy,proto3" json:"ipFamilyPolicy,omitempty"`
 	// Specifies how waypoints are configured within Istio.
-	Waypoint      *WaypointConfig `protobuf:"bytes,72,opt,name=waypoint,proto3" json:"waypoint,omitempty"` // The next available key is 73
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Waypoint *WaypointConfig `protobuf:"bytes,72,opt,name=waypoint,proto3" json:"waypoint,omitempty"`
+	// Select a custom name for istiod's CA Root Cert ConfigMap.
+	TrustBundleName string `protobuf:"bytes,73,opt,name=trustBundleName,proto3" json:"trustBundleName,omitempty"` // The next available key is 74
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GlobalConfig) Reset() {
@@ -2128,6 +2139,13 @@ func (x *GlobalConfig) GetWaypoint() *WaypointConfig {
 		return x.Waypoint
 	}
 	return nil
+}
+
+func (x *GlobalConfig) GetTrustBundleName() string {
+	if x != nil {
+		return x.TrustBundleName
+	}
+	return ""
 }
 
 // Configuration for Security Token Service (STS) server.
@@ -3075,7 +3093,9 @@ type PilotConfig struct {
 	// in the provided namespace.
 	TrustedZtunnelNamespace string `protobuf:"bytes,59,opt,name=trustedZtunnelNamespace,proto3" json:"trustedZtunnelNamespace,omitempty"`
 	// Configuration for the istio-discovery chart when istiod is running in a remote cluster (e.g. "remote control plane").
-	IstiodRemote  *IstiodRemoteConfig `protobuf:"bytes,61,opt,name=istiodRemote,proto3" json:"istiodRemote,omitempty"`
+	IstiodRemote *IstiodRemoteConfig `protobuf:"bytes,61,opt,name=istiodRemote,proto3" json:"istiodRemote,omitempty"`
+	// Configuration for the istio-discovery chart
+	EnvVarFrom    []*structpb.Struct `protobuf:"bytes,62,rep,name=envVarFrom,proto3" json:"envVarFrom,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3388,6 +3408,13 @@ func (x *PilotConfig) GetTrustedZtunnelNamespace() string {
 func (x *PilotConfig) GetIstiodRemote() *IstiodRemoteConfig {
 	if x != nil {
 		return x.IstiodRemote
+	}
+	return nil
+}
+
+func (x *PilotConfig) GetEnvVarFrom() []*structpb.Struct {
+	if x != nil {
+		return x.EnvVarFrom
 	}
 	return nil
 }
@@ -5056,6 +5083,8 @@ type Values struct {
 	CompatibilityVersion string `protobuf:"bytes,43,opt,name=compatibilityVersion,proto3" json:"compatibilityVersion,omitempty"`
 	// Specifies experimental helm fields that could be removed or changed in the future
 	Experimental *ExperimentalConfig `protobuf:"bytes,44,opt,name=experimental,proto3" json:"experimental,omitempty"`
+	// Configuration for Gateway Classes
+	GatewayClasses *structpb.Value `protobuf:"bytes,45,opt,name=gatewayClasses,proto3" json:"gatewayClasses,omitempty"`
 	// Managed Data Plane (MDP) config is ASM-specific.
 	Mdp           *MDPConfig `protobuf:"bytes,101,opt,name=mdp,proto3" json:"mdp,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -5216,6 +5245,13 @@ func (x *Values) GetCompatibilityVersion() string {
 func (x *Values) GetExperimental() *ExperimentalConfig {
 	if x != nil {
 		return x.Experimental
+	}
+	return nil
+}
+
+func (x *Values) GetGatewayClasses() *structpb.Value {
+	if x != nil {
+		return x.GatewayClasses
 	}
 	return nil
 }
@@ -5535,14 +5571,15 @@ const file_pkg_apis_values_types_proto_rawDesc = "" +
 	"\x0eCNIUsageConfig\x124\n" +
 	"\aenabled\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\aenabled\x128\n" +
 	"\achained\x18\x02 \x01(\v2\x1a.google.protobuf.BoolValueB\x02\x18\x01R\achained\x12\x1a\n" +
-	"\bprovider\x18\x03 \x01(\tR\bprovider\"\xd2\x01\n" +
+	"\bprovider\x18\x03 \x01(\tR\bprovider\"\xae\x02\n" +
 	"\x10CNIAmbientConfig\x124\n" +
 	"\aenabled\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\aenabled\x12\x1c\n" +
 	"\tconfigDir\x18\x03 \x01(\tR\tconfigDir\x12:\n" +
 	"\n" +
 	"dnsCapture\x18\x05 \x01(\v2\x1a.google.protobuf.BoolValueR\n" +
 	"dnsCapture\x12.\n" +
-	"\x04ipv6\x18\a \x01(\v2\x1a.google.protobuf.BoolValueR\x04ipv6\"\xad\x03\n" +
+	"\x04ipv6\x18\a \x01(\v2\x1a.google.protobuf.BoolValueR\x04ipv6\x12Z\n" +
+	"\x1areconcileIptablesOnStartup\x18\t \x01(\v2\x1a.google.protobuf.BoolValueR\x1areconcileIptablesOnStartup\"\xad\x03\n" +
 	"\x0fCNIRepairConfig\x124\n" +
 	"\aenabled\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\aenabled\x12\x10\n" +
 	"\x03hub\x18\x02 \x01(\tR\x03hub\x12(\n" +
@@ -5623,7 +5660,7 @@ const file_pkg_apis_values_types_proto_rawDesc = "" +
 	"\x14istio_ingressgateway\x18\x04 \x01(\v2-.istio.operator.v1alpha1.IngressGatewayConfigR\x14istio-ingressgateway\x12@\n" +
 	"\x0fsecurityContext\x18\n" +
 	" \x01(\v2\x16.google.protobuf.ValueR\x0fsecurityContext\x12>\n" +
-	"\x0eseccompProfile\x18\f \x01(\v2\x16.google.protobuf.ValueR\x0eseccompProfile\"\x9d\x12\n" +
+	"\x0eseccompProfile\x18\f \x01(\v2\x16.google.protobuf.ValueR\x0eseccompProfile\"\xc7\x12\n" +
 	"\fGlobalConfig\x12;\n" +
 	"\x04arch\x18\x01 \x01(\v2#.istio.operator.v1alpha1.ArchConfigB\x02\x18\x01R\x04arch\x12 \n" +
 	"\vcertSigners\x18D \x03(\tR\vcertSigners\x12F\n" +
@@ -5670,7 +5707,8 @@ const file_pkg_apis_values_types_proto_rawDesc = "" +
 	"ipFamilies\x18F \x03(\tR\n" +
 	"ipFamilies\x12&\n" +
 	"\x0eipFamilyPolicy\x18G \x01(\tR\x0eipFamilyPolicy\x12C\n" +
-	"\bwaypoint\x18H \x01(\v2'.istio.operator.v1alpha1.WaypointConfigR\bwaypoint\"-\n" +
+	"\bwaypoint\x18H \x01(\v2'.istio.operator.v1alpha1.WaypointConfigR\bwaypoint\x12(\n" +
+	"\x0ftrustBundleName\x18I \x01(\tR\x0ftrustBundleName\"-\n" +
 	"\tSTSConfig\x12 \n" +
 	"\vservicePort\x18\x01 \x01(\rR\vservicePort\"R\n" +
 	"\fIstiodConfig\x12B\n" +
@@ -5738,7 +5776,7 @@ const file_pkg_apis_values_types_proto_rawDesc = "" +
 	"\x04mode\x18\x02 \x01(\x0e29.istio.operator.v1alpha1.OutboundTrafficPolicyConfig.ModeR\x04mode\"(\n" +
 	"\x04Mode\x12\r\n" +
 	"\tALLOW_ANY\x10\x00\x12\x11\n" +
-	"\rREGISTRY_ONLY\x10\x01\"\xdf\x12\n" +
+	"\rREGISTRY_ONLY\x10\x01\"\x98\x13\n" +
 	"\vPilotConfig\x124\n" +
 	"\aenabled\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\aenabled\x12F\n" +
 	"\x10autoscaleEnabled\x18\x02 \x01(\v2\x1a.google.protobuf.BoolValueR\x10autoscaleEnabled\x12\"\n" +
@@ -5780,7 +5818,10 @@ const file_pkg_apis_values_types_proto_rawDesc = "" +
 	"\x03cni\x187 \x01(\v2'.istio.operator.v1alpha1.CNIUsageConfigR\x03cni\x12I\n" +
 	"\x05taint\x189 \x01(\v23.istio.operator.v1alpha1.PilotTaintControllerConfigR\x05taint\x128\n" +
 	"\x17trustedZtunnelNamespace\x18; \x01(\tR\x17trustedZtunnelNamespace\x12O\n" +
-	"\fistiodRemote\x18= \x01(\v2+.istio.operator.v1alpha1.IstiodRemoteConfigR\fistiodRemote\"T\n" +
+	"\fistiodRemote\x18= \x01(\v2+.istio.operator.v1alpha1.IstiodRemoteConfigR\fistiodRemote\x127\n" +
+	"\n" +
+	"envVarFrom\x18> \x03(\v2\x17.google.protobuf.StructR\n" +
+	"envVarFrom\"T\n" +
 	"\x1aPilotTaintControllerConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1c\n" +
 	"\tnamespace\x18\x02 \x01(\tR\tnamespace\"\xc6\x01\n" +
@@ -5897,7 +5938,7 @@ const file_pkg_apis_values_types_proto_rawDesc = "" +
 	"\finjectionURL\x18\x01 \x01(\tR\finjectionURL\x12$\n" +
 	"\rinjectionPath\x18\x02 \x01(\tR\rinjectionPath\x12,\n" +
 	"\x11injectionCABundle\x18\x03 \x01(\tR\x11injectionCABundle\x124\n" +
-	"\aenabled\x18\x05 \x01(\v2\x1a.google.protobuf.BoolValueR\aenabled\"\xcd\b\n" +
+	"\aenabled\x18\x05 \x01(\v2\x1a.google.protobuf.BoolValueR\aenabled\"\x8d\t\n" +
 	"\x06Values\x124\n" +
 	"\x03cni\x18\x02 \x01(\v2\".istio.operator.v1alpha1.CNIConfigR\x03cni\x12C\n" +
 	"\bgateways\x18\x05 \x01(\v2'.istio.operator.v1alpha1.GatewaysConfigR\bgateways\x12=\n" +
@@ -5919,7 +5960,8 @@ const file_pkg_apis_values_types_proto_rawDesc = "" +
 	"\x0fdefaultRevision\x18( \x01(\tR\x0fdefaultRevision\x12\x18\n" +
 	"\aprofile\x18* \x01(\tR\aprofile\x122\n" +
 	"\x14compatibilityVersion\x18+ \x01(\tR\x14compatibilityVersion\x12O\n" +
-	"\fexperimental\x18, \x01(\v2+.istio.operator.v1alpha1.ExperimentalConfigR\fexperimental\x124\n" +
+	"\fexperimental\x18, \x01(\v2+.istio.operator.v1alpha1.ExperimentalConfigR\fexperimental\x12>\n" +
+	"\x0egatewayClasses\x18- \x01(\v2\x16.google.protobuf.ValueR\x0egatewayClasses\x124\n" +
 	"\x03mdp\x18e \x01(\v2\".istio.operator.v1alpha1.MDPConfigR\x03mdp\"]\n" +
 	"\rZeroVPNConfig\x124\n" +
 	"\aenabled\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\aenabled\x12\x16\n" +
@@ -6060,185 +6102,188 @@ var file_pkg_apis_values_types_proto_depIdxs = []int32{
 	57,  // 15: istio.operator.v1alpha1.CNIAmbientConfig.enabled:type_name -> google.protobuf.BoolValue
 	57,  // 16: istio.operator.v1alpha1.CNIAmbientConfig.dnsCapture:type_name -> google.protobuf.BoolValue
 	57,  // 17: istio.operator.v1alpha1.CNIAmbientConfig.ipv6:type_name -> google.protobuf.BoolValue
-	57,  // 18: istio.operator.v1alpha1.CNIRepairConfig.enabled:type_name -> google.protobuf.BoolValue
-	58,  // 19: istio.operator.v1alpha1.CNIRepairConfig.tag:type_name -> google.protobuf.Value
-	57,  // 20: istio.operator.v1alpha1.ResourceQuotas.enabled:type_name -> google.protobuf.BoolValue
-	53,  // 21: istio.operator.v1alpha1.Resources.limits:type_name -> istio.operator.v1alpha1.Resources.LimitsEntry
-	54,  // 22: istio.operator.v1alpha1.Resources.requests:type_name -> istio.operator.v1alpha1.Resources.RequestsEntry
-	60,  // 23: istio.operator.v1alpha1.ServiceAccount.annotations:type_name -> google.protobuf.Struct
-	57,  // 24: istio.operator.v1alpha1.DefaultPodDisruptionBudgetConfig.enabled:type_name -> google.protobuf.BoolValue
-	37,  // 25: istio.operator.v1alpha1.DefaultResourcesConfig.requests:type_name -> istio.operator.v1alpha1.ResourcesRequestsConfig
-	57,  // 26: istio.operator.v1alpha1.EgressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
-	9,   // 27: istio.operator.v1alpha1.EgressGatewayConfig.memory:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
-	9,   // 28: istio.operator.v1alpha1.EgressGatewayConfig.cpu:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
-	57,  // 29: istio.operator.v1alpha1.EgressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
-	57,  // 30: istio.operator.v1alpha1.EgressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
-	60,  // 31: istio.operator.v1alpha1.EgressGatewayConfig.env:type_name -> google.protobuf.Struct
-	55,  // 32: istio.operator.v1alpha1.EgressGatewayConfig.labels:type_name -> istio.operator.v1alpha1.EgressGatewayConfig.LabelsEntry
-	60,  // 33: istio.operator.v1alpha1.EgressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
-	60,  // 34: istio.operator.v1alpha1.EgressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
-	62,  // 35: istio.operator.v1alpha1.EgressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	62,  // 36: istio.operator.v1alpha1.EgressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	33,  // 37: istio.operator.v1alpha1.EgressGatewayConfig.ports:type_name -> istio.operator.v1alpha1.PortsConfig
-	10,  // 38: istio.operator.v1alpha1.EgressGatewayConfig.resources:type_name -> istio.operator.v1alpha1.Resources
-	39,  // 39: istio.operator.v1alpha1.EgressGatewayConfig.secretVolumes:type_name -> istio.operator.v1alpha1.SecretVolume
-	60,  // 40: istio.operator.v1alpha1.EgressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
-	49,  // 41: istio.operator.v1alpha1.EgressGatewayConfig.zvpn:type_name -> istio.operator.v1alpha1.ZeroVPNConfig
-	63,  // 42: istio.operator.v1alpha1.EgressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
-	51,  // 43: istio.operator.v1alpha1.EgressGatewayConfig.rollingMaxSurge:type_name -> istio.operator.v1alpha1.IntOrString
-	51,  // 44: istio.operator.v1alpha1.EgressGatewayConfig.rollingMaxUnavailable:type_name -> istio.operator.v1alpha1.IntOrString
-	60,  // 45: istio.operator.v1alpha1.EgressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
-	60,  // 46: istio.operator.v1alpha1.EgressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
-	57,  // 47: istio.operator.v1alpha1.EgressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
-	11,  // 48: istio.operator.v1alpha1.EgressGatewayConfig.serviceAccount:type_name -> istio.operator.v1alpha1.ServiceAccount
-	14,  // 49: istio.operator.v1alpha1.GatewaysConfig.istio_egressgateway:type_name -> istio.operator.v1alpha1.EgressGatewayConfig
-	57,  // 50: istio.operator.v1alpha1.GatewaysConfig.enabled:type_name -> google.protobuf.BoolValue
-	20,  // 51: istio.operator.v1alpha1.GatewaysConfig.istio_ingressgateway:type_name -> istio.operator.v1alpha1.IngressGatewayConfig
-	58,  // 52: istio.operator.v1alpha1.GatewaysConfig.securityContext:type_name -> google.protobuf.Value
-	58,  // 53: istio.operator.v1alpha1.GatewaysConfig.seccompProfile:type_name -> google.protobuf.Value
-	3,   // 54: istio.operator.v1alpha1.GlobalConfig.arch:type_name -> istio.operator.v1alpha1.ArchConfig
-	57,  // 55: istio.operator.v1alpha1.GlobalConfig.configValidation:type_name -> google.protobuf.BoolValue
-	60,  // 56: istio.operator.v1alpha1.GlobalConfig.defaultNodeSelector:type_name -> google.protobuf.Struct
-	12,  // 57: istio.operator.v1alpha1.GlobalConfig.defaultPodDisruptionBudget:type_name -> istio.operator.v1alpha1.DefaultPodDisruptionBudgetConfig
-	13,  // 58: istio.operator.v1alpha1.GlobalConfig.defaultResources:type_name -> istio.operator.v1alpha1.DefaultResourcesConfig
-	63,  // 59: istio.operator.v1alpha1.GlobalConfig.defaultTolerations:type_name -> k8s.io.api.core.v1.Toleration
-	57,  // 60: istio.operator.v1alpha1.GlobalConfig.logAsJson:type_name -> google.protobuf.BoolValue
-	19,  // 61: istio.operator.v1alpha1.GlobalConfig.logging:type_name -> istio.operator.v1alpha1.GlobalLoggingConfig
-	60,  // 62: istio.operator.v1alpha1.GlobalConfig.meshNetworks:type_name -> google.protobuf.Struct
-	23,  // 63: istio.operator.v1alpha1.GlobalConfig.multiCluster:type_name -> istio.operator.v1alpha1.MultiClusterConfig
-	57,  // 64: istio.operator.v1alpha1.GlobalConfig.omitSidecarInjectorConfigMap:type_name -> google.protobuf.BoolValue
-	57,  // 65: istio.operator.v1alpha1.GlobalConfig.operatorManageWebhooks:type_name -> google.protobuf.BoolValue
-	34,  // 66: istio.operator.v1alpha1.GlobalConfig.proxy:type_name -> istio.operator.v1alpha1.ProxyConfig
-	36,  // 67: istio.operator.v1alpha1.GlobalConfig.proxy_init:type_name -> istio.operator.v1alpha1.ProxyInitConfig
-	38,  // 68: istio.operator.v1alpha1.GlobalConfig.sds:type_name -> istio.operator.v1alpha1.SDSConfig
-	58,  // 69: istio.operator.v1alpha1.GlobalConfig.tag:type_name -> google.protobuf.Value
-	41,  // 70: istio.operator.v1alpha1.GlobalConfig.tracer:type_name -> istio.operator.v1alpha1.TracerConfig
-	18,  // 71: istio.operator.v1alpha1.GlobalConfig.istiod:type_name -> istio.operator.v1alpha1.IstiodConfig
-	17,  // 72: istio.operator.v1alpha1.GlobalConfig.sts:type_name -> istio.operator.v1alpha1.STSConfig
-	57,  // 73: istio.operator.v1alpha1.GlobalConfig.mountMtlsCerts:type_name -> google.protobuf.BoolValue
-	57,  // 74: istio.operator.v1alpha1.GlobalConfig.externalIstiod:type_name -> google.protobuf.BoolValue
-	57,  // 75: istio.operator.v1alpha1.GlobalConfig.configCluster:type_name -> google.protobuf.BoolValue
-	52,  // 76: istio.operator.v1alpha1.GlobalConfig.waypoint:type_name -> istio.operator.v1alpha1.WaypointConfig
-	57,  // 77: istio.operator.v1alpha1.IstiodConfig.enableAnalysis:type_name -> google.protobuf.BoolValue
-	57,  // 78: istio.operator.v1alpha1.IngressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
-	9,   // 79: istio.operator.v1alpha1.IngressGatewayConfig.memory:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
-	9,   // 80: istio.operator.v1alpha1.IngressGatewayConfig.cpu:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
-	57,  // 81: istio.operator.v1alpha1.IngressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
-	57,  // 82: istio.operator.v1alpha1.IngressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
-	60,  // 83: istio.operator.v1alpha1.IngressGatewayConfig.env:type_name -> google.protobuf.Struct
-	56,  // 84: istio.operator.v1alpha1.IngressGatewayConfig.labels:type_name -> istio.operator.v1alpha1.IngressGatewayConfig.LabelsEntry
-	60,  // 85: istio.operator.v1alpha1.IngressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
-	60,  // 86: istio.operator.v1alpha1.IngressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
-	62,  // 87: istio.operator.v1alpha1.IngressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	62,  // 88: istio.operator.v1alpha1.IngressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	33,  // 89: istio.operator.v1alpha1.IngressGatewayConfig.ports:type_name -> istio.operator.v1alpha1.PortsConfig
-	60,  // 90: istio.operator.v1alpha1.IngressGatewayConfig.resources:type_name -> google.protobuf.Struct
-	39,  // 91: istio.operator.v1alpha1.IngressGatewayConfig.secretVolumes:type_name -> istio.operator.v1alpha1.SecretVolume
-	60,  // 92: istio.operator.v1alpha1.IngressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
-	21,  // 93: istio.operator.v1alpha1.IngressGatewayConfig.zvpn:type_name -> istio.operator.v1alpha1.IngressGatewayZvpnConfig
-	51,  // 94: istio.operator.v1alpha1.IngressGatewayConfig.rollingMaxSurge:type_name -> istio.operator.v1alpha1.IntOrString
-	51,  // 95: istio.operator.v1alpha1.IngressGatewayConfig.rollingMaxUnavailable:type_name -> istio.operator.v1alpha1.IntOrString
-	63,  // 96: istio.operator.v1alpha1.IngressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
-	60,  // 97: istio.operator.v1alpha1.IngressGatewayConfig.ingressPorts:type_name -> google.protobuf.Struct
-	60,  // 98: istio.operator.v1alpha1.IngressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
-	60,  // 99: istio.operator.v1alpha1.IngressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
-	57,  // 100: istio.operator.v1alpha1.IngressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
-	11,  // 101: istio.operator.v1alpha1.IngressGatewayConfig.serviceAccount:type_name -> istio.operator.v1alpha1.ServiceAccount
-	57,  // 102: istio.operator.v1alpha1.IngressGatewayZvpnConfig.enabled:type_name -> google.protobuf.BoolValue
-	10,  // 103: istio.operator.v1alpha1.MDPConfig.resources:type_name -> istio.operator.v1alpha1.Resources
-	57,  // 104: istio.operator.v1alpha1.MDPConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 105: istio.operator.v1alpha1.MultiClusterConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 106: istio.operator.v1alpha1.MultiClusterConfig.includeEnvoyFilter:type_name -> google.protobuf.BoolValue
-	2,   // 107: istio.operator.v1alpha1.OutboundTrafficPolicyConfig.mode:type_name -> istio.operator.v1alpha1.OutboundTrafficPolicyConfig.Mode
-	57,  // 108: istio.operator.v1alpha1.PilotConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 109: istio.operator.v1alpha1.PilotConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
-	60,  // 110: istio.operator.v1alpha1.PilotConfig.autoscaleBehavior:type_name -> google.protobuf.Struct
-	10,  // 111: istio.operator.v1alpha1.PilotConfig.resources:type_name -> istio.operator.v1alpha1.Resources
-	9,   // 112: istio.operator.v1alpha1.PilotConfig.cpu:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
-	60,  // 113: istio.operator.v1alpha1.PilotConfig.nodeSelector:type_name -> google.protobuf.Struct
-	64,  // 114: istio.operator.v1alpha1.PilotConfig.keepaliveMaxServerConnectionAge:type_name -> google.protobuf.Duration
-	60,  // 115: istio.operator.v1alpha1.PilotConfig.deploymentLabels:type_name -> google.protobuf.Struct
-	60,  // 116: istio.operator.v1alpha1.PilotConfig.podLabels:type_name -> google.protobuf.Struct
-	57,  // 117: istio.operator.v1alpha1.PilotConfig.configMap:type_name -> google.protobuf.BoolValue
-	60,  // 118: istio.operator.v1alpha1.PilotConfig.env:type_name -> google.protobuf.Struct
-	59,  // 119: istio.operator.v1alpha1.PilotConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
-	51,  // 120: istio.operator.v1alpha1.PilotConfig.rollingMaxSurge:type_name -> istio.operator.v1alpha1.IntOrString
-	51,  // 121: istio.operator.v1alpha1.PilotConfig.rollingMaxUnavailable:type_name -> istio.operator.v1alpha1.IntOrString
-	63,  // 122: istio.operator.v1alpha1.PilotConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
-	60,  // 123: istio.operator.v1alpha1.PilotConfig.podAnnotations:type_name -> google.protobuf.Struct
-	60,  // 124: istio.operator.v1alpha1.PilotConfig.serviceAnnotations:type_name -> google.protobuf.Struct
-	60,  // 125: istio.operator.v1alpha1.PilotConfig.serviceAccountAnnotations:type_name -> google.protobuf.Struct
-	58,  // 126: istio.operator.v1alpha1.PilotConfig.tag:type_name -> google.protobuf.Value
-	61,  // 127: istio.operator.v1alpha1.PilotConfig.seccompProfile:type_name -> k8s.io.api.core.v1.SeccompProfile
-	65,  // 128: istio.operator.v1alpha1.PilotConfig.topologySpreadConstraints:type_name -> k8s.io.api.core.v1.TopologySpreadConstraint
-	60,  // 129: istio.operator.v1alpha1.PilotConfig.extraContainerArgs:type_name -> google.protobuf.Struct
-	66,  // 130: istio.operator.v1alpha1.PilotConfig.volumeMounts:type_name -> k8s.io.api.core.v1.VolumeMount
-	67,  // 131: istio.operator.v1alpha1.PilotConfig.volumes:type_name -> k8s.io.api.core.v1.Volume
-	9,   // 132: istio.operator.v1alpha1.PilotConfig.memory:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
-	5,   // 133: istio.operator.v1alpha1.PilotConfig.cni:type_name -> istio.operator.v1alpha1.CNIUsageConfig
-	26,  // 134: istio.operator.v1alpha1.PilotConfig.taint:type_name -> istio.operator.v1alpha1.PilotTaintControllerConfig
-	47,  // 135: istio.operator.v1alpha1.PilotConfig.istiodRemote:type_name -> istio.operator.v1alpha1.IstiodRemoteConfig
-	0,   // 136: istio.operator.v1alpha1.PilotIngressConfig.ingressControllerMode:type_name -> istio.operator.v1alpha1.ingressControllerMode
-	57,  // 137: istio.operator.v1alpha1.PilotPolicyConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 138: istio.operator.v1alpha1.TelemetryConfig.enabled:type_name -> google.protobuf.BoolValue
-	30,  // 139: istio.operator.v1alpha1.TelemetryConfig.v2:type_name -> istio.operator.v1alpha1.TelemetryV2Config
-	57,  // 140: istio.operator.v1alpha1.TelemetryV2Config.enabled:type_name -> google.protobuf.BoolValue
-	31,  // 141: istio.operator.v1alpha1.TelemetryV2Config.prometheus:type_name -> istio.operator.v1alpha1.TelemetryV2PrometheusConfig
-	32,  // 142: istio.operator.v1alpha1.TelemetryV2Config.stackdriver:type_name -> istio.operator.v1alpha1.TelemetryV2StackDriverConfig
-	57,  // 143: istio.operator.v1alpha1.TelemetryV2PrometheusConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 144: istio.operator.v1alpha1.TelemetryV2StackDriverConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 145: istio.operator.v1alpha1.ProxyConfig.enableCoreDump:type_name -> google.protobuf.BoolValue
-	57,  // 146: istio.operator.v1alpha1.ProxyConfig.privileged:type_name -> google.protobuf.BoolValue
-	35,  // 147: istio.operator.v1alpha1.ProxyConfig.startupProbe:type_name -> istio.operator.v1alpha1.StartupProbe
-	10,  // 148: istio.operator.v1alpha1.ProxyConfig.resources:type_name -> istio.operator.v1alpha1.Resources
-	1,   // 149: istio.operator.v1alpha1.ProxyConfig.tracer:type_name -> istio.operator.v1alpha1.tracer
-	68,  // 150: istio.operator.v1alpha1.ProxyConfig.lifecycle:type_name -> k8s.io.api.core.v1.Lifecycle
-	57,  // 151: istio.operator.v1alpha1.ProxyConfig.holdApplicationUntilProxyStarts:type_name -> google.protobuf.BoolValue
-	57,  // 152: istio.operator.v1alpha1.StartupProbe.enabled:type_name -> google.protobuf.BoolValue
-	10,  // 153: istio.operator.v1alpha1.ProxyInitConfig.resources:type_name -> istio.operator.v1alpha1.Resources
-	60,  // 154: istio.operator.v1alpha1.SDSConfig.token:type_name -> google.protobuf.Struct
-	57,  // 155: istio.operator.v1alpha1.SidecarInjectorConfig.enableNamespacesByDefault:type_name -> google.protobuf.BoolValue
-	62,  // 156: istio.operator.v1alpha1.SidecarInjectorConfig.neverInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	62,  // 157: istio.operator.v1alpha1.SidecarInjectorConfig.alwaysInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
-	57,  // 158: istio.operator.v1alpha1.SidecarInjectorConfig.rewriteAppHTTPProbe:type_name -> google.protobuf.BoolValue
-	60,  // 159: istio.operator.v1alpha1.SidecarInjectorConfig.injectedAnnotations:type_name -> google.protobuf.Struct
-	60,  // 160: istio.operator.v1alpha1.SidecarInjectorConfig.templates:type_name -> google.protobuf.Struct
-	42,  // 161: istio.operator.v1alpha1.TracerConfig.datadog:type_name -> istio.operator.v1alpha1.TracerDatadogConfig
-	43,  // 162: istio.operator.v1alpha1.TracerConfig.lightstep:type_name -> istio.operator.v1alpha1.TracerLightStepConfig
-	44,  // 163: istio.operator.v1alpha1.TracerConfig.zipkin:type_name -> istio.operator.v1alpha1.TracerZipkinConfig
-	45,  // 164: istio.operator.v1alpha1.TracerConfig.stackdriver:type_name -> istio.operator.v1alpha1.TracerStackdriverConfig
-	57,  // 165: istio.operator.v1alpha1.TracerStackdriverConfig.debug:type_name -> google.protobuf.BoolValue
-	57,  // 166: istio.operator.v1alpha1.BaseConfig.enableCRDTemplates:type_name -> google.protobuf.BoolValue
-	57,  // 167: istio.operator.v1alpha1.BaseConfig.enableIstioConfigCRDs:type_name -> google.protobuf.BoolValue
-	57,  // 168: istio.operator.v1alpha1.BaseConfig.validateGateway:type_name -> google.protobuf.BoolValue
-	57,  // 169: istio.operator.v1alpha1.IstiodRemoteConfig.enabled:type_name -> google.protobuf.BoolValue
-	4,   // 170: istio.operator.v1alpha1.Values.cni:type_name -> istio.operator.v1alpha1.CNIConfig
-	15,  // 171: istio.operator.v1alpha1.Values.gateways:type_name -> istio.operator.v1alpha1.GatewaysConfig
-	16,  // 172: istio.operator.v1alpha1.Values.global:type_name -> istio.operator.v1alpha1.GlobalConfig
-	25,  // 173: istio.operator.v1alpha1.Values.pilot:type_name -> istio.operator.v1alpha1.PilotConfig
-	58,  // 174: istio.operator.v1alpha1.Values.ztunnel:type_name -> google.protobuf.Value
-	29,  // 175: istio.operator.v1alpha1.Values.telemetry:type_name -> istio.operator.v1alpha1.TelemetryConfig
-	40,  // 176: istio.operator.v1alpha1.Values.sidecarInjectorWebhook:type_name -> istio.operator.v1alpha1.SidecarInjectorConfig
-	5,   // 177: istio.operator.v1alpha1.Values.istio_cni:type_name -> istio.operator.v1alpha1.CNIUsageConfig
-	58,  // 178: istio.operator.v1alpha1.Values.meshConfig:type_name -> google.protobuf.Value
-	46,  // 179: istio.operator.v1alpha1.Values.base:type_name -> istio.operator.v1alpha1.BaseConfig
-	47,  // 180: istio.operator.v1alpha1.Values.istiodRemote:type_name -> istio.operator.v1alpha1.IstiodRemoteConfig
-	50,  // 181: istio.operator.v1alpha1.Values.experimental:type_name -> istio.operator.v1alpha1.ExperimentalConfig
-	22,  // 182: istio.operator.v1alpha1.Values.mdp:type_name -> istio.operator.v1alpha1.MDPConfig
-	57,  // 183: istio.operator.v1alpha1.ZeroVPNConfig.enabled:type_name -> google.protobuf.BoolValue
-	57,  // 184: istio.operator.v1alpha1.ExperimentalConfig.stableValidationPolicy:type_name -> google.protobuf.BoolValue
-	69,  // 185: istio.operator.v1alpha1.IntOrString.intVal:type_name -> google.protobuf.Int32Value
-	70,  // 186: istio.operator.v1alpha1.IntOrString.strVal:type_name -> google.protobuf.StringValue
-	10,  // 187: istio.operator.v1alpha1.WaypointConfig.resources:type_name -> istio.operator.v1alpha1.Resources
-	59,  // 188: istio.operator.v1alpha1.WaypointConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
-	65,  // 189: istio.operator.v1alpha1.WaypointConfig.topologySpreadConstraints:type_name -> k8s.io.api.core.v1.TopologySpreadConstraint
-	71,  // 190: istio.operator.v1alpha1.WaypointConfig.nodeSelector:type_name -> k8s.io.api.core.v1.NodeSelector
-	63,  // 191: istio.operator.v1alpha1.WaypointConfig.toleration:type_name -> k8s.io.api.core.v1.Toleration
-	192, // [192:192] is the sub-list for method output_type
-	192, // [192:192] is the sub-list for method input_type
-	192, // [192:192] is the sub-list for extension type_name
-	192, // [192:192] is the sub-list for extension extendee
-	0,   // [0:192] is the sub-list for field type_name
+	57,  // 18: istio.operator.v1alpha1.CNIAmbientConfig.reconcileIptablesOnStartup:type_name -> google.protobuf.BoolValue
+	57,  // 19: istio.operator.v1alpha1.CNIRepairConfig.enabled:type_name -> google.protobuf.BoolValue
+	58,  // 20: istio.operator.v1alpha1.CNIRepairConfig.tag:type_name -> google.protobuf.Value
+	57,  // 21: istio.operator.v1alpha1.ResourceQuotas.enabled:type_name -> google.protobuf.BoolValue
+	53,  // 22: istio.operator.v1alpha1.Resources.limits:type_name -> istio.operator.v1alpha1.Resources.LimitsEntry
+	54,  // 23: istio.operator.v1alpha1.Resources.requests:type_name -> istio.operator.v1alpha1.Resources.RequestsEntry
+	60,  // 24: istio.operator.v1alpha1.ServiceAccount.annotations:type_name -> google.protobuf.Struct
+	57,  // 25: istio.operator.v1alpha1.DefaultPodDisruptionBudgetConfig.enabled:type_name -> google.protobuf.BoolValue
+	37,  // 26: istio.operator.v1alpha1.DefaultResourcesConfig.requests:type_name -> istio.operator.v1alpha1.ResourcesRequestsConfig
+	57,  // 27: istio.operator.v1alpha1.EgressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
+	9,   // 28: istio.operator.v1alpha1.EgressGatewayConfig.memory:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
+	9,   // 29: istio.operator.v1alpha1.EgressGatewayConfig.cpu:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
+	57,  // 30: istio.operator.v1alpha1.EgressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
+	57,  // 31: istio.operator.v1alpha1.EgressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
+	60,  // 32: istio.operator.v1alpha1.EgressGatewayConfig.env:type_name -> google.protobuf.Struct
+	55,  // 33: istio.operator.v1alpha1.EgressGatewayConfig.labels:type_name -> istio.operator.v1alpha1.EgressGatewayConfig.LabelsEntry
+	60,  // 34: istio.operator.v1alpha1.EgressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
+	60,  // 35: istio.operator.v1alpha1.EgressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
+	62,  // 36: istio.operator.v1alpha1.EgressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	62,  // 37: istio.operator.v1alpha1.EgressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	33,  // 38: istio.operator.v1alpha1.EgressGatewayConfig.ports:type_name -> istio.operator.v1alpha1.PortsConfig
+	10,  // 39: istio.operator.v1alpha1.EgressGatewayConfig.resources:type_name -> istio.operator.v1alpha1.Resources
+	39,  // 40: istio.operator.v1alpha1.EgressGatewayConfig.secretVolumes:type_name -> istio.operator.v1alpha1.SecretVolume
+	60,  // 41: istio.operator.v1alpha1.EgressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
+	49,  // 42: istio.operator.v1alpha1.EgressGatewayConfig.zvpn:type_name -> istio.operator.v1alpha1.ZeroVPNConfig
+	63,  // 43: istio.operator.v1alpha1.EgressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
+	51,  // 44: istio.operator.v1alpha1.EgressGatewayConfig.rollingMaxSurge:type_name -> istio.operator.v1alpha1.IntOrString
+	51,  // 45: istio.operator.v1alpha1.EgressGatewayConfig.rollingMaxUnavailable:type_name -> istio.operator.v1alpha1.IntOrString
+	60,  // 46: istio.operator.v1alpha1.EgressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
+	60,  // 47: istio.operator.v1alpha1.EgressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
+	57,  // 48: istio.operator.v1alpha1.EgressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
+	11,  // 49: istio.operator.v1alpha1.EgressGatewayConfig.serviceAccount:type_name -> istio.operator.v1alpha1.ServiceAccount
+	14,  // 50: istio.operator.v1alpha1.GatewaysConfig.istio_egressgateway:type_name -> istio.operator.v1alpha1.EgressGatewayConfig
+	57,  // 51: istio.operator.v1alpha1.GatewaysConfig.enabled:type_name -> google.protobuf.BoolValue
+	20,  // 52: istio.operator.v1alpha1.GatewaysConfig.istio_ingressgateway:type_name -> istio.operator.v1alpha1.IngressGatewayConfig
+	58,  // 53: istio.operator.v1alpha1.GatewaysConfig.securityContext:type_name -> google.protobuf.Value
+	58,  // 54: istio.operator.v1alpha1.GatewaysConfig.seccompProfile:type_name -> google.protobuf.Value
+	3,   // 55: istio.operator.v1alpha1.GlobalConfig.arch:type_name -> istio.operator.v1alpha1.ArchConfig
+	57,  // 56: istio.operator.v1alpha1.GlobalConfig.configValidation:type_name -> google.protobuf.BoolValue
+	60,  // 57: istio.operator.v1alpha1.GlobalConfig.defaultNodeSelector:type_name -> google.protobuf.Struct
+	12,  // 58: istio.operator.v1alpha1.GlobalConfig.defaultPodDisruptionBudget:type_name -> istio.operator.v1alpha1.DefaultPodDisruptionBudgetConfig
+	13,  // 59: istio.operator.v1alpha1.GlobalConfig.defaultResources:type_name -> istio.operator.v1alpha1.DefaultResourcesConfig
+	63,  // 60: istio.operator.v1alpha1.GlobalConfig.defaultTolerations:type_name -> k8s.io.api.core.v1.Toleration
+	57,  // 61: istio.operator.v1alpha1.GlobalConfig.logAsJson:type_name -> google.protobuf.BoolValue
+	19,  // 62: istio.operator.v1alpha1.GlobalConfig.logging:type_name -> istio.operator.v1alpha1.GlobalLoggingConfig
+	60,  // 63: istio.operator.v1alpha1.GlobalConfig.meshNetworks:type_name -> google.protobuf.Struct
+	23,  // 64: istio.operator.v1alpha1.GlobalConfig.multiCluster:type_name -> istio.operator.v1alpha1.MultiClusterConfig
+	57,  // 65: istio.operator.v1alpha1.GlobalConfig.omitSidecarInjectorConfigMap:type_name -> google.protobuf.BoolValue
+	57,  // 66: istio.operator.v1alpha1.GlobalConfig.operatorManageWebhooks:type_name -> google.protobuf.BoolValue
+	34,  // 67: istio.operator.v1alpha1.GlobalConfig.proxy:type_name -> istio.operator.v1alpha1.ProxyConfig
+	36,  // 68: istio.operator.v1alpha1.GlobalConfig.proxy_init:type_name -> istio.operator.v1alpha1.ProxyInitConfig
+	38,  // 69: istio.operator.v1alpha1.GlobalConfig.sds:type_name -> istio.operator.v1alpha1.SDSConfig
+	58,  // 70: istio.operator.v1alpha1.GlobalConfig.tag:type_name -> google.protobuf.Value
+	41,  // 71: istio.operator.v1alpha1.GlobalConfig.tracer:type_name -> istio.operator.v1alpha1.TracerConfig
+	18,  // 72: istio.operator.v1alpha1.GlobalConfig.istiod:type_name -> istio.operator.v1alpha1.IstiodConfig
+	17,  // 73: istio.operator.v1alpha1.GlobalConfig.sts:type_name -> istio.operator.v1alpha1.STSConfig
+	57,  // 74: istio.operator.v1alpha1.GlobalConfig.mountMtlsCerts:type_name -> google.protobuf.BoolValue
+	57,  // 75: istio.operator.v1alpha1.GlobalConfig.externalIstiod:type_name -> google.protobuf.BoolValue
+	57,  // 76: istio.operator.v1alpha1.GlobalConfig.configCluster:type_name -> google.protobuf.BoolValue
+	52,  // 77: istio.operator.v1alpha1.GlobalConfig.waypoint:type_name -> istio.operator.v1alpha1.WaypointConfig
+	57,  // 78: istio.operator.v1alpha1.IstiodConfig.enableAnalysis:type_name -> google.protobuf.BoolValue
+	57,  // 79: istio.operator.v1alpha1.IngressGatewayConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
+	9,   // 80: istio.operator.v1alpha1.IngressGatewayConfig.memory:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
+	9,   // 81: istio.operator.v1alpha1.IngressGatewayConfig.cpu:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
+	57,  // 82: istio.operator.v1alpha1.IngressGatewayConfig.customService:type_name -> google.protobuf.BoolValue
+	57,  // 83: istio.operator.v1alpha1.IngressGatewayConfig.enabled:type_name -> google.protobuf.BoolValue
+	60,  // 84: istio.operator.v1alpha1.IngressGatewayConfig.env:type_name -> google.protobuf.Struct
+	56,  // 85: istio.operator.v1alpha1.IngressGatewayConfig.labels:type_name -> istio.operator.v1alpha1.IngressGatewayConfig.LabelsEntry
+	60,  // 86: istio.operator.v1alpha1.IngressGatewayConfig.nodeSelector:type_name -> google.protobuf.Struct
+	60,  // 87: istio.operator.v1alpha1.IngressGatewayConfig.podAnnotations:type_name -> google.protobuf.Struct
+	62,  // 88: istio.operator.v1alpha1.IngressGatewayConfig.podAntiAffinityLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	62,  // 89: istio.operator.v1alpha1.IngressGatewayConfig.podAntiAffinityTermLabelSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	33,  // 90: istio.operator.v1alpha1.IngressGatewayConfig.ports:type_name -> istio.operator.v1alpha1.PortsConfig
+	60,  // 91: istio.operator.v1alpha1.IngressGatewayConfig.resources:type_name -> google.protobuf.Struct
+	39,  // 92: istio.operator.v1alpha1.IngressGatewayConfig.secretVolumes:type_name -> istio.operator.v1alpha1.SecretVolume
+	60,  // 93: istio.operator.v1alpha1.IngressGatewayConfig.serviceAnnotations:type_name -> google.protobuf.Struct
+	21,  // 94: istio.operator.v1alpha1.IngressGatewayConfig.zvpn:type_name -> istio.operator.v1alpha1.IngressGatewayZvpnConfig
+	51,  // 95: istio.operator.v1alpha1.IngressGatewayConfig.rollingMaxSurge:type_name -> istio.operator.v1alpha1.IntOrString
+	51,  // 96: istio.operator.v1alpha1.IngressGatewayConfig.rollingMaxUnavailable:type_name -> istio.operator.v1alpha1.IntOrString
+	63,  // 97: istio.operator.v1alpha1.IngressGatewayConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
+	60,  // 98: istio.operator.v1alpha1.IngressGatewayConfig.ingressPorts:type_name -> google.protobuf.Struct
+	60,  // 99: istio.operator.v1alpha1.IngressGatewayConfig.additionalContainers:type_name -> google.protobuf.Struct
+	60,  // 100: istio.operator.v1alpha1.IngressGatewayConfig.configVolumes:type_name -> google.protobuf.Struct
+	57,  // 101: istio.operator.v1alpha1.IngressGatewayConfig.runAsRoot:type_name -> google.protobuf.BoolValue
+	11,  // 102: istio.operator.v1alpha1.IngressGatewayConfig.serviceAccount:type_name -> istio.operator.v1alpha1.ServiceAccount
+	57,  // 103: istio.operator.v1alpha1.IngressGatewayZvpnConfig.enabled:type_name -> google.protobuf.BoolValue
+	10,  // 104: istio.operator.v1alpha1.MDPConfig.resources:type_name -> istio.operator.v1alpha1.Resources
+	57,  // 105: istio.operator.v1alpha1.MDPConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 106: istio.operator.v1alpha1.MultiClusterConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 107: istio.operator.v1alpha1.MultiClusterConfig.includeEnvoyFilter:type_name -> google.protobuf.BoolValue
+	2,   // 108: istio.operator.v1alpha1.OutboundTrafficPolicyConfig.mode:type_name -> istio.operator.v1alpha1.OutboundTrafficPolicyConfig.Mode
+	57,  // 109: istio.operator.v1alpha1.PilotConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 110: istio.operator.v1alpha1.PilotConfig.autoscaleEnabled:type_name -> google.protobuf.BoolValue
+	60,  // 111: istio.operator.v1alpha1.PilotConfig.autoscaleBehavior:type_name -> google.protobuf.Struct
+	10,  // 112: istio.operator.v1alpha1.PilotConfig.resources:type_name -> istio.operator.v1alpha1.Resources
+	9,   // 113: istio.operator.v1alpha1.PilotConfig.cpu:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
+	60,  // 114: istio.operator.v1alpha1.PilotConfig.nodeSelector:type_name -> google.protobuf.Struct
+	64,  // 115: istio.operator.v1alpha1.PilotConfig.keepaliveMaxServerConnectionAge:type_name -> google.protobuf.Duration
+	60,  // 116: istio.operator.v1alpha1.PilotConfig.deploymentLabels:type_name -> google.protobuf.Struct
+	60,  // 117: istio.operator.v1alpha1.PilotConfig.podLabels:type_name -> google.protobuf.Struct
+	57,  // 118: istio.operator.v1alpha1.PilotConfig.configMap:type_name -> google.protobuf.BoolValue
+	60,  // 119: istio.operator.v1alpha1.PilotConfig.env:type_name -> google.protobuf.Struct
+	59,  // 120: istio.operator.v1alpha1.PilotConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
+	51,  // 121: istio.operator.v1alpha1.PilotConfig.rollingMaxSurge:type_name -> istio.operator.v1alpha1.IntOrString
+	51,  // 122: istio.operator.v1alpha1.PilotConfig.rollingMaxUnavailable:type_name -> istio.operator.v1alpha1.IntOrString
+	63,  // 123: istio.operator.v1alpha1.PilotConfig.tolerations:type_name -> k8s.io.api.core.v1.Toleration
+	60,  // 124: istio.operator.v1alpha1.PilotConfig.podAnnotations:type_name -> google.protobuf.Struct
+	60,  // 125: istio.operator.v1alpha1.PilotConfig.serviceAnnotations:type_name -> google.protobuf.Struct
+	60,  // 126: istio.operator.v1alpha1.PilotConfig.serviceAccountAnnotations:type_name -> google.protobuf.Struct
+	58,  // 127: istio.operator.v1alpha1.PilotConfig.tag:type_name -> google.protobuf.Value
+	61,  // 128: istio.operator.v1alpha1.PilotConfig.seccompProfile:type_name -> k8s.io.api.core.v1.SeccompProfile
+	65,  // 129: istio.operator.v1alpha1.PilotConfig.topologySpreadConstraints:type_name -> k8s.io.api.core.v1.TopologySpreadConstraint
+	60,  // 130: istio.operator.v1alpha1.PilotConfig.extraContainerArgs:type_name -> google.protobuf.Struct
+	66,  // 131: istio.operator.v1alpha1.PilotConfig.volumeMounts:type_name -> k8s.io.api.core.v1.VolumeMount
+	67,  // 132: istio.operator.v1alpha1.PilotConfig.volumes:type_name -> k8s.io.api.core.v1.Volume
+	9,   // 133: istio.operator.v1alpha1.PilotConfig.memory:type_name -> istio.operator.v1alpha1.TargetUtilizationConfig
+	5,   // 134: istio.operator.v1alpha1.PilotConfig.cni:type_name -> istio.operator.v1alpha1.CNIUsageConfig
+	26,  // 135: istio.operator.v1alpha1.PilotConfig.taint:type_name -> istio.operator.v1alpha1.PilotTaintControllerConfig
+	47,  // 136: istio.operator.v1alpha1.PilotConfig.istiodRemote:type_name -> istio.operator.v1alpha1.IstiodRemoteConfig
+	60,  // 137: istio.operator.v1alpha1.PilotConfig.envVarFrom:type_name -> google.protobuf.Struct
+	0,   // 138: istio.operator.v1alpha1.PilotIngressConfig.ingressControllerMode:type_name -> istio.operator.v1alpha1.ingressControllerMode
+	57,  // 139: istio.operator.v1alpha1.PilotPolicyConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 140: istio.operator.v1alpha1.TelemetryConfig.enabled:type_name -> google.protobuf.BoolValue
+	30,  // 141: istio.operator.v1alpha1.TelemetryConfig.v2:type_name -> istio.operator.v1alpha1.TelemetryV2Config
+	57,  // 142: istio.operator.v1alpha1.TelemetryV2Config.enabled:type_name -> google.protobuf.BoolValue
+	31,  // 143: istio.operator.v1alpha1.TelemetryV2Config.prometheus:type_name -> istio.operator.v1alpha1.TelemetryV2PrometheusConfig
+	32,  // 144: istio.operator.v1alpha1.TelemetryV2Config.stackdriver:type_name -> istio.operator.v1alpha1.TelemetryV2StackDriverConfig
+	57,  // 145: istio.operator.v1alpha1.TelemetryV2PrometheusConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 146: istio.operator.v1alpha1.TelemetryV2StackDriverConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 147: istio.operator.v1alpha1.ProxyConfig.enableCoreDump:type_name -> google.protobuf.BoolValue
+	57,  // 148: istio.operator.v1alpha1.ProxyConfig.privileged:type_name -> google.protobuf.BoolValue
+	35,  // 149: istio.operator.v1alpha1.ProxyConfig.startupProbe:type_name -> istio.operator.v1alpha1.StartupProbe
+	10,  // 150: istio.operator.v1alpha1.ProxyConfig.resources:type_name -> istio.operator.v1alpha1.Resources
+	1,   // 151: istio.operator.v1alpha1.ProxyConfig.tracer:type_name -> istio.operator.v1alpha1.tracer
+	68,  // 152: istio.operator.v1alpha1.ProxyConfig.lifecycle:type_name -> k8s.io.api.core.v1.Lifecycle
+	57,  // 153: istio.operator.v1alpha1.ProxyConfig.holdApplicationUntilProxyStarts:type_name -> google.protobuf.BoolValue
+	57,  // 154: istio.operator.v1alpha1.StartupProbe.enabled:type_name -> google.protobuf.BoolValue
+	10,  // 155: istio.operator.v1alpha1.ProxyInitConfig.resources:type_name -> istio.operator.v1alpha1.Resources
+	60,  // 156: istio.operator.v1alpha1.SDSConfig.token:type_name -> google.protobuf.Struct
+	57,  // 157: istio.operator.v1alpha1.SidecarInjectorConfig.enableNamespacesByDefault:type_name -> google.protobuf.BoolValue
+	62,  // 158: istio.operator.v1alpha1.SidecarInjectorConfig.neverInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	62,  // 159: istio.operator.v1alpha1.SidecarInjectorConfig.alwaysInjectSelector:type_name -> k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector
+	57,  // 160: istio.operator.v1alpha1.SidecarInjectorConfig.rewriteAppHTTPProbe:type_name -> google.protobuf.BoolValue
+	60,  // 161: istio.operator.v1alpha1.SidecarInjectorConfig.injectedAnnotations:type_name -> google.protobuf.Struct
+	60,  // 162: istio.operator.v1alpha1.SidecarInjectorConfig.templates:type_name -> google.protobuf.Struct
+	42,  // 163: istio.operator.v1alpha1.TracerConfig.datadog:type_name -> istio.operator.v1alpha1.TracerDatadogConfig
+	43,  // 164: istio.operator.v1alpha1.TracerConfig.lightstep:type_name -> istio.operator.v1alpha1.TracerLightStepConfig
+	44,  // 165: istio.operator.v1alpha1.TracerConfig.zipkin:type_name -> istio.operator.v1alpha1.TracerZipkinConfig
+	45,  // 166: istio.operator.v1alpha1.TracerConfig.stackdriver:type_name -> istio.operator.v1alpha1.TracerStackdriverConfig
+	57,  // 167: istio.operator.v1alpha1.TracerStackdriverConfig.debug:type_name -> google.protobuf.BoolValue
+	57,  // 168: istio.operator.v1alpha1.BaseConfig.enableCRDTemplates:type_name -> google.protobuf.BoolValue
+	57,  // 169: istio.operator.v1alpha1.BaseConfig.enableIstioConfigCRDs:type_name -> google.protobuf.BoolValue
+	57,  // 170: istio.operator.v1alpha1.BaseConfig.validateGateway:type_name -> google.protobuf.BoolValue
+	57,  // 171: istio.operator.v1alpha1.IstiodRemoteConfig.enabled:type_name -> google.protobuf.BoolValue
+	4,   // 172: istio.operator.v1alpha1.Values.cni:type_name -> istio.operator.v1alpha1.CNIConfig
+	15,  // 173: istio.operator.v1alpha1.Values.gateways:type_name -> istio.operator.v1alpha1.GatewaysConfig
+	16,  // 174: istio.operator.v1alpha1.Values.global:type_name -> istio.operator.v1alpha1.GlobalConfig
+	25,  // 175: istio.operator.v1alpha1.Values.pilot:type_name -> istio.operator.v1alpha1.PilotConfig
+	58,  // 176: istio.operator.v1alpha1.Values.ztunnel:type_name -> google.protobuf.Value
+	29,  // 177: istio.operator.v1alpha1.Values.telemetry:type_name -> istio.operator.v1alpha1.TelemetryConfig
+	40,  // 178: istio.operator.v1alpha1.Values.sidecarInjectorWebhook:type_name -> istio.operator.v1alpha1.SidecarInjectorConfig
+	5,   // 179: istio.operator.v1alpha1.Values.istio_cni:type_name -> istio.operator.v1alpha1.CNIUsageConfig
+	58,  // 180: istio.operator.v1alpha1.Values.meshConfig:type_name -> google.protobuf.Value
+	46,  // 181: istio.operator.v1alpha1.Values.base:type_name -> istio.operator.v1alpha1.BaseConfig
+	47,  // 182: istio.operator.v1alpha1.Values.istiodRemote:type_name -> istio.operator.v1alpha1.IstiodRemoteConfig
+	50,  // 183: istio.operator.v1alpha1.Values.experimental:type_name -> istio.operator.v1alpha1.ExperimentalConfig
+	58,  // 184: istio.operator.v1alpha1.Values.gatewayClasses:type_name -> google.protobuf.Value
+	22,  // 185: istio.operator.v1alpha1.Values.mdp:type_name -> istio.operator.v1alpha1.MDPConfig
+	57,  // 186: istio.operator.v1alpha1.ZeroVPNConfig.enabled:type_name -> google.protobuf.BoolValue
+	57,  // 187: istio.operator.v1alpha1.ExperimentalConfig.stableValidationPolicy:type_name -> google.protobuf.BoolValue
+	69,  // 188: istio.operator.v1alpha1.IntOrString.intVal:type_name -> google.protobuf.Int32Value
+	70,  // 189: istio.operator.v1alpha1.IntOrString.strVal:type_name -> google.protobuf.StringValue
+	10,  // 190: istio.operator.v1alpha1.WaypointConfig.resources:type_name -> istio.operator.v1alpha1.Resources
+	59,  // 191: istio.operator.v1alpha1.WaypointConfig.affinity:type_name -> k8s.io.api.core.v1.Affinity
+	65,  // 192: istio.operator.v1alpha1.WaypointConfig.topologySpreadConstraints:type_name -> k8s.io.api.core.v1.TopologySpreadConstraint
+	71,  // 193: istio.operator.v1alpha1.WaypointConfig.nodeSelector:type_name -> k8s.io.api.core.v1.NodeSelector
+	63,  // 194: istio.operator.v1alpha1.WaypointConfig.toleration:type_name -> k8s.io.api.core.v1.Toleration
+	195, // [195:195] is the sub-list for method output_type
+	195, // [195:195] is the sub-list for method input_type
+	195, // [195:195] is the sub-list for extension type_name
+	195, // [195:195] is the sub-list for extension extendee
+	0,   // [0:195] is the sub-list for field type_name
 }
 
 func init() { file_pkg_apis_values_types_proto_init() }

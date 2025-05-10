@@ -158,6 +158,9 @@ message CNIAmbientConfig {
 
   // UNSTABLE: If enabled, and ambient is enabled, enables ipv6 support
   google.protobuf.BoolValue ipv6 = 7;
+
+  // If enabled, and ambient is enabled, iptables reconciliation will be enabled.
+  google.protobuf.BoolValue reconcileIptablesOnStartup = 9;
 }
 
 message CNIRepairConfig {
@@ -617,7 +620,10 @@ message GlobalConfig {
 
   // Specifies how waypoints are configured within Istio.
   WaypointConfig waypoint = 72;
-  // The next available key is 73
+
+  // Select a custom name for istiod's CA Root Cert ConfigMap.
+  string trustBundleName = 73;
+  // The next available key is 74
 }
 
 // Configuration for Security Token Service (STS) server.
@@ -977,6 +983,9 @@ message PilotConfig {
 
   // Configuration for the istio-discovery chart when istiod is running in a remote cluster (e.g. "remote control plane").
   IstiodRemoteConfig istiodRemote = 61;
+
+  // Configuration for the istio-discovery chart
+  repeated google.protobuf.Struct envVarFrom = 62;
 }
 
 message PilotTaintControllerConfig {
@@ -1428,6 +1437,9 @@ message Values {
 
   // Specifies experimental helm fields that could be removed or changed in the future
   ExperimentalConfig experimental = 44;
+
+  // Configuration for Gateway Classes
+  google.protobuf.Value gatewayClasses = 45;
 
   // Managed Data Plane (MDP) config is ASM-specific.
   MDPConfig mdp = 101;

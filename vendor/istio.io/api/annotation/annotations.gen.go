@@ -288,6 +288,7 @@ This takes the format: "<protocol>" or "<protocol>/<port>".
 	IoIstioRerouteVirtualInterfaces = Instance {
 		Name:          "istio.io/reroute-virtual-interfaces",
 		Description:   `A comma separated list of virtual interfaces whose inbound traffic will be unconditionally treated as outbound. This allows workloads using virtualized networking (kubeVirt, VMs, docker-in-docker, etc) to function correctly with mesh traffic capture.
+Note: When using docker-in-docker container, the default bridge interface name is typically "docker0". However, custom networks (often used with docker compose) are assigned a randomized interface name. To have a predictable name, you can configure the Docker option "com.docker.network.bridge.name" with a fixed value and use that name in the annotation.
 `,
 		FeatureStatus: Alpha,
 		Hidden:        false,
@@ -667,6 +668,19 @@ Accepted values:
 		},
 	}
 
+	SidecarStatsCompression = Instance {
+		Name:          "sidecar.istio.io/statsCompression",
+		Description:   `Specifies the compression algorithm to use for stats emitted by the Envoy sidecar.
+Supported values are "brotli", "gzip", and "zstd".
+`,
+		FeatureStatus: Alpha,
+		Hidden:        false,
+		Deprecated:    false,
+		Resources: []ResourceTypes{
+			Pod,
+		},
+	}
+
 	SidecarStatsHistogramBuckets = Instance {
 		Name:          "sidecar.istio.io/statsHistogramBuckets",
 		Description:   "Specifies the custom histogram buckets with a prefix "+
@@ -953,6 +967,7 @@ func AllResourceAnnotations() []*Instance {
 		&SidecarProxyMemory,
 		&SidecarProxyMemoryLimit,
 		&SidecarRewriteAppHTTPProbers,
+		&SidecarStatsCompression,
 		&SidecarStatsHistogramBuckets,
 		&SidecarStatsInclusionPrefixes,
 		&SidecarStatsInclusionRegexps,
