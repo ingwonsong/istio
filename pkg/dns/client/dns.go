@@ -29,7 +29,6 @@ import (
 
 	"istio.io/istio/pilot/pkg/serviceregistry/provider"
 	"istio.io/istio/pkg/config/host"
-	"istio.io/istio/pkg/csm/csmlocaldns"
 	dnsProto "istio.io/istio/pkg/dns/proto"
 	istiolog "istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/slices"
@@ -391,14 +390,6 @@ func (h *LocalDNSServer) Close() {
 }
 
 func (h *LocalDNSServer) queryUpstream(upstreamClient *dns.Client, req *dns.Msg, scope *istiolog.Scope) *dns.Msg {
-	// CSM Code
-	if resp, err := csmlocaldns.Query(req); err == nil && len(resp.Answer) > 0 {
-		return resp
-	} else if err != nil {
-		scope.Errorf("error for local DNS upstream: %v", err)
-	}
-	// CSM code
-
 	if h.forwardToUpstreamParallel {
 		return h.queryUpstreamParallel(upstreamClient, req, scope)
 	}
