@@ -15,7 +15,6 @@
 package csmlocaldns
 
 import (
-	"os"
 	"time"
 
 	"github.com/miekg/dns"
@@ -31,20 +30,12 @@ var (
 		WriteTimeout: 5 * time.Second,
 	}
 
-	enableLocalEnvoyDNS = env.RegisterBoolVar("CSM_ENABLE_LOCAL_ENVOY_DNS", false,
+	enableDNSQueryToLocalEnvoy = env.RegisterBoolVar("CSM_ENABLE_ENABLE_DNS_QUERY_TO_LOCAL_ENVOY", false,
 		"If this is set to true, the local DNS server will try to make a query to the local Enovy DNS server before going to the original DNS upstream server.").Get()
 )
 
-func init() {
-	if enableLocalEnvoyDNS {
-		// Set the ISTIO_META flag if the feature is enabled.
-		// With this flag, TDCS can know that this proxy has the capability for the local Envoy DNS.
-		os.Setenv("ISTIO_META_LOCAL_ENVOY_DNS_ENABLED", "true")
-	}
-}
-
 func Query(req *dns.Msg) (*dns.Msg, error) {
-	if !enableLocalEnvoyDNS {
+	if !enableDNSQueryToLocalEnvoy {
 		return &dns.Msg{}, nil
 	}
 	resp, _, err := defaultClientForLocalEnvoy.Exchange(req, "127.0.0.1:15053")
