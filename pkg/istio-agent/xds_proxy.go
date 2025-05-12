@@ -40,7 +40,6 @@ import (
 	istiogrpc "istio.io/istio/pilot/pkg/grpc"
 	"istio.io/istio/pkg/channels"
 	"istio.io/istio/pkg/config/constants"
-	"istio.io/istio/pkg/csm/csmlocaldns"
 	dnsProto "istio.io/istio/pkg/dns/proto"
 	"istio.io/istio/pkg/istio-agent/health"
 	"istio.io/istio/pkg/istio-agent/metrics"
@@ -150,7 +149,7 @@ func initXdsProxy(ia *Agent) (*XdsProxy, error) {
 		downstreamGrpcOptions: ia.cfg.DownstreamGrpcOptions,
 	}
 
-	if ia.localDNSServer != nil && !csmlocaldns.Enabled() {
+	if ia.localDNSServer != nil {
 		proxy.handlers[model.NameTableType] = func(resp *anypb.Any) error {
 			var nt dnsProto.NameTable
 			if err := resp.UnmarshalTo(&nt); err != nil {

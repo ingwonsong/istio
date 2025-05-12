@@ -176,13 +176,6 @@ func NewLocalDNSServer(proxyNamespace, proxyDomain string, addr string, forwardT
 		}
 	}
 
-	// CSM code begin
-	if csmlocaldns.Enabled() {
-		// To initialze the internal DNS server, we should call UpdateLookupTable.
-		h.UpdateLookupTable(new(dnsProto.NameTable))
-	}
-	// CSM code end
-
 	return h, nil
 }
 
@@ -400,7 +393,6 @@ func (h *LocalDNSServer) Close() {
 func (h *LocalDNSServer) queryUpstream(upstreamClient *dns.Client, req *dns.Msg, scope *istiolog.Scope) *dns.Msg {
 	// CSM Code
 	if resp, err := csmlocaldns.Query(req); err == nil && len(resp.Answer) > 0 {
-		scope.Debug("got the answer from Envoy local DNS")
 		return resp
 	} else if err != nil {
 		scope.Errorf("error for local DNS upstream: %v", err)
