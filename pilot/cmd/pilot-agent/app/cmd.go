@@ -48,7 +48,6 @@ import (
 	"istio.io/istio/pkg/util/sets"
 	"istio.io/istio/pkg/version"
 	iptables "istio.io/istio/tools/istio-iptables/pkg/cmd"
-	iptableslog "istio.io/istio/tools/istio-iptables/pkg/log"
 )
 
 const (
@@ -164,10 +163,6 @@ func newProxyCommand(sds istioagent.SDSServiceFactory) *cobra.Command {
 					return err
 				}
 			}
-
-			// GOOGLE3_HIDDEN_BEGIN: Disable IP tables nflog
-			go iptableslog.ReadNFLOGSocket(ctx)
-			// GOOGLE3_HIDDEN_END
 
 			// On SIGINT or SIGTERM, cancel the context, triggering a graceful shutdown
 			go cmd.WaitSignalFunc(cancel)

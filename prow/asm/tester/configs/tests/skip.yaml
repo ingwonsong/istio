@@ -723,6 +723,7 @@ tests:
       - TestAccessLogs
       - TestAccessLogsMode
       - TestAccessLogsFilter
+      - TestAccessLogWithFilterState
 
   # MCP multi-project with private cluster tests skips the following packages that's skipped by multi-cluster.
   - selectors:
