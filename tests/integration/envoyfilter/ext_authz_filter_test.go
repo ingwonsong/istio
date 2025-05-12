@@ -115,10 +115,7 @@ func TestExtAuthzEnvoyfilter(t *testing.T) {
 
 			for _, test := range subtests {
 				t.NewSubTest("TestExtAuthz_" + test.name).Run(func(t framework.TestContext) {
-					params := defaultExtAuthzFilterTemplateParams(serverNs, authzServerFQDN)
-					for k, v := range test.overrideParams {
-						params[k] = v
-					}
+					params := overrideParams(defaultExtAuthzFilterTemplateParams(serverNs, authzServerFQDN), test.overrideParams)
 					if len(test.headerToMetadataFilterParams) > 0 {
 						applyEnvoyFilter(t,
 							headerToMetadataFilterNameForExtAuthzTest,

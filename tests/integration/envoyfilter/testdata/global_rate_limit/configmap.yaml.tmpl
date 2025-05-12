@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ratelimit-config
+  namespace: {{ .namespace | default "default" }}
+data:
+  config.yaml: |
+    domain: ratelimit
+    descriptors:
+      - key: {{ .descriptorKey }}
+        value: {{ .descriptorValue }}
+        rate_limit:
+          unit: {{ .rateLimitUnit }}
+          requests_per_unit: {{ .rateLimitRequestsPerUnit }}

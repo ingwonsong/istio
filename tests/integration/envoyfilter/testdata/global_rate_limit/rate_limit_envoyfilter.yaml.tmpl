@@ -1,0 +1,44 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ratelimit-config
+  namespace: {{ .namespace | default "default" }}
+spec:
+  priority: 10 # This filter should be placed after header-to-metadata filter to populate metadata
+  configPatches:
+    - applyTo: VIRTUAL_HOST
+      match:
+        context: SIDECAR_INBOUND
+        routeConfiguration:
+          vhost:
+            name: ""
+            route:
+              action: ANY
+      patch:
+        operation: MERGE
+        value:
+          rate_limits:
+            - actions:
+{{- if .headerValueMatchAction }}
+              - header_value_match:
+                  descriptor_key: {{ .headerValueMatchDescriptorKey }}
+                  descriptor_value: {{ .headerValueMatchDescriptorVal }}
+                  headers:
+                    - name: {{ .headerValueMatchHeaderName }}
+                      string_match:
+                        exact: {{ .headerValueMatchStringMatchExact }}
+{{- end }}
+{{- if .metadata_action }}
+# For metadata action to work, header to metadata envoyfilter is required
+# which is used to extract a header value and store it in metadata
+# Then the descriptors are constructed using this action and sent to RLS
+              - metadata:
+                  descriptor_key: {{ .metadataDescriptorKey }}
+                  metadata_key:
+                    key: "envoy.filters.http.header_to_metadata.{{ .metadataKeyNameSuffix }}"
+                    path:
+                      - key: {{ .metadataKeyPath }}
+{{- end }}
+  workloadSelector:
+    labels:
+      {{ .label }}

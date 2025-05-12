@@ -1,0 +1,36 @@
+# This EnvoyFilter is used to extract a header value and store it in metadata.
+# This metadata will be used by the rate limit filter to determine the descriptor key.
+# We need a separate filter for this because the rate limit filter needs to know the key
+# before it can apply the rate limit.
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: header-to-metadata-filter
+  namespace: {{ .namespace | default "default" }}
+spec:
+  priority: 1 # This filter should be placed before rate-limit filter to populate metadata
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: envoy.filters.http.router
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.header_to_metadata.{{ .nameSuffix }}
+          typedConfig:
+            '@type': type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config
+            request_rules:
+              - header: {{ .headerName }}
+                on_header_present:
+                  metadata_namespace: "envoy.filters.http.header_to_metadata.{{ .nameSuffix }}"
+                  key: {{ .headerKey }}
+                  type: {{ .headerDatatype }}
+  workloadSelector:
+    labels:
+      {{ .label }}

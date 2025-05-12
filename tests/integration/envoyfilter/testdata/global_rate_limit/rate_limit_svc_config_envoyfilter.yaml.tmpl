@@ -1,0 +1,42 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ratelimit-svc
+  namespace: {{ .namespace | default "default" }}
+spec:
+  priority: 10
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+            subFilter:
+              name: envoy.filters.http.router
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.rate_limit
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
+          domain: ratelimit
+          failure_mode_deny: {{ .failure_mode_deny | default "true" }}
+          rate_limit_service:
+            grpc_service:
+{{- if .isGoogleGrpc }}
+              google_grpc:
+                targetUri:  {{ .targetUri }}:{{ .rateLimitSvcGrpcPort }}
+                statPrefix: {{ .statPrefix }}
+{{- end }}
+{{- if .isEnvoyGrpc }}
+              envoy_grpc:
+                authority: outbound_.{{ .rateLimitSvcGrpcPort }}_._.{{ .authority }}
+                clusterName: outbound|{{ .rateLimitSvcGrpcPort }}||{{ .clusterName }}
+{{- end }}
+            transportApiVersion: {{ .transportApiVersion }}
+          timeout: {{ .timeout }}
+  workloadSelector:
+    labels:
+      {{ .label }}

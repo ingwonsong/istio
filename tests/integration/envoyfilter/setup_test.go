@@ -40,7 +40,9 @@ var (
 	echoClientNS namespace.Instance
 	echoServerNS namespace.Instance
 	extAuthzNS   namespace.Instance
+	rateLimitNS  namespace.Instance
 
+	// Deployments
 	apps        deployment.TwoNamespaceView
 	authzServer authz.Server
 )
@@ -49,6 +51,7 @@ const (
 	echoClientNsPrefix string = "echo-client"
 	echoServerNsPrefix string = "echo-server"
 	extAuthzNSPrefix   string = "ext-authz"
+	rateLimitNSPrefix  string = "ratelimit"
 
 	echoCallTimeout          time.Duration = 5 * time.Second
 	echoCallRetryTimeout     time.Duration = 5 * time.Minute
@@ -66,6 +69,7 @@ func TestMain(m *testing.M) {
 			namespace.Setup(&echoClientNS, namespace.Config{Prefix: echoClientNsPrefix, Inject: true}),
 			namespace.Setup(&echoServerNS, namespace.Config{Prefix: echoServerNsPrefix, Inject: true}),
 			namespace.Setup(&extAuthzNS, namespace.Config{Prefix: extAuthzNSPrefix, Inject: true}),
+			namespace.Setup(&rateLimitNS, namespace.Config{Prefix: rateLimitNSPrefix, Inject: true}),
 		).SetupParallel(
 		deployment.SetupTwoNamespaces(&apps, deployment.Config{
 			Namespaces: []namespace.Getter{
@@ -113,4 +117,11 @@ func echoAInstanceFromNs(t framework.TestContext, ns deployment.EchoNamespace) e
 		t.Fatalf("No echo instance found in namespace: %s", ns.Namespace.Name())
 	}
 	return ns.A[0]
+}
+
+func overrideParams(params, overrides map[string]any) map[string]any {
+	for k, v := range overrides {
+		params[k] = v
+	}
+	return params
 }
