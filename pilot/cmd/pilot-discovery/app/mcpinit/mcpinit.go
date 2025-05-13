@@ -109,7 +109,13 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 			break
 		}
 		log.Warnf("failed to fetch cluster, will retry: %v", err)
-		time.Sleep(time.Second)
+		if strings.Contains(err.Error(), "VPC network mapping unavailable. vpcServiceControlsUniqueIdentifier") {
+			// Give more time for the initial propagation of VNID resolver.
+			// This should happen only when the tenant project is just created.
+			time.Sleep(time.Second * 3)
+		} else {
+			time.Sleep(time.Second)
+		}
 	}
 	if cl == nil {
 		return nil, fmt.Errorf("exceeded retry budget fetching cluster: %w", err)
