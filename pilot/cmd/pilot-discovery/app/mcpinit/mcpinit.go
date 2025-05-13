@@ -101,7 +101,7 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 	var cl *containerpb.Cluster
 	// We add retries to account for IAM propagation delays. Even with pollIAMPropagation, sometimes it doesn't universally apply
 	// to downstream services yet, etc, so we need to retry on all calls.
-	for attempts := 0; attempts < 50; attempts++ {
+	for attempts := 0; attempts < 60; attempts++ {
 		cl, err = c.GetCluster(ctx, &containerpb.GetClusterRequest{
 			Name: fmt.Sprintf("projects/%s/locations/%s/clusters/%s", p.Project, p.Location, p.Cluster),
 		})
@@ -112,7 +112,7 @@ func ConstructKubeConfigFile(ctx context.Context, p KubeConfigParameters) (*cont
 		if strings.Contains(err.Error(), "VPC network mapping unavailable. vpcServiceControlsUniqueIdentifier") {
 			// Give more time for the initial propagation of VNID resolver.
 			// This should happen only when the tenant project is just created.
-			time.Sleep(time.Second * 3)
+			time.Sleep(time.Second * 4)
 		} else {
 			time.Sleep(time.Second)
 		}
