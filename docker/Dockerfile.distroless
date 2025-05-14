@@ -1,10 +1,10 @@
 # prepare a distroless source context to copy files from
 # hadolint ignore=DL3026
-FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250407.00_p0@sha256:df9f8d65bb5f790b8b659bfb7f019584a1f1b5be4d56e4c7442353dae75baf77 as distroless_source
+FROM gke.gcr.io/gke-distroless/libc:gke_distroless_20250507.00_p0@sha256:fdc0b952d957cc99179df5141eb3d61cfc64b0a4312b72b12208b9273c8db41f as distroless_source
 
 # prepare a base dev to modify file contents
 # hadolint ignore=DL3007,DL3026
-FROM marketplace.gcr.io/google/ubuntu2404:latest@sha256:f226b52ce8f8365aa0a52fb8f4392ecbe1c215639f73edf16a12e5f3d6765147 AS ubuntu_source
+FROM marketplace.gcr.io/google/ubuntu2404:latest@sha256:5a90d61d406901923db47f0b087b20f7a0d9981fea884eab6f8dcc084dc23ed6 AS ubuntu_source
 
 # Modify contents of container
 COPY --from=distroless_source /etc/ /home/etc

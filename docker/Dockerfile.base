@@ -1,5 +1,5 @@
 # hadolint ignore=DL3007,DL3026
-FROM marketplace.gcr.io/google/ubuntu2404:latest@sha256:f226b52ce8f8365aa0a52fb8f4392ecbe1c215639f73edf16a12e5f3d6765147
+FROM marketplace.gcr.io/google/ubuntu2404:latest@sha256:5a90d61d406901923db47f0b087b20f7a0d9981fea884eab6f8dcc084dc23ed6
 
 ENV DEBIAN_FRONTEND=noninteractive
 
