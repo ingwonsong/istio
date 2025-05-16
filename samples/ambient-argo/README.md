@@ -50,10 +50,10 @@ The PlatEng is responsible for providing the AppDev with a comprehensive applica
 
 Istio is composed of six charts in Ambient Mode.  The components are divided between the Control Plane and the Data Plane, and some are Cluster-Scoped, while others can have multiple versions in a single cluster.
 
-|                     | Control Plane              | Data Plane        |
-| ------------------- |:--------------------------:| :----------------:|
-| **Cluster-Scoped**  | CRDs + validation          | CNI<br>ztunnel    |
-| **Workload-Scoped** | istiod<br>tags + revisions |  waypoint (envoy) |
+|                     |       Control Plane        |    Data Plane    |
+|---------------------|:--------------------------:|:----------------:|
+| **Cluster-Scoped**  |     CRDs + validation      |  CNI<br>ztunnel  |
+| **Workload-Scoped** | istiod<br>tags + revisions | waypoint (envoy) |
 
 Of these components, only waypoints (and other gateways) are intended to be operated by the AppDev (some users may choose to limit ingress gateways to the PlatEng role as well).  The remainder are the sole responsibility of the PlatEng role, and will be the focus of this reference architecture.
 

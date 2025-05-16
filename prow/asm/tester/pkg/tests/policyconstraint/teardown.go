@@ -47,7 +47,7 @@ func cleanupACM(settings *resource.Settings) error {
 	cs := kube.GKEClusterSpecFromContext(settings.KubeContexts[0])
 	membership := cs.Name
 	cmds := []string{
-		fmt.Sprintf("gcloud beta container hub config-management unmanage --project=%s --membership=%s", cs.ProjectID, membership),
+		fmt.Sprintf("gcloud container fleet policycontroller disable --memberships=%s", membership),
 		"bash -c 'kubectl delete configmanagement --all || true'",
 		"kubectl get ns",
 		"bash -c 'kubectl delete ns config-management-system gatekeeper-system config-management-monitoring || true'",

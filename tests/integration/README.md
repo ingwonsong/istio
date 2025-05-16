@@ -417,10 +417,10 @@ and ```label.Postsubmit```.
 
 Istio's CI/CD system is composed of 2 parts:
 
-Tool | Description |
----|---
-[Prow](https://github.com/kubernetes/test-infra/tree/master/prow) | Kubernetes-based CI/CD system developed by the Kubernetes community and is deployed in Google Kubernetes Engine (GKE).
-[TestGrid](https://k8s-testgrid.appspot.com/istio-release) | A Kubernetes dashboard used for visualizing the status of the Prow jobs.
+| Tool                                                              | Description                                                                                                            |
+|-------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| [Prow](https://github.com/kubernetes/test-infra/tree/master/prow) | Kubernetes-based CI/CD system developed by the Kubernetes community and is deployed in Google Kubernetes Engine (GKE). |
+| [TestGrid](https://k8s-testgrid.appspot.com/istio-release)        | A Kubernetes dashboard used for visualizing the status of the Prow jobs.                                               |
 
 Test suites are defined for each toplevel directory (such as `pilot` and `telemetry`), so any tests added to these directories will automatically be run in CI.
 

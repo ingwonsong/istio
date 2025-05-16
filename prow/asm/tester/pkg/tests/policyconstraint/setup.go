@@ -61,13 +61,11 @@ func installPolicyController(settings *resource.Settings) error {
 	log.Println("Installing Policy Controller...")
 	cs := kube.GKEClusterSpecFromContext(settings.KubeContexts[0])
 	membership := cs.Name
-	manifestPath := settings.ConfigDir + "/policy-constraint/acm-manifest.yaml"
 
 	cmds := []string{
 		fmt.Sprintf("gcloud config list"),
-		fmt.Sprintf("gcloud services enable krmapihosting.googleapis.com container.googleapis.com cloudresourcemanager.googleapis.com anthos.googleapis.com anthosconfigmanagement.googleapis.com  --project %s", cs.ProjectID),
-		fmt.Sprintf("gcloud beta container hub config-management enable --project %s", cs.ProjectID),
-		fmt.Sprintf("gcloud beta container hub config-management apply --membership=%s --config=%s --project %s", membership, manifestPath, cs.ProjectID),
+		fmt.Sprintf("gcloud services enable krmapihosting.googleapis.com container.googleapis.com cloudresourcemanager.googleapis.com anthos.googleapis.com anthospolicycontroller.googleapis.com  --project %s", cs.ProjectID),
+		fmt.Sprintf("gcloud container fleet policycontroller enable --memberships=%s --no-default-bundles", membership),
 	}
 	if err := exec.RunMultiple(cmds); err != nil {
 		log.Print(err)
@@ -77,15 +75,15 @@ func installPolicyController(settings *resource.Settings) error {
 	policyControllerInstalled := false
 	reTry := 10
 	for i := 0; i < reTry; i++ {
-		status, err := exec.RunWithOutput(fmt.Sprintf(`bash -c "gcloud beta container hub config-management status --project=%s --format json"`, cs.ProjectID))
+		status, err := exec.RunWithOutput(fmt.Sprintf(`bash -c "gcloud container fleet policycontroller describe --format=json --memberships=%s"`, membership))
 		if err != nil {
-			return err
+			log.Print(err)
 		}
-		if strings.Contains(status, `"policy_controller_state": "INSTALLED"`) {
+		if strings.Contains(status, "\"code\": \"OK\"") {
 			policyControllerInstalled = true
 			break
 		}
-		time.Sleep(60 * time.Second)
+		time.Sleep(90 * time.Second)
 	}
 
 	if !policyControllerInstalled {

@@ -27,12 +27,12 @@ But with the kernel legacy/nft split, there are parallel binaries for each of th
 
 We use our `iptables` wrapper lib 4 different ways across sidecar and ambient, and in each case "which iptables binary should we use" is a question with a different answer.
 
-| Usage | Using iptables Binaries From | Networking context to select correct binary against |
-| ------------- | ------------- | ------------- |
-| from CNI plugin (sidecar) | host $PATH  | pod netns context |
-| from init container  (sidecar) | init container $PATH  | pod netns context |
-| from CNI agent (ambient) | CNI container $PATH  | pod netns context |
-| from CNI agent (ambient) | CNI container $PATH  | host netns context |
+| Usage                          | Using iptables Binaries From | Networking context to select correct binary against |
+|--------------------------------|------------------------------|-----------------------------------------------------|
+| from CNI plugin (sidecar)      | host $PATH                   | pod netns context                                   |
+| from init container  (sidecar) | init container $PATH         | pod netns context                                   |
+| from CNI agent (ambient)       | CNI container $PATH          | pod netns context                                   |
+| from CNI agent (ambient)       | CNI container $PATH          | host netns context                                  |
 
 If, for instance, the host has `iptables-legacy` and `iptables-nft` in $PATH, which should we use? We should see if rules are defined in `nft` at all and prefer that, but if no rules are in `nft` tables, and the `legacy` binary is available and rules are defined in `legacy`, we should use the `legacy` binary. If no rules are defined in either, we should use the system-default.
 
