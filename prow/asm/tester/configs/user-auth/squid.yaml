@@ -112,11 +112,13 @@ spec:
       labels:
         app: squid
     spec:
+      securityContext:
+        runAsUser: 0
       containers:
       - image: gcr.io/asm-staging-images/mirror/squid
         name: squid
         command: ['/usr/sbin/squid']
-        args: ['-f', '/etc/squid/squid.conf', '--foreground', '-YCd', '1']
+        args: ['-f', '/etc/squid/squid.conf', '--foreground']
         livenessProbe:
           exec:
             command:
@@ -128,9 +130,9 @@ spec:
         readinessProbe:
           exec:
             command:
-            - sh
-            - -exc
-            - "squidclient -T 3 mgr:info 2> /dev/null | grep -qF '200 OK'"
+            - /bin/sh
+            - -c
+            - 'apk add --no-cache curl && curl -s -o /dev/null -w "%{http_code}" http://localhost:3128/squid-internal-mgr/info | grep "200"'
           initialDelaySeconds: 5
           periodSeconds: 5
         volumeMounts:
