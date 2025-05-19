@@ -436,7 +436,10 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret1.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"EOF",
+						},
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -452,7 +455,10 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret2.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"EOF",
+						},
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -468,7 +474,10 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret3.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"EOF",
+						},
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -483,7 +492,10 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret4.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"EOF",
+						},
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -498,7 +510,10 @@ func TestMultiTlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultitlsgateway-invalidsecret5.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"EOF",
+						},
 					},
 					callType: ingressutil.TLS,
 					tlsContext: ingressutil.TLSContext{
@@ -565,7 +580,10 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultimtlsgateway-invalidsecret1.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"EOF",
+						},
 					},
 					callType: ingressutil.Mtls,
 					tlsContext: ingressutil.TLSContext{
@@ -583,7 +601,10 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultimtlsgateway-invalidsecret2.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"EOF",
+						},
 					},
 					callType: ingressutil.Mtls,
 					tlsContext: ingressutil.TLSContext{
@@ -602,7 +623,10 @@ func TestMultiMtlsGateway_InvalidSecret(t *testing.T) {
 					},
 					hostName: "testmultimtlsgateway-invalidsecret3.example.com",
 					expectedResponse: ingressutil.ExpectedResponse{
-						SkipErrorMessageVerification: true,
+						AllowedErrorMessages: []string{
+							"connection reset by peer",
+							"tls: error decrypting message",
+						},
 					},
 					callType: ingressutil.Mtls,
 					tlsContext: ingressutil.TLSContext{
