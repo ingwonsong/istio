@@ -163,6 +163,9 @@ func ProxyVersion(pod *v1.Pod) (string, bool) {
 			version = strings.Split(version, "@")[0]
 		}
 
+		// Get rid of the "-distroless" tag, if present...
+		version = strings.Split(version, "-distroless")[0]
+
 		return version, true
 	}
 	return "", false

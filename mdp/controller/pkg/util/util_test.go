@@ -162,7 +162,7 @@ func TestProxyVersion(t *testing.T) {
 					},
 				},
 			},
-			wantVersion: "1.16.7-asm.10-distroless",
+			wantVersion: "1.16.7-asm.10",
 		},
 		{
 			name: "version including @sha",
@@ -178,7 +178,7 @@ func TestProxyVersion(t *testing.T) {
 					},
 				},
 			},
-			wantVersion: "1.16.7-asm.10-distroless",
+			wantVersion: "1.16.7-asm.10",
 		},
 	}
 	for _, tt := range tests {
