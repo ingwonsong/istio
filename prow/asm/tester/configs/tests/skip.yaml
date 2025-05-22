@@ -74,6 +74,12 @@ tests:
           - TestAuthz_Conditions
         reason: relies on specific pod IP when creating authz policies
       - names:
+        - TestAuthz_CustomServer
+        reason: requires mesh config
+      - names:
+        - TestAuthz_ServiceAccount
+        reason: Newly introduced feature in 1.25, needs to be skipped because 1.24 and 1.23 does not have this feature
+      - names:
           - TestNormalization
         reason: uses ctx.Settings().Revision to modify singular CM
       - names:
