@@ -64,8 +64,8 @@ func TestCNIRaceRepair(t *testing.T) {
 			// To begin with, delete CNI Daemonset to simulate a CNI race condition.
 			// Temporarily store CNI DaemonSet, which will be deployed again later.
 			t.Log("Delete CNI Daemonset temporarily to simulate race condition")
-			cniDaemonSet := util.GetCNIDaemonSet(t, c, i.Settings().SystemNamespace)
-			util.DeleteCNIDaemonset(t, c, i.Settings().SystemNamespace)
+			cniDaemonSet := util.GetCNIDaemonSet(t, c, "kube-system")
+			util.DeleteCNIDaemonset(t, c, "kube-system")
 
 			// Rollout restart instances in the echo namespace, and wait for a broken instance.
 			t.Log("Rollout restart echo instance to get a broken instance")
