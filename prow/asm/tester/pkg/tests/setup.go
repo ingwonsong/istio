@@ -211,6 +211,8 @@ func genTopologyFile(settings *resource.Settings) error {
 				}
 			}
 			cc += fmt.Sprintf("\n  network: %s", networkID)
+		} else if len(configs) == 1 {
+			cc += fmt.Sprint("\n  network: 'network0'")
 		}
 
 		if err := topology.AddClusterConfig(cc); err != nil {
