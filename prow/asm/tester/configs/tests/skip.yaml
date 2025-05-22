@@ -58,6 +58,10 @@ tests:
     targets:
       # networking/
       - names:
+          - TestPreserveHTTPHeaderCaseConfiguration
+          - TestPreserveHTTPHeaderCase
+        buganizerID: 400741295
+      - names:
           - TestClusterLocal
         buganizerID: 207384171
       - names:
