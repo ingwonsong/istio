@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"text/template" // NOLINT
 	"time"
@@ -101,7 +102,8 @@ func newMCPCommand() *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			defer func() {
 				if r := recover(); r != nil {
-					mcpcallback.SendError(status.Error(codes.Unavailable, "server shut down unexpectedly"))
+					mcpcallback.SendError(status.Errorf(codes.Unavailable, "server shut down unexpectedly: %v", r))
+					debug.PrintStack()
 					log.Fatalf("Panic: %v", r)
 				}
 			}()
