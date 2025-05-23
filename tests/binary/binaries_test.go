@@ -109,7 +109,7 @@ func TestBinarySizes(t *testing.T) {
 		"istioctl":    {60, 205},
 		"pilot-agent": {20, 42},
 		// TODO(https://github.com/kubernetes/kubernetes/issues/101384) bump this down a bit?
-		"pilot-discovery": {60, 145},
+		"pilot-discovery": {60, 160},
 		"bug-report":      {60, 98},
 		"client":          {20, 41},
 		"server":          {20, 45},
