@@ -41,6 +41,18 @@ var (
 	multiclusterRetryDelay   = retry.Delay(500 * time.Millisecond)
 )
 
+// CSM code begin
+// This is for stripping the platform name in UCI.
+// https://docs.google.com/document/d/15TTUp_c5xZlgBhY1lj4tARzjXxgRjE4WPCANxJoOhN8/edit?tab=t.0#bookmark=id.4fks8mz8puqz
+func stripPlatformName(clName string) string {
+	if strings.Contains(clName, "/") {
+		return strings.Split(clName, "/")[1]
+	}
+	return clName
+}
+
+// CSM code end
+
 func TestClusterLocal(t *testing.T) {
 	// nolint: staticcheck
 	framework.NewTest(t).
@@ -50,11 +62,6 @@ func TestClusterLocal(t *testing.T) {
 			// TODO use echotest to dynamically pick 2 simple pods from apps.All
 			sources := apps.A
 			to := apps.B
-
-			clName := to.Config().Cluster.Name()
-			if strings.Contains(clName, "/") {
-				clName = strings.Split(clName, "/")[1]
-			}
 
 			tests := []struct {
 				name  string
@@ -81,11 +88,13 @@ kind: DestinationRule
 metadata:
   name: mysvc-dr
 spec:
-  host: {{ .host }}
+  host: {{.host}}
   subsets:
-  - name: {{ .name }}
+{{- range .dst }}
+  - name: {{ call $.stripPlatformName .Config.Cluster.Name }}
     labels:
-      topology.istio.io/cluster: {{ .name }}
+      topology.istio.io/cluster: {{ call $.stripPlatformName .Config.Cluster.Name }}
+{{- end }}
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -95,15 +104,17 @@ spec:
   hosts:
   - {{.host}}
   http:
-  - name: "{{ .name }}-local"
+{{- range .dst }}
+  - name: "{{ call $.stripPlatformName .Config.Cluster.Name }}-local"
     match:
     - sourceLabels:
-        topology.istio.io/cluster: {{ .name }}
+        topology.istio.io/cluster: {{ call $.stripPlatformName .Config.Cluster.Name }}
     route:
     - destination:
-        host: {{ .host }}
-        subset: {{ .name }}
-`, map[string]any{"src": sources, "host": to.Config().ClusterLocalFQDN(), "name": clName})
+        host: {{$.host}}
+        subset: {{ call $.stripPlatformName .Config.Cluster.Name }}
+{{- end }}
+`, map[string]any{"src": sources, "dst": to, "host": to.Config().ClusterLocalFQDN(), "stripPlatformName": stripPlatformName})
 						t.ConfigIstio().YAML(sources.Config().Namespace.Name(), cfg).ApplyOrFail(t)
 					},
 				},
