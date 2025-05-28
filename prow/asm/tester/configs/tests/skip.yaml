@@ -72,6 +72,9 @@ tests:
         - TestTraffic/virtualservice/shifting-50/.*
         - TestTraffic/virtualservice/shifting-80/.*
         reason: https://github.com/istio/istio/pull/53907
+      - names:
+        - TestGateway/tagged
+        reason: This test verifies traffic flow for a specific Istio revision (tag), which is not relevant to multi-version tests. It fails because it expects the "default" revision, which is not installed in multi-version setups (Only asm-<latest-revision> and asm-master are present).
 
     # security/
       - names:
