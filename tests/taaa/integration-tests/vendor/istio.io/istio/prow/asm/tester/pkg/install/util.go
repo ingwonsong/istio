@@ -215,7 +215,6 @@ EOF'`, context)); err != nil {
 // setting up testOverrides for MCP via AFC
 type testOverrides struct {
 	DisableIstiodJWKS bool `json:"disable_istiod_jwks"`
-	AttachToVPC       bool `json:"attach_to_vpc"`
 }
 
 // applyTestOverridesAndReprovision creates addition test overrides and then force reprovisions MCP. JwtMode is one of the examples.
@@ -223,10 +222,7 @@ func applyTestOverridesAndReprovision(settings *resource.Settings) error {
 	if !settings.MCPSettings.UseHybridModeForJWT {
 		return nil
 	}
-	testOverrides := testOverrides{
-		DisableIstiodJWKS: false,
-		AttachToVPC:       false,
-	}
+	testOverrides := testOverrides{DisableIstiodJWKS: !settings.MCPSettings.UseHybridModeForJWT}
 	testOverridesJSON, err := json.Marshal(testOverrides)
 	if err != nil {
 		return fmt.Errorf("failed to marshalling json for test_overrides struct %w", err)
