@@ -30,34 +30,31 @@ import (
 func generateTestFlags(settings *resource.Settings) ([]string, error) {
 	testFlags := []string{"--istio.test.kube.deploy=false"}
 	if settings.ControlPlane != resource.Unmanaged {
-		if !settings.FeaturesToTest.Has(string(resource.VPCSC)) {
-			testFlags = append(testFlags)
-			if settings.UseAutoCPManagement {
-				// Auto CP management determines the MCP channel from the GKE release channel.
-				// Assume if there are multiple clusters, the channels are the same.
-				revisionLabel := "asm-managed"
-				channel, err := kube.GKEClusterChannelFromContext(settings.KubeContexts[0])
-				if err == nil && channel != "" && channel != "REGULAR" {
-					revisionLabel += "-" + strings.ToLower(channel)
-				}
-				testFlags = append(testFlags,
-					"--istio.test.revision="+revisionLabel)
-			} else if settings.ControlPlane == resource.ManagedLocal {
-				testFlags = append(testFlags,
-					"--istio.test.revision=asm-managed")
-			} else {
-				testFlags = append(testFlags,
-					// install_asm will install the image to all three channels.
-					// So all the revision labels should work.
-					// However, AFC currently only installs one rapid. Change the test
-					// revision to rapid to work with both cases.
-					"--istio.test.revision=asm-managed")
+		if settings.UseAutoCPManagement {
+			// Auto CP management determines the MCP channel from the GKE release channel.
+			// Assume if there are multiple clusters, the channels are the same.
+			revisionLabel := "asm-managed"
+			channel, err := kube.GKEClusterChannelFromContext(settings.KubeContexts[0])
+			if err == nil && channel != "" && channel != "REGULAR" {
+				revisionLabel += "-" + strings.ToLower(channel)
 			}
+			testFlags = append(testFlags,
+				"--istio.test.revision="+revisionLabel)
+		} else if settings.ControlPlane == resource.ManagedLocal {
+			testFlags = append(testFlags,
+				"--istio.test.revision=asm-managed")
 		} else {
 			testFlags = append(testFlags,
-				// TODO(b/208667932) VPC-SC does not run using latest config
-				"--istio.test.revisions=asm-managed=1.11.2")
+				// install_asm will install the image to all three channels.
+				// So all the revision labels should work.
+				// However, AFC currently only installs one rapid. Change the test
+				// revision to rapid to work with both cases.
+				"--istio.test.revision=asm-managed")
 		}
+	} else {
+		testFlags = append(testFlags,
+			// TODO(b/208667932) VPC-SC does not run using latest config
+			"--istio.test.revisions=asm-managed=1.11.2")
 	}
 
 	// multicloud settings

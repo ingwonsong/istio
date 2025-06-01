@@ -163,8 +163,17 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 		return fmt.Errorf("error setting gke hub endpoint to staging: %w", err)
 	}
 
+	for _, context := range c.settings.KubeContexts {
+		if err := exec.Run(fmt.Sprintf("kubectl create ns istio-system --context=%s", context)); err != nil {
+			return fmt.Errorf("failed to create istio-system namespace: %w", err)
+		}
+		if err := initializeASMOptionsForAFC(context, cloudRunImage(), c.settings); err != nil {
+			return fmt.Errorf("failed to initialize asm-options ConfigMap: %w", err)
+		}
+	}
+
 	// Use the first project as the fleet project.
-	fleetProject := c.settings.GCPProjects[0]
+	fleetProject := c.settings.ClusterGCPProjects[0]
 	projectNumber, err := gcp.GetProjectNumber(fleetProject)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve GCP project number for %s: %w", fleetProject, err)
@@ -277,20 +286,13 @@ func (c *installer) installAutomaticManagedControlPlane(rev *revision.Config) er
 		if err := exec.Run("kubectl apply -f tools/packaging/knative/gateway -n istio-system --context=" + context); err != nil {
 			return fmt.Errorf("error installing injected-gateway: %w", err)
 		}
-		// Override CRD to 1.14
-		if err := exec.Run("kubectl apply -f manifests/charts/base/files/crd-all.gen.yaml -n istio-system --context=" + context); err != nil {
-			return fmt.Errorf("error installing 1.14 CRD: %w", err)
-		}
 	}
 
-	if err := createRemoteSecretsManaged(c.settings); err != nil {
-		return fmt.Errorf("failed to enable managed multicluster: %w", err)
+	asmOptionsConfigMap, err := exec.RunWithOutput("kubectl get configmap asm-options -n istio-system -oyaml")
+	log.Printf("Dumping asm-options ConfigMap:\n%s\n", asmOptionsConfigMap)
+	if err != nil {
+		log.Printf("failed to get asm-options configmap: %v", err)
 	}
-
-	if err := applyTestOverridesAndReprovision(c.settings); err != nil {
-		return fmt.Errorf("failed to add the testOverrides: %w", err)
-	}
-
 	return nil
 }
 

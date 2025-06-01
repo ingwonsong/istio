@@ -190,6 +190,35 @@ func createRemoteSecrets(settings *resource.Settings, rev *revision.Config, scri
 	return nil
 }
 
+func initializeASMOptionsForAFC(context, image string, settings *resource.Settings) error {
+	// TODO(samnaser) remove CROSS_CLUSTER_SERVICE_DISCOVERY once it's removed.
+	cm := fmt.Sprintf(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: asm-options
+  namespace: istio-system
+data:
+  "CROSS_CLUSTER_SERVICE_DISCOVERY": "on"
+  "multicluster_mode": "connected"
+  "testonly_migration_stage": "MIGRATION_STAGE_UNSPECIFIED"
+  "testonly_custom_image": %s
+  "testonly_crd_management_skipped": "true"
+`, image)
+
+	if settings.MCPSettings.UseHybridModeForJWT {
+		value, err := testOverrideValue()
+		if err != nil {
+			return err
+		}
+		cm += fmt.Sprintf(`  "test_overrides": %s`, value) + "\n"
+	}
+
+	log.Printf("Initializing asm-options ConfigMap\n%s", cm)
+
+	return exec.Run(fmt.Sprintf(`bash -c 'cat <<EOF | kubectl --context=%s apply --server-side --field-manager mmc -f - %sEOF'`, context, cm))
+}
+
 // createRemoteSecretsManaged uses the declarative API to create remote secrets for clusters.
 func createRemoteSecretsManaged(settings *resource.Settings) error {
 	for _, context := range settings.KubeContexts {
@@ -218,27 +247,35 @@ type testOverrides struct {
 	AttachToVPC       bool `json:"attach_to_vpc"`
 }
 
-// applyTestOverridesAndReprovision creates addition test overrides and then force reprovisions MCP. JwtMode is one of the examples.
-func applyTestOverridesAndReprovision(settings *resource.Settings) error {
-	if !settings.MCPSettings.UseHybridModeForJWT {
-		return nil
-	}
+func testOverrideValue() (string, error) {
 	testOverrides := testOverrides{
 		DisableIstiodJWKS: false,
 		AttachToVPC:       false,
 	}
 	testOverridesJSON, err := json.Marshal(testOverrides)
 	if err != nil {
-		return fmt.Errorf("failed to marshalling json for test_overrides struct %w", err)
+		return "", fmt.Errorf("failed to marshalling json for test_overrides struct %w", err)
 	}
 	escapedJSON, err := json.Marshal(string(testOverridesJSON))
 	if err != nil {
-		return fmt.Errorf("failed to marshalling json for test_overrides json object %w", err)
+		return "", fmt.Errorf("failed to marshalling json for test_overrides json object %w", err)
 	}
+	return string(escapedJSON), nil
+}
+
+// applyTestOverridesAndReprovision creates addition test overrides and then force reprovisions MCP. JwtMode is one of the examples.
+func applyTestOverridesAndReprovision(settings *resource.Settings) error {
+	if !settings.MCPSettings.UseHybridModeForJWT {
+		return nil
+	}
+
+	value, err := testOverrideValue()
+	if err != nil {
+		return err
+	}
+
 	for _, context := range settings.KubeContexts {
-		if err := exec.Run(fmt.Sprintf(`kubectl --context=%s patch configmap asm-options -n istio-system --type merge -p '{"data":{"test_overrides":%s}}'`,
-			context,
-			string(escapedJSON))); err != nil {
+		if err := exec.Run(fmt.Sprintf(`kubectl --context=%s patch configmap asm-options -n istio-system --type merge -p '{"data":{"test_overrides":%s}}'`, context, value)); err != nil {
 			return fmt.Errorf("failed to update the asm-options config map with testOverrides for context %q: %w", context, err)
 		}
 	}

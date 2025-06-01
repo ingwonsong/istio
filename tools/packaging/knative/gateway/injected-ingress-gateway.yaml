@@ -19,6 +19,10 @@ spec:
  - port: 31400
    targetPort: 31400
    name: tcp
+ - name: status-port
+   protocol: TCP
+   port: 15021
+   targetPort: 15021
 
 ---
 apiVersion: apps/v1
