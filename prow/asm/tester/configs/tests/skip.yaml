@@ -443,6 +443,14 @@ tests:
           - TestGateway/managed
         buganizerID: 280813509
       - names:
+          - TestGateway/tagged
+        buganizerID: 421429567
+      - names:
+          - TestXfccHeader
+          - TestPreserveHTTPHeaderCase
+          - TestPreserveHTTPHeaderCaseConfiguration
+        buganizerID: 421478151
+      - names:
           - TestGateway/unmanaged/primary.*/tcp
         buganizerID: 288388785
       - names:
