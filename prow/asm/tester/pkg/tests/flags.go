@@ -51,10 +51,6 @@ func generateTestFlags(settings *resource.Settings) ([]string, error) {
 				// revision to rapid to work with both cases.
 				"--istio.test.revision=asm-managed")
 		}
-	} else {
-		testFlags = append(testFlags,
-			// TODO(b/208667932) VPC-SC does not run using latest config
-			"--istio.test.revisions=asm-managed=1.11.2")
 	}
 
 	// multicloud settings
