@@ -446,6 +446,9 @@ tests:
           - TestGateway/tagged
         buganizerID: 421429567
       - names:
+          - TestGatewayAPIRequestAuthentication
+        buganizerID: 421659745
+      - names:
           - TestXfccHeader
           - TestPreserveHTTPHeaderCase
           - TestPreserveHTTPHeaderCaseConfiguration
