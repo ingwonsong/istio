@@ -275,7 +275,7 @@ func ApplyMeshConfig(yaml string, defaultConfig *meshconfig.MeshConfig) (*meshco
 	}
 	if asm.IsCloudRun() {
 		if err = mcpValidateMeshConfig(defaultConfig); err != nil {
-			return nil, err
+			log.Warnf("found unsupported configurations during mesh validation: %v", err)
 		}
 	}
 

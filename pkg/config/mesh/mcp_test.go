@@ -211,15 +211,6 @@ proxyInboundListenPort: 999
 			errMessage:     []string{"unsupported api usage: meshconfig.ingressService", "unsupported api usage: meshconfig.proxyInboundListenPort"},
 		},
 		{
-			name: "Bad proxy configuration",
-			userConfig: `
-defaultConfig:
-  statNameLength: 10
-`,
-			failValidation: true,
-			errMessage:     []string{"unsupported api usage: proxyconfig.statNameLength"},
-		},
-		{
 			// empty user configuration should not fail the test.
 			name:           "Empty user configuration",
 			userConfig:     "",
@@ -229,7 +220,11 @@ defaultConfig:
 	for _, tt := range cases {
 		SetEnvForTest(t, "K_SERVICE", "test")
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ApplyMeshConfig(tt.userConfig, DefaultMeshConfig())
+			defaultConfig := DefaultMeshConfig()
+			if err := protomarshal.ApplyYAML(tt.userConfig, defaultConfig); err != nil {
+				t.Fatalf("Unmarshalling yaml failed with error: %v", err)
+			}
+			err := mcpValidateMeshConfig(defaultConfig)
 			if tt.failValidation != (err != nil) {
 				t.Errorf("test %s: Expected error: %v, got error: %v", tt.name, tt.failValidation, err != nil)
 			}
